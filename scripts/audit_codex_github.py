@@ -11,11 +11,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Iterable
+
+if __package__:
+    from .task_checkpoint_path import checkpoint_path
+else:
+    from task_checkpoint_path import checkpoint_path
 
 PROFILE_DEFAULT = ".github/codex-repository.json"
 AGENTS_SOFT_LIMIT_BYTES = 24 * 1024
@@ -543,6 +549,8 @@ def _audit_task_states(
     root: Path,
     profile: dict[str, Any],
     findings: list[dict[str, object]],
+    task_branch: str | None,
+    task_id: str | None,
 ) -> None:
     if "task_state_dir" not in profile:
         return
@@ -580,6 +588,46 @@ def _audit_task_states(
             )
         )
         return
+
+    if task_id and not task_branch:
+        findings.append(
+            finding(
+                "error",
+                "continuity.task-state.branch-missing",
+                "An active task ID was supplied without an active branch.",
+                relative,
+            )
+        )
+    elif task_branch and task_id:
+        expected = state_dir / Path(checkpoint_path(task_branch, task_id)).name
+        if not expected.is_file():
+            findings.append(
+                finding(
+                    "error",
+                    "continuity.task-state.current-missing",
+                    f"The active task checkpoint for {task_branch!r} and {task_id!r} is missing.",
+                    str(expected.relative_to(root)),
+                )
+            )
+    elif task_branch and task_branch not in {"main", "master"}:
+        # A local run without a task ID can still detect a new branch with no
+        # checkpoint. CI supplies the stable PR ID for an exact path check.
+        marker = f"- Branch: `{task_branch}`."
+        declared = False
+        for path in state_dir.glob("*.md"):
+            try:
+                declared |= marker in path.read_text(encoding="utf-8")
+            except (OSError, UnicodeError):
+                continue
+        if not declared:
+            findings.append(
+                finding(
+                    "error",
+                    "continuity.task-state.current-missing",
+                    f"No checkpoint declares the active branch {task_branch!r}.",
+                    relative,
+                )
+            )
 
     for path in sorted(state_dir.glob("*.md")):
         try:
@@ -1734,9 +1782,30 @@ def _audit_unsafe_filenames(
 def audit_repository(
     root: Path | str,
     profile_relative: str = PROFILE_DEFAULT,
+    *,
+    task_branch: str | None = None,
+    task_id: str | None = None,
 ) -> list[dict[str, object]]:
     root_path = Path(root).resolve()
     findings: list[dict[str, object]] = []
+
+    if task_branch is None:
+        task_branch = os.environ.get("GITHUB_HEAD_REF")
+        if not task_branch and (root_path / ".git").exists():
+            try:
+                result = subprocess.run(
+                    ["git", "-C", str(root_path), "branch", "--show-current"],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+            except OSError:
+                pass
+            else:
+                if result.returncode == 0:
+                    task_branch = result.stdout.strip() or None
+    if task_id is None:
+        task_id = os.environ.get("UDA_TASK_ID")
 
     if not root_path.is_dir():
         return [
@@ -1759,7 +1828,7 @@ def audit_repository(
 
     if profile is not None:
         _audit_current_state(root_path, profile, findings)
-        _audit_task_states(root_path, profile, findings)
+        _audit_task_states(root_path, profile, findings, task_branch, task_id)
         _audit_software(root_path, files, profile, workflows, findings)
         _audit_policy(profile, findings)
         _audit_public_and_risk_controls(files, profile, findings)
@@ -1811,6 +1880,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help=f"Profile path relative to root (default: {PROFILE_DEFAULT})",
     )
     parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument("--task-branch", help="active task branch (defaults to GitHub PR head or local branch)")
+    parser.add_argument("--task-id", help="stable active task ID (defaults to UDA_TASK_ID)")
     parser.add_argument(
         "--fail-on",
         choices=("error", "warning", "never"),
@@ -1822,7 +1893,9 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv if argv is not None else sys.argv[1:])
-    findings = audit_repository(Path(args.root), args.profile)
+    findings = audit_repository(
+        Path(args.root), args.profile, task_branch=args.task_branch, task_id=args.task_id
+    )
 
     if args.format == "json":
         print(json.dumps({"findings": findings}, indent=2, sort_keys=True))

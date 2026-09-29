@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
-"""Derive the task checkpoint path from a Git branch name."""
+"""Derive a portable checkpoint path from a branch and stable task ID."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
-from urllib.parse import quote
 
 
-def checkpoint_path(branch: str) -> str:
-    encoded = quote(branch, safe="")
-    if len(encoded) + len(".md") > 255:
-        # Git branch names cannot contain "~", so this cannot alias an encoded name.
-        encoded = "~" + hashlib.sha256(branch.encode("utf-8")).hexdigest()
-    return f"state/tasks/{encoded}.md"
+def checkpoint_path(branch: str, task_id: str) -> str:
+    if not branch or not task_id:
+        raise ValueError("branch and task ID must not be empty")
+    digest = hashlib.sha256(f"{branch}\0{task_id}".encode("utf-8")).hexdigest()
+    return f"state/tasks/task-{digest}.md"
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("branch", help="exact Git branch name")
+    parser.add_argument("task_id", help="stable unique ID for this task, such as pr-281")
     args = parser.parse_args()
-    if not args.branch:
-        parser.error("branch name must not be empty")
-    print(checkpoint_path(args.branch))
+    try:
+        print(checkpoint_path(args.branch, args.task_id))
+    except ValueError as exc:
+        parser.error(str(exc))

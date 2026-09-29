@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import sys
 import tempfile
 import textwrap
 import unittest
 from pathlib import Path
 
 from scripts.audit_codex_github import audit_repository
+from scripts.task_checkpoint_path import checkpoint_path
 
 
 class RepositoryAuditTests(unittest.TestCase):
@@ -272,6 +275,46 @@ class RepositoryAuditTests(unittest.TestCase):
         ))
         findings = audit_repository(self.root)
         self.assertNotIn("continuity.task-state.incomplete", self.codes(findings))
+
+    def test_missing_active_task_checkpoint_is_an_error_despite_historical_files(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(task_state_dir="state/tasks")
+        self.write("state/tasks/old.md", "# Current State\n\n- Branch: `team/work`.\n")
+        findings = audit_repository(self.root, task_branch="team/work", task_id="pr-281")
+        self.assertEqual(
+            {"error"}, self.severities(findings, "continuity.task-state.current-missing")
+        )
+        self.assertIn(checkpoint_path("team/work", "pr-281"), {
+            str(item["path"]) for item in findings
+            if item["code"] == "continuity.task-state.current-missing"
+        })
+
+    def test_pr_audit_command_fails_for_missing_active_checkpoint(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(task_state_dir="state/tasks")
+        self.write("state/tasks/old.md", "# Current State\n\n- Branch: `team/work`.\n")
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(Path(__file__).resolve().parents[1] / "scripts" / "audit_codex_github.py"),
+                "--root", str(self.root), "--fail-on", "error",
+            ],
+            env={**os.environ, "GITHUB_HEAD_REF": "team/work", "UDA_TASK_ID": "pr-281"},
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(1, result.returncode, result.stdout)
+        self.assertIn("continuity.task-state.current-missing", result.stdout)
+
+    def test_local_audit_fails_when_new_branch_has_no_checkpoint(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(task_state_dir="state/tasks")
+        self.write("state/tasks/old.md", "# Current State\n\n- Branch: `team/old`.\n")
+        findings = audit_repository(self.root, task_branch="team/new")
+        self.assertEqual(
+            {"error"}, self.severities(findings, "continuity.task-state.current-missing")
+        )
 
     def test_task_state_directory_must_stay_inside_repository(self) -> None:
         self.add_minimal_repository_files()

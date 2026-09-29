@@ -30,10 +30,11 @@ Updated: 2026-09-29
 
 ## Task checkpoints
 
-- Each task has one file in `state/tasks/`. The path helper percent encodes
-  short branch names and hashes long ones. Start from `templates/CURRENT-STATE.md`.
+- Each task has one file in `state/tasks/`. Assign a stable unique task ID;
+  use `pr-<number>` for a pull request. The helper hashes the exact branch and
+  task ID into a portable filename. Start from `templates/CURRENT-STATE.md`.
 - Read the path printed by
-  `python3 scripts/task_checkpoint_path.py "$(git branch --show-current)"`.
+  `python3 scripts/task_checkpoint_path.py "$(git branch --show-current)" "<task-id>"`.
 - A task edits only its own checkpoint. Edit this entry point only when
   repository-level state changes; keep completed task files after merge.
 

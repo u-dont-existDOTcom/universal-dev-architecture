@@ -5,7 +5,6 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from urllib.parse import unquote
 
 from scripts.task_checkpoint_path import checkpoint_path
 
@@ -14,23 +13,21 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class TaskCheckpointPathTests(unittest.TestCase):
-    def test_distinct_branch_names_have_distinct_reversible_paths(self) -> None:
-        branches = ("team/foo", "team-foo", "team%2Ffoo")
-        paths = [checkpoint_path(branch) for branch in branches]
-        self.assertEqual(len(branches), len(set(paths)))
-        self.assertEqual("state/tasks/team%2Ffoo.md", paths[0])
-        self.assertEqual("state/tasks/team-foo.md", paths[1])
-        self.assertEqual("state/tasks/team%252Ffoo.md", paths[2])
-        self.assertEqual(list(branches), [unquote(Path(path).stem) for path in paths])
+    def test_reused_and_case_distinct_branches_have_distinct_paths(self) -> None:
+        identities = (("team/Foo", "pr-1"), ("team/Foo", "pr-2"), ("team/foo", "pr-1"))
+        paths = [checkpoint_path(branch, task_id) for branch, task_id in identities]
+        self.assertEqual(len(identities), len({path.casefold() for path in paths}))
+        self.assertTrue(all(Path(path).name == Path(path).name.lower() for path in paths))
+        self.assertEqual(paths[0], checkpoint_path("team/Foo", "pr-1"))
 
-    def test_documented_lookup_command_prints_the_encoded_path(self) -> None:
+    def test_documented_lookup_command_prints_the_task_path(self) -> None:
         result = subprocess.run(
-            [sys.executable, str(ROOT / "scripts" / "task_checkpoint_path.py"), "team/foo"],
+            [sys.executable, str(ROOT / "scripts" / "task_checkpoint_path.py"), "team/foo", "pr-1"],
             check=True,
             capture_output=True,
             text=True,
         )
-        self.assertEqual("state/tasks/team%2Ffoo.md", result.stdout.strip())
+        self.assertEqual(checkpoint_path("team/foo", "pr-1"), result.stdout.strip())
 
     def test_readme_directs_readers_to_the_checkpoint_path_helper(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -47,7 +44,7 @@ class TaskCheckpointPathTests(unittest.TestCase):
                 check=True,
                 capture_output=True,
             )
-        paths = [Path(checkpoint_path(branch)) for branch in branches]
+        paths = [Path(checkpoint_path(branch, "pr-1")) for branch in branches]
         self.assertNotEqual(paths[0], paths[1])
         with tempfile.TemporaryDirectory() as directory:
             for path in paths:
@@ -58,7 +55,7 @@ class TaskCheckpointPathTests(unittest.TestCase):
 
     def test_gpt6_sol_checkpoint_is_at_its_declared_branch_path(self) -> None:
         branch = "claude/gpt-6-sol-work-default-20260929"
-        path = ROOT / checkpoint_path(branch)
+        path = ROOT / checkpoint_path(branch, "pr-280")
         self.assertTrue(path.is_file())
         self.assertIn(f"- Branch: `{branch}`.", path.read_text(encoding="utf-8"))
 
