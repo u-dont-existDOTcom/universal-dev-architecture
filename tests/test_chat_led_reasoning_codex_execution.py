@@ -71,6 +71,33 @@ class ChatLedReasoningCodexExecutionTests(unittest.TestCase):
         self.assertIsNone(prohibited["scientificAdequacy"])
         self.assertIsNone(prohibited["ownerOutcomeAchieved"])
 
+    def test_receipt_work_profile_matches_source_directive(self) -> None:
+        directive = json.loads(
+            (ROOT / "templates" / "CHAT-TO-CODEX-EXECUTION-DIRECTIVE.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        receipt = json.loads(
+            (ROOT / "templates" / "CODEX-EXECUTION-RECEIPT.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        authorized = directive["workExecutionProfile"]
+        execution = receipt["workExecution"]
+        for name in ("requestedProfile", "authorizedProfile", "finalProfile"):
+            with self.subTest(profile=name):
+                self.assertEqual(execution[name], authorized)
+        self.assertEqual(
+            execution["appliedSelection"]["model"],
+            {"GPT_5_6_SOL": "gpt-5.6-sol", "GPT_6_SOL": "gpt-6-sol", "GPT_6_ASTRA": "gpt-6-astra"}[
+                authorized["model"]
+            ],
+        )
+        self.assertEqual(
+            execution["appliedSelection"]["thinking"],
+            authorized["effort"].lower(),
+        )
+
     def test_articles_self_supervision_fixture_fails(self) -> None:
         fixture = json.loads(
             (
