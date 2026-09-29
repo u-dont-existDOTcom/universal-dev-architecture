@@ -5,91 +5,77 @@ records actual accounts, hosts, service IDs, machine paths, private locator
 attestations, or live topology. Portable rules remain in `patterns/` and
 `templates/`; no owner secret or private locator belongs here.
 
-Updated: 2026-09-28
+Updated: 2026-09-29
 
 ## Goal
 
-- Owner instruction (2026-09-28): agents consult each other directly instead of
-  assuming things about each other or making the owner carry messages between
-  them. Record the rule in this architecture.
-- Parent outcome: **OPEN** until the pull request passes review and merges.
-  The owner has approved merges when review is clean and no tradeoff needs his
-  decision.
+- Merge pull request #277 (the journal Claude worker and usage meter). Its
+  review rounds are complete: eight fix rounds, with one minor finding deferred
+  in a pull-request comment. The branch conflicted with `main` after the
+  agent-to-agent consultation rule (#279) merged; this checkpoint records the
+  merge of `main` into the branch.
+- Parent outcome: **OPEN** until the pull request merges.
 
 ## Authority / baseline
 
-- Canonical repository: `u-dont-existDOTcom/universal-dev-architecture`.
-- Branch: `claude/agent-to-agent-consultation-20260928`, from `main` at
-  `7475dd3`.
-- Active assurance lane: **release**, because the change adds a root route and
-  goes to a merge.
-
-## Review finding disposition
-
-- Codex review at `5a12bc3`: **ACCEPTED** — capability/configuration receipts
-  omitted Rule 1's exact runtime tuple and applicable paired-test evidence.
-  The receipt rule and example now require both; a focused regression covers it.
-- Codex review at `5a12bc3`: **ACCEPTED** — gate evidence pointed to a pull
-  request that the checkpoint said was unopened and omitted status/counts.
-  Gate evidence is now durable in this file; a focused regression covers it.
-- Codex review at `7703d8a`: **ACCEPTED** — the receipt example treated
-  requested model and effort as effective identity without readback. The
-  receipt now separates requested values from unknown effective values; a
-  regression failed before the fix and passed after it.
-- Codex review at `4854309`: **ACCEPTED** — `-C` and `read-only` do not confine
-  reads. The Codex route now requires an external filesystem boundary or is
-  unavailable; a new regression failed before the fix and passed after it.
-- Codex review at `4854309`: **ACCEPTED** — no separate consultation executor
-  may exist. The unavailable path now leaves the scoped claim unresolved and
-  holds only dependent work; a new regression failed before the fix and passed.
-- Codex review at `4854309`: **ACCEPTED** — the checkpoint called a committed
-  repair uncommitted. It now identifies the committed revision; a new
-  regression failed before the fix and passed after it.
-- Codex review at `59b850b`: **ACCEPTED** — its three repairs were committed,
-  but the checkpoint and handoff still called them uncommitted. The cited
-  `d4ddee9` is unavailable here; `59b850b` is the verified local revision.
-
-## Preserved architecture boundaries
-
+- Branch `claude/mc-journal-claude-worker-20260928`, head `8b7c9fb` before
+  the merge of `main` (`e1ba407`).
+- Active assurance lane: **release**: the owner approved merging when review
+  allows. Deployment stays owner-gated.
 - Chat → Work requires explicit user acceptance; Work ↔ Work uses native
   Work-internal coordination; Work → the originating Chat is unavailable.
   Mission Control's autonomous control-plane routing of supervision and
-  escalation does not create a native return edge or transfer semantic
-  reasoning authority.
-- Production promotion is not authorized by this change. A consultation adds
-  no authority; merge, deployment, spending and access gates stay where they
-  are.
-- Coverage-before-depth completion references remain active in
-  `patterns/coverage-before-depth-in-selection.md`,
+  escalation does not create a native return edge.
+- Production promotion is not authorized from this workspace.
+
+## Active lesson contract
+
+- **Privacy:** persist only opaque work IDs, attempt numbers, and expiry
+  timestamps; never packet, answer, Claude `result`, or `session_id`.
+- **Retry/state ownership:** persist the consumed attempt before invoking Claude,
+  retain it through failed listings and usage backoff, and exhaust an unanswered
+  item after its second invocation. Clear markers on answer, disappearance, or
+  expiry; conservatively exhaust legacy markers with no attempt count.
+- **Verification:** show the new regression red at the reviewed code and green
+  after repair; run the touched Node file, static checks, non-socket Python
+  tests, and deterministic audit. Leave local-socket coverage to CI.
+
+## Review finding disposition
+
+- **Hit-limit finding — valid.** The reviewed classifier recognized `usage limit`
+  and `limit reached` but missed Claude's `You've hit your limit`. Its reset
+  parser also missed `resets 3pm`. The worker retried immediately and exhausted
+  the item instead of pausing the queue.
+- The new two-item regression was red before repair (`ERROR` instead of
+  `LIMITED`). The worker now recognizes `hit your limit`, parses the next local
+  am/pm reset time, and retains the ISO and backoff paths. The regression is
+  green: one Claude invocation across two passes, pause until local 3pm, one
+  limit event, and no private result in persisted state.
+- Prior attempt-budget repair at `6af37bb` persisted `{work_id, attempt}` before
+  invocation and prevented a transient listing failure from resetting the two
+  invocation budget. Its regression remains green.
+- Preserve the active completion gate: `patterns/coverage-before-depth-in-selection.md`,
   `audits/2026-08-21-askrigor-coverage-before-depth-promotion.md`, and
   `tests/test_coverage_before_depth_pattern.py`.
 
-## Completed
-
-- Added `patterns/agent-to-agent-consultation.md`: scope every claim about
-  another agent to its runtime, settle it in that runtime, consult the other
-  agent directly with at most one reconciliation round, and treat a relayed
-  message as a missed route.
-- Routed it from root `AGENTS.md`, `LESSON-INDEX.md` (entry 58) and
-  `docs/INDEX.md`.
-- Added `tests/test_agent_to_agent_consultation_pattern.py`.
-- Used the Claude → Codex route once in the owner's runner (observed): Codex's
-  answer on reading back a run's model matched a direct test. The test also
-  showed that the read-only sandbox blocks the network of Codex's commands but
-  not its hosted web search; the route now adds `-c web_search="disabled"`,
-  which a runner test confirmed removes web search.
-- Added the review regressions to
-  `tests/test_agent_to_agent_consultation_pattern.py` and
-  `tests/test_current_state_concision.py`.
-- Repaired the setter-only consultation receipt and added its regression test.
-
 ## Current checkpoint
 
-- `59b850b` is the latest durable boundary here. It contains the three repairs
-  from the review of `4854309`; the earlier `7703d8a` repair was committed as
-  `4854309`. This round changes only the checkpoint and regression.
-  CI must run the exact full Python gate because an existing test opens a
-  localhost socket blocked by this sandbox.
+- `main` at `e1ba407` is merged into the branch head `8b7c9fb`. Conflicts were
+  only in this file and `tests/test_current_state_concision.py`. That test file
+  keeps its general checks (concision, gate evidence with status and counts)
+  and drops three tests that pinned one task's checkpoint wording and commit
+  IDs; every later task rewrites this file, so those tests could never hold.
+- Next: Codex review of the merge head, then merge.
+
+## Completed
+
+- Hit-limit repair and the earlier attempt-budget repair, with regressions
+  that were red before repair and green after (see the disposition above).
+- Merged `main` and resolved the two conflicts described in the checkpoint.
+
+## Remaining
+
+- Codex review of the merge head, then merge.
 
 ## Blockers / unresolved
 
@@ -97,22 +83,10 @@ Updated: 2026-09-28
 
 ## Evidence / artifacts
 
-- Prior review round: 3 regressions failed before repair (7 failures across
-  12 tests), then **PASS** — 12 focused tests, 0 failures, 0 errors.
-- Prior revision's socket-free Python discovery: **PASS** — 478 tests, 0 failures, 0 errors;
-  excluded only the existing localhost-server test without changing it.
-- Checkpoint regression: **EXPECTED FAIL** before repair (1 failure in 4 tests);
-  **PASS** after repair (4 tests, 0 failures, 0 errors).
-- `python3 -m unittest discover -s tests -v`: **UNVERIFIED** — counts unavailable
-  for the exact command on this revision in the socket-denying sandbox; CI pending.
+- `python3 -m unittest discover -s tests -v`: **PASS** — 478 tests run on the merge head outside any sandbox, 0 failures, 0 errors.
 - `python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS** — 0 errors, 0 warnings, 0 findings.
-
-## Remaining
-
-- Publish the checkpoint correction/regression if pending; run the exact Python
-  gate in CI, obtain Codex re-review, and merge.
+- Relay `npm test` in `tools/codex-mission-control/vps-browser-relay`: **PASS** — 443 tests, 0 failures.
 
 ## Next safe action
 
-- Reconcile Git state. If the checkpoint correction/regression is uncommitted,
-  the runner commits and pushes it; otherwise continue with CI and re-review.
+- Wait for the Codex review of the merge head; the shepherd merges it when the review allows.

@@ -118,6 +118,27 @@ runner fails closed with `JOURNAL_CONTROLS_UNCALIBRATED` rather than assuming a
 page label. `freshChatThreshold` is the total number of fresh conversations
 allowed for one work item, including its initial conversation.
 
+### Hardest journal lane and status page
+
+`npm run journal-claude` performs one disabled-by-default, content-free pass
+over the oldest eligible `hardest` dispatch. It starts Claude Code in a new
+empty temporary directory with only the configured journal MCP server and its
+two packet/result tools enabled. Completion still comes only from the refreshed
+dispatch listing. The worker records allowlisted usage counts and Claude Code's
+USD cost equivalent (not a subscription charge), never packet or result text.
+
+The standard and hardest lanes share `MC_JOURNAL_IMPORT_LOCK_FILE`, so only one
+import command runs at a time. The Claude lane additionally holds its own
+one-pass worker lock and does nothing unless `MC_JOURNAL_CLAUDE_ENABLED=1`.
+Its private environment supplies `CLAUDE_CODE_OAUTH_TOKEN`, created by the
+owner with `claude setup-token`; the worker never writes or logs that token.
+
+`npm run mc-status` serves the allowlisted journal/Claude status fields on
+`127.0.0.1` at `MC_STATUS_PORT` (default `8787`). The adjacent systemd user
+unit is an installation example. From the owner's laptop,
+`scripts/mc-status-tunnel.sh <ssh-host>` opens a local SSH tunnel and prints
+the loopback address.
+
 The controller-mediated route is an explicit, one-cycle command path. It uses
 GitHub as the only semantic mailbox. Its owner-only restart ledger stores exact
 target/window/session identities, send boundaries, immutable comment identities,
