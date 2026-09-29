@@ -10,8 +10,9 @@ Updated: 2026-09-29
 ## Goal
 
 - Owner decision on 2026-09-28: switch UDA's Work Sol ladder to GPT-6 Sol.
-- The GPT-6 Sol policy switch and prior review repairs are committed at
-  `a3d3290`. This review remains **OPEN** pending CI, review, and merge.
+- The GPT-6 Sol policy switch and prior review repairs are committed in the
+  squashed PR commit `6079892`. This review remains **OPEN** pending CI, review,
+  and merge.
   Runtime activation is a separate follow-up after availability checks.
 
 ## Authority / baseline
@@ -37,9 +38,9 @@ Updated: 2026-09-29
   The finding's ancestry claim refers to `f03da30`, absent from this checkout;
   actual reviewed commit `53219c2` has parents `1b78d3c` and `8eae0dc`.
   Per owner instruction, no test pins this checkpoint's wording or commit IDs.
-- Review of `a3d3290` correctly found that the checkpoint lagged committed
-  work. The cited `ec9672b` is absent from this checkout; `a3d3290` is the
-  verified committed boundary, with `53219c2` as its parent.
+- Review of `b765c98` found that the checkpoint still named the earlier local
+  history. The squashed PR commit `6079892` has `8eae0dc` as its sole parent;
+  neither `a3d3290` nor `53219c2` is in its ancestry.
 
 ## Preserved architecture boundaries
 
@@ -72,12 +73,10 @@ Updated: 2026-09-29
 
 ## Current checkpoint
 
-- Last verified durable boundary: reviewed commit
-  `a3d3290bb08c611e302b0cc860e8243c3e6da099`, whose parent is the
-  `53219c2` merge. Only this checkpoint correction is in the working tree.
-- The merge also restores two checks this branch had dropped: the recovery
-  state keeps the Work topology boundaries, the production-promotion boundary
-  and the coverage-before-depth completion references. They are durable
+- Last durable PR boundary: squashed commit `6079892` (sole parent `8eae0dc`),
+  per current review evidence. The object is absent from this local checkout.
+- The recovery state keeps the Work topology boundaries, the production-promotion
+  boundary and the coverage-before-depth completion references. They are durable
   requirements carried by every checkpoint, not one round's wording.
 - Next: runner commits and pushes this checkpoint correction; CI runs the
   socket-dependent test and exact full Python gate, then review and merge.
@@ -89,18 +88,17 @@ Updated: 2026-09-29
 ## Evidence / artifacts
 
 - `python3 -m unittest discover -s tests -v`: **UNVERIFIED** counts unavailable
-  for the exact gate in this socket-free sandbox. Filtered discovery passed
-  481 non-socket tests; CI must run the localhost HTTP-server test.
+  for the exact gate in this socket-free sandbox. This round's filtered discovery
+  passed 481 non-socket tests; CI must run the localhost HTTP-server test.
 - `python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS** — 0 errors, 0 warnings, 0 findings on this round's working tree.
 - `python3 scripts/uda_rule_graph.py validate`: **PASS** — 37 graph nodes,
   9 task-time rules, 0 errors.
 - Root `AGENTS.md`: 23,321 bytes, below the 32 KiB discovery budget.
 - Prior round: GPT-5.6 reviewer regression failed before the fix and passed
-  afterward (6 focused tests); 3 focused checkpoint tests pass. Full discovery
-  attempted 482 tests before the checkpoint receipt correction: one socket
-  error and one now-fixed receipt failure. No sandbox-driven test-source change.
-- Test-cost telemetry uses `/tmp`: about 5.5s observed test time; no redundant
-  green reruns.
+  afterward (6 focused tests). This round's 3 focused checkpoint tests pass.
+  Full discovery attempted 482 tests before the checkpoint receipt correction:
+  one socket error and one now-fixed receipt failure. No sandbox-driven test-source change.
+- This round's test-cost telemetry uses `/tmp`; no redundant green reruns.
 
 ## Remaining
 
