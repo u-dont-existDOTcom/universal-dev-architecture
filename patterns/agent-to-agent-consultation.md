@@ -35,12 +35,14 @@ Consult non-interactively, with the smallest packet that answers the question. T
 
 For the Codex command below, `-C <workspace>` sets the working root; it does not enforce a filesystem read boundary. `-s read-only` also permits reads outside that root. On a host with private files outside the workspace, run the command only inside an external filesystem sandbox or container that exposes the workspace as its sole readable task-data mount, plus only non-private runtime files and an empty answer-output location. Place `<answer-file>` in that output location. Do not expose the host home, credential stores, or other private paths. If that boundary and the needed sign-in cannot both be provided, the Codex consultation route is unavailable; do not run the command directly on that host.
 
+For Claude consultations and independent Claude Code checks, create `<neutral-workspace>` as an empty directory outside the checkout and its instruction-bearing parents. Supply the approved question and evidence in the packet; do not add the checkout as a directory. Run with `--safe-mode` to exclude `CLAUDE.md` and other project memory while retaining the normal sign-in route. Verify this flag in the installed CLI's `--help` before using the binding.
+
 Current bindings (update them when the tools change; `--help` on the installed version is the check):
 
 | Asking agent | Consulted agent | Command shape (inside the required filesystem boundary) |
 |---|---|---|
 | Claude | Codex | `codex exec -s read-only -c web_search="disabled" --ephemeral --ignore-user-config -m <model> -c model_reasoning_effort="<effort>" -C <workspace> -o <answer-file> "<question>" < /dev/null` |
-| Codex | Claude | `claude -p --model <model> --effort <effort> --tools "" --strict-mcp-config --no-session-persistence "<question>"` |
+| Codex | Claude | `(cd <neutral-workspace> && claude -p --safe-mode --model <model> --effort <effort> --tools "" --strict-mcp-config --no-session-persistence "<question>")` |
 
 - Use the model and effort the question needs; the routing rules in `patterns/work-model-and-effort-routing.md` apply.
 - Running the consulted agent needs network access and that agent's sign-in. If the asking agent lacks them, a separate authorized agent may consult only if it has the required route and read boundary. If there is no separate executor, or no safe route has both access and the boundary, report the scoped claim as unresolved, hold only actions that depend on the answer, and continue independent work. State the access reason and what remains dependent; do not ask the owner to relay messages or imply that a later executor exists.

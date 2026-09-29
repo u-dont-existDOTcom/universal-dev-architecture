@@ -56,6 +56,15 @@ class AgentToAgentConsultationPatternTests(unittest.TestCase):
         self.assertIn("Place `<answer-file>` in that output location", route)
         self.assertIn("unavailable", route)
 
+    def test_claude_consultation_excludes_checkout_memory(self) -> None:
+        route = PATTERN.read_text(encoding="utf-8").split("## Route", 1)[1].split("## Bounds", 1)[0]
+        claude_command = next(line for line in route.splitlines() if line.startswith("| Codex | Claude |"))
+        self.assertIn("(cd <neutral-workspace> && claude -p --safe-mode", claude_command)
+        self.assertIn("outside the checkout", route)
+        self.assertIn("project memory", route)
+        cross_family = self.read("patterns/cross-family-reasoning-check.md")
+        self.assertIn("neutral-workspace and `--safe-mode` invocation", cross_family)
+
     def test_missing_consultation_executor_holds_only_dependent_work(self) -> None:
         text = PATTERN.read_text(encoding="utf-8")
         route = text.split("## Route", 1)[1].split("## Bounds", 1)[0]
