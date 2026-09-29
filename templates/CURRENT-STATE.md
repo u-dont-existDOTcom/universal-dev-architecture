@@ -1,6 +1,6 @@
 # Current State
 
-Use this file as the concise recovery entry point for long-running or multi-session work. Keep it current enough that a fresh worker with repository access but no old chat transcript can resume correctly.
+Use this file as the starting point for one task's concise recovery checkpoint. In UDA, write it to `state/tasks/<branch>.md`, replacing every `/` in the branch name with `-`; remove inapplicable fields and keep the task file within 120 lines. Edit only this task's file and retain it after merge. `state/CURRENT-STATE.md` remains the repository recovery entry point and changes only for repository-level state. Keep checkpoints current enough that a fresh worker with repository access but no old chat transcript can resume correctly.
 
 ## Owner-source and owner-outcome invariant
 

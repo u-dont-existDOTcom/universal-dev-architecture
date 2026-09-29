@@ -239,6 +239,57 @@ class RepositoryAuditTests(unittest.TestCase):
         }
         self.assertEqual(set(), current_state_codes)
 
+    def test_unset_task_state_directory_has_no_task_state_findings(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile()
+        findings = audit_repository(self.root)
+        self.assertFalse(
+            any(code.startswith("continuity.task-state") for code in self.codes(findings))
+        )
+
+    def test_task_checkpoint_missing_headings_is_a_warning(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(task_state_dir="state/tasks")
+        self.write("state/tasks/example.md", "# Current State\n\n## Goal\n")
+        findings = audit_repository(self.root)
+        self.assertEqual(
+            {"warning"}, self.severities(findings, "continuity.task-state.incomplete")
+        )
+        self.assertIn("state/tasks/example.md", {
+            str(item["path"]) for item in findings
+            if item["code"] == "continuity.task-state.incomplete"
+        })
+
+    def test_complete_task_checkpoint_has_no_heading_warning(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(task_state_dir="state/tasks")
+        self.write("state/tasks/example.md", "\n".join(
+            f"## {heading}" for heading in (
+                "Goal", "Authority / baseline", "Completed", "Current checkpoint",
+                "Remaining", "Blockers / unresolved", "Evidence / artifacts",
+                "Next safe action",
+            )
+        ))
+        findings = audit_repository(self.root)
+        self.assertNotIn("continuity.task-state.incomplete", self.codes(findings))
+
+    def test_task_state_directory_must_stay_inside_repository(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(task_state_dir="../outside")
+        findings = audit_repository(self.root)
+        self.assertEqual(
+            {"error"}, self.severities(findings, "continuity.task-state.path-invalid")
+        )
+
+    def test_task_state_directory_must_be_a_directory(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(task_state_dir="state/tasks")
+        self.write("state/tasks", "not a directory\n")
+        findings = audit_repository(self.root)
+        self.assertEqual(
+            {"error"}, self.severities(findings, "continuity.task-state.directory-missing")
+        )
+
     def test_active_software_repository_requires_ci_and_test_command(self) -> None:
         self.add_minimal_repository_files()
         self.write_profile(repository_kind="software", commands={})

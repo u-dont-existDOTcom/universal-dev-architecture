@@ -539,6 +539,77 @@ def _audit_current_state(
         )
 
 
+def _audit_task_states(
+    root: Path,
+    profile: dict[str, Any],
+    findings: list[dict[str, object]],
+) -> None:
+    if "task_state_dir" not in profile:
+        return
+
+    relative = profile["task_state_dir"]
+    if not isinstance(relative, str) or not relative.strip():
+        findings.append(
+            finding(
+                "error",
+                "continuity.task-state.path-invalid",
+                "`task_state_dir` must name a directory inside the repository.",
+                PROFILE_DEFAULT,
+            )
+        )
+        return
+
+    state_dir = _safe_relative_path(root, relative)
+    if state_dir is None:
+        findings.append(
+            finding(
+                "error",
+                "continuity.task-state.path-invalid",
+                "The task-state directory path escapes the repository root.",
+                relative,
+            )
+        )
+        return
+    if not state_dir.is_dir():
+        findings.append(
+            finding(
+                "error",
+                "continuity.task-state.directory-missing",
+                "`task_state_dir` does not name a directory.",
+                relative,
+            )
+        )
+        return
+
+    for path in sorted(state_dir.glob("*.md")):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            findings.append(
+                finding(
+                    "warning",
+                    "continuity.task-state.unreadable",
+                    f"The task checkpoint is not readable UTF-8: {exc}",
+                    str(path.relative_to(root)),
+                )
+            )
+            continue
+        missing = [
+            heading
+            for heading in CURRENT_STATE_HEADINGS
+            if not re.search(rf"(?im)^##[ \t]+{re.escape(heading)}[ \t]*$", text)
+        ]
+        if missing:
+            findings.append(
+                finding(
+                    "warning",
+                    "continuity.task-state.incomplete",
+                    "The task checkpoint is missing expected sections: " + ", ".join(missing),
+                    str(path.relative_to(root)),
+                )
+            )
+
+
 def _workflow_files(root: Path) -> list[Path]:
     workflow_dir = root / ".github" / "workflows"
     if not workflow_dir.is_dir():
@@ -1688,6 +1759,7 @@ def audit_repository(
 
     if profile is not None:
         _audit_current_state(root_path, profile, findings)
+        _audit_task_states(root_path, profile, findings)
         _audit_software(root_path, files, profile, workflows, findings)
         _audit_policy(profile, findings)
         _audit_public_and_risk_controls(files, profile, findings)

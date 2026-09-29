@@ -8,7 +8,7 @@ Adapt these templates to the repository's actual type, risk, authority, and comm
 - `GITHUB-AGENTS.md` — scoped `.github/AGENTS.md` security and automation rules.
 - `STATE-AGENTS.md` — scoped state/checkpoint integrity rules.
 - `CODEX-REPOSITORY-PROFILE.json` — machine-readable repository classification, exact commands, continuity path, and hosted-control status.
-- `CURRENT-STATE.md` — concise recovery checkpoint, including owner-source receipt, owner-outcome gap, chat supervisor/directive identity, dual alignment, typed completion, outcome advancement, strategy efficacy, research assurance, and supervision-design feedback.
+- `CURRENT-STATE.md` — task checkpoint template, including owner-source receipt, owner-outcome gap, chat supervisor/directive identity, dual alignment, typed completion, outcome advancement, strategy efficacy, research assurance, and supervision-design feedback. In UDA, keep the repository entry point at `state/CURRENT-STATE.md` and one retained checkpoint per task at `state/tasks/<branch>.md`, replacing `/` with `-`.
 - `CODEX-TASK.md` — durable non-trivial task contract with owner-source identity, objective reconciliation, dual alignment, typed completion, progress evidence, strategy limits, and chat-to-Codex routing.
 - `ACTIVE-TASK.json` — exclusive machine-readable active-task lock with owner-source/correction authority, exact checkpoint identity, reconciliation, alignment, completion, outcome advancement, strategy, and affected-frontier authorization.
 - `SCOPED-BLOCKER.json` — explicit blocker scope, non-waivable policy class, source freshness, task/frontier applicability, causal dependency, unblock event, owner action, retry policy, and supersession.
