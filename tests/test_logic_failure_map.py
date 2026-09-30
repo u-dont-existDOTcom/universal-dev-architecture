@@ -73,7 +73,14 @@ class LogicFailureMapTests(unittest.TestCase):
             self.assertIn(f"`../patterns/{pattern}.md`", docs)
 
     def test_carrying_rules_and_example_boundary(self):
-        rule = self.carrying_text.split("## Rule", 1)[1].split("\n## ", 1)[0]
+        self.assert_carrying_rules_and_example_boundary(self.carrying_text)
+
+    def test_carrying_rules_survive_example_removal(self):
+        without_example = self.carrying_text.split("## Example", 1)[0]
+        self.assert_carrying_rules_and_example_boundary(without_example)
+
+    def assert_carrying_rules_and_example_boundary(self, carrying_text):
+        rule = carrying_text.split("## Rule", 1)[1].split("\n## ", 1)[0]
         headings = re.findall(r"(?m)^\d+\. \*\*([^*]+)\*\*", rule)
         self.assertEqual(headings, [
             "Name the runtime.",
@@ -84,9 +91,10 @@ class LogicFailureMapTests(unittest.TestCase):
             "Keep it in sync on purpose.",
             "Test the imports.",
         ])
-        example = self.carrying_text.split("## Example", 1)[1]
-        self.assertIn("NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT", example)
-        self.assertNotRegex(example, r"(?im)(?:^|[\s`(])(?:~?/|[a-z]:\\)[^\s`]+|file://")
+        _, heading, example = carrying_text.partition("## Example")
+        if heading:
+            self.assertIn("NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT", example)
+            self.assertNotRegex(example, r"(?im)(?:^|[\s`(])(?:~?/|[a-z]:\\)[^\s`]+|file://")
 
 
 if __name__ == "__main__":
