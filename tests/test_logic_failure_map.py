@@ -9,6 +9,18 @@ ROOT = Path(__file__).resolve().parents[1]
 MAP = ROOT / "patterns/logic-failure-map.md"
 CARRYING = ROOT / "patterns/carrying-uda-into-standalone-projects.md"
 INDEX = ROOT / "LESSON-INDEX.md"
+# Retained provenance and domain-specific symbolic-analysis methods are not
+# general architecture rules that the logic failure map routes.
+EXCLUDED_PATTERNS = {
+    "patterns/codex-github-operating-standard.md",  # superseded
+    "patterns/dynamic-successor-discovery-for-monitoring.md",  # superseded
+    "patterns/context-gated-symbolic-personality-synthesis.md",
+    "patterns/context-gated-symbolic-personality-synthesis-errata.md",
+    "patterns/contextual-symbolic-prediction-causality-and-phase-controls.md",
+    "patterns/continuous-candidate-signature-ranking.md",
+    "patterns/fixed-target-symbolic-profile-fit-evaluation.md",
+    "patterns/structured-natal-chart-comparison.md",
+}
 
 
 class LogicFailureMapTests(unittest.TestCase):
@@ -30,12 +42,12 @@ class LogicFailureMapTests(unittest.TestCase):
                         continue
                     self.assertTrue((ROOT / relative).is_file(), relative)
 
-    def test_every_numbered_lesson_is_placed(self):
-        numbered = re.findall(r"(?m)^\d+\. `(patterns/[^`]+\.md)`", self.index_text)
-        self.assertTrue(numbered)
+    def test_every_active_canonical_pattern_is_placed(self):
+        patterns = {path.relative_to(ROOT).as_posix() for path in (ROOT / "patterns").glob("*.md")}
+        self.assertTrue(EXCLUDED_PATTERNS <= patterns)
         rows = [line.split("|")[4] for line in self.map_text.splitlines() if line.startswith("| LF-")]
         not_failure_rules = self.map_text.split("### Not failure rules", 1)[1].split("\n## ", 1)[0]
-        for pattern in numbered:
+        for pattern in sorted(patterns - EXCLUDED_PATTERNS):
             with self.subTest(pattern=pattern):
                 citation = f"`{pattern}`"
                 self.assertTrue(any(citation in cell for cell in rows) or citation in not_failure_rules)

@@ -42,7 +42,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-2.3 | Working on the wrong task or branch while several are open. | Check the task lock and the branch before acting. | `patterns/exclusive-active-task-locks.md`; `patterns/parallel-chat-write-isolation.md` | |
 | LF-2.4 | Treating a stale artifact as current authority. | Promote by exact identity; follow supersession. | `patterns/github-first-agent-bootstrap.md`; `patterns/artifact-authority-promotion-and-supersession.md` | |
 | LF-2.5 | A standalone runtime never loads applicable architecture rules, so its agents or jobs operate without them. | Name the runtime; trace each applicable rule to an enforced, provenance-recorded project import and a test. | `patterns/carrying-uda-into-standalone-projects.md` | |
-| LF-2.6 | Instructions inherit into the wrong scope or carry owner-specific material into a portable product. | Check inheritance scope and separate portable rules from owner-specific deployment content. | `patterns/instruction-composition-and-portable-intelligence.md` | |
+| LF-2.6 | Instructions inherit into the wrong scope or carry owner-specific material into a portable product. | Check inheritance scope and separate portable rules from owner-specific deployment content. | `patterns/instruction-composition-and-portable-intelligence.md`; `patterns/portable-vs-owner-specific-deployment-data.md` | |
 
 ### 3. Gathering evidence
 
@@ -72,7 +72,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 
 | ID | Failure | Quick check | Covered by | MAST |
 |---|---|---|---|---|
-| LF-5.1 | Keeping a strategy that isn't working, or dropping one before it could work. | Compare direct outcome evidence with the strategy's expected effect and window. | `patterns/outcome-advancement-and-strategy-efficacy.md` | |
+| LF-5.1 | Keeping a strategy that isn't working, or dropping one before it could work. | Compare direct outcome evidence with the strategy's expected effect and window. | `patterns/outcome-advancement-and-strategy-efficacy.md`; `patterns/failed-strategy-lineage-and-negative-evidence-binding.md` | |
 | LF-5.2 | A loop that doesn't converge: the same kind of step repeated, or review rounds that each find new edge cases. | Cap the rounds; when a cap is hit, change the method (for example one full audit) rather than repeat the step. | `patterns/outcome-advancement-and-strategy-efficacy.md` | FM-1.3 |
 | LF-5.3 | New infrastructure where the existing platform already offers it. | Inventory the platform's own deployment surfaces first. | `patterns/platform-native-deployment-before-new-infrastructure.md` | |
 | LF-5.4 | Recommending before checking the facts that decide it: price, availability, fit. | Resolve the deciding facts before naming a candidate. | `patterns/recommendation-preflight-integrity.md` | |
@@ -84,18 +84,18 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | ID | Failure | Quick check | Covered by | MAST |
 |---|---|---|---|---|
 | LF-6.1 | Doing something other than what the reasoning concluded. | Compare the action with the stated plan before running it. | No check yet | FM-2.6 |
-| LF-6.2 | Exceeding the task's scope or a stop condition, such as taking a consequential adjacent action. | Check the action against the directive's boundaries. | `patterns/work-model-and-effort-routing.md` (scope judgment); `patterns/codex-worker-permissions.md`; `patterns/chat-led-reasoning-codex-execution-separation.md` | FM-1.2 |
-| LF-6.3 | A change reported as done without confirming it landed: an unverified write, a local-only commit. | Verify the final bytes or the remote ref. | `patterns/durable-write-checkpoints.md`; `patterns/worker-github-publication-and-recovery.md` | |
-| LF-6.4 | Content lost while editing, consolidating or porting. | Freeze the source; trace every change both ways. | `patterns/transformation-preservation-proof.md`; `patterns/editorial-authority-and-lossless-editing.md` | |
+| LF-6.2 | Exceeding the task's scope or a stop condition, such as taking a consequential adjacent action. | Check the action against the directive's boundaries. | `patterns/work-model-and-effort-routing.md` (scope judgment); `patterns/codex-worker-permissions.md`; `patterns/chat-led-reasoning-codex-execution-separation.md`; `patterns/runtime-chat-work-authority-admission-and-internal-routing.md` | FM-1.2 |
+| LF-6.3 | A change reported as done without confirming it landed: an unverified write, a local-only commit. | Verify the final bytes or the remote ref. | `patterns/durable-write-checkpoints.md`; `patterns/worker-github-publication-and-recovery.md`; `patterns/exact-git-write-handoff.md` | |
+| LF-6.4 | Content lost while editing, consolidating or porting. | Freeze the source; trace every change both ways. | `patterns/transformation-preservation-proof.md`; `patterns/editorial-authority-and-lossless-editing.md`; `patterns/targeted-artifact-edit-preservation.md` | |
 | LF-6.5 | An unsafe operation: destructive, paid or privileged. | Gate it before running; keep shell state contained. | `patterns/paid-workflow-safety.md`; `patterns/interactive-shell-command-safety.md`; `patterns/codex-worker-permissions.md` | |
-| LF-6.6 | Acting on the wrong surface or with stale tool state: the shell instead of the browser, a stale session. | Run the surface preflight; bind the action to exact artifacts. | Root `AGENTS.md` (Browser-control efficiency); `patterns/persistent-browser-automation-hygiene.md`; `patterns/chatgpt-client-surface-capability-and-thread-recovery.md`; `patterns/chatgpt-developer-mcp-chat-lifecycle.md` | |
+| LF-6.6 | Acting on the wrong surface or with stale tool state: the shell instead of the browser, a stale session. | Run the surface preflight; bind the action to exact artifacts. | Root `AGENTS.md` (Browser-control efficiency); `patterns/persistent-browser-automation-hygiene.md`; `patterns/chatgpt-client-surface-capability-and-thread-recovery.md`; `patterns/chatgpt-developer-mcp-chat-lifecycle.md`; `patterns/chatgpt-work-cloud-dispatch.md` | |
 | LF-6.7 | A self-updating launcher continues under its old controlling code after fetching a new version. | Compare the fetched controlling code; if it changed, re-execute once before downstream work. | `patterns/self-updating-launcher-reexec.md` | |
 
 ### 7. Checking
 
 | ID | Failure | Quick check | Covered by | MAST |
 |---|---|---|---|---|
-| LF-7.1 | No check, or a check that never reaches the real endpoint. | Name the direct evidence that the outcome happened. | `patterns/development-assurance-lanes.md`; `patterns/outcome-advancement-and-strategy-efficacy.md` | FM-3.2 |
+| LF-7.1 | No check, or a check that never reaches the real endpoint. | Name the direct evidence that the outcome happened. | `patterns/development-assurance-lanes.md`; `patterns/outcome-advancement-and-strategy-efficacy.md`; `patterns/mission-control-owner-discovered-supervision-escape-assurance.md` | FM-3.2 |
 | LF-7.2 | A check that passes for the wrong reason: a test pinning wording, asserting the implementation instead of the behavior, or a misread result. | Would the check fail if the outcome were wrong? | Root `AGENTS.md` (Code review rules) | FM-3.3 |
 | LF-7.3 | A record that overstates what was checked: a receipt, flag, count or status claiming more than happened. | Derive each flag from what actually ran. | Root `AGENTS.md` (Code review rules: "Do not claim a control is active without mechanical evidence") | FM-3.3 |
 | LF-7.4 | A failure put in the wrong class, so it gets the wrong fix: a serialization error treated as reasoning, a mechanical error escalated as reasoning. | Classify before changing model or approach. | `patterns/structured-output-failure-boundary.md`; `patterns/work-model-and-effort-routing.md` (failure classes) | |
@@ -106,7 +106,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 
 | ID | Failure | Quick check | Covered by | MAST |
 |---|---|---|---|---|
-| LF-8.1 | Stopping early: planning or diagnosing instead of doing the next safe step, or ending with work open. | Is there a safe, authorized next action? Then do it. | Root `AGENTS.md` (Pre-final continuation invariant); `patterns/codex-github-operating-system.md` | FM-3.1 |
+| LF-8.1 | Stopping early: planning or diagnosing instead of doing the next safe step, or ending with work open. | Is there a safe, authorized next action? Then do it. | Root `AGENTS.md` (Pre-final continuation invariant); `patterns/codex-github-operating-system.md`; `patterns/terminal-response-admission-and-autonomous-continuation.md` | FM-3.1 |
 | LF-8.2 | No stopping condition: running past the goal or without an end. | State the completion condition before starting. | `patterns/codex-github-operating-system.md`; `patterns/executable-frontier-coherence.md` | FM-1.5 |
 | LF-8.3 | Interrupting the owner for work the agent can do. | Try the safe self-remedy first. | `patterns/worker-self-remediation-before-owner-interruption.md` | |
 | LF-8.4 | A workflow left in a state with no next step. | Every non-final state names its next work or its blocker. | `patterns/executable-frontier-coherence.md` | |
@@ -122,6 +122,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-9.4 | A guess or a partial check reported as fact. | Each claim says where and when it was checked. | `patterns/reasoning-selection.md` (observed-state claims); `patterns/agent-to-agent-consultation.md` | |
 | LF-9.5 | A handoff missing what the next agent needs. | The brief is self-contained: goal, inputs, boundaries, acceptance check. | `patterns/worker-directive-delivery-and-chat-output-budget.md` | FM-2.4 |
 | LF-9.6 | Prose becomes hard to read aloud because connective relations are lost or repetition is mechanical. | Read the passage aloud; restore natural links and check local repetition in context. | `patterns/conversational-prose-speakability.md` | |
+| LF-9.7 | An owner-marked failure remains only in chat instead of becoming the requested durable Mission Control record. | Check for an explicit capture request, then verify the record at its destination before claiming it was saved. | `patterns/owner-marked-mission-control-failure-capture.md` | |
 
 ### 10. Coordinating agents
 
@@ -133,15 +134,15 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-10.4 | Concurrent writers clobbering each other on a shared branch or file. | One writer per branch; one checkpoint file per task. | `patterns/parallel-chat-write-isolation.md`; `state/CURRENT-STATE.md` (Task checkpoints) | |
 | LF-10.5 | Context lost when work passes between agents. | Hand over a checkpoint, not a memory. | `patterns/worker-directive-delivery-and-chat-output-budget.md`; `patterns/context-compaction-resilience.md` | FM-2.1 |
 | LF-10.6 | Multi-worker supervision loses a single authority or context boundary, so execution and judgment are routed to the wrong agent. | Trace each directive and decision to its owner, worker, and supervisory lane. | `patterns/codex-pro-supervision-mission-control.md`; `patterns/codex-supervision-intelligence-routing-and-context-lifecycle.md` | |
-| LF-10.7 | Multiple relay hosts send the same item, or failover resumes without a fenced authority. | Verify one durable sender admission, global pacing, and a fenced failover epoch before each send. | `patterns/mission-control-multi-host-submission-scheduling.md` | |
+| LF-10.7 | Multiple relay hosts send the same item, or failover resumes without a fenced authority. | Verify one durable sender admission, global pacing, and a fenced failover epoch before each send. | `patterns/mission-control-multi-host-submission-scheduling.md`; `patterns/shared-provider-submission-queue.md` | |
 
 ## Keeping the map complete
 
-Every rule this architecture adds is placed on the map: under an existing entry, or as a new entry. A lesson that governs a workflow rather than preventing a failure is listed under **Not failure rules** below. Projects outside this architecture import the entries that apply to them (`patterns/carrying-uda-into-standalone-projects.md`).
+Every active canonical architecture rule is placed on the map: under an existing entry, or as a new entry. A lesson that governs a workflow rather than preventing a failure is listed under **Not failure rules** below. Superseded paths and specialist-only symbolic-analysis methods are outside this general inventory. Projects outside this architecture import the entries that apply to them (`patterns/carrying-uda-into-standalone-projects.md`).
 
 ### Not failure rules
 
-Lessons that describe a workflow or a specialist method rather than prevent a kind of failure are listed here, so the completeness check can tell them from unplaced rules.
+The following cross-project workflows do not prevent a general logic failure; the completeness check treats them as placed here.
 
 - `patterns/living-mermaid-workflow-maps.md` — specialist method for maintaining visual workflow documentation.
 - `patterns/youtube-transcript-workflow.md` — specialist method for obtaining video transcripts.
