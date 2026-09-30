@@ -497,8 +497,10 @@ def check_contract(contract: dict[str, Any], phase: str, payload: str,
                 duration = re.search(r"(?im)^Elapsed time:[ \t]*(?:(\d+)[ \t]+minutes?(?:[ \t]+(\d+)[ \t]+seconds?)?|(\d+)[ \t]+seconds?)[ \t]*\.?[ \t]*$", payload)
                 reported = (int(duration[1]) * 60 + int(duration[2] or 0)) if duration and duration[1] else int(duration[3]) if duration else None
                 actual = (end - start).total_seconds() if start and end else None
-                end_matches = bool(first and end and (first == end if has_seconds else first == end.replace(second=0, microsecond=0)))
-                ok = bool(actual is not None and actual >= 0 and actual == reported and end_matches)
+                resolution = 60 if duration and duration[1] and duration[2] is None else 1
+                end_matches = bool(first and end and (first == end.replace(microsecond=0) if has_seconds else first == end.replace(second=0, microsecond=0)))
+                ok = bool(actual is not None and actual >= 0 and reported is not None
+                          and abs(actual - reported) <= resolution / 2 and end_matches)
                 evidence = {"clock_start": clock_start, "clock_end": clock_end, "reported_seconds": reported, "actual_seconds": actual, "first_line_matches_end": end_matches}
             elif kind == "contains_literal":
                 evidence = check.get("value", "")

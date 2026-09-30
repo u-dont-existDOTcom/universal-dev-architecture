@@ -123,6 +123,22 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
             checked = task_time.check_contract(contract, "final-delivery", changed_payload, **changed_readings)
             self.assertEqual(checked["admission"], "BLOCKED")
 
+    def test_final_delivery_accepts_fractional_readings_at_reported_precision(self):
+        contract = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
+        start = "2026-09-30T09:40:00.000+00:00"
+        for end, report, first_line in (
+            ("2026-09-30T09:42:00.250+00:00", "2 minutes", "2026-09-30 09:42 UTC"),
+            ("2026-09-30T09:42:00.250+00:00", "120 seconds", "2026-09-30 09:42:00 UTC"),
+            ("2026-09-30T09:42:00.500+00:00", "120 seconds", "2026-09-30 09:42 UTC"),
+            ("2026-09-30T09:42:00.750+00:00", "121 seconds", "2026-09-30 09:42 UTC"),
+        ):
+            with self.subTest(end=end, report=report):
+                checked = task_time.check_contract(
+                    contract, "final-delivery", f"{first_line}\nElapsed time: {report}",
+                    clock_start=start, clock_end=end,
+                )
+                self.assertEqual(checked["admission"], "ADMITTED")
+
     def test_final_delivery_cli_admits_valid_readings(self):
         correction = json.loads((ROOT / "examples/rule-graph/owner-correction.json").read_text())
         contract = task_time.compile_contract(self.catalog, self.profile, correction, "graph")
@@ -137,7 +153,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
                     "--contract", str(contract_path), "--phase", "final-delivery",
                     "--payload", str(payload_path),
                     "--clock-start", "2026-09-30T09:40:00+00:00",
-                    "--clock-end", "2026-09-30T09:42:00+00:00",
+                    "--clock-end", "2026-09-30T09:42:00.250+00:00",
                 ], cwd=ROOT, capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
                 self.assertEqual(json.loads(result.stdout)["admission"], "ADMITTED")

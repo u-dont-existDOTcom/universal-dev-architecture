@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import re
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from scripts.task_checkpoint_path import checkpoint_path
 
@@ -81,5 +83,34 @@ class CurrentStateConcisionTests(unittest.TestCase):
                     section = text.split(f"## {heading}", 1)[1].split("\n## ", 1)[0]
                     self.assertTrue(section.strip())
                 self.assertNotIn("replace-with", text)
+
+    def test_pr_297_recovery_checkpoints_route_past_published_repair(self) -> None:
+        for name in (
+            "task-c9c0fffdc4040cf56325d5d487b6f8dbdb5615432ed48f292abbebd7c74ecc22.md",
+            "task-42196ace1e80fec5b957f664ae6f352337b7324c7f0ceeb6526c612bf7a35894.md",
+        ):
+            with self.subTest(path=name):
+                text = (TASK_STATES / name).read_text(encoding="utf-8")
+                remaining = text.split("## Remaining", 1)[1].split("\n## ", 1)[0]
+                next_action = text.split("## Next safe action", 1)[1].split("\n## ", 1)[0]
+
+                self.assertNotRegex(remaining + next_action, r"(?i)\brunner\b[^\n]*\b(?:commit|push)\b")
+
+    def test_pr_297_recovery_checkpoints_can_advance_without_old_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            task_states = Path(directory)
+            for name in (
+                "task-c9c0fffdc4040cf56325d5d487b6f8dbdb5615432ed48f292abbebd7c74ecc22.md",
+                "task-42196ace1e80fec5b957f664ae6f352337b7324c7f0ceeb6526c612bf7a35894.md",
+            ):
+                (task_states / name).write_text(
+                    "## Current checkpoint\n- A newer durable boundary.\n"
+                    "## Remaining\n- Verify the next CI run.\n"
+                    "## Next safe action\n- Inspect that CI run.\n",
+                    encoding="utf-8",
+                )
+            with mock.patch.dict(globals(), {"TASK_STATES": task_states}):
+                self.test_pr_297_recovery_checkpoints_route_past_published_repair()
+
 if __name__ == "__main__":
     unittest.main()
