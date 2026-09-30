@@ -127,9 +127,9 @@ For a broad comparison or landscape synthesis where omitted alternatives, config
 
 For a server-controlled, resumable, multi-provider, or multi-stage workflow, load `../patterns/executable-frontier-coherence.md` when unfinished state loses its next capability, terminal and retryable projections diverge, a failed lane suppresses independent work, or a wrapper weakens its specialist contract.
 
-For a reasoning-heavy conclusion that would be costly or hard to undo if wrong and that tests, computation, or sources cannot settle, load `../patterns/cross-family-reasoning-check.md`: one blind check by the other model family before the conclusion is used.
+For a reasoning-heavy conclusion that would be costly or hard to undo if wrong and that tests, computation, or sources cannot settle, load `../patterns/cross-family-reasoning-check.md`: one blind check by the other model family before the conclusion is used; if that review runs long, inspect the reviewer's own runtime/session state and logs before declaring it stalled or unavailable.
 
-When a claim about another agent's capabilities, configuration or behavior feeds a decision or a workflow design, or when agents disagree, load `../patterns/agent-to-agent-consultation.md`: scope the claim to its runtime, settle it there, and consult the other agent directly instead of having the owner relay messages.
+When a claim about another agent's capabilities, configuration or behavior feeds a decision or a workflow design, or when agents disagree, load `../patterns/agent-to-agent-consultation.md`: scope the claim to its runtime, settle it there, consult the other agent directly instead of having the owner relay messages, and use the consulted agent's own liveness/status surface before treating a slow run as unavailable.
 
 For substantial work on a high-tier model, load `../patterns/delegate-easy-work-to-cheaper-models.md`: delegate easy, well-specified pieces when the allowance saving pays for briefing and checking, and keep work when continuing is cheaper.
 

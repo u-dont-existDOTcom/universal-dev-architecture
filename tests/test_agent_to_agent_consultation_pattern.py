@@ -116,5 +116,19 @@ class AgentToAgentConsultationPatternTests(unittest.TestCase):
         self.assertNotIn("/home/", example)
 
 
+    def test_long_running_consultation_checks_agent_runtime_before_timeout_inference(self) -> None:
+        text = PATTERN.read_text(encoding="utf-8")
+        rule = text.split("## Rule", 1)[1].split("## Route", 1)[0]
+        for phrase in (
+            "Check the consulted agent's own liveness before declaring it unavailable",
+            "persistent/background session",
+            "treat \u0060busy/working\u0060 as active regardless of elapsed wall time",
+            "A wrapper timeout is not an agent failure",
+            "positive failure/loss evidence",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, rule)
+
+
 if __name__ == "__main__":
     unittest.main()

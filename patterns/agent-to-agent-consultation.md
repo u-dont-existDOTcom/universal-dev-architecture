@@ -2,7 +2,7 @@
 
 ## Status
 
-Current universal pattern. Origin: **OWNER** instruction, 2026-09-28. The owner had to carry messages between Claude and Codex twice to settle how Codex behaves. His correction: Claude "should have been able to talk to codex instead of assuming things", and the fix belongs in this architecture.
+Current universal pattern. Origin: **OWNER** instruction, 2026-09-28. The owner had to carry messages between Claude and Codex twice to settle how Codex behaves. His correction: Claude "should have been able to talk to codex instead of assuming things", and the fix belongs in this architecture. Owner correction, 2026-09-29: a long-running consulted reviewer must be queried for its own liveness/status before elapsed time is used to stop it or call it unavailable.
 
 ## Problem
 
@@ -27,7 +27,8 @@ This adapts existing rules; it adds no new theory:
 1. **Scope every claim about another agent.** When a claim about another agent's capabilities, configuration or behavior feeds an owner decision or a workflow design, state the exact runtime it holds for. That means the invocation or surface, the configuration and sandbox, and the account or route. Never state it as a property of the agent in general.
 2. **Settle it in that runtime.** A direct test in the same runtime settles what the runtime does. Ask the agent itself for what a test cannot show: its configuration options, how to invoke it, and its reasoning. An agent's report about itself is evidence, not proof. An effective model, for example, is read back from the run, not taken from the agent's word.
 3. **Talk directly when the route is available.** When an agent needs another agent's view, or two agents disagree, they exchange directly through the route below. Allow at most one reconciliation round. Then give the owner the agreed answer, or both positions with a recommendation. If the route is unavailable, use the explicit unavailable path below. The owner never carries messages between agents.
-4. **A relayed message means the route was missed.** When the owner does relay another agent's message, answer its substance. Then open the direct route for the rest of the task if available, or use the unavailable path, and record the miss in the task record.
+4. **Check the consulted agent's own liveness before declaring it unavailable.** A slow or silent parent tool call does not establish that the consulted agent stopped. For long-running consultations, use a persistent/background session when the runtime supports one; record the session ID; inspect the agent runtime's status and recent logs/progress; and treat `busy/working` as active regardless of elapsed wall time. A wrapper timeout is not an agent failure if the underlying session still exists. Terminate or classify as stalled only from positive failure/loss evidence or repeated same-runtime checks showing no forward activity and no waiting-for-input state.
+5. **A relayed message means the route was missed.** When the owner does relay another agent's message, answer its substance. Then open the direct route for the rest of the task if available, or use the unavailable path, and record the miss in the task record.
 
 ## Route
 
