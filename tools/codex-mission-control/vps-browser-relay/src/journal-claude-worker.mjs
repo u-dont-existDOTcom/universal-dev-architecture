@@ -296,7 +296,8 @@ export class JournalClaudeWorker {
     if (events.length === 0) return;
     const matching = events.filter((event) => event.work_id === workId && event.attempt === attempt);
     if (matching.some((event) => event.outcome === 'answered' && event.reconciliation !== true)) return;
-    if (matching.length === 0 && events.at(-1)?.outcome === 'answered') return;
+    if (matching.length === 0 && events.at(-1)?.work_id === workId
+      && events.at(-1)?.outcome === 'answered') return;
     if (!matching.some((event) => event.reconciliation === true && event.outcome === 'answered')) {
       const correction = { at: new Date(this.now()).toISOString(), lane: LANE, outcome: 'answered', work_id: workId, attempt, reconciliation: true };
       await appendFile(this.config.usageFile, `${JSON.stringify(correction)}\n`, { mode: 0o600 });

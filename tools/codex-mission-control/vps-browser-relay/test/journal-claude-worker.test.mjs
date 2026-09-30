@@ -358,6 +358,36 @@ test('an answered in-flight item is reconciled after a transient listing failure
   assert.equal(summary.paused_until, paused.paused_until);
 });
 
+test('answered recovery records the current item when the last event answered another item', async (t) => {
+  const priorEvent = {
+    at: new Date(NOW).toISOString(),
+    lane: 'journal-hardest',
+    outcome: 'answered',
+    work_id: 'hard-1',
+    attempt: 1,
+  };
+  const fixture = await makeFixture(t, {
+    dispatchRecords: () => [{ ...record(true), work_id: 'hard-2' }],
+  });
+  await writeFile(fixture.config.usageFile, `${JSON.stringify(priorEvent)}\n`);
+  await writeFile(fixture.config.summaryFile, JSON.stringify({
+    ...buildUsageSummary([priorEvent], NOW),
+    in_flight: { work_id: 'hard-2', attempt: 1 },
+  }));
+
+  assert.deepEqual(await fixture.worker.runPass(), { status: 'ANSWERED', workId: 'hard-2' });
+  assert.equal(fixture.claudeRuns(), 0);
+  assert.equal(fixture.imports(), 1);
+  const events = (await readFile(fixture.config.usageFile, 'utf8')).trim().split('\n').map(JSON.parse);
+  assert.deepEqual(events.map((event) => [event.work_id, event.outcome, event.reconciliation]), [
+    ['hard-1', 'answered', undefined],
+    ['hard-2', 'answered', true],
+  ]);
+  const summary = JSON.parse(await readFile(fixture.config.summaryFile, 'utf8'));
+  assert.equal(summary.in_flight, undefined);
+  assert.equal(summary.today_utc.items_answered, 2);
+});
+
 test('an unreadable durable Claude summary stops before a second invocation', async (t) => {
   const fixture = await makeFixture(t);
   await writeFile(fixture.config.summaryFile, '{broken');
