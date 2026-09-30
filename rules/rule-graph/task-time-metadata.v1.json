@@ -11,7 +11,7 @@
   "records": [
     {
       "rule_id": "uda.final.timestamp",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -22,7 +22,11 @@
           },
           {
             "kind": "exact_text",
-            "text": "- Before finalizing every assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form. If it does not, prepend the timestamp before emitting the answer."
+            "text": "- Read the clock twice per turn and only then: quickly at the start, and again right before writing the final answer (owner, 2026-09-30). Use the fastest source available, such as a current-time tool or `date -u` in a shell; approximate is fine, so don't search for the time or deliberate over it, and never read it mid-task. The final answer opens with the second reading and says how long the turn took in total, from the first reading to the second. Don't reuse a prior-turn timestamp or present capture time as hidden provider sent time. If no clock is accessible, disclose that limit rather than inventing a time."
+          },
+          {
+            "kind": "exact_text",
+            "text": "- Before finalizing every assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form. If it does not, prepend the second reading; the check needs no further reading."
           }
         ]
       },
@@ -55,7 +59,7 @@
             "timestamp elsewhere in the answer"
           ],
           "carry_through": "Recheck after any final rewrite.",
-          "repair": "Prepend a current date/time/timezone first line before emitting.",
+          "repair": "Prepend the second clock reading as a date/time/timezone first line before emitting; do not read the clock again.",
           "enforcement": "mechanical",
           "mechanical_check": {
             "kind": "final_timestamp_first_line"

@@ -1,0 +1,40 @@
+{
+  "requirement_id": "2026-09-30-clock-at-start-and-end",
+  "date": "2026-09-30",
+  "source": "Owner statement supplied with the clock-at-start-and-end task on 2026-09-30.",
+  "owner_statement": "you should check time quickly at start and quickly right before output to tell me how long it took total, but as you can see in the screenshot it was checking the time mid-thinking which makes no sense, and it also seems to struggle to find the time which also makes no sense, there should be a fast way to get the time even it's not atomic clock or something",
+  "problem": "A Claude chat read the clock during one reply and spent effort finding the time. The owner wants a quick start reading and a quick reading immediately before the final answer, with total elapsed time reported.",
+  "required_behavior": [
+    "Read the clock once quickly at the start and once immediately before writing the final answer; do not read it mid-task.",
+    "Use the fastest available source without searching or deliberating; approximate time is acceptable.",
+    "Open the final answer with the second reading as a date-and-time stamp including timezone or UTC offset, and report total elapsed time from the first reading to the second.",
+    "The literal first-line check uses the second reading without another clock read."
+  ],
+  "authority": "OWNER_REQUIRED. This supersedes the clock-reading method in 2026-09-30-quick-clock-reads while preserving the root AGENTS.md first-line timestamp requirement.",
+  "scope": "Per-turn clock reads and final-answer timing under the universal architecture.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT"
+  },
+  "supersedes": ["2026-09-30-quick-clock-reads clock-reading method"],
+  "execution_surfaces": [
+    {
+      "surface": "Root AGENTS.md per-turn bootstrap invariants",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Task-time rule graph and Mission Control restored projection",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Claude chats that do not load this repository",
+      "disposition": "DEFERRED",
+      "reason": "This repository cannot update those chats' independent instructions."
+    }
+  ],
+  "learning_state_at_merge": ["CAPTURED", "PROMOTED", "PROJECTED", "TESTED_TEXT_ONLY"],
+  "nonclaims": [
+    "Text and generated-contract checks do not prove that a live assistant follows the two-read timing rule.",
+    "The supplied screenshot was described by the owner; its underlying trace was not available in this repository."
+  ]
+}

@@ -69,7 +69,7 @@ class ChatTimestampWorkReasoningBudgetTests(unittest.TestCase):
 
     def test_per_turn_rule_allows_its_own_prerequisites(self) -> None:
         self.assertIn("bootstrap retrieval itself are permitted prerequisites", self.agents)
-        self.assertIn("do not reuse a prior-turn timestamp", self.agents)
+        self.assertIn("Don't reuse a prior-turn timestamp", self.agents)
         case = next(c for c in self.live_eval["cases"] if c["id"] == "LIVE-01-FRESH-CHAT-STAMP")
         self.assertTrue(any("follow-up" in e for e in case["expected"]))
         evidence = self.live_eval["recommended_live_run"]["evidence_to_record"]

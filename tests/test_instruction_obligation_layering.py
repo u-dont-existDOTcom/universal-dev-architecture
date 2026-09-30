@@ -23,7 +23,7 @@ class InstructionBoundarySourceTests(unittest.TestCase):
     def test_timestamp_destination_and_current_turn_remain_explicit(self):
         text = (ROOT / "AGENTS.md").read_text()
         self.assertIn("every assistant turn", text)
-        self.assertIn("repeat it in the final answer", text)
+        self.assertIn("use the second reading in the final answer", text)
         self.assertIn("If the cause is unknown", text)
 
     def test_unknown_is_not_admission(self):
