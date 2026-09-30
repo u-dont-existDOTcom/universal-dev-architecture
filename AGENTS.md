@@ -7,6 +7,7 @@ For **every assistant turn** governed by this architecture, the **first line of 
 - The timestamp must appear in the final answer/message content delivered to the user on every assistant turn. A timestamp written only in hidden reasoning, visible thinking/reasoning UI, analysis, tool-call commentary, scratch work, or any intermediate channel **does not satisfy this requirement**.
 - If a timestamp has already been written during reasoning or an intermediate step, **repeat it in the final answer**. Do not treat prior reasoning text as satisfying the final-output contract.
 - Read an available current clock for this turn; do not reuse a prior-turn timestamp or present capture time as hidden provider sent time. If no clock is accessible, disclose that limit rather than inventing a time.
+- Use the first clock available (a clock tool, or `date` in a shell or code tool) and move on; minute precision is enough. Never compare clock sources, weigh their accuracy, or seek a faster one. If two reads that should differ match exactly, treat the clock tool as cached: read a shell or code clock once, or say the later time could not be read.
 - Before finalizing every assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form. If it does not, prepend the timestamp before emitting the answer.
 - Apply it on every turn even for trivial arithmetic, greetings, smoke tests, follow-up acknowledgments, corrections, status updates, or prompts that otherwise warrant a direct one-line answer.
 - “Answer simple tasks directly,” reasoning-effort minimization, tool-avoidance heuristics, brevity requests, or a judgment that deeper repository reads are unnecessary **must not waive this invariant**.
@@ -85,6 +86,12 @@ Lane default and definitions, hard-gate, expensive-validation, outage, no-ratche
 Hard, costly-if-wrong reasoning: `patterns/cross-family-reasoning-check.md`.
 
 Claims about another agent, and agents that disagree: consult it directly, never through the owner: `patterns/agent-to-agent-consultation.md`.
+
+Evaluating a claim, argument, quote, meme, advice, or counterexample, even a casual "what do you think of this": `patterns/reasoning-selection.md` → **Claim and argument evaluation**.
+
+Claims about what ChatGPT, Claude, or Codex can do or did: `patterns/chatgpt-client-surface-capability-and-thread-recovery.md` → **Claims about the system itself**.
+
+Saving or remembering an instruction or preference: `patterns/durable-chat-learning.md` → **12. User-specific instructions**.
 
 ## Workflow
 

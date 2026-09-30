@@ -1,0 +1,88 @@
+{
+  "requirement_id": "2026-09-30-system-capability-claims",
+  "date": "2026-09-30",
+  "source": "An owner-supplied set of 25 numbered instructions for reasoning about ChatGPT as an integrated system of models, modes, tools, memory and context sources, sensory inputs, permissions, and interfaces, sent on 2026-09-30 with the request to check it, improve it if needed, and merge it where applicable.",
+  "problem": "An assistant describing its own system can speak from the one component that happens to be answering: a limit of the current model, voice layer, mode, or tool becomes a claim about the whole product; a capability documented for another plan or interface becomes a claim about this session; routing is inferred from response quality, latency, or wording; and pronunciation, accent, or tone is asserted from a transcript.",
+  "required_behavior": [
+    "Say which layer a capability or behavior claim is about: the current component, the current session, another available component or tool, documented product behavior, or the whole product.",
+    "Check the routes the session actually offers before declaring something impossible, without hunting for routes it does not have.",
+    "Rank evidence about what happened: a returned tool or system result, direct sensory or file input, explicit session state, current product documentation, a transcript or summary, then inference from behavior. A weaker source never overrides a stronger one.",
+    "Treat internal routing as unknown unless the interaction or current documentation shows it, label each claim about system behavior as observed, documented, or inferred, and leave unresolved parts open.",
+    "Support sensory claims only with the sensory input, and keep apart what the transcript says, what the person says they said, and what the audio would be needed to settle.",
+    "Keep intended, attempted, and confirmed actions apart, and likewise capability and use, requested and granted permission, and a handoff and completion of the underlying task.",
+    "After a correction or a change of model, reasoning level, mode, context, tool, permission, connection, or input, reassess the available routes and every conclusion that rested on the changed premise.",
+    "Judge an interaction by whether the person's meaning and goal survived every step, and locate a failure at the narrowest layer the evidence supports.",
+    "Explain internal architecture only when it bears on correctness, reliability, a capability or limit, an error, or a choice the person must make, and scope capability wording to the evidence."
+  ],
+  "coverage_map": {
+    "1": ["Section introduction"],
+    "2": ["Name the layer"],
+    "3": ["Name the layer"],
+    "4": ["Name the layer", "Separate intent from outcome"],
+    "5": ["Rank evidence about what happened"],
+    "6": ["Treat internal routing as unknown unless shown"],
+    "7": ["Treat internal routing as unknown unless shown"],
+    "8": ["Pointer to patterns/reasoning-selection.md"],
+    "9": ["Pointer to patterns/context-compaction-resilience.md"],
+    "10": ["Recheck after a change"],
+    "11": ["Recheck after a change"],
+    "12": ["Separate intent from outcome"],
+    "13": ["Tie sensory claims to the sensory input"],
+    "14": ["Tie sensory claims to the sensory input"],
+    "15": ["Tie sensory claims to the sensory input"],
+    "16": ["Check the routes this session has"],
+    "17": ["Name the layer"],
+    "18": ["Recheck after a change"],
+    "19": ["Treat internal routing as unknown unless shown"],
+    "20": ["Bring in architecture only when it matters"],
+    "21": ["Treat internal routing as unknown unless shown"],
+    "22": ["Bring in architecture only when it matters"],
+    "23": ["Judge the whole chain; locate errors narrowly"],
+    "24": ["Judge the whole chain; locate errors narrowly"],
+    "25": ["Closing paragraph"]
+  },
+  "review_changes": [
+    "The trigger is a claim about what the system can do or did, not every task. Run on every task, the checks would add deliberation to answers they cannot change.",
+    "The rules cover Claude and Codex surfaces as well as ChatGPT, since those are built the same way.",
+    "Instructions 8 (smallest sufficient configuration) and 9 (preserving state across handoffs) already have homes in patterns/reasoning-selection.md and patterns/context-compaction-resilience.md, so the new section points there instead of restating them.",
+    "Overlapping instructions were merged into single bullets, as coverage_map shows, and the final questions of instruction 25 became one closing sentence."
+  ],
+  "scope": "Claims about the capabilities, limits, routing, and past behavior of ChatGPT, Claude, Codex, and the tools they run. Semantic judgment controls only: no fail-closed gate, no new authority, and no requirement to explain architecture when it does not change the answer.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "notes": "The instructions are owner-supplied. The review merged overlapping instructions, pointed two of them to existing rules, and narrowed the trigger, which is the improvement the owner asked for.",
+    "admission": "OWNER_SUPPLIED"
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/chatgpt-client-surface-capability-and-thread-recovery.md Claims about the system itself section, LESSON-INDEX.md entry for that pattern, and the root AGENTS.md router line",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Chat, Codex, and Claude Code sessions that load this repository's root AGENTS.md",
+      "disposition": "PROJECTED",
+      "note": "Reached through the root router line; sessions that do not load the root file are not covered."
+    },
+    {
+      "surface": "ChatGPT and Claude chats that do not load this repository",
+      "disposition": "DEFERRED",
+      "reason": "They follow the owner's custom instructions and memory on each product, not this repository. The owner can add a compact version there."
+    },
+    {
+      "surface": "Declared public apps in portable/PUBLIC-APPS.json (Inner Signal, AskRigor, humandesign participant interviewer GPT)",
+      "disposition": "DEFERRED",
+      "reason": "Each app's instructions have their own authority and size budget. The checks that fit apps best are keeping intended and confirmed actions apart (for example, reporting an Action or tool call as done only from its returned result) and naming the layer when a user asks what the app can do; they are candidates for the next version of the portable claim-integrity pack."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED",
+    "TESTED_TEXT_ONLY"
+  ],
+  "nonclaims": [
+    "Text-presence tests do not show that any agent applies the checks.",
+    "The eval fixture evals/system-capability-claims.json has not been run against a model.",
+    "Nothing here is LIVE_VERIFIED."
+  ]
+}

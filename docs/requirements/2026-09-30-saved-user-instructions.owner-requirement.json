@@ -1,0 +1,58 @@
+{
+  "requirement_id": "2026-09-30-saved-user-instructions",
+  "date": "2026-09-30",
+  "source": "Owner-supplied instructions sent on 2026-09-30 with the request to check them, improve them if needed, and merge them where applicable. They had two parts: where a user's saved instructions persist (memory first, then one ChatGPT Library file named /Saved Instructions.md, never several files, writes verified, the file read back on later tasks, and a plain statement when durable saving could not be verified), and how saved instructions are classified and promoted (user-specific, a candidate for this repository, or a candidate for AskRigor's Universal Instructions, promoted only when the broader layer's authority permits).",
+  "problem": "Without a rule, a request to remember something can land in the wrong place: one user's preference added to an instruction set every user gets, a second or third instructions file that later reads miss, or a report that something was saved when nothing verified the write.",
+  "required_behavior": [
+    "Treat a request to save, remember, or persist an instruction or preference as user-specific by default; saving it is not a reason to add it to a universal instruction set.",
+    "Use the surface's ordinary persistent memory first when it is available and appropriate: ChatGPT Memory, or the memory tools in Claude.",
+    "On ChatGPT, when the Library fallback is needed, use only the exact file /Saved Instructions.md: update it if it exists, preserving unrelated entries, and create it with a short explanatory heading if it does not and the Library can create files. Never invent another filename or keep a second instructions file.",
+    "Verify the write before saying the instruction was saved; if neither memory nor a writable Library is available, keep the instruction in the conversation and say that durable saving could not be verified.",
+    "On later tasks, read /Saved Instructions.md when relevant instructions may be missing from injected memory or context, without assuming that memory, chat history, Custom Instructions, or the file is complete or current.",
+    "Classify saved instructions only when asked or during an authorized instruction-maintenance review, as USER_SPECIFIC, UDA_CANDIDATE, or ASKRIGOR_UNIVERSAL_CANDIDATE, and promote only when the rule belongs at the broader layer and that layer's authority permits the change."
+  ],
+  "review_changes": [
+    "Memory first names both ChatGPT Memory and the memory tools in Claude; the Library fallback stays specific to ChatGPT.",
+    "The rule says to check Memory and the Library separately, because one being unavailable says nothing about the other.",
+    "The classification labels are written as searchable constants (USER_SPECIFIC, UDA_CANDIDATE, ASKRIGOR_UNIVERSAL_CANDIDATE).",
+    "The promotion rule names each layer's authority: owner approval for this repository, and AskRigor's own protocol review for its instructions."
+  ],
+  "scope": "Requests from the owner, or from any user of a product that follows this architecture, to save, remember, or persist personal instructions, preferences, or workflow rules. Semantic controls only: no fail-closed gate and no new authority.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "notes": "The rules are owner-supplied; the review changes are listed in review_changes.",
+    "admission": "OWNER_SUPPLIED"
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/durable-chat-learning.md section 12, LESSON-INDEX.md entry for durable-chat-learning, and the root AGENTS.md router line",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Chat, Codex, and Claude Code sessions that load this repository's root AGENTS.md",
+      "disposition": "PROJECTED",
+      "note": "Reached through the root router line; sessions that do not load the root file are not covered."
+    },
+    {
+      "surface": "ChatGPT chats that do not load this repository",
+      "disposition": "DEFERRED",
+      "reason": "They follow the owner's ChatGPT custom instructions and memory, not this repository. The owner can add the rule there."
+    },
+    {
+      "surface": "Declared public apps in portable/PUBLIC-APPS.json (Inner Signal, AskRigor, humandesign participant interviewer GPT)",
+      "disposition": "DEFERRED",
+      "reason": "A public app is where user-specific-by-default matters most, since one user's saved preference must never change the instructions every user gets. Each app's instructions have their own authority. AskRigor, whose Universal Instructions the rule names, is the first candidate and needs its own protocol review."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED",
+    "TESTED_TEXT_ONLY"
+  ],
+  "nonclaims": [
+    "Text-presence tests do not show that any agent follows the rule.",
+    "This repository does not verify how the ChatGPT Library behaves; the rule is written to hold whether or not the Library can create files.",
+    "Nothing here is LIVE_VERIFIED."
+  ]
+}
