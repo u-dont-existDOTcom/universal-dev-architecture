@@ -56,6 +56,8 @@ credentials, private locators/profiles, or owner account identifiers.
 
 A project whose runtime runs outside this architecture imports what applies to it: `patterns/carrying-uda-into-standalone-projects.md`.
 
+Before other fixes in a project, read its lane in `suggested-fixes/`; file suggestions for other projects there, not as pull requests in them: `patterns/suggested-fix-queue.md`.
+
 ## Validation
 
 Run both exact commands declared in `.github/codex-repository.json` before completion **when the active task is at the repository's merge/release completion boundary**:
@@ -165,9 +167,9 @@ Standing authority includes creating and privately registering missing MC-only s
 
 In user-facing prose, never make repository identifiers the primary explanation. Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, and similar opaque references are locating metadata, not semantic referents.
 
-On first use in a response—or again after a topic shift when the referent could be unclear—state the plain-language object or function first and put the identifier in parentheses, for example `the local Playwright Pangram GUI runner (PR #78)` rather than `PR #78`. When several identifiers are involved, explain their substantive relationship in ordinary language instead of presenting a bare chain such as `PR #35 → PR #78`.
+On first use, and again after a topic shift, state the plain-language object or function first and put the identifier in parentheses; when several identifiers are involved, explain how they relate in ordinary language, not as a bare chain (examples: `patterns/human-readable-operational-references.md`).
 
-When an owner decision is required, state the actual choice, consequences, and recommended default in plain language. Do not ask the owner to decide among opaque identifiers or branch/PR numbers. Internal logs, code, machine-readable receipts, and developer-only diagnostics may remain identifier-dense when that precision is useful.
+When an owner decision is required, state the actual choice, consequences, and recommended default in plain language. Do not ask the owner to decide among opaque identifiers or branch/PR numbers. Keep every open owner question on one continuously updated page: `patterns/owner-questions-page.md`. Internal logs, code, machine-readable receipts, and developer-only diagnostics may remain identifier-dense when that precision is useful.
 
 ### Owner-facing outbound-link quality
 
@@ -178,8 +180,6 @@ Immediately before surfacing any outbound link to the owner, open the exact dest
 **Delivery is part of completion.** When the owner needs to use a file, packet, handoff, protocol, report, generated artifact, or other output, do not make them navigate GitHub branches or repository paths to obtain it.
 
 Before delivering that output, load the delivery-priority, provenance, companion-material, and pre-close usability rules: `patterns/human-readable-operational-references.md` → **Compact rules moved from root `AGENTS.md`**.
-
-Use `patterns/human-readable-operational-references.md` for the full outbound-link and artifact-delivery rules, rationale, examples, and recovery rule.
 
 ## Research before reinvention
 

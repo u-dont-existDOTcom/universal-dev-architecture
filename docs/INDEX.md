@@ -135,6 +135,12 @@ When a claim about another agent's capabilities, configuration or behavior feeds
 
 For substantial work on a high-tier model, load `../patterns/delegate-easy-work-to-cheaper-models.md`: delegate easy, well-specified pieces when the allowance saving pays for briefing and checking, and keep work when continuing is cheaper.
 
+When a workstream needs anything from the owner, keep it on that workstream's one continuously updated owner questions page: `../patterns/owner-questions-page.md`.
+
+Before other fixes in a project, read its lane in `../suggested-fixes/`, and file suggestions for projects you aren't working on there: `../patterns/suggested-fix-queue.md`.
+
+For shopping research, load `../patterns/shopping-research.md` together with `../patterns/recommendation-preflight-integrity.md`.
+
 Templates live in `../templates/`. Execution plans live in `exec-plans/`.
 
 `../patterns/codex-github-operating-standard.md` is retained as superseded provenance and routes to the operating-system pattern. It is not a second current standard.
