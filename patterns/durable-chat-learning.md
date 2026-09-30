@@ -94,6 +94,10 @@ Unless the owner explicitly limits scope, execute all applicable steps automatic
 
 For a public-facing AI product, **updating Universal Dev Architecture is not by itself evidence that public users will receive the corrected behavior**. If that product's runtime does not load the universal repository, the affected product runtime authority must be updated separately. Developer/build-time governance and public runtime behavior are distinct propagation targets.
 
+Which projects are public-facing is the owner's declaration in `portable/PUBLIC-APPS.json`, not an inference. Repository visibility does not make a project public-facing, and neither does having model instructions. Project portable checks into every declared public app. A project marked undecided, or not listed, gets them only when the owner says so. Before starting work across several repositories, name the target list and where it came from; if any target was inferred rather than declared, confirm the list with the owner first. Regression: asked to carry new checks into "all public facing projects", an agent inferred eight targets from public repositories that had model instructions and opened seven pull requests; the owner meant the projects that will be standalone apps: three, one of them a single Custom GPT inside a larger repository, plus one he had not decided.
+
+When the lesson belongs in a portable pack, record each public project's projection, coverage mapping, or exclusion in `portable/TRANSFER-LEDGER.json`, using the states below plus `PROPOSED` for a change still in an open pull request.
+
 Do not conflate these states:
 
 - `CAPTURED` — lesson persisted somewhere durable;

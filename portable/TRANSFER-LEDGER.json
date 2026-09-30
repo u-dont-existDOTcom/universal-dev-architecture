@@ -1,0 +1,1352 @@
+{
+  "schema_version": 1,
+  "status": "DEVELOPMENT_SIDE_TRANSFER_LEDGER_NOT_RUNTIME_DEPENDENCY",
+  "purpose": "Records which public projects carry which portable checks, where, and in what state. Public products never read this file at runtime; each carries its own adaptation.",
+  "packs": {
+    "claim-integrity": {
+      "version": 1,
+      "date": "2026-09-27",
+      "file": "portable/claim-integrity/CHECKS.md",
+      "sha256": "19bdb74988b3e1a77e5078a7cebf66f58ffce58978ef3acf831f5027a6d936da",
+      "check_ids": [
+        "CI-01",
+        "CI-02",
+        "CI-03",
+        "CI-04",
+        "CI-05",
+        "CI-06",
+        "CI-07",
+        "CI-08",
+        "CI-09",
+        "CI-10",
+        "CI-11",
+        "CI-X1"
+      ],
+      "owner_requirement": "docs/requirements/2026-09-27-claim-anchoring-and-review-integrity.owner-requirement.json"
+    }
+  },
+  "projects": [
+    {
+      "repository": "u-dont-existDOTcom/AskRigor",
+      "visibility": "public",
+      "product_types": [
+        "research",
+        "writing"
+      ],
+      "pack": "claim-integrity",
+      "pack_version": 1,
+      "state": "PROPOSED",
+      "evidence": "Open PR https://github.com/u-dont-existDOTcom/AskRigor/pull/250 at 5b745aba373c; not merged.",
+      "pr_url": "https://github.com/u-dont-existDOTcom/AskRigor/pull/250",
+      "commit": "5b745aba373c0c1b97f60ec13073ef1572be7ad3",
+      "runtime_surfaces": [
+        "protocols/Universal_Instructions.xml (changed; general conversations, critique, drafting, editing)",
+        "protocols/HRP_Full.xml (changed; health/research protocol where research verdicts are produced)",
+        "skills/askrigor/SKILL.md (unchanged; loads both complete protocols, so the plugin inherits the checks without a package change)",
+        "project/PROJECT_INSTRUCTIONS.md (unchanged; routes to the complete protocols; 7962 of 8000 characters used)",
+        "project/CUSTOM_GPT_CONTROLLED_INSTRUCTIONS.md (unchanged; the GPT shell renders only server-authorized reports and the server worker loads both complete protocols)"
+      ],
+      "checks": {
+        "CI-01": {
+          "disposition": "ADDED",
+          "file": "protocols/Universal_Instructions.xml",
+          "anchor": "must rest on a passage checked when the sentence is written, including a text read earlier in the conversation",
+          "note": "New 'Source-report check' line in point_of_generation_checks; extends the existing restatement, described-person fidelity, and source-scope checks to texts and to the point of use."
+        },
+        "CI-02": {
+          "disposition": "ADDED",
+          "file": "protocols/Universal_Instructions.xml",
+          "anchor": "Mark translations as translations, do not join words from separate sentences inside one quotation",
+          "note": "New 'Quotation check' line in point_of_generation_checks."
+        },
+        "CI-03": {
+          "disposition": "ADDED",
+          "file": "protocols/Universal_Instructions.xml",
+          "anchor": "search all of it for counterexamples. The claim covers only what was searched",
+          "note": "New 'Absence-claim check' line; the existing not-found rules cover entity existence, not absence claims about a text or conversation."
+        },
+        "CI-04": {
+          "disposition": "ADDED",
+          "file": "protocols/Universal_Instructions.xml",
+          "anchor": "When the user has stated expertise in the area, find a source before contradicting their usage.",
+          "note": "New 'Field-claim check' line; the epistemics exemption for conceptual reasoning could otherwise be read to cover canon or classification claims."
+        },
+        "CI-05": {
+          "disposition": "COVERED_BY_EXISTING",
+          "file": "protocols/Universal_Instructions.xml",
+          "anchor": "Check whether their references support the exact claims, whether citation chains have drifted",
+          "note": "Universal <sources>. HRP also covers it: CitationChainAudit ('Follow consequential claims through reviews and summaries to the source that actually generated the evidence.') and DuplicateAndDataLineageAudit (count underlying people or datasets, not documents). Pinned by the new test so coverage cannot silently disappear.",
+          "also": [
+            {
+              "disposition": "COVERED_BY_EXISTING",
+              "file": "protocols/HRP_Full.xml",
+              "anchor": "Count the underlying people or datasets rather than the number of documents"
+            }
+          ]
+        },
+        "CI-06": {
+          "disposition": "ADDED",
+          "file": "protocols/Universal_Instructions.xml",
+          "anchor": "must name what was compared with which source or version; when only part was checked, name the part",
+          "note": "New 'Verification-report check' line; the research-ledger rule covered only reports of what was researched when asked."
+        },
+        "CI-07": {
+          "disposition": "ADDED",
+          "file": "protocols/Universal_Instructions.xml",
+          "anchor": "recheck the source before agreeing, just as before defending it; agreement is not verification",
+          "note": "Extends the existing Overcorrection check line (no second copy). Partial prior coverage: premise-integrity rule 6 and the numerical recompute rule in corrections_and_calibration. The companion-specific clause does not apply to AskRigor, which is not a companion product."
+        },
+        "CI-08": {
+          "disposition": "ADDED",
+          "file": "protocols/Universal_Instructions.xml",
+          "anchor": "check it against its source at that moment, even if it was checked earlier",
+          "note": "New 'Added-fact check' line after the Draft-audit check."
+        },
+        "CI-09": {
+          "disposition": "ADDED",
+          "file": "protocols/Universal_Instructions.xml",
+          "anchor": "Once the user rejects a flag, drop it; do not bring it back as a warning about readers unless new evidence appears.",
+          "note": "Rule 14 in whole_argument_reconstruction_gate; completes rules 4 and 6 of that gate (reconstruction, withdraw dissolved objections)."
+        },
+        "CI-10": {
+          "disposition": "ADDED",
+          "file": "protocols/Universal_Instructions.xml",
+          "anchor": "compare the answer with what was already said on the same topic earlier in the conversation",
+          "note": "New 'Consistency check' line; premise-integrity rule 7 already keeps labeled estimation permitted."
+        },
+        "CI-X1": {
+          "disposition": "ADDED",
+          "file": "protocols/HRP_Full.xml",
+          "anchor": "When the pre-delivery claim check runs a separate checker, give it only the verdict sentences, without the analysis around them, and have it name the outcome measure, population, comparison, scope, and source each one is about",
+          "note": "OutputFormatting rule ExperimentalVerdictKeyConditionCheck (priority Medium): uses the pre-delivery claim check's separate checker when one runs, otherwise the drafter reads each verdict sentence alone and does not call the result independent; names outcome measure, population, comparison, scope, and source; judged by meaning, not wording; never blocks delivery."
+        },
+        "CI-11": {
+          "disposition": "ADDED",
+          "file": "protocols/Universal_Instructions.xml",
+          "anchor": "Pre-delivery claim check: Before sending a final critique of a text, review of the user's own work that they will act on, source-based conclusion, verification report, or text the user will publish",
+          "second_anchor": "If the runtime can start a separate checker, such as a subagent or a fresh context, give it the sources, the draft, and the claim list, but not the drafting reasoning",
+          "note": "Covers final critiques, reviews the user will act on, source-based conclusions, verification reports, and text the user will publish. The checker is conditional: the same protocols load in a single ChatGPT conversation, which cannot start one, and through the AskRigor skill in agent hosts, which can. Without a checker the claims are rechecked just before delivery and not called independently checked. The development-only independent verifier under evaluation/ is not a runtime checker.",
+          "also": [
+            {
+              "disposition": "ADDED",
+              "file": "protocols/HRP_Full.xml",
+              "anchor": "Before delivering a final research verdict, finding, or evidence summary, list internally every checkable claim",
+              "second_anchor": "If the runtime can start a separate checker, such as a subagent or a fresh context, give it the sources, the draft, and the claim list, but not the drafting reasoning"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "repository": "u-dont-existDOTcom/creativeTailSampling",
+      "visibility": "public",
+      "product_types": [
+        "research"
+      ],
+      "pack": "claim-integrity",
+      "pack_version": 1,
+      "state": "PROPOSED",
+      "evidence": "Open PR https://github.com/u-dont-existDOTcom/creativeTailSampling/pull/8 at aeaf230a3b9a; not merged.",
+      "pr_url": "https://github.com/u-dont-existDOTcom/creativeTailSampling/pull/8",
+      "commit": "aeaf230a3b9a0b21d73c56b76c67aa4fe8f7ea66",
+      "runtime_surfaces": [
+        "PROTOCOL.md",
+        "docs/ARTICLE-IMPROVEMENT-TAIL-WORKFLOW.md"
+      ],
+      "checks": {
+        "CI-01": {
+          "disposition": "ADDED",
+          "file": "PROTOCOL.md",
+          "anchor": "must rest on a specific passage that can be cited"
+        },
+        "CI-02": {
+          "disposition": "ADDED",
+          "file": "PROTOCOL.md",
+          "anchor": "Put only a source's exact words inside quotation marks"
+        },
+        "CI-03": {
+          "disposition": "ADDED",
+          "file": "PROTOCOL.md",
+          "anchor": "search all of that material for counterexamples, including other wording for the same mechanism. The claim covers only what was searched"
+        },
+        "CI-04": {
+          "disposition": "ADDED",
+          "file": "PROTOCOL.md",
+          "anchor": "Saying that a tradition, theory, field, standard, or classification contains, includes, or excludes a mechanism (`this is basically X`) is a factual claim about X"
+        },
+        "CI-05": {
+          "disposition": "ADDED",
+          "file": "PROTOCOL.md",
+          "anchor": "If a secondary figure does not match its own citation, use the primary figure. Two figures that trace to one source are one finding, not two"
+        },
+        "CI-06": {
+          "disposition": "ADDED",
+          "file": "PROTOCOL.md",
+          "anchor": "must name what was compared against which source or version"
+        },
+        "CI-07": {
+          "disposition": "ADDED",
+          "file": "PROTOCOL.md",
+          "anchor": "check the source before agreeing, just as before defending the claim. Agreement is not verification"
+        },
+        "CI-08": {
+          "disposition": "ADDED",
+          "file": "docs/ARTICLE-IMPROVEMENT-TAIL-WORKFLOW.md",
+          "anchor": "check it against its source at that moment, even if it was checked during the discovery run"
+        },
+        "CI-09": {
+          "disposition": "ADDED",
+          "file": "docs/ARTICLE-IMPROVEMENT-TAIL-WORKFLOW.md",
+          "anchor": "state the strongest reading of the passage under which it is not a problem, and drop the flag if that reading is plausible"
+        },
+        "CI-10": {
+          "disposition": "ADDED",
+          "file": "PROTOCOL.md",
+          "anchor": "If they conflict, correct one and say so. Label estimates as estimates, and report a derived number at the resolution of its inputs"
+        },
+        "CI-X1": {
+          "disposition": "ADDED",
+          "file": "PROTOCOL.md",
+          "anchor": "reads only the verdict text and names the key conditions it answers"
+        },
+        "CI-11": {
+          "disposition": "ADDED",
+          "file": "PROTOCOL.md",
+          "anchor": "Before delivering a gate disposition, promotion or demotion, `FINDINGS.md` entry, or evidence summary",
+          "also": [
+            {
+              "disposition": "ADDED",
+              "file": "docs/ARTICLE-IMPROVEMENT-TAIL-WORKFLOW.md",
+              "anchor": "Before delivering a review of the author's article or an insertion or authorized edit containing facts for publication"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "repository": "u-dont-existDOTcom/design",
+      "visibility": "public",
+      "product_types": [
+        "design",
+        "writing"
+      ],
+      "product_types_note": "The skill's build and refine operations draft copy the owner will publish, so the writing checks CI-03, CI-05, CI-07, and CI-08 apply as well as the design checks.",
+      "pack": "claim-integrity",
+      "pack_version": 1,
+      "state": "PROPOSED",
+      "evidence": "Open PR https://github.com/u-dont-existDOTcom/design/pull/2 at a3ff267382dd; not merged.",
+      "pr_url": "https://github.com/u-dont-existDOTcom/design/pull/2",
+      "commit": "a3ff267382dd96076abd5da19f0a12b3cf91bc20",
+      "runtime_surfaces": [
+        "skills/design/SKILL.md",
+        "skills/design/references/operations.md",
+        "skills/design/references/audit-schema.md",
+        "skills/design/references/project-context.md",
+        "core/AUTHORITY-AND-CONFLICTS.md",
+        "core/PERCEPTUAL-DIAGNOSIS.md",
+        "core/DESIGN-OPERATING-SYSTEM.md",
+        "core/PRODUCTION-VERIFICATION.md",
+        "core/ANTI-SLOP-GATE.md",
+        "core/PATTERN-SELECTION.md"
+      ],
+      "checks": {
+        "CI-01": {
+          "disposition": "ADDED",
+          "file": "skills/design/SKILL.md",
+          "anchor": "Every sentence about what a brief, the owner, a design, its content, or user research says, shows, or does must rest on a passage or element you can point to."
+        },
+        "CI-02": {
+          "disposition": "ADDED",
+          "file": "skills/design/SKILL.md",
+          "anchor": "Put only a source's exact words inside quotation marks, both in your reports and in the design itself: pull quotes, testimonials, and quoted copy."
+        },
+        "CI-03": {
+          "disposition": "ADDED",
+          "file": "skills/design/SKILL.md",
+          "anchor": "search all of it for counterexamples. The claim covers only what you searched; when that was less than all of it, such as a representative sample of pages or components, say so."
+        },
+        "CI-04": {
+          "disposition": "ADDED",
+          "file": "skills/design/SKILL.md",
+          "anchor": "Check them against a source, or say they come from memory. For a standard, name the version and the criterion or section you checked, such as the WCAG version and success criterion number."
+        },
+        "CI-05": {
+          "disposition": "ADDED",
+          "file": "skills/design/SKILL.md",
+          "anchor": "open the primary source behind it, not only a page that repeats it. If a secondary figure does not match its own citation, use the primary figure."
+        },
+        "CI-06": {
+          "disposition": "ADDED",
+          "file": "skills/design/SKILL.md",
+          "anchor": "must name what you compared against which source or version: for example, which foreground and background pairs you measured and how, in which states, and at which widths."
+        },
+        "CI-07": {
+          "disposition": "ADDED",
+          "file": "skills/design/SKILL.md",
+          "anchor": "When the owner disputes a finding or claim, recheck it before agreeing, as you would before defending it. Agreement is not verification."
+        },
+        "CI-08": {
+          "disposition": "ADDED",
+          "file": "skills/design/SKILL.md",
+          "anchor": "When you add or rewrite a factual claim, figure, quotation, or attribution in copy the owner will publish, classify the edit under Content changes and check it against its source at that moment"
+        },
+        "CI-09": {
+          "disposition": "ADDED",
+          "file": "skills/design/SKILL.md",
+          "anchor": "state the strongest reading under which it is not a problem, such as a deliberate choice the brief supports, and drop the flag if that reading is plausible."
+        },
+        "CI-10": {
+          "disposition": "ADDED",
+          "file": "skills/design/SKILL.md",
+          "anchor": "Before sending, compare what you are about to say with what you already said on the same topic. If they conflict, correct one and say so."
+        },
+        "CI-X1": {
+          "disposition": "NOT_APPLICABLE",
+          "reason": "The pack limits CI-X1 to research verdicts. This skill produces design critiques, audits, and implementations, not research verdicts or evidence summaries."
+        },
+        "CI-11": {
+          "disposition": "ADDED",
+          "file": "skills/design/SKILL.md",
+          "anchor": "Before delivering a critique or audit of the owner's design, a report about what a brief, research, or source says, copy with facts the owner will publish, or a claim that something was verified or passes, list every checkable claim"
+        }
+      }
+    },
+    {
+      "repository": "u-dont-existDOTcom/humandesign",
+      "visibility": "public",
+      "product_types": [
+        "companion",
+        "research"
+      ],
+      "pack": "claim-integrity",
+      "pack_version": 1,
+      "state": "PROPOSED",
+      "evidence": "Open PR https://github.com/u-dont-existDOTcom/humandesign/pull/42 at 5aa2d7137ef5; not merged.",
+      "pr_url": "https://github.com/u-dont-existDOTcom/humandesign/pull/42",
+      "commit": "5aa2d7137ef5331ce22089098803951611bfeae4",
+      "runtime_surfaces": [
+        {
+          "path": "reference/custom_gpt/participant_interviewer_instructions_under_8000_v1.md",
+          "product_type": "companion",
+          "role": "Deployable Custom GPT instructions for the AstroHD owner-pilot interviewer. src/hdmatch/api/natal_pilot_app.py reports the file's SHA-256 as interviewer_instructions_sha256. Owner-only pilot; external participants closed.",
+          "change": "ADDED accuracy section",
+          "size": {
+            "chars_before": 6686,
+            "chars_after": 7843,
+            "chars_with_line_breaks_doubled_after": 7989,
+            "utf8_bytes_after": 7857,
+            "limit": 8000
+          }
+        },
+        {
+          "path": "reference/custom_gpt/participant_interviewer_instructions_v1.md",
+          "product_type": "companion",
+          "role": "Full reference version of the interviewer (scientific and self-discovery modes), paired with participant_action_openapi_v1.yaml. Already over the 8,000-character builder limit before this change, so it cannot be pasted as builder instructions as is.",
+          "change": "ADDED accuracy section",
+          "size": {
+            "chars_before": 9770,
+            "chars_after": 12617
+          }
+        },
+        {
+          "path": "reference/custom_gpt/custom_gpt_instructions_under_8000.md",
+          "product_type": "companion and research",
+          "role": "Legacy Blind Birth-Moment Reverse Matcher Custom GPT instructions: interviews the person, then reports ranked birth-moment verdicts from a backend. Not wired to server code; the repository does not record whether a GPT runs it now.",
+          "change": "ADDED accuracy section",
+          "size": {
+            "chars_before": 7355,
+            "chars_after": 7926,
+            "chars_with_line_breaks_doubled_after": 8000,
+            "utf8_bytes_after": 7982,
+            "limit": 8000
+          }
+        },
+        {
+          "path": "src/hdmatch/relationship/llm_audit.py",
+          "product_type": "research (its answer-quality feedback and clarification prompts are shown to participants)",
+          "role": "LLM answer auditor (_FIELD_SYSTEM, _SESSION_SYSTEM), version relationship-llm-auditor-v1, running in the production relationship study (Railway start command relationship_launch_app).",
+          "change": "none: DEFERRED, versioned instrument"
+        },
+        {
+          "path": "src/hdmatch/relationship/phenotype_classifier.py",
+          "product_type": "research",
+          "role": "Chart-blind phenotype classifier (_SYSTEM) in the production relationship study; outputs frozen as relationship-phenotype-freeze-v1 and bound to relationship-blind-classifier-protocol-v1.",
+          "change": "none: DEFERRED, versioned instrument"
+        },
+        {
+          "path": "reference/core/survey_v2_classifier_system_prompt_v1_0_0.txt",
+          "product_type": "research",
+          "role": "Frozen v1.0.0 Survey-v2 evidence classifier prompt, pinned by state/SURVEY-V2-HUMAN-MEASUREMENT-FREEZE-MANIFEST-v1.0.0.json and tests/unit/test_survey_v2_human_measurement_freeze.py; runtime not implemented.",
+          "change": "none: DEFERRED, frozen"
+        },
+        {
+          "path": "reference/core/survey_v2_h1_exposure_adjudicator_system_prompt_v1_0_0.txt",
+          "product_type": "research",
+          "role": "Frozen v1.0.0 H1 exposure adjudicator prompt, pinned by the same manifest and test; runtime not implemented.",
+          "change": "none: DEFERRED, frozen"
+        },
+        {
+          "path": "reference/custom_gpt/authority_and_transit_guardrails.md",
+          "product_type": "knowledge file uploaded to the reverse matcher",
+          "role": "Authority and transit rules the reverse matcher reads. The historical V4.1 protocol (reference/core/human_design_reverse_matching_protocol_v4_1.md) is the other uploaded file.",
+          "change": "none"
+        },
+        {
+          "path": "reference/custom_gpt/daily_hd_transit_task_prompts_v2.md",
+          "product_type": "prompt templates the user pastes into regular ChatGPT scheduled tasks",
+          "role": "Daily transit reminder or brief; no conversation with the person.",
+          "change": "none"
+        }
+      ],
+      "checks": {
+        "CI-01": {
+          "disposition": "ADDED",
+          "file": "reference/custom_gpt/participant_interviewer_instructions_under_8000_v1.md",
+          "anchor": "Say what the participant said, did, felt, or wanted, including words like always, never, kept, stopped, willing, or forced, only when their words in this conversation support it.",
+          "surfaces": [
+            {
+              "file": "reference/custom_gpt/participant_interviewer_instructions_under_8000_v1.md",
+              "disposition": "ADDED",
+              "anchor": "After reveal, state what AstroHD predicted only from the returned results."
+            },
+            {
+              "file": "reference/custom_gpt/participant_interviewer_instructions_v1.md",
+              "disposition": "ADDED",
+              "anchor": "Every sentence that says what the participant said, did, felt, wanted, or described must rest on their own words in this conversation."
+            },
+            {
+              "file": "reference/custom_gpt/custom_gpt_instructions_under_8000.md",
+              "disposition": "ADDED",
+              "anchor": "Describe the person only from their words, including always/never; label inferences; add no unstated motive/history."
+            },
+            {
+              "file": "src/hdmatch/relationship/llm_audit.py",
+              "disposition": "DEFERRED",
+              "reason": "Versioned instrument relationship-llm-auditor-v1 in the running relationship study; a change needs a new version. Partial existing rule:",
+              "existing_anchor": "For partner-internal states, require direct statements/behavior or label the inference limitation."
+            },
+            {
+              "file": "src/hdmatch/relationship/phenotype_classifier.py",
+              "disposition": "DEFERRED",
+              "reason": "Versioned instrument in the running relationship study; a change needs a new version. Partial existing rule:",
+              "existing_anchor": "Do not infer another person's internal state from the respondent's assumption without direct statements or behavior."
+            },
+            {
+              "file": "reference/core/survey_v2_classifier_system_prompt_v1_0_0.txt",
+              "disposition": "DEFERRED",
+              "reason": "Frozen v1.0.0, SHA-256 pinned; runtime not implemented. Partial existing rule:",
+              "existing_anchor": "Do not infer motive from outcome."
+            },
+            {
+              "file": "reference/custom_gpt/daily_hd_transit_task_prompts_v2.md",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "If exact transit gates/lines and natal connections cannot be verified, do not improvise.",
+              "note": "Daily transit brief run as a ChatGPT scheduled task from a verified live-transit source."
+            }
+          ]
+        },
+        "CI-02": {
+          "disposition": "ADDED",
+          "file": "reference/custom_gpt/participant_interviewer_instructions_under_8000_v1.md",
+          "anchor": "Put only their exact words in quotation marks, never a paraphrase or words joined from separate statements. Mark translations.",
+          "surfaces": [
+            {
+              "file": "reference/custom_gpt/participant_interviewer_instructions_v1.md",
+              "disposition": "ADDED",
+              "anchor": "Put only the participant's exact words inside quotation marks. Mark translations as translations."
+            },
+            {
+              "file": "reference/custom_gpt/custom_gpt_instructions_under_8000.md",
+              "disposition": "ADDED",
+              "anchor": "Quote only exact words; mark translations."
+            },
+            {
+              "file": "src/hdmatch/relationship/phenotype_classifier.py",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "Evidence and counterevidence spans MUST be short exact verbatim substrings copied from the supplied participant responses. Do not paraphrase evidence spans.",
+              "note": "Also enforced in code: validate_phenotype_output in src/hdmatch/relationship/phenotype.py rejects spans not present verbatim."
+            },
+            {
+              "file": "reference/core/survey_v2_classifier_system_prompt_v1_0_0.txt",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "Do not quote or paraphrase evidence in the output.",
+              "note": "Output cites span IDs instead of quoting."
+            },
+            {
+              "file": "src/hdmatch/relationship/llm_audit.py",
+              "disposition": "DEFERRED",
+              "reason": "Frozen instrument relationship-llm-auditor-v1; its participant-facing feedback has no quotation rule."
+            }
+          ]
+        },
+        "CI-03": {
+          "disposition": "ADDED",
+          "file": "reference/custom_gpt/participant_interviewer_instructions_under_8000_v1.md",
+          "anchor": "Before saying they never mentioned something, check the whole conversation. The claim covers only what you checked; say so when that was less than all of it.",
+          "surfaces": [
+            {
+              "file": "reference/custom_gpt/participant_interviewer_instructions_v1.md",
+              "disposition": "ADDED",
+              "anchor": "Before saying the participant never mentioned something, check the whole conversation for counterexamples."
+            },
+            {
+              "file": "reference/custom_gpt/custom_gpt_instructions_under_8000.md",
+              "disposition": "ADDED",
+              "anchor": "Check the whole chat before claiming they never said something."
+            },
+            {
+              "file": "reference/core/survey_v2_classifier_system_prompt_v1_0_0.txt",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "Absence of mention is not evidence of absence."
+            },
+            {
+              "file": "src/hdmatch/relationship/llm_audit.py",
+              "disposition": "DEFERRED",
+              "reason": "Frozen instrument relationship-llm-auditor-v1."
+            },
+            {
+              "file": "src/hdmatch/relationship/phenotype_classifier.py",
+              "disposition": "DEFERRED",
+              "reason": "Frozen instrument in the running relationship study."
+            }
+          ]
+        },
+        "CI-04": {
+          "disposition": "ADDED",
+          "file": "reference/custom_gpt/custom_gpt_instructions_under_8000.md",
+          "anchor": "Base HD claims on uploaded files or say “from memory”; check them before disputing their HD usage.",
+          "surfaces": [
+            {
+              "file": "reference/custom_gpt/participant_interviewer_instructions_v1.md",
+              "disposition": "ADDED",
+              "anchor": "After reveal, describe what the frozen model predicted only from the returned prediction comparisons and behavioral statements."
+            },
+            {
+              "file": "reference/custom_gpt/participant_interviewer_instructions_v1.md",
+              "disposition": "ADDED",
+              "anchor": "If the participant says they know Human Design well, do not correct their use of its terms from general knowledge alone"
+            },
+            {
+              "file": "reference/custom_gpt/participant_interviewer_instructions_under_8000_v1.md",
+              "disposition": "NOT_APPLICABLE",
+              "reason": "Companion surface; CI-04 targets research, writing and design. Its nearest rule is the CI-01 line on AstroHD predictions."
+            },
+            {
+              "file": "reference/custom_gpt/authority_and_transit_guardrails.md",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "Never invent gates, lines, channels, centers, or transit-to-natal connections."
+            },
+            {
+              "file": "reference/custom_gpt/daily_hd_transit_task_prompts_v2.md",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "If exact transit gates/lines and natal connections cannot be verified, do not improvise."
+            },
+            {
+              "file": "src/hdmatch/relationship/phenotype_classifier.py",
+              "disposition": "DEFERRED",
+              "reason": "Frozen instrument; it already classifies only against the supplied frozen rubric."
+            }
+          ]
+        },
+        "CI-05": {
+          "disposition": "COVERED_BY_EXISTING",
+          "file": "reference/custom_gpt/custom_gpt_instructions_under_8000.md",
+          "anchor": "Never fabricate calculations, sources, validation, or precision.",
+          "surfaces": [
+            {
+              "file": "reference/custom_gpt/custom_gpt_instructions_under_8000.md",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "one mechanism is one dependency cluster; channels/gates/Cross are not duplicate evidence",
+              "note": "Counts one mechanism once, the analogue of two figures from one source being one finding."
+            },
+            {
+              "file": "reference/custom_gpt/participant_interviewer_instructions_under_8000_v1.md",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "Do not inflate ties, approximate ranks, or symbolic agreement labels."
+            },
+            {
+              "file": "reference/custom_gpt/participant_interviewer_instructions_v1.md",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "Do not inflate ties or approximate ranks into stronger claims than the returned data support."
+            },
+            {
+              "file": "src/hdmatch/relationship/phenotype_classifier.py",
+              "disposition": "DEFERRED",
+              "reason": "Frozen instrument."
+            }
+          ]
+        },
+        "CI-06": {
+          "disposition": "ADDED",
+          "file": "reference/custom_gpt/custom_gpt_instructions_under_8000.md",
+          "anchor": "check them before disputing their HD usage. “Verified” names what was compared.",
+          "surfaces": [
+            {
+              "file": "reference/custom_gpt/participant_interviewer_instructions_v1.md",
+              "disposition": "ADDED",
+              "anchor": "When you call a prediction supported, matched, or contradicted, name the prediction and the answer it was compared with."
+            },
+            {
+              "file": "reference/custom_gpt/participant_interviewer_instructions_under_8000_v1.md",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "the complete returned model receipt: prediction freeze, code commit, engine, model, mapping, question bank, ranking scope, and candidate universe.",
+              "note": "Partial: names the model version each comparison used. Companion surface, where CI-06 is not required."
+            },
+            {
+              "file": "src/hdmatch/relationship/phenotype_classifier.py",
+              "disposition": "DEFERRED",
+              "reason": "Frozen instrument."
+            },
+            {
+              "file": "reference/custom_gpt/daily_hd_transit_task_prompts_v2.md",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "State today's local date, local time, UTC timestamp, source, and the transit chart's exact validity interval.",
+              "note": "Daily transit brief run as a ChatGPT scheduled task from a verified live-transit source."
+            }
+          ]
+        },
+        "CI-07": {
+          "disposition": "ADDED",
+          "file": "reference/custom_gpt/participant_interviewer_instructions_under_8000_v1.md",
+          "anchor": "If they correct how you reflected them, return to their words: neither defend your reading nor adopt one they did not say. If they dispute a result, recheck the Action response before agreeing or defending.",
+          "surfaces": [
+            {
+              "file": "reference/custom_gpt/participant_interviewer_instructions_v1.md",
+              "disposition": "ADDED",
+              "anchor": "When the participant corrects how you reflected what they said, go back to their words: do not defend your reading, and do not adopt a new one they did not say."
+            },
+            {
+              "file": "reference/custom_gpt/custom_gpt_instructions_under_8000.md",
+              "disposition": "ADDED",
+              "anchor": "If corrected, reread their words; adopt no reading they didn't give. Recheck data before conceding or defending."
+            },
+            {
+              "file": "src/hdmatch/relationship/llm_audit.py",
+              "disposition": "NOT_APPLICABLE",
+              "reason": "Single-call structured classifier; no one disputes its output inside the call."
+            },
+            {
+              "file": "src/hdmatch/relationship/phenotype_classifier.py",
+              "disposition": "NOT_APPLICABLE",
+              "reason": "Single-call structured classifier; no one disputes its output inside the call."
+            }
+          ]
+        },
+        "CI-08": {
+          "disposition": "NOT_APPLICABLE",
+          "reason": "No surface drafts, edits or adds facts to text the person will publish under their own name."
+        },
+        "CI-09": {
+          "disposition": "DEFERRED",
+          "reason": "No Custom GPT surface reviews the person's own work, so CI-09 does not apply to them. The only surface that critiques what participants wrote is the relationship LLM answer auditor (src/hdmatch/relationship/llm_audit.py, version relationship-llm-auditor-v1), a versioned instrument in the running relationship study. Adding a strongest-reading rule needs a new auditor version and an owner decision on which participants it covers."
+        },
+        "CI-10": {
+          "disposition": "ADDED",
+          "file": "reference/custom_gpt/participant_interviewer_instructions_under_8000_v1.md",
+          "anchor": "Before sending, compare with what you already said on the topic; correct any conflict and say so. Label estimates, and give derived numbers no more precisely than their inputs.",
+          "surfaces": [
+            {
+              "file": "reference/custom_gpt/participant_interviewer_instructions_v1.md",
+              "disposition": "ADDED",
+              "anchor": "Before sending, compare what you are about to say with what you already said on the same topic. If they conflict, correct one and say so."
+            },
+            {
+              "file": "reference/custom_gpt/custom_gpt_instructions_under_8000.md",
+              "disposition": "ADDED",
+              "anchor": "Before sending, fix conflicts with earlier replies openly. Label estimates."
+            },
+            {
+              "file": "reference/custom_gpt/custom_gpt_instructions_under_8000.md",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "A grid is screening only. Return stable intervals, not arbitrary midpoints."
+            },
+            {
+              "file": "reference/core/survey_v2_classifier_system_prompt_v1_0_0.txt",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "Confidence is a rubric grade, not a probability."
+            },
+            {
+              "file": "src/hdmatch/relationship/phenotype_classifier.py",
+              "disposition": "DEFERRED",
+              "reason": "Frozen instrument."
+            },
+            {
+              "file": "reference/custom_gpt/daily_hd_transit_task_prompts_v2.md",
+              "disposition": "COVERED_BY_EXISTING",
+              "anchor": "Describe at most three relevant temporary interactions as possibilities, not predictions.",
+              "note": "Daily transit brief run as a ChatGPT scheduled task from a verified live-transit source."
+            }
+          ]
+        },
+        "CI-X1": {
+          "disposition": "DEFERRED",
+          "reason": "Applies to research verdicts only. The reverse matcher (reference/custom_gpt/custom_gpt_instructions_under_8000.md) issues verdicts, but its block now measures 7,926 characters, 8,000 with line breaks counted twice, and 7,982 UTF-8 bytes against the 8,000-character limit; a one-line self-check needs about 120 characters. A Custom GPT also cannot run a separate checker, only a self-reread. The relationship LLM instruments and the Survey-v2 classifier and adjudicator are frozen instruments. For the interviewer, CI-X1 is NOT_APPLICABLE: it is a companion surface, and its rank and comparison verdicts are computed by server code."
+        },
+        "CI-11": {
+          "disposition": "DEFERRED",
+          "reason": "The reverse matcher issues research verdicts, but its Custom GPT block has no room: 7,926 of 8,000 characters, or 8,000 with line breaks counted twice. A Custom GPT also cannot start a separate checker, so only the self-check fallback could apply there. The interviewer surfaces are companion surfaces, where CI-11 does not apply, and the relationship-study instruments are versioned and frozen. The daily transit prompts run as ChatGPT scheduled tasks with no separate checker, and they already refuse to improvise when the transit source cannot be verified."
+        }
+      }
+    },
+    {
+      "repository": "u-dont-existDOTcom/innerSignalGraph",
+      "visibility": "public",
+      "product_types": [
+        "companion"
+      ],
+      "pack": "claim-integrity",
+      "pack_version": 1,
+      "state": "PROPOSED",
+      "evidence": "Open PR https://github.com/u-dont-existDOTcom/innerSignalGraph/pull/96 at eccd5f2b2961; not merged.",
+      "pr_url": "https://github.com/u-dont-existDOTcom/innerSignalGraph/pull/96",
+      "commit": "eccd5f2b29610c94fa3b5db39a30389c6480647c",
+      "runtime_surfaces": [
+        "plugins/inner-signal-therapy/skills/inner-signal-therapy/SKILL.md: instructions served by load_therapy_protocol on the hosted MCP and bundled in the Codex plugin (edited: always-read list plus one sentence)",
+        "plugins/inner-signal-therapy/skills/inner-signal-therapy/references/*.md, the files in THERAPY_PROTOCOL_FILES: served by load_therapy_protocol and bundled in the Codex plugin (new: references/CLAIM-INTEGRITY.md)",
+        "src/protocol/therapy-protocol.mjs: selects, hashes and serves the protocol files (edited: serves the new reference)",
+        "src/prompts/common.mjs longitudinalClinicalRules, which reaches src/prompts/case-audit.mjs, candidate.mjs, critique.mjs, adjudicate.mjs, realize.mjs, private-runtime-audit.mjs and private-runtime-repair.mjs in the local and hosted runtime (edited: includes src/prompts/claim-integrity.mjs)",
+        "src/server/private-case-mcp.mjs: initialize instructions and tool descriptions routing hosts to load_therapy_protocol (unchanged)",
+        "plugins/inner-signal-therapy/skills/inner-signal-private-continuity/SKILL.md: Codex plugin only, not served over MCP; applies the therapy skill after loading context (unchanged)",
+        "src/prompts/case-extract.mjs and src/prompts/hypnosis-*.mjs: runtime roles left unchanged by design (extraction keeps its own anchoring rule; hypnosis scripts are permissive suggestion under their own owner-gated contract)"
+      ],
+      "checks": {
+        "CI-01": {
+          "disposition": "ADDED",
+          "file": "plugins/inner-signal-therapy/skills/inner-signal-therapy/references/CLAIM-INTEGRITY.md",
+          "anchor": "Never add backstory, motives, or history that they did not state, about them or about the people in their life.",
+          "also_in": "src/prompts/claim-integrity.mjs",
+          "related_existing": [
+            {
+              "file": "plugins/inner-signal-therapy/skills/inner-signal-therapy/references/ROLE-BELIEF-INTEGRITY.md",
+              "anchor": "Keep reported experience, reported events, appraisals, external claims, and assistant hypotheses distinct."
+            },
+            {
+              "file": "src/prompts/realize.mjs",
+              "anchor": "Do not add new psychological assignments or diagnoses. Do not upgrade a hypothesis into a fact."
+            }
+          ],
+          "note": "Not covered before: nothing forbade unstated backstory, motives, or history, or covered scope words such as always and kept."
+        },
+        "CI-02": {
+          "disposition": "ADDED",
+          "file": "plugins/inner-signal-therapy/skills/inner-signal-therapy/references/CLAIM-INTEGRITY.md",
+          "anchor": "When quotation marks present words as something the person said, use their exact words",
+          "also_in": "src/prompts/claim-integrity.mjs",
+          "note": "Quotation marks around suggested phrases, examples and exercise wording stay allowed, so exercise scripts are unaffected."
+        },
+        "CI-03": {
+          "disposition": "ADDED",
+          "file": "plugins/inner-signal-therapy/skills/inner-signal-therapy/references/CLAIM-INTEGRITY.md",
+          "anchor": "Before saying the person never mentioned, never said, or has not described something, check the whole conversation and the records supplied to you.",
+          "also_in": "src/prompts/claim-integrity.mjs",
+          "related_existing": [
+            {
+              "file": "plugins/inner-signal-therapy/skills/inner-signal-therapy/references/PROTOCOL-STATE-PROVENANCE.md",
+              "anchor": "Silence in the transcript is unknown, not a report of no response."
+            }
+          ]
+        },
+        "CI-04": {
+          "disposition": "NOT_APPLICABLE",
+          "reason": "Applies to research, writing, and design. InnerSignal is a companion: it does not answer research questions from sources, edit or draft text for publication, or critique visual design. Its therapy content comes from owner-approved guides and graph rules that change only through the owner-decision lifecycle."
+        },
+        "CI-05": {
+          "disposition": "NOT_APPLICABLE",
+          "reason": "Applies to research and writing. InnerSignal replies are private companion conversation, not conclusions drawn from sources or text for publication, and the product does not collect or cite figures from sources. Numbers a reply derives from the person's own reports fall under the added estimate rule (CI-10)."
+        },
+        "CI-06": {
+          "disposition": "NOT_APPLICABLE",
+          "reason": "Applies to research, writing, and design. InnerSignal does not verify sources, quotations, or versions for the person. The nearest companion claim, that something was or was not said in the conversation, falls under the added absence rule (CI-03)."
+        },
+        "CI-07": {
+          "disposition": "ADDED",
+          "file": "plugins/inner-signal-therapy/skills/inner-signal-therapy/references/CLAIM-INTEGRITY.md",
+          "anchor": "When the person says you got their words or their meaning wrong, go back to what they actually said.",
+          "also_in": "src/prompts/claim-integrity.mjs",
+          "related_existing": [
+            {
+              "file": "plugins/inner-signal-therapy/skills/inner-signal-therapy/references/ROLE-BELIEF-INTEGRITY.md",
+              "anchor": "Preserve counterevidence and legitimate client corrections; revise mistakes rather than treating disagreement as pathology or resistance."
+            }
+          ],
+          "note": "Companion form. Partly covered before (valid corrections were kept, and disagreement was not read as resistance). Added: go back to their words, do not defend the old reading or substitute a new one, and accepting what they meant is not agreeing that it is true."
+        },
+        "CI-08": {
+          "disposition": "NOT_APPLICABLE",
+          "reason": "Applies to writing, and to research when drafting text the person will publish. InnerSignal does not edit text for publication. Its only editing practice, the optional owner-approved draft editor (IC.DRAFT_EDITOR in guide-graphs/compiled/inner-child-directed-graph.json), helps with a private message to one recipient, and already forbids treating unsent draft wording as established facts about another person. Attributions and quotations the companion itself makes there fall under the added CI-01 and CI-02 rules."
+        },
+        "CI-09": {
+          "disposition": "NOT_APPLICABLE",
+          "reason": "Applies to writing, design, and research when reviewing the person's own work. InnerSignal does not review a work product. The nearest practices, the draft editor and the owner-approved non-punitive review of self-care attempts (D09), are relational practices governed by owner-approved graph rules that already hold a charitable, non-grading standard, for example that an appropriate existing draft may not need editing. Changing them is a graph change that only the owner-decision lifecycle can make."
+        },
+        "CI-10": {
+          "disposition": "ADDED",
+          "file": "plugins/inner-signal-therapy/skills/inner-signal-therapy/references/CLAIM-INTEGRITY.md",
+          "anchor": "If something you are about to say conflicts with what you said earlier on the same topic, check which is right and say openly that you are correcting yourself rather than switching silently.",
+          "also_in": "src/prompts/claim-integrity.mjs",
+          "second_anchor": "Label estimates as estimates, and give a number, time, or count no more precisely than what it came from."
+        },
+        "CI-X1": {
+          "disposition": "NOT_APPLICABLE",
+          "reason": "The owner excluded InnerSignal from this check; his words, relayed by the supervising session on 2026-09-27: \"replies from innersignal are natural and not formulaic\". The pack also limits this check to research verdicts and excludes conversational, companion, and therapeutic replies."
+        },
+        "CI-11": {
+          "disposition": "NOT_APPLICABLE",
+          "reason": "Companion replies are not among the outputs CI-11 covers (critiques, reviews of someone's work, source attributions, facts added to text for publication, and claims that something was verified), and the pack excludes companion and therapeutic replies. Claims about what the person said are held at the point of use by the added anchoring and absence rules, and the separate critique and adjudication roles already review each reply."
+        }
+      }
+    },
+    {
+      "repository": "u-dont-existDOTcom/joel-articles",
+      "visibility": "public",
+      "product_types": [
+        "writing"
+      ],
+      "pack": "claim-integrity",
+      "pack_version": 1,
+      "state": "PROPOSED",
+      "evidence": "Open PR https://github.com/u-dont-existDOTcom/joel-articles/pull/112 at 5a25a45d2f0a; not merged.",
+      "pr_url": "https://github.com/u-dont-existDOTcom/joel-articles/pull/112",
+      "commit": "5a25a45d2f0a1b3a1e7541f301aeadfae2cca52b",
+      "runtime_surfaces": [
+        "SKILL.md (always loaded; carries the new section)",
+        "CANONICAL-REPO-MAP.md, AGENTS.md, docs/INDEX.md, state/CODEX-CURRENT-STATE.md, articles/INDEX.json (read at the start of substantial work, per SKILL.md)",
+        "project-sources/*.md, selected per task through CANONICAL-REPO-MAP.md",
+        "docs/ protocol and gate files routed by docs/INDEX.md and CANONICAL-REPO-MAP.md"
+      ],
+      "checks": {
+        "CI-01": {
+          "disposition": "ADDED",
+          "file": "SKILL.md",
+          "anchor": "Every sentence about what a text, author, or person says, writes, describes, presents, defines, or did must rest on a specific passage."
+        },
+        "CI-02": {
+          "disposition": "ADDED",
+          "file": "SKILL.md",
+          "anchor": "Do not join words from separate sentences inside one quotation, and do not put a paraphrase in quotation marks."
+        },
+        "CI-03": {
+          "disposition": "ADDED",
+          "file": "SKILL.md",
+          "anchor": "search all of it for counterexamples. The claim covers only what was searched; say so when that was less than all of it.",
+          "note": "Existing section 7F of project-sources/ARGUMENT-AND-EVIDENCE-ARCHITECTURE.md covers only linguistic, doctrinal, and translation absence claims; the new rule points to it."
+        },
+        "CI-04": {
+          "disposition": "ADDED",
+          "file": "SKILL.md",
+          "anchor": "When Joel has stated expertise in the area, find a source before contradicting his usage."
+        },
+        "CI-05": {
+          "disposition": "ADDED",
+          "file": "SKILL.md",
+          "anchor": "trace it to the source it cites, and use that source when the two differ; two figures that trace to one source are one finding.",
+          "note": "Extends an existing rule instead of copying it: step 4 of the verification workflow in project-sources/FACTS-HEALTH-FORMATTING.md (anchor: 'Follow citation chains; do not trust a secondary characterization without checking the cited source.') covered article drafts; the new SKILL.md paragraph quotes it and applies it to reviews, chat replies, and conclusions."
+        },
+        "CI-06": {
+          "disposition": "ADDED",
+          "file": "SKILL.md",
+          "anchor": "must name what was compared against which source or version; when only part was checked, name the part."
+        },
+        "CI-07": {
+          "disposition": "ADDED",
+          "file": "SKILL.md",
+          "anchor": "When Joel disputes a claim about a source or a fact, check the source before agreeing, just as before defending."
+        },
+        "CI-08": {
+          "disposition": "ADDED",
+          "file": "SKILL.md",
+          "anchor": "or changing the content of an existing one, check it against its source at that point, even if it was checked earlier",
+          "note": "Related existing rules (verify new factual assertions and audit changes for strengthened claims in MASTER-INSTRUCTIONS.md; substantive change report and pre-publication recheck in EDIT-CONTRACT-AND-LEDGERS.md) had no check at the point of insertion. The new bullet exempts pure rewording of Joel's own claims, so style passes stay free of fact-checking."
+        },
+        "CI-09": {
+          "disposition": "ADDED",
+          "file": "SKILL.md",
+          "anchor": "state the strongest reading under which it is not a problem, and drop the flag if that reading is plausible.",
+          "note": "Carried in two bullets; the rejected-flag bullet (anchor: 'Once Joel rejects a flag of any kind, drop it.') quotes the existing MASTER-INSTRUCTIONS.md rule 'Once I've heard a concern, don't repeat it in new framings.'"
+        },
+        "CI-10": {
+          "disposition": "ADDED",
+          "file": "SKILL.md",
+          "anchor": "Label estimates as estimates, and report a derived number at the resolution of its inputs"
+        },
+        "CI-X1": {
+          "disposition": "NOT_APPLICABLE",
+          "reason": "The pack limits CI-X1 to research verdicts. joel-articles is a writing product: its research mode builds evidence ledgers and claims for Joel's articles rather than delivering standalone verdicts, and the probe is experimental and non-blocking."
+        },
+        "CI-11": {
+          "disposition": "ADDED",
+          "file": "SKILL.md",
+          "anchor": "If no genuinely separate model or context is available, check every listed claim against its source immediately before delivery and describe it only as rechecked, not independently checked."
+        }
+      }
+    },
+    {
+      "repository": "u-dont-existDOTcom/nansen",
+      "visibility": "public",
+      "product_types": [
+        "research"
+      ],
+      "pack": "claim-integrity",
+      "pack_version": 1,
+      "state": "DEFERRED",
+      "evidence": "No change made; see reason.",
+      "reason": "The only model-facing runtime surface, src/nansen_signal_lab/gpt_protocol.py, is pinned by SHA-256 in five study manifests, including the rapid program that is activated on main; any prompt edit makes every frozen program's live commands and offline replay refuse to run. Carrying the checks needs a new preregistered successor protocol under programs/, which is the owner's decision.",
+      "runtime_surfaces": [
+        "src/nansen_signal_lab/gpt_protocol.py (PASS1_INSTRUCTIONS, PASS2_INSTRUCTIONS, objective strings, schemas, validator messages), called only from src/nansen_signal_lab/prospective_runner.py"
+      ],
+      "checks": {
+        "CI-01": {
+          "disposition": "DEFERRED",
+          "reason": "Partly covered: citations must be exact snapshot paths and are validated locally. Not covered: rationale sentences need not rest on a cited path, and inferences are not labelled. Hash-locked.",
+          "partial_existing_coverage": {
+            "file": "src/nansen_signal_lab/gpt_protocol.py",
+            "anchor": "Cite only field paths that exist in the supplied snapshot."
+          }
+        },
+        "CI-02": {
+          "disposition": "NOT_APPLICABLE",
+          "reason": "The model quotes nothing: its sources are numeric and enum snapshot fields plus structured theory records, and its outputs cite field paths, not quotations."
+        },
+        "CI-03": {
+          "disposition": "DEFERRED",
+          "reason": "The protocol makes absence claims (missing_evidence, UNAVAILABLE) with no instruction to check the whole snapshot first. Hash-locked."
+        },
+        "CI-04": {
+          "disposition": "DEFERRED",
+          "reason": "Partly covered: both passes are limited to supplied data. Not covered: rationales that rest on general market knowledge are not labelled as such. Hash-locked.",
+          "partial_existing_coverage": {
+            "file": "src/nansen_signal_lab/gpt_protocol.py",
+            "anchor": "Do not infer token identity, use tools, request outside data, or discuss future outcomes."
+          }
+        },
+        "CI-05": {
+          "disposition": "DEFERRED",
+          "reason": "Partly covered: cited figures are exact, unique snapshot paths. Not covered: numbers repeated in rationales are not checked against cited values, and several features derived from one response are not treated as one piece of evidence. Hash-locked.",
+          "partial_existing_coverage": {
+            "file": "src/nansen_signal_lab/gpt_protocol.py",
+            "anchor": "evidence references must be unique across for and against lists"
+          }
+        },
+        "CI-06": {
+          "disposition": "DEFERRED",
+          "reason": "Partly covered: Pass 2 must review against exactly the supplied frozen records and snapshot and repeat their hashes, and the validator rejects mismatches. Not covered: no rule about words like 'verified' in free-text rationale. Hash-locked.",
+          "partial_existing_coverage": {
+            "file": "src/nansen_signal_lab/gpt_protocol.py",
+            "anchor": "Review the immutable Pass 1 decision against exactly the supplied frozen strategy records and the exact same identity-blinded snapshot."
+          }
+        },
+        "CI-07": {
+          "disposition": "NOT_APPLICABLE",
+          "reason": "No person or agent disputes the model's claims; the only feedback is one schema and citation repair turn."
+        },
+        "CI-08": {
+          "disposition": "NOT_APPLICABLE",
+          "reason": "The model writes no text for publication; MODEL-RESULT.md is generated by code from validated fields."
+        },
+        "CI-09": {
+          "disposition": "NOT_APPLICABLE",
+          "reason": "Pass 2 reviews Pass 1, which is model output, not a person's own work."
+        },
+        "CI-10": {
+          "disposition": "DEFERRED",
+          "reason": "Not covered, with a concrete gap: the validators accept LONG with expected_direction_4h DOWN, UPHOLD with a final_action other than Pass 1's LONG, and OVERRULE with the same action. A fix needs a validator rule plus prompt text, which changes the study instrument. Hash-locked.",
+          "partial_existing_coverage": {
+            "file": "src/nansen_signal_lab/gpt_protocol.py",
+            "anchor": "confidence must be a finite number in [0, 1]"
+          }
+        },
+        "CI-X1": {
+          "disposition": "DEFERRED",
+          "reason": "Needs a separate checker call per verdict; the preregistered budget allows one call per pass plus at most one repair, and adding one means editing hash-locked files and paid test calls.",
+          "partial_existing_coverage": {
+            "file": "src/nansen_signal_lab/gpt_protocol.py",
+            "anchor": "Choose LONG or ABSTAIN for the fixed four-hour paper outcome."
+          }
+        },
+        "CI-11": {
+          "disposition": "DEFERRED",
+          "reason": "Hash-locked like the rest of the protocol, and a separate checker call per verdict would also exceed the preregistered call budget. It belongs in a preregistered successor protocol."
+        }
+      }
+    },
+    {
+      "repository": "u-dont-existDOTcom/pangram-humanization-lab",
+      "visibility": "public",
+      "product_types": [
+        "writing"
+      ],
+      "pack": "claim-integrity",
+      "pack_version": 1,
+      "state": "PROPOSED",
+      "evidence": "Open PR https://github.com/u-dont-existDOTcom/pangram-humanization-lab/pull/174 at 2e37356215de; not merged.",
+      "pr_url": "https://github.com/u-dont-existDOTcom/pangram-humanization-lab/pull/174",
+      "commit": "2e37356215de2d5c06a0ff4a1b47af4bcec17f32",
+      "runtime_surfaces": [
+        "prompts/designer.md",
+        "prompts/reviewer.md",
+        "prompts/analyst.md",
+        "docs/CHATGPT-OPERATING-GUIDE.md"
+      ],
+      "checks": {
+        "CI-01": {
+          "disposition": "ADDED",
+          "file": "prompts/analyst.md",
+          "anchor": "Rest every statement about what a probe, contrast, repeat, or prior round shows on a supplied record",
+          "also": [
+            {
+              "disposition": "ADDED",
+              "file": "prompts/designer.md",
+              "anchor": "Rest every statement about what an endpoint, probe, or prior round says or shows on the supplied text or record"
+            },
+            {
+              "disposition": "ADDED",
+              "file": "prompts/reviewer.md",
+              "anchor": "Base each rejection on exact words: quote what the probe says and what `HUMAN_ENDPOINT` says at that point, and name the meaning that changed."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "must rest on a passage or record you can point to"
+            },
+            {
+              "disposition": "ADDED",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "Never add backstory, motives, or history that Joel or anyone else did not state."
+            },
+            {
+              "disposition": "COVERED_BY_EXISTING",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "user-facing detector claims come from measured results rather than prediction or intuition",
+              "note": "partial, detector claims only; kept"
+            }
+          ]
+        },
+        "CI-02": {
+          "disposition": "ADDED",
+          "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+          "anchor": "Put only a source's exact words inside quotation marks. Mark translations as translations.",
+          "also": [
+            {
+              "disposition": "ADDED",
+              "file": "prompts/designer.md",
+              "anchor": "Put only exact words inside quotation marks, and mark a translation as a translation."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "prompts/reviewer.md",
+              "anchor": "Put only exact words inside quotation marks."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "prompts/analyst.md",
+              "anchor": "Quote probe text only with its exact words."
+            }
+          ]
+        },
+        "CI-03": {
+          "disposition": "ADDED",
+          "file": "prompts/reviewer.md",
+          "anchor": "Before saying a probe drops or adds something, check the whole probe and the whole Human endpoint for it.",
+          "also": [
+            {
+              "disposition": "ADDED",
+              "file": "prompts/designer.md",
+              "anchor": "Before saying that no prior round tested something, check every supplied round."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "prompts/analyst.md",
+              "anchor": "A null result covers only the probes and boundary tested."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "search all of it for counterexamples. Say so when you searched less than all of it."
+            }
+          ]
+        },
+        "CI-04": {
+          "disposition": "ADDED",
+          "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+          "anchor": "When Joel has stated expertise in the area, find a source before contradicting his usage.",
+          "also": [
+            {
+              "disposition": "NOT_APPLICABLE",
+              "file": "prompts/designer.md, prompts/reviewer.md, prompts/analyst.md",
+              "reason": "The harness roles run with web search disabled and a read-only sandbox (src/pangram_lab/codex_stream.py) and judge only the supplied endpoints, probes, and results, so they have no outside source to check a field claim against. Claims about detector behavior are already bounded by 'Do not infer magic-word rules' (designer) and 'do not turn one local phrase into a universal rule' (analyst), and by the added rule that statements rest on supplied records."
+            }
+          ]
+        },
+        "CI-05": {
+          "disposition": "ADDED",
+          "file": "prompts/analyst.md",
+          "anchor": "Count a repeat as a reproduction only when the records show a separate detector call.",
+          "also": [
+            {
+              "disposition": "ADDED",
+              "file": "prompts/analyst.md",
+              "anchor": "Take every figure from the result, repeat, and stats records rather than from summaries or lessons."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "prompts/analyst.md",
+              "anchor": "Say when evidence is weak, for example a short passage or a single measurement."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "prompts/designer.md",
+              "anchor": "take figures from the supplied stats rather than from summaries or lessons"
+            },
+            {
+              "disposition": "ADDED",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "Two figures that trace to one measurement are one finding, and a cached copy of a result is the same measurement."
+            },
+            {
+              "disposition": "COVERED_BY_EXISTING",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "user-facing detector claims come from measured results rather than prediction or intuition",
+              "note": "partial, detector figures come from measurements; kept"
+            },
+            {
+              "disposition": "NOT_APPLICABLE",
+              "file": "prompts/reviewer.md",
+              "reason": "The reviewer draws no conclusions from figures; figures inside probes are covered by its CI-08 comparison."
+            }
+          ]
+        },
+        "CI-06": {
+          "disposition": "ADDED",
+          "file": "prompts/designer.md",
+          "anchor": "name exactly which words differ from `HUMAN_ENDPOINT`: replaced, moved, added, or removed",
+          "also": [
+            {
+              "disposition": "ADDED",
+              "file": "prompts/designer.md",
+              "anchor": "Describe the change itself rather than its hoped-for effect."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "prompts/reviewer.md",
+              "anchor": "Base each rejection on exact words: quote what the probe says and what `HUMAN_ENDPOINT` says at that point, and name the meaning that changed."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "prompts/analyst.md",
+              "anchor": "When you call a hypothesis supported or falsified, name the contrasts and records you compared."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "prompts/analyst.md",
+              "anchor": "do not report it as the number of paid detector calls"
+            },
+            {
+              "disposition": "ADDED",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "must name what you compared against which source or version, such as the exact boundary SHA-256 and result path"
+            },
+            {
+              "disposition": "ADDED",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "Deleted or replaced text was not \"fixed\"."
+            }
+          ]
+        },
+        "CI-07": {
+          "disposition": "ADDED",
+          "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+          "anchor": "check the source before agreeing, just as you would before defending it. Agreement is not verification.",
+          "also": [
+            {
+              "disposition": "ADDED",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "Joel's account of what he meant or prefers is owner authority and needs no outside source."
+            },
+            {
+              "disposition": "NOT_APPLICABLE",
+              "file": "prompts/designer.md, prompts/reviewer.md, prompts/analyst.md",
+              "reason": "Each harness call is one-shot with no dispute turn. A needs_owner_input result stops the run, and on rerun Engine.run returns the frozen plan, review, or analysis, so Joel's answer never flows back into the same case."
+            }
+          ]
+        },
+        "CI-08": {
+          "disposition": "ADDED",
+          "file": "prompts/designer.md",
+          "anchor": "Keep every quotation from the Human endpoint word for word in every probe, keep every number, date, and name exact, and add no factual claim the Human endpoint does not make.",
+          "also": [
+            {
+              "disposition": "ADDED",
+              "file": "prompts/reviewer.md",
+              "anchor": "Compare every quotation, number, date, and name in each synthetic probe with `HUMAN_ENDPOINT` word for word."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "prompts/reviewer.md",
+              "anchor": "Reject a synthetic probe that changes any of them or adds a factual claim the Human endpoint does not make."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "If a rewrite adds or changes a factual claim, quotation, figure, or attribution, check it against its source at that moment, even if it was checked earlier."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "An attribution such as \"according to X\" must not move Joel's own characterization onto X."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "list each factual claim you added or changed and where it comes from"
+            },
+            {
+              "disposition": "COVERED_BY_EXISTING",
+              "file": "prompts/designer.md",
+              "anchor": "Preserve claims, certainty, agency, chronology, attribution, claim object, examples, and substantive meaning in every synthetic probe.",
+              "note": "claims and attribution in probes; kept"
+            },
+            {
+              "disposition": "COVERED_BY_EXISTING",
+              "file": "prompts/reviewer.md",
+              "anchor": "Approve only probes that preserve the Human endpoint's substantive thought: claims, certainty, actor/action/object, chronology, causality, attribution, examples, scope, and relationship between ideas.",
+              "note": "claims and attribution in probes; kept"
+            },
+            {
+              "disposition": "COVERED_BY_EXISTING",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "every detector-driven change has been re-audited for semantic/rhetorical loss",
+              "note": "recheck after each rewrite; kept"
+            },
+            {
+              "disposition": "NOT_APPLICABLE",
+              "file": "prompts/analyst.md",
+              "reason": "The analyst does not rewrite text."
+            }
+          ]
+        },
+        "CI-09": {
+          "disposition": "ADDED",
+          "file": "prompts/reviewer.md",
+          "anchor": "state the strongest reading under which it is not a problem, and drop the note if that reading is plausible",
+          "also": [
+            {
+              "disposition": "ADDED",
+              "file": "prompts/reviewer.md",
+              "anchor": "Call something a contradiction only when both statements cannot be true under any reasonable reading."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "prompts/reviewer.md",
+              "anchor": "Do not raise it again, including as a warning about readers, unless new evidence appears."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "prompts/reviewer.md",
+              "anchor": "There is no quota. A review with no rejections and no notes is valid when every probe preserves the Human endpoint's meaning."
+            },
+            {
+              "disposition": "COVERED_BY_EXISTING",
+              "file": "prompts/reviewer.md",
+              "anchor": "If a proposed factor cannot be judged without irreducible author intent, return `needs_owner_input` with one narrow question.",
+              "note": "ask when a flag depends on meaning; kept"
+            },
+            {
+              "disposition": "ADDED",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "Before flagging a problem in prose or claims Joel wrote, state the strongest reading under which it is not a problem, and drop the flag if that reading is plausible."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "There is no minimum number of findings."
+            },
+            {
+              "disposition": "COVERED_BY_EXISTING",
+              "file": "prompts/designer.md",
+              "anchor": "The Human endpoint is editorial authority.",
+              "note": "the designer does not treat Joel's text as a problem to fix; kept"
+            },
+            {
+              "disposition": "NOT_APPLICABLE",
+              "file": "prompts/analyst.md",
+              "reason": "The analyst interprets detector results and does not review Joel's writing."
+            }
+          ],
+          "scope_note": "In the reviewer, the strongest-reading rule applies to notes about HUMAN_ENDPOINT, which is Joel's text. Probe rejections stay conservative: a probe is still approved only when it preserves meaning."
+        },
+        "CI-10": {
+          "disposition": "ADDED",
+          "file": "prompts/reviewer.md",
+          "anchor": "check that `approved_probe_ids`, `rejected`, and `notes` agree: no probe is both approved and rejected, and no note contradicts a decision",
+          "also": [
+            {
+              "disposition": "ADDED",
+              "file": "prompts/designer.md",
+              "anchor": "Keep the plan consistent with the prior analyses. If it departs from a prior conclusion, say so and why."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "prompts/designer.md",
+              "anchor": "label a predicted detector outcome as a prediction"
+            },
+            {
+              "disposition": "ADDED",
+              "file": "prompts/analyst.md",
+              "anchor": "Label estimates and predictions as such, and report a derived number no more precisely than its inputs."
+            },
+            {
+              "disposition": "ADDED",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "Label estimates as estimates, and report a derived number at the resolution of its inputs."
+            },
+            {
+              "disposition": "COVERED_BY_EXISTING",
+              "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+              "anchor": "estimated credit/cost fields only when explicitly labeled as estimates",
+              "note": "cost estimates only; kept"
+            }
+          ]
+        },
+        "CI-X1": {
+          "disposition": "NOT_APPLICABLE",
+          "reason": "CI-X1 covers research verdicts only and is experimental. This is a writing product. The closest output, the analyst's supported, falsified, and unresolved lists, is internal detector-research bookkeeping, and the pack's check is untested on long outputs and never blocks delivery."
+        },
+        "CI-11": {
+          "disposition": "ADDED",
+          "file": "docs/CHATGPT-OPERATING-GUIDE.md",
+          "anchor": "Before returning a rewrite that adds or changes facts, a review of Joel's prose, a source attribution, or a statement that something was verified, make a claim ledger.",
+          "also": [
+            {
+              "disposition": "COVERED_BY_EXISTING",
+              "file": "prompts/reviewer.md",
+              "anchor": "Approve only probes that preserve the Human endpoint's substantive thought: claims, certainty, actor/action/object, chronology, causality, attribution, examples, scope, and relationship between ideas.",
+              "note": "The separate, blind reviewer role already approves only probes that keep the Human endpoint's claims and attributions; this branch's word-for-word comparison of quotations, numbers, dates, and names (CI-08) strengthens it."
+            },
+            {
+              "disposition": "NOT_APPLICABLE",
+              "file": "prompts/analyst.md",
+              "reason": "CI-11 is limited here to public-facing rewrites, reviews, source attributions, and verification claims. The analyst produces internal detector-research bookkeeping."
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "assessed_not_applicable": [
+    {
+      "repository": "u-dont-existDOTcom/universal-dev-architecture",
+      "reason": "Development governance, not a runtime product; it holds the canonical rules the packs adapt.",
+      "evidence": "patterns/ and this ledger"
+    },
+    {
+      "repository": "u-dont-existDOTcom/communities",
+      "reason": "Repository governance only; it has no product runtime and no model-facing instructions.",
+      "evidence": "git ls-files at bf0ec2f8946b lists only .github/, AGENTS.md, CURRENT-STATE.md, docs/INDEX.md, and state/ files."
+    },
+    {
+      "repository": "u-dont-existDOTcom/codex-plugin-fix",
+      "reason": "A reference of Codex plugin-stack audit lessons plus a session-resume utility. It ships no model-facing instructions that answer research questions, review writing, keep someone company, or critique design.",
+      "evidence": "README: 'a decision and recovery reference, not a plugin bundle'; tree at 5a9effc1b34d: docs/, data/, tests/, tools/codexresume/."
+    }
+  ]
+}
