@@ -1,5 +1,8 @@
 import copy
 import json
+import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -91,11 +94,53 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
             elapsed = next(x for x in timestamp["obligations"] if x["obligation_id"] == "final-elapsed-time")
             self.assertIn("elapsed", elapsed["required_behavior"].lower())
             self.assertIn("clock readings", elapsed["acceptance_evidence"].lower())
-            self.assertEqual(elapsed["enforcement"], "semantic")
+            self.assertEqual(elapsed["enforcement"], "mechanical")
             for payload in ("2026-09-30 09:40 UTC\nDone.", "2026-09-30 09:40 UTC\nElapsed: 2 minutes. Done."):
                 checked = task_time.check_contract(contract, "final-delivery", payload)
                 self.assertEqual(checked["admission"], "BLOCKED")
                 self.assertEqual(next(x for x in checked["results"] if x["obligation_id"] == "final-elapsed-time")["status"], "UNKNOWN")
+            admitted = task_time.check_contract(
+                contract, "final-delivery", "2026-09-30 09:42 UTC\nElapsed time: 2 minutes",
+                clock_start="2026-09-30T09:40:00+00:00", clock_end="2026-09-30T09:42:00+00:00",
+            )
+            self.assertEqual(admitted["admission"], "ADMITTED")
+
+    def test_final_delivery_validates_clock_readings_and_reported_elapsed_time(self):
+        contract = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
+        payload = "2026-09-30 09:42 UTC\nElapsed time: 2 minutes\nDone."
+        readings = {"clock_start": "2026-09-30T09:40:00+00:00", "clock_end": "2026-09-30T09:42:00+00:00"}
+        good = task_time.check_contract(contract, "final-delivery", payload, **readings)
+        self.assertEqual(good["admission"], "ADMITTED")
+        self.assertEqual(next(x for x in good["results"] if x["obligation_id"] == "final-elapsed-time")["status"], "PASS")
+        for changed_payload, changed_readings in (
+            (payload.replace("2 minutes", "3 minutes"), readings),
+            (payload.replace("2 minutes", "2 minutes plus 1 hour"), readings),
+            (payload, {**readings, "clock_end": "2026-09-30T09:43:00+00:00"}),
+            (payload, {**readings, "clock_start": "2026-09-30T09:43:00+00:00"}),
+            (payload, {"clock_start": "2026-09-30T09:41:00+00:00", "clock_end": "2026-09-30T09:43:00+00:00"}),
+            (payload, {**readings, "clock_start": "invalid"}),
+        ):
+            checked = task_time.check_contract(contract, "final-delivery", changed_payload, **changed_readings)
+            self.assertEqual(checked["admission"], "BLOCKED")
+
+    def test_final_delivery_cli_admits_valid_readings(self):
+        correction = json.loads((ROOT / "examples/rule-graph/owner-correction.json").read_text())
+        contract = task_time.compile_contract(self.catalog, self.profile, correction, "graph")
+        with tempfile.TemporaryDirectory() as directory:
+            contract_path = Path(directory) / "contract.json"
+            payload_path = Path(directory) / "final.txt"
+            contract_path.write_text(json.dumps(contract))
+            payload_path.write_text("2026-09-30 09:42 UTC\nElapsed time: 2 minutes\nDone.")
+            for script in ("uda_rule_graph.py", "uda_rule_graph_task_time.py"):
+                result = subprocess.run([
+                    sys.executable, str(ROOT / "scripts" / script), "check",
+                    "--contract", str(contract_path), "--phase", "final-delivery",
+                    "--payload", str(payload_path),
+                    "--clock-start", "2026-09-30T09:40:00+00:00",
+                    "--clock-end", "2026-09-30T09:42:00+00:00",
+                ], cwd=ROOT, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+                self.assertEqual(json.loads(result.stdout)["admission"], "ADMITTED")
 
     def test_semantic_handoff_does_not_self_certify(self):
         contract = task_time.compile_contract(self.catalog, self.profile, self.work, "graph")

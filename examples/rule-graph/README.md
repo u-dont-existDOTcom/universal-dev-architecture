@@ -25,11 +25,11 @@ The result must include `uda.owner-correction.reactivate` and its dependency clo
 ## Literal final-output check
 
 ```bash
-printf '2026-09-22 15:10 UTC\nResult\n' > /tmp/final.txt
-python3 scripts/uda_rule_graph.py check --contract /tmp/corrected-contract.json --phase final-delivery --payload /tmp/final.txt
+printf '2026-09-22 15:12 UTC\nElapsed time: 2 minutes\nResult\n' > /tmp/final.txt
+python3 scripts/uda_rule_graph.py check --contract /tmp/corrected-contract.json --phase final-delivery --payload /tmp/final.txt --clock-start 2026-09-22T15:10:00+00:00 --clock-end 2026-09-22T15:12:00+00:00
 ```
 
-A timestamp only on a later line fails.
+Supply the two current-turn readings as ISO 8601 timestamps with UTC offsets. The first line must match the end reading, and `Elapsed time` must equal their difference. Missing readings or a timestamp only on a later line block admission.
 
 ## Stale graph recovery
 

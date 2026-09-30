@@ -10,8 +10,10 @@ import re
 import subprocess
 import sys
 from collections import defaultdict, deque
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CATALOG = ROOT / "rules" / "rule-graph" / "task-time-metadata.v1.json"
@@ -439,7 +441,36 @@ def build_lock(catalog: dict[str, Any], profile: dict[str, Any]) -> dict[str, An
     return {**base, "content_sha256": sha256(canonical(base).encode())}
 
 
-def check_contract(contract: dict[str, Any], phase: str, payload: str) -> dict[str, Any]:
+def clock_datetime(value: str) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed.tzinfo is not None else None
+
+
+def final_line_datetime(payload: str) -> tuple[datetime | None, bool]:
+    first = payload.splitlines()[0] if payload.splitlines() else ""
+    match = re.search(r"\b(\d{4}-\d{2}-\d{2})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+(UTC|GMT|[+-]\d{2}:?\d{2}|[A-Za-z_]+/[A-Za-z_/]+)\b", first)
+    if not match:
+        return None, False
+    date, time, zone = match.groups()
+    try:
+        if zone in {"UTC", "GMT"}:
+            zone = "+00:00"
+        if "/" in zone:
+            parsed = datetime.fromisoformat(f"{date}T{time}").replace(tzinfo=ZoneInfo(zone))
+        else:
+            parsed = datetime.fromisoformat(f"{date}T{time}{zone}")
+    except (ValueError, ZoneInfoNotFoundError):
+        return None, False
+    return parsed, len(time.split(":")) == 3
+
+
+def check_contract(contract: dict[str, Any], phase: str, payload: str,
+                   clock_start: str | None = None, clock_end: str | None = None) -> dict[str, Any]:
     results = []
     for rule in contract.get("selected_rules", []):
         for ob in rule.get("obligations", []):
@@ -457,6 +488,18 @@ def check_contract(contract: dict[str, Any], phase: str, payload: str) -> dict[s
                 first = payload.splitlines()[0] if payload.splitlines() else ""
                 ok = bool(re.search(r"\b\d{4}-\d{2}-\d{2}\b.*\b\d{1,2}:\d{2}\b.*(?:UTC|GMT|[+-]\d{2}:?\d{2}|[A-Z][A-Za-z_]+/[A-Za-z_]+)", first))
                 evidence = first
+            elif kind == "final_elapsed_time":
+                if clock_start is None or clock_end is None:
+                    results.append({"rule_id": rule["rule_id"], "obligation_id": ob["obligation_id"], "status": "UNKNOWN", "reason": "both current-turn clock readings are required"})
+                    continue
+                start, end = clock_datetime(clock_start), clock_datetime(clock_end)
+                first, has_seconds = final_line_datetime(payload)
+                duration = re.search(r"(?im)^Elapsed time:[ \t]*(?:(\d+)[ \t]+minutes?(?:[ \t]+(\d+)[ \t]+seconds?)?|(\d+)[ \t]+seconds?)[ \t]*\.?[ \t]*$", payload)
+                reported = (int(duration[1]) * 60 + int(duration[2] or 0)) if duration and duration[1] else int(duration[3]) if duration else None
+                actual = (end - start).total_seconds() if start and end else None
+                end_matches = bool(first and end and (first == end if has_seconds else first == end.replace(second=0, microsecond=0)))
+                ok = bool(actual is not None and actual >= 0 and actual == reported and end_matches)
+                evidence = {"clock_start": clock_start, "clock_end": clock_end, "reported_seconds": reported, "actual_seconds": actual, "first_line_matches_end": end_matches}
             elif kind == "contains_literal":
                 evidence = check.get("value", "")
                 ok = bool(evidence) and evidence in payload
@@ -516,7 +559,7 @@ def main() -> int:
     v = sub.add_parser("validate"); v.add_argument("--write-lock")
     for name in ["compile", "explain"]:
         p = sub.add_parser(name); p.add_argument("--task", required=True); p.add_argument("--mode", choices=["legacy", "flat", "graph"], default="graph"); p.add_argument("--output")
-    c = sub.add_parser("check"); c.add_argument("--contract", required=True); c.add_argument("--phase", choices=PHASES, required=True); c.add_argument("--payload", required=True); c.add_argument("--output")
+    c = sub.add_parser("check"); c.add_argument("--contract", required=True); c.add_argument("--phase", choices=PHASES, required=True); c.add_argument("--payload", required=True); c.add_argument("--clock-start"); c.add_argument("--clock-end"); c.add_argument("--output")
     i = sub.add_parser("impact"); i.add_argument("paths", nargs="+"); i.add_argument("--output")
     x = sub.add_parser("compare"); x.add_argument("--task", required=True); x.add_argument("--output")
     args = parser.parse_args()
@@ -541,7 +584,7 @@ def main() -> int:
         emit(args.output, value)
         return 0 if value.get("usable", True) else 3
     if args.command == "check":
-        result = check_contract(read_json(Path(args.contract)), args.phase, Path(args.payload).read_text(encoding="utf-8"))
+        result = check_contract(read_json(Path(args.contract)), args.phase, Path(args.payload).read_text(encoding="utf-8"), args.clock_start, args.clock_end)
         emit(args.output, result)
         return 0 if result["admission"] == "ADMITTED" else 4
     if args.command == "impact":

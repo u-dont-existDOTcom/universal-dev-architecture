@@ -11,7 +11,7 @@
   "records": [
     {
       "rule_id": "uda.final.timestamp",
-      "revision": 3,
+      "revision": 4,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -77,8 +77,10 @@
           ],
           "carry_through": "Verify the reported total after any final rewrite.",
           "repair": "Calculate the difference between the two readings and report it in the final answer.",
-          "enforcement": "semantic",
-          "mechanical_check": null
+          "enforcement": "mechanical",
+          "mechanical_check": {
+            "kind": "final_elapsed_time"
+          }
         }
       ],
       "provenance": {
