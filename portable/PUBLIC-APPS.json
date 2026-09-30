@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "status": "OWNER_DECLARED",
+  "purpose": "The owner's list of public-facing apps: the projects whose runtime must carry portable checks because they will not load this repository. Agents read this list; they do not infer it.",
+  "definition": "A public-facing app is a project that will ship as a standalone app for people other than the owner. Repository visibility does not make a project public-facing (most of the owner's repositories are public on GitHub), and neither does having model instructions.",
+  "declared_on": "2026-09-28",
+  "owner_statement": "ooh my bad, i should have told you which projects are actually public facing... meaning projects that would be apps. how can we avoid this in future? the ones that will be standalone apps are innersignal, askrgior, and possibly pangram-humanization-lab altho i'm nots ure about that yet",
+  "apps": [
+    {"repository": "u-dont-existDOTcom/innerSignalGraph", "name": "InnerSignal", "status": "PUBLIC_APP"},
+    {"repository": "u-dont-existDOTcom/AskRigor", "name": "AskRigor", "status": "PUBLIC_APP"},
+    {"repository": "u-dont-existDOTcom/pangram-humanization-lab", "name": "pangram-humanization-lab", "status": "UNDECIDED", "note": "The owner is not sure yet whether it will be a standalone app."},
+    {"repository": "u-dont-existDOTcom/humandesign", "name": "humandesign participant interviewer GPT", "status": "PUBLIC_APP", "surface": "reference/custom_gpt/participant_interviewer_instructions_under_8000_v1.md", "owner_statement": "humandesign interviewer GPT is an app that's true", "declared_on": "2026-09-28", "note": "Only the interviewer GPT is declared; the repository's other surfaces are not."}
+  ]
+}

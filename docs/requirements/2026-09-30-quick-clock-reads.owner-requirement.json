@@ -1,0 +1,46 @@
+{
+  "requirement_id": "2026-09-30-quick-clock-reads",
+  "date": "2026-09-30",
+  "source": "Owner report on 2026-09-30, in the session that reviewed and merged the claim-and-argument evaluation checks.",
+  "owner_statement": "for time it's still trying to find the quickest time check thing and then wondering if that's the most accurate and if it's good enough, like it has OCD, idk if you arleady merged your time check fixes",
+  "problem": "The owner reported that an assistant asked to time its replies spent its reasoning on which clock source was quickest, whether it was the most accurate, and whether it was good enough, instead of reading a clock and moving on. Separately, a chat surface's clock tool returned the identical timestamp, to the microsecond, on two reads separated by a web search, so a reply's duration could not be measured.",
+  "required_behavior": [
+    "Use the first clock available (a clock tool, or date in a shell or code tool) and move on; minute precision is enough.",
+    "Never compare clock sources, weigh their accuracy, or seek a faster one.",
+    "If two reads that should differ match exactly, treat the clock tool as cached: read a shell or code clock once, or say the later time could not be read."
+  ],
+  "authority": "The per-turn timestamp mechanism in root AGENTS.md is owner-protected. The owner's report and request above are the explicit owner decision for this change. It changes only how the clock is read; the timestamp contract itself is unchanged.",
+  "scope": "Every clock read made for the per-turn timestamp or for timing a reply.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "notes": "The deliberation failure is the owner's report. The cached-clock finding is recorded in docs/requirements/2026-09-30-claim-and-argument-evaluation.owner-requirement.json; the fallback wording for it is an ASSISTANT_INFERENCE and is non-blocking.",
+    "admission": "OWNER_DIRECT"
+  },
+  "execution_surfaces": [
+    {
+      "surface": "Root AGENTS.md per-turn bootstrap invariants",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Claude chats on claude.ai",
+      "disposition": "PROJECTED",
+      "note": "Those chats do not load this repository. The owner's Claude memory preference on timing replies was reworded on 2026-09-30 so that it no longer invites choosing a fast source: use the first clock available and take its value, without hunting for the quickest source or deliberating over whether it is accurate or good enough."
+    },
+    {
+      "surface": "ChatGPT chats that do not load this repository",
+      "disposition": "DEFERRED",
+      "reason": "They follow the owner's ChatGPT custom instructions; if those ask for reply timing, the same wording belongs there."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED",
+    "TESTED_TEXT_ONLY"
+  ],
+  "nonclaims": [
+    "A text test does not show that any agent now reads the clock without deliberating.",
+    "The identical clock values were seen once, on one surface; their cause is not established.",
+    "Nothing here is LIVE_VERIFIED."
+  ]
+}

@@ -30,6 +30,8 @@ Promote only the portable causal or operational lesson, with its originating sou
 
 Public packaging may include a self-contained adaptation of a portable lesson. This is intentional distribution duplication, not a second internal runtime import. Record its lineage in a development-side transfer ledger. Do not put private locators, account-specific permissions, private data, or mandatory internal-repository reads into the public protocol.
 
+The transfer ledger is `portable/TRANSFER-LEDGER.json`, and the self-contained texts live in `portable/<pack>/CHECKS.md` (see `portable/README.md`). For each public project the ledger records every check as added, already covered by the project's own rule with its exact anchor phrase, not applicable, or deferred, with a reason. `scripts/portable_checks.py validate` keeps the ledger consistent with the packs, and `verify-project` checks a project clone for every recorded anchor. When a project already has an equivalent rule, record the coverage instead of adding a second copy.
+
 ## Preservation and verification
 
 For each change map the old obligation to its retained normative owner, applicable consumer, and enforcement boundary. Retain exceptions, non-substitutes, safety conditions, and incomplete/unavailable states. Test the literal answer, artifact, directive, request, or installed source where the effect is required; the active-contract lifecycle is owned by patterns/task-time-lesson-activation.md, not duplicated here.

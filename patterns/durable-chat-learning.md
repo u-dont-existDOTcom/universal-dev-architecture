@@ -94,6 +94,10 @@ Unless the owner explicitly limits scope, execute all applicable steps automatic
 
 For a public-facing AI product, **updating Universal Dev Architecture is not by itself evidence that public users will receive the corrected behavior**. If that product's runtime does not load the universal repository, the affected product runtime authority must be updated separately. Developer/build-time governance and public runtime behavior are distinct propagation targets.
 
+Which projects are public-facing is the owner's declaration in `portable/PUBLIC-APPS.json`, not an inference. Repository visibility does not make a project public-facing, and neither does having model instructions. Project portable checks into every declared public app. A project marked undecided, or not listed, gets them only when the owner says so. Before starting work across several repositories, name the target list and where it came from; if any target was inferred rather than declared, confirm the list with the owner first. Regression: asked to carry new checks into "all public facing projects", an agent inferred eight targets from public repositories that had model instructions and opened seven pull requests; the owner meant the projects that will be standalone apps: three, one of them a single Custom GPT inside a larger repository, plus one he had not decided.
+
+When the lesson belongs in a portable pack, record each public project's projection, coverage mapping, or exclusion in `portable/TRANSFER-LEDGER.json`, using the states below plus `PROPOSED` for a change still in an open pull request.
+
 Do not conflate these states:
 
 - `CAPTURED` — lesson persisted somewhere durable;
@@ -148,6 +152,24 @@ A strong local pattern may need two durable homes:
 - the universal lessons repository, with the generalized rule and provenance link.
 
 This preserves both fidelity and reuse. Universal lessons should point back to the originating project instead of duplicating all raw evidence.
+
+### 12. User-specific instructions: where they persist and when they are promoted
+
+When the owner, or any user of a product that follows this architecture, asks to save, remember, or persist an instruction, preference, workflow rule, or other personal guidance:
+
+- **User-specific by default.** Saving it is not a reason to add it to AskRigor's Universal Instructions, this repository, or any other universal instruction set.
+- **Memory first.** Use the surface's ordinary persistent memory when it is available and appropriate: ChatGPT Memory, or the memory tools in Claude.
+- **The ChatGPT Library fallback is one file.** Memory and the Library are separate capabilities, so check each one; one being unavailable says nothing about the other. When the fallback is needed, look for the exact file `/Saved Instructions.md`. If it exists, retrieve it and update that same file, preserving unrelated entries. If it does not exist and the Library can create files, create it, starting with a short heading that says it is the durable fallback for this user's personal instructions, preferences, and workflow rules when ordinary Memory is unavailable, insufficient, or inappropriate. Never invent another filename or keep a second instructions file.
+- **Verify before claiming.** Verify the write when the tools allow it before saying the instruction was saved. If neither memory nor a writable Library is available, keep the instruction in the conversation and say that durable saving could not be verified.
+- **Read it back when needed.** On later tasks, when relevant instructions may be missing from injected memory or context, read `/Saved Instructions.md` if the Library is available. Memory, chat history, Custom Instructions, and the file can overlap; do not assume any one of them is complete or current.
+- **Promote only on purpose.** Classify saved instructions only when asked or during an authorized instruction-maintenance review, as one of:
+  - `USER_SPECIFIC`: keep it in memory or the file. Examples: language-learning preferences, personal formatting preferences, individual research interests, personal routines, or how this user wants to be taught a language.
+  - `UDA_CANDIDATE`: a generally useful rule for development, orchestration, tool use, persistence, model or mode integration, handoffs, verification, or workflow reliability that is not specific to one user or to AskRigor.
+  - `ASKRIGOR_UNIVERSAL_CANDIDATE`: a rule that should apply to essentially all AskRigor users or research workflows.
+
+  Promote only when the rule belongs at the broader layer and that layer's authority permits the change: owner approval for this repository, and AskRigor's own protocol review for its instructions. Usefulness to one user is not enough.
+
+Origin: `docs/requirements/2026-09-30-saved-user-instructions.owner-requirement.json`.
 
 ## Reference implementation evidence
 

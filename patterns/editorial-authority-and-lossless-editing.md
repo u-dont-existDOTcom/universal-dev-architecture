@@ -91,6 +91,12 @@ Detector results are passage-, service-, model-, version-, and time-specific evi
 
 Keep review-file status consistent with the central registry so a stale local record cannot silently certify a different state.
 
+## Recheck facts added to owner-authored text
+
+When an editor adds or rewrites a factual claim, quotation, figure, or attribution in text the owner will publish under their own name, check it against its source at the point of insertion, even when the same fact was checked earlier in the session. Paraphrase is where facts drift: a checked source sentence can become a sharper or broader claim in the rewrite. An attribution phrase such as "according to X" must not transfer the owner's own characterization to X. Mark each added factual claim in the proposed edit so the owner can see what was added, and give its source.
+
+Regression: rewriting an owner's reply to a published essay, an editor sharpened a canonical text's account of an event, carried in a figure from a secondary page instead of the primary survey that page cited, and attached a commentary attribution to the owner's own characterization. All three were in the rewrite the owner approved; an independent check caught them afterward. Added 2026-09-27 from `docs/requirements/2026-09-27-claim-anchoring-and-review-integrity.owner-requirement.json`.
+
 ## Bind publication and export provenance
 
 For each draft or published export, record:

@@ -120,6 +120,18 @@ When an owner or reviewer responds to only part of a proposal set:
 
 Selective feedback is an update to the active task, not permission to forget the remainder.
 
+## Reviewing the owner's own writing
+
+When the artifact under review is the owner's own writing, the reviewer's reading of it is the part most likely to be wrong.
+
+- Before flagging a problem, state the strongest reading under which it is not one. If that reading is plausible, drop the flag.
+- When a flag depends on what the owner meant, ask. Do not resolve an ambiguous phrase silently and then correct the owner for the reading the reviewer chose.
+- Report a contradiction only when the two statements cannot both be true under any reasonable reading. A view the owner holds and a warning about how that view gets misused can both stand.
+- Once the owner rejects a flag, drop it. Do not bring it back as a prediction about readers or in a new framing unless new evidence appears.
+- Sort findings into verified problems and suggestions that depend on a reading. There is no minimum number of findings; a review that finds little has not failed.
+
+Regression: asked what they thought of the owner's draft reply to a published essay, a reviewer returned 18 points, and 9 were wrong or overstated. They included a claimed contradiction between a view the owner held and the owner's warning about its misuse, a correction that treated one of two readings the source supports as the only one, a fact-check of a phrase the reviewer had misread, and, after the owner rejected two of the flags, both of them again as warnings about how readers might take the text.
+
 ## Exact repair contract
 
 Every substantive proposed repair should provide:
@@ -161,13 +173,14 @@ Before completion, run a whole-source cold read and answer:
 7. Did any unaddressed proposal disappear after selective feedback?
 8. Does the architecture/map still reflect the actual setup, primary home, and callbacks?
 9. Would the author recognize the repaired passage as the same argument stated more clearly?
+10. For a review of the owner's own writing, did every flag survive the strongest reading, did every flag that depends on the owner's meaning become a question, and did any rejected flag come back in a new framing?
 
 If any answer is uncertain, the critique/edit remains provisional.
 
 ## Origin evidence
 
 - Originating work: long-form Romance article and derivative card-game review; later generalized by a public-claim correction failure in which evidence about direct operation was incorrectly treated as negating a broader control relation
-- Promotion dates: 2026-08-17; claim-scope contradiction extension 2026-09-13
+- Promotion dates: 2026-08-17; claim-scope contradiction extension 2026-09-13; owner-writing review extension 2026-09-27 (`docs/requirements/2026-09-27-claim-anchoring-and-review-integrity.owner-requirement.json`)
 - Failure classes: multiple sentence-local readings broadened narrow claims, overlooked qualifications elsewhere, treated contextualization as retraction, temporarily dropped unchallenged proposals after selective feedback, and generalized evidence against a narrower mechanism into denial of a broader relation without entailment
 - Owner corrections: require exact prose, exact reading, full-source reconstruction, durable Mermaid mapping, natural integration, preservation of unaddressed accepted suggestions, and proposition-level scope matching before declaring contradiction
 
