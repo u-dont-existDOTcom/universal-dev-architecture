@@ -117,8 +117,14 @@ export function installStuckRecovery(browser, {
     const logicalWait = ++logicalWaitSequence;
     const allowGenericRecovery = options?.allowSameChatRecovery !== false;
     const recoveries = [];
+    let pendingStall = null;
     for (;;) {
       try {
+        if (pendingStall) {
+          const error = pendingStall;
+          pendingStall = null;
+          throw error;
+        }
         const completed = await originalWait(target, options);
         if (completed?.conversationUrl) options = { ...options, expectedUrl: completed.conversationUrl };
         let control = allowGenericRecovery ? await inspectFn(target, options.expectedUrl) : { recoverable: false, controlLabel: null };
@@ -188,6 +194,10 @@ export function installStuckRecovery(browser, {
               const control = await inspectFn(target, options.expectedUrl);
               if (!control?.recoverable) return completionWithRecoveries(completed, recoveries, maxNudges);
             } catch (revalidationError) {
+              if (isSystemsThinkingMoreThanUsual(revalidationError) || isConnectionInterrupted(revalidationError)) {
+                pendingStall = revalidationError;
+                continue;
+              }
               if (!isGenerationStallTimeout(revalidationError) && !isProgressHeartbeatStall(revalidationError)) {
                 throw revalidationError;
               }
@@ -199,6 +209,10 @@ export function installStuckRecovery(browser, {
               const completed = await originalWait(target, options);
               return completionWithRecoveries(completed, recoveries, maxNudges);
             } catch (revalidationError) {
+              if (isSystemsThinkingMoreThanUsual(revalidationError) || isConnectionInterrupted(revalidationError)) {
+                pendingStall = revalidationError;
+                continue;
+              }
               if (!isGenerationStallTimeout(revalidationError) && !isProgressHeartbeatStall(revalidationError)) throw revalidationError;
               if (revalidationError?.conversationUrl) options = { ...options, expectedUrl: revalidationError.conversationUrl };
             }

@@ -39,6 +39,61 @@ test('an already idle explicit stall is revalidated before Continue without cool
   assert.equal(submits, 0);
 });
 
+for (const [genericCode, explicitCode, cooldown] of [
+  [null, 'CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL', false],
+  ['CHATGPT_PROGRESS_HEARTBEAT_STALLED', 'CHATGPT_CONNECTION_INTERRUPTED', false],
+  [null, 'CHATGPT_CONNECTION_INTERRUPTED', true],
+]) {
+  test(`generic ${genericCode ?? 'timeout'} revalidation${cooldown ? ' after cooldown' : ''} routes ${explicitCode} through explicit recovery`, async () => {
+    const canonicalUrl = 'https://chatgpt.com/c/revalidated-stall';
+    let waits = 0;
+    let admissionChecks = 0;
+    const stopModes = [];
+    const submittedUrls = [];
+    const sleeps = [];
+    const browser = { async waitForGenerationComplete() {
+      if (++waits === 1) {
+        throw genericCode
+          ? Object.assign(new Error(genericCode), { code: genericCode })
+          : new Error('ChatGPT generation did not reach a stable complete UI state.');
+      }
+      if (waits === 2) {
+        throw Object.assign(new Error(explicitCode), { code: explicitCode, conversationUrl: canonicalUrl });
+      }
+      return { status: 'GENERATION_COMPLETE' };
+    } };
+    installStuckRecovery(browser, {
+      submitMessage: async (_target, input) => {
+        submittedUrls.push(input.expectedUrl);
+        return { generationStarted: true };
+      },
+      stopStalledGeneration: async (_target, expectedUrl, { requireSendControl }) => {
+        stopModes.push(requireSendControl);
+        if (requireSendControl) assert.equal(expectedUrl, canonicalUrl);
+        return { stoppedGeneration: requireSendControl, stopReason: requireSendControl ? undefined : 'ALREADY_IDLE' };
+      },
+      beforeRecoverySend: async () => {
+        if (cooldown && ++admissionChecks === 1) {
+          throw Object.assign(new Error('cooldown'), { code: 'GLOBAL_SUBMISSION_COOLDOWN', retryAfterMs: 30_000 });
+        }
+      },
+      sleep: async (ms) => { sleeps.push(ms); },
+      inspectRecoverableControl: noRecoverableControl,
+      logger: { warn() {} },
+    });
+
+    const result = await browser.waitForGenerationComplete({ id: 'revalidated-stall' }, {
+      expectedUrl: 'https://chatgpt.com/c/WEB:revalidated-stall', generationStarted: true,
+    });
+    assert.equal(result.status, 'GENERATION_COMPLETE');
+    assert.deepEqual(stopModes, cooldown ? [true] : [false, true]);
+    assert.deepEqual(sleeps, cooldown ? [30_000] : []);
+    assert.deepEqual(submittedUrls, [canonicalUrl]);
+    assert.equal(result.stuckRecovery.recoveries[0].source,
+      explicitCode === 'CHATGPT_CONNECTION_INTERRUPTED' ? 'CONNECTION_INTERRUPTED' : 'SYSTEMS_THINKING_MORE_THAN_USUAL');
+  });
+}
+
 test('recognizes only the stable-generation timeout as recoverable', () => {
   assert.equal(isGenerationStallTimeout(new Error('ChatGPT generation did not reach a stable complete UI state.')), true);
   assert.equal(isGenerationStallTimeout(new Error('ChatGPT login is required')), false);
