@@ -177,6 +177,11 @@ export function installStuckRecovery(browser, {
               const completed = await originalWait(target, options);
               return completionWithRecoveries(completed, recoveries, maxNudges);
             } catch (revalidationError) {
+              if (allowGenericRecovery
+                && (isGenerationStallTimeout(revalidationError) || isProgressHeartbeatStall(revalidationError))) {
+                pendingStall = revalidationError;
+                continue;
+              }
               if (!isSystemsThinkingMoreThanUsual(revalidationError) && !isConnectionInterrupted(revalidationError)) {
                 throw revalidationError;
               }

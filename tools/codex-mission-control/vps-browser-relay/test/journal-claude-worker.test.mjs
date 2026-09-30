@@ -411,6 +411,32 @@ test('answered recovery rebuilds a stale summary from an existing event', async 
   assert.equal(summary.last_seven_days.items_answered, 1);
 });
 
+test('answered recovery preserves a legacy answered event without duplicating its metric', async (t) => {
+  const legacyEvent = {
+    at: new Date(NOW).toISOString(),
+    lane: 'journal-hardest',
+    outcome: 'answered',
+    input_tokens: 17,
+  };
+  const fixture = await makeFixture(t, { dispatchRecords: () => [record(true)] });
+  await writeFile(fixture.config.usageFile, `${JSON.stringify(legacyEvent)}\n`);
+  await writeFile(fixture.config.summaryFile, JSON.stringify({
+    ...buildUsageSummary([legacyEvent], NOW),
+    in_flight: { work_id: 'hard-1', attempt: 1 },
+  }));
+
+  assert.deepEqual(await fixture.worker.runPass(), { status: 'ANSWERED', workId: 'hard-1' });
+  assert.equal(fixture.claudeRuns(), 0);
+  assert.equal(fixture.imports(), 1);
+  assert.equal((await readFile(fixture.config.usageFile, 'utf8')).trim().split('\n').length, 1);
+  const summary = JSON.parse(await readFile(fixture.config.summaryFile, 'utf8'));
+  assert.equal(summary.today_utc.runs, 1);
+  assert.equal(summary.today_utc.items_answered, 1);
+  assert.equal(summary.last_seven_days.items_answered, 1);
+  assert.equal(summary.today_utc.input_tokens, 17);
+  assert.deepEqual(summary.legacy_answered_reconciliation, { work_id: 'hard-1', status: 'AMBIGUOUS' });
+});
+
 test('answered recovery skips a torn usage-log tail and imports the answer', async (t) => {
   const priorEvent = {
     at: new Date(NOW).toISOString(),

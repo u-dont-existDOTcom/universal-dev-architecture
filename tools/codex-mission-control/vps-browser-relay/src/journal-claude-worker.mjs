@@ -282,6 +282,9 @@ export class JournalClaudeWorker {
     if (isRecord(prior?.pending_import)) summary.pending_import = prior.pending_import;
     if (isRecord(prior?.in_flight)) summary.in_flight = prior.in_flight;
     if (Array.isArray(prior?.exhausted)) summary.exhausted = prior.exhausted;
+    if (isRecord(prior?.legacy_answered_reconciliation)) {
+      summary.legacy_answered_reconciliation = prior.legacy_answered_reconciliation;
+    }
     await atomicJson(this.config.summaryFile, summary);
     this.logger.log({ status: outcome.toUpperCase(), at: event.at });
   }
@@ -296,9 +299,14 @@ export class JournalClaudeWorker {
       try { return [JSON.parse(line)]; } catch { return []; }
     });
     const matching = events.filter((event) => event.work_id === workId && event.attempt === attempt);
+    const latest = events.at(-1);
+    // Pre-schema events have no work ID or attempt. Their last answer may be this
+    // in-flight item, so count it once and retain the attribution uncertainty.
+    const ambiguousLegacyAnswer = matching.length === 0 && latest?.lane === LANE
+      && latest.outcome === 'answered' && !('work_id' in latest) && !('attempt' in latest);
     const alreadyAnswered = matching.some((event) => event.outcome === 'answered')
-      || (matching.length === 0 && events.at(-1)?.work_id === workId
-        && events.at(-1)?.outcome === 'answered');
+      || (matching.length === 0 && latest?.work_id === workId
+        && latest?.outcome === 'answered') || ambiguousLegacyAnswer;
     if (!alreadyAnswered) {
       const correction = { at: new Date(this.now()).toISOString(), lane: LANE, outcome: 'answered', work_id: workId, attempt, reconciliation: true };
       const separator = raw && !raw.endsWith('\n') ? '\n' : '';
@@ -309,8 +317,11 @@ export class JournalClaudeWorker {
     const prior = await readJson(this.config.summaryFile);
     const priorPause = Date.parse(prior?.paused_until ?? '');
     if (priorPause > this.now() && priorPause > (Date.parse(summary.paused_until ?? '') || 0)) summary.paused_until = prior.paused_until;
-    for (const key of ['last_import', 'pending_import', 'in_flight', 'exhausted']) {
+    for (const key of ['last_import', 'pending_import', 'in_flight', 'exhausted', 'legacy_answered_reconciliation']) {
       if (prior?.[key] !== undefined) summary[key] = prior[key];
+    }
+    if (ambiguousLegacyAnswer) {
+      summary.legacy_answered_reconciliation = { work_id: workId, status: 'AMBIGUOUS' };
     }
     await atomicJson(this.config.summaryFile, summary);
   }
