@@ -1,0 +1,55 @@
+{
+  "requirement_id": "2026-09-30-owner-questions-page",
+  "date": "2026-09-30",
+  "source": "Owner message on 2026-09-30 to the Claude session maintaining this architecture's rules.",
+  "owner_statement": "for the questions waiting on me, use the method the AskRigor worker uses, give me that continuously updated artifact of tradeoffs to consider rather than just talking baout something PR something,  that should also be a standard UDA method otherwise it's hard to understand exactly what i need to do",
+  "problem": "Agents asked the owner for decisions inside status messages and pull request descriptions, naming each by its pull request number. The owner had to work out what each question was about, what the options were, and what each answer would lead to, before he could answer.",
+  "required_behavior": [
+    "Each workstream that can need the owner keeps one owner questions page, updated in place whenever a question is added, answered, or changes; the page is the complete list of what the workstream needs from the owner, and chat points to it.",
+    "The page is a published artifact where the surface can publish one, otherwise one OWNER-QUESTIONS.md file in the workstream's repository; an existing page is updated, never duplicated.",
+    "Sections, in order: open questions with numbers never reused; things for the owner to do with steps; decisions quoted back with what was done; upcoming work with its defaults.",
+    "Each open question names the decision in plain words, says why it needs the owner, gives the options with what each gets and costs, the recommendation and a safe default, what happens after each answer, and how to answer; pull request and issue links come after the explanation.",
+    "Before a question goes on the page, the agent resolves what it can itself, lets another project's own agent decide first on changes to that project, and merges questions with the same consequence."
+  ],
+  "basis": [
+    "The AskRigor worker's AskRigor owner questions page, which the owner named as the method to follow.",
+    "Root AGENTS.md: the minimum-owner-choice rule and the owner-facing operational references rule, which the page puts into one place."
+  ],
+  "scope": "Everything an agent or workstream needs from the owner. The page adds no gate and grants no authority; declared gates still apply and are asked there.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "notes": "The method is the owner's choice. The section order and question fields follow the AskRigor worker's page."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/owner-questions-page.md, the root AGENTS.md owner-facing references line, LESSON-INDEX.md, docs/INDEX.md, and logic failure map entry LF-9.8",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Chat, Codex, and Claude Code sessions that load this repository's root AGENTS.md",
+      "disposition": "PROJECTED",
+      "note": "Reached through the root line; sessions that do not load the root file are not covered."
+    },
+    {
+      "surface": "The owner questions page of the session that maintains this architecture's rules",
+      "disposition": "PROJECTED",
+      "note": "Published as a Claude artifact on 2026-09-30, holding the questions that session had pending."
+    },
+    {
+      "surface": "Claude chats on claude.ai",
+      "disposition": "DEFERRED",
+      "reason": "They follow the owner's Claude memory preferences, not this repository."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED",
+    "TESTED_TEXT_ONLY"
+  ],
+  "nonclaims": [
+    "Text-presence tests do not show that any agent keeps a page.",
+    "Nothing here is LIVE_VERIFIED."
+  ]
+}

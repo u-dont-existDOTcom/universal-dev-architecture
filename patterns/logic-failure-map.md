@@ -75,7 +75,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-5.1 | Keeping a strategy that isn't working, or dropping one before it could work. | Compare direct outcome evidence with the strategy's expected effect and window. | `patterns/outcome-advancement-and-strategy-efficacy.md`; `patterns/failed-strategy-lineage-and-negative-evidence-binding.md` | |
 | LF-5.2 | A loop that doesn't converge: the same kind of step repeated, or review rounds that each find new edge cases. | Cap the rounds; when a cap is hit, change the method (for example one full audit) rather than repeat the step. | `patterns/outcome-advancement-and-strategy-efficacy.md` | FM-1.3 |
 | LF-5.3 | New infrastructure where the existing platform already offers it. | Inventory the platform's own deployment surfaces first. | `patterns/platform-native-deployment-before-new-infrastructure.md` | |
-| LF-5.4 | Recommending before checking the facts that decide it: price, availability, fit. | Resolve the deciding facts before naming a candidate. | `patterns/recommendation-preflight-integrity.md` | |
+| LF-5.4 | Recommending before checking the facts that decide it: price, availability, fit. | Resolve the deciding facts before naming a candidate. | `patterns/recommendation-preflight-integrity.md`; `patterns/shopping-research.md` (shopping) | |
 | LF-5.5 | The wrong model tier: the top tier for easy work, or a low tier for hard work. | Split judgment from execution; use the lowest sufficient tier. | `patterns/delegate-easy-work-to-cheaper-models.md`; `patterns/work-model-and-effort-routing.md`; `patterns/chat-work-execution-routing-threshold.md`; `patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md` | |
 | LF-5.6 | Assurance that doesn't match the decision: release gates on an experiment, or none at a merge. | Name the lane for the decision being made now. | `patterns/development-assurance-lanes.md` | |
 
@@ -123,6 +123,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-9.5 | A handoff missing what the next agent needs. | The brief is self-contained: goal, inputs, boundaries, acceptance check. | `patterns/worker-directive-delivery-and-chat-output-budget.md` | FM-2.4 |
 | LF-9.6 | Prose becomes hard to read aloud because connective relations are lost or repetition is mechanical. | Read the passage aloud; restore natural links and check local repetition in context. | `patterns/conversational-prose-speakability.md` | |
 | LF-9.7 | An owner-marked failure remains only in chat instead of becoming the requested durable Mission Control record. | Check for an explicit capture request, then verify the record at its destination before claiming it was saved. | `patterns/owner-marked-mission-control-failure-capture.md` | |
+| LF-9.8 | Questions for the owner scattered across chat messages and pull requests and named by number, so he can't tell what he has to decide or do. | Is every open question on the one owner questions page, with its options, tradeoffs and a recommendation? | `patterns/owner-questions-page.md` | |
 
 ### 10. Coordinating agents
 
@@ -135,6 +136,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-10.5 | Context lost when work passes between agents. | Hand over a checkpoint, not a memory. | `patterns/worker-directive-delivery-and-chat-output-budget.md`; `patterns/context-compaction-resilience.md` | FM-2.1 |
 | LF-10.6 | Multi-worker supervision loses a single authority or context boundary, so execution and judgment are routed to the wrong agent. | Trace each directive and decision to its owner, worker, and supervisory lane. | `patterns/codex-pro-supervision-mission-control.md`; `patterns/codex-supervision-intelligence-routing-and-context-lifecycle.md` | |
 | LF-10.7 | Multiple relay hosts send the same item, or failover resumes without a fenced authority. | Verify one durable sender admission, global pacing, and a fenced failover epoch before each send. | `patterns/mission-control-multi-host-submission-scheduling.md`; `patterns/shared-provider-submission-queue.md` | |
+| LF-10.8 | A fix for another project delivered as a pull request the owner must answer first, or as a file he must relay. | File it in that project's lane; its own agent decides first. | `patterns/suggested-fix-queue.md` | |
 
 ## Keeping the map complete
 

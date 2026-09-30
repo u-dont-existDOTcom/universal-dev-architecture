@@ -1,0 +1,65 @@
+{
+  "requirement_id": "2026-09-30-shopping-module",
+  "date": "2026-09-30",
+  "source": "Owner message on 2026-09-30, with the attached file SHOPPING_MODULE.xml (AskRigor shopping module v0.2).",
+  "owner_statement": "i want to integrate this shopping module into UDA and AskRigor universal instructions",
+  "owner_file": {
+    "name": "SHOPPING_MODULE.xml",
+    "sha256": "650ff6659d48c2158d7de6c2e104f4516084ae7448bf0b7ebdca372470fb0cb5",
+    "bytes": 7998,
+    "characters": 7984,
+    "sections_1_to_9_sha256": "61659f38151a6174e4b3315dfc7a2e9b9045ab52161a9f112a2b9b82d5289862"
+  },
+  "required_behavior": [
+    "Agents governed by this architecture follow the module when they find, compare, price, or recommend products, offers, or places to buy.",
+    "The module supplements patterns/recommendation-preflight-integrity.md, which alone owns candidate states and admission to a recommendation.",
+    "AskRigor's Universal Instructions carry the module as a supplement to recommendation_preflight_integrity_gate."
+  ],
+  "integration": [
+    "patterns/shopping-research.md holds sections 1 to 9 unchanged apart from heading levels; sections_1_to_9_sha256 is their digest with the original heading levels restored. The module's Authority section names AskRigor's protocols, so the pattern gives its version for this architecture above the module text.",
+    "patterns/recommendation-preflight-integrity.md points to the new pattern for shopping research.",
+    "The AskRigor copy is an item in AskRigor's suggested-fix lane carrying the owner's file byte for byte, because AskRigor's agent owns its protocol process and has protocol work in flight that an outside change would collide with, as an earlier outside change did."
+  ],
+  "review_notes": [
+    "The states the module names (SCREENED, VERIFIED, RECOMMENDED, UNKNOWN) are the states defined in patterns/recommendation-preflight-integrity.md.",
+    "Where the module and the gate's shopping checks overlap (orderability, current price, review signal, variant identity), the module adds detail and does not contradict the gate."
+  ],
+  "scope": "Shopping research: product and offer lookups, comparisons, recommendations, and logistics checks. It authorizes no purchase or other action.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "notes": "The module text is the owner's; this change places it and maps its references."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/shopping-research.md, the pointer in patterns/recommendation-preflight-integrity.md, LESSON-INDEX.md, docs/INDEX.md, and logic failure map entry LF-5.4",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Chat, Codex, and Claude Code sessions that load this repository",
+      "disposition": "PROJECTED",
+      "note": "Reached through the lesson index and the recommendation pattern; there is no root route for recommendations."
+    },
+    {
+      "surface": "AskRigor Universal Instructions",
+      "disposition": "QUEUED",
+      "lane_item": "suggested-fixes/AskRigor/2026-09-30-shopping-module.md",
+      "reason": "Integrated by AskRigor's own agent through its lane; the item is marked as an owner request."
+    },
+    {
+      "surface": "Claude chats on claude.ai",
+      "disposition": "DEFERRED",
+      "reason": "At 7,984 characters the module is too large for the owner's Claude preferences; with the AskRigor connector on, AskRigor's copy applies once integrated."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED",
+    "TESTED_TEXT_ONLY"
+  ],
+  "nonclaims": [
+    "Tests check that the text is present and unchanged, not that any agent follows it.",
+    "Nothing here is LIVE_VERIFIED."
+  ]
+}

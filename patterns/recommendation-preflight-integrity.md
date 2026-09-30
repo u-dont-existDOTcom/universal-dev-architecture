@@ -16,6 +16,8 @@ Apply this pattern when an answer will tell an owner what to buy, subscribe to, 
 
 For broad option searches, compose with `patterns/coverage-before-depth-in-selection.md`: inventory materially different alternatives before deep auditing, but do not expose failed discovery candidates merely to demonstrate coverage.
 
+For shopping research, also apply `patterns/shopping-research.md`, the owner's shopping module. It adds scope, discovery, offer verification, landed cost, and review-reading procedures around this pattern's gate, and leaves the candidate states and admission here.
+
 ## Candidate states
 
 Use these semantic states during reasoning:

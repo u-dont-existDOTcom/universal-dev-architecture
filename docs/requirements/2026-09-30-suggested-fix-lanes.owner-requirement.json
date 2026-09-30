@@ -1,0 +1,62 @@
+{
+  "requirement_id": "2026-09-30-suggested-fix-lanes",
+  "date": "2026-09-30",
+  "source": "Owner message on 2026-09-30 to the Claude session maintaining this architecture's rules.",
+  "owner_statement": "But I'm also not sure i'm the one who should be first to answer your PR questions... wouldn't it make sense for every project to have a \"suggested fix queue\" lane that it checks whenever it's doing its other fixes, so that i don't have to manually copy all your suggestions and you don't have to update all the projects you don't work on, just UDA?",
+  "problem": "Fixes found in one place for another project reached that project as pull requests the owner was asked about first, or as handoff files he copied between chats. The owner was the channel between agents, and the project's own agent saw the suggestion last.",
+  "required_behavior": [
+    "Each project repository has a lane in this repository, suggested-fixes/<repository>/.",
+    "An agent with a suggestion for a project it isn't working on files an item in that project's lane, in the format in suggested-fixes/README.md, instead of opening a pull request in the project or handing the owner a file to relay.",
+    "Each project's agent reads its lane before other fixes, once per work session, and handles every item its ledger doesn't list yet: adopt, adapt, decline with a reason, defer until a named trigger, or ask the owner on its owner questions page. An item marked as an owner request goes to the owner before it is declined or deferred.",
+    "The project records each outcome in its own docs/suggested-fixes-ledger.md; an agent working here may then move the item to done/.",
+    "Each project's AGENTS.md carries the wiring section from suggested-fixes/README.md unless the project loads this repository's root AGENTS.md every turn; the first agent to file for an unwired project adds it once."
+  ],
+  "design_choices": [
+    "Lanes live here, as the owner asked, so an agent filing a suggestion writes only to this repository.",
+    "Outcomes are recorded in each project's own repository, so project agents never need to write here.",
+    "One file per item, like the one-file-per-task checkpoints, so concurrent filers do not conflict.",
+    "Items follow this repository's public/internal separation; private detail stays in the target repository and is linked."
+  ],
+  "basis": [
+    "patterns/agent-to-agent-consultation.md and logic failure map entry LF-10.1: the owner is not the channel between agents.",
+    "patterns/carrying-uda-into-standalone-projects.md: an adopted item that brings a rule into a project's runtime is recorded as an import there.",
+    "state/tasks/ checkpoints: one file per task avoids write conflicts between concurrent agents."
+  ],
+  "scope": "Suggestions from an agent to a project it isn't working on. The lane adds no authority and bypasses no gate; the project's own authority decides.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "notes": "The lane is the owner's proposal; the item format, the project-side ledger, and the wiring section are this session's implementation of it."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/suggested-fix-queue.md, suggested-fixes/README.md and the lanes, the root AGENTS.md line, LESSON-INDEX.md, docs/INDEX.md, and logic failure map entry LF-10.8",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "AskRigor development sessions",
+      "disposition": "PROJECTED",
+      "note": "AskRigor's project/DEVELOPMENT_INHERITANCE.md loads this repository's root AGENTS.md every turn, which carries the lane line."
+    },
+    {
+      "surface": "Wiring sections in the AGENTS.md of innerSignalGraph, humandesign, pangram-humanization-lab, joel-articles, design, and creativeTailSampling",
+      "disposition": "PROJECTED",
+      "note": "suggested-fixes/README.md records each project's wiring."
+    },
+    {
+      "surface": "Other repositories of the owner with no lane items yet",
+      "disposition": "DEFERRED",
+      "reason": "Wired by the first agent that files an item for them, so no repository is changed before it has something waiting."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED",
+    "TESTED_TEXT_ONLY"
+  ],
+  "nonclaims": [
+    "Tests check the lane format and the text, not that any project agent reads its lane.",
+    "Nothing here is LIVE_VERIFIED."
+  ]
+}
