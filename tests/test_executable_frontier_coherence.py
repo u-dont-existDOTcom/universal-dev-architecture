@@ -56,8 +56,8 @@ class ExecutableFrontierCoherenceTests(unittest.TestCase):
 
     def test_recurring_failure_routes_to_architecture_not_more_prose(self) -> None:
         text = PATTERN.read_text(encoding="utf-8")
-        self.assertIn("repeatedly corrected the same observable failure", text)
-        self.assertIn("state-machine, projection, integration, or verification defect", text)
+        self.assertIn("When the same observable failure recurs after a fix", text)
+        self.assertIn("state-machine, projection, integration, verification, or method-fit defect", text)
         self.assertIn("Do not blindly add another prose reminder", text)
 
     def test_promotion_preserves_source_and_limits(self) -> None:
