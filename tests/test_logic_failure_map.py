@@ -1,0 +1,93 @@
+"""Keep the failure inventory and standalone-project route complete."""
+
+import re
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+MAP = ROOT / "patterns/logic-failure-map.md"
+CARRYING = ROOT / "patterns/carrying-uda-into-standalone-projects.md"
+INDEX = ROOT / "LESSON-INDEX.md"
+
+
+class LogicFailureMapTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.map_text = MAP.read_text(encoding="utf-8")
+        cls.carrying_text = CARRYING.read_text(encoding="utf-8")
+        cls.index_text = INDEX.read_text(encoding="utf-8")
+
+    def test_cited_repository_paths_exist(self):
+        # The carrying pattern's example manifest is in a different project,
+        # not a citation of a file in this repository.
+        citation = re.compile(r"`([A-Za-z0-9._/-]+\.md)`")
+        for source in (self.map_text, self.carrying_text):
+            for relative in citation.findall(source):
+                with self.subTest(path=relative):
+                    if relative == "docs/uda-imports.md":
+                        self.assertIn("such as `docs/uda-imports.md`", self.carrying_text)
+                        continue
+                    self.assertTrue((ROOT / relative).is_file(), relative)
+
+    def test_every_numbered_lesson_is_placed(self):
+        numbered = re.findall(r"(?m)^\d+\. `(patterns/[^`]+\.md)`", self.index_text)
+        self.assertTrue(numbered)
+        rows = [line.split("|")[4] for line in self.map_text.splitlines() if line.startswith("| LF-")]
+        not_failure_rules = self.map_text.split("### Not failure rules", 1)[1].split("\n## ", 1)[0]
+        for pattern in numbered:
+            with self.subTest(pattern=pattern):
+                citation = f"`{pattern}`"
+                self.assertTrue(any(citation in cell for cell in rows) or citation in not_failure_rules)
+
+    def test_rows_have_five_cells_unique_ids_and_valid_mast(self):
+        table = self.map_text.split("## The map", 1)[1].split("## Keeping the map complete", 1)[0]
+        valid_mast = {
+            *(f"FM-1.{n}" for n in range(1, 6)),
+            *(f"FM-2.{n}" for n in range(1, 7)),
+            *(f"FM-3.{n}" for n in range(1, 4)),
+        }
+        ids = []
+        for line in table.splitlines():
+            if not line.startswith("|"):
+                continue
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            self.assertEqual(len(cells), 5, line)
+            if not cells[0].startswith("LF-"):
+                continue
+            self.assertRegex(cells[0], r"^LF-\d+\.\d+$")
+            ids.append(cells[0])
+            if cells[4]:
+                self.assertIn(cells[4], valid_mast, line)
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_routes_exist(self):
+        root = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        docs = (ROOT / "docs/INDEX.md").read_text(encoding="utf-8")
+        causal = root.split("## Causal failure diagnosis", 1)[1].split("\n## ", 1)[0]
+        boundary = root.split("## Universal and owner-specific infrastructure boundary", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("Place every failure on the map first: `patterns/logic-failure-map.md`.", causal)
+        self.assertIn("A project whose runtime runs outside this architecture imports what applies to it: `patterns/carrying-uda-into-standalone-projects.md`.", boundary)
+        for pattern in ("logic-failure-map", "carrying-uda-into-standalone-projects"):
+            self.assertIn(f"`patterns/{pattern}.md`", self.index_text)
+            self.assertIn(f"`../patterns/{pattern}.md`", docs)
+
+    def test_carrying_rules_and_example_boundary(self):
+        rule = self.carrying_text.split("## Rule", 1)[1].split("\n## ", 1)[0]
+        headings = re.findall(r"(?m)^\d+\. \*\*([^*]+)\*\*", rule)
+        self.assertEqual(headings, [
+            "Name the runtime.",
+            "Select what applies.",
+            "Import each item in the most enforceable form that fits:",
+            "Adapt, don't paste.",
+            "Record where it came from.",
+            "Keep it in sync on purpose.",
+            "Test the imports.",
+        ])
+        example = self.carrying_text.split("## Example", 1)[1]
+        self.assertIn("NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT", example)
+        self.assertNotRegex(example, r"(?im)(?:^|[\s`(])(?:~?/|[a-z]:\\)[^\s`]+|file://")
+
+
+if __name__ == "__main__":
+    unittest.main()
