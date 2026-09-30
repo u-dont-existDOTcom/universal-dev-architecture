@@ -46,6 +46,21 @@ test('central scheduler persists a single-use admission before the actual bounda
   assert.equal((await scheduler.admit(request({ requestId: 'r-too-fast', queueKey: 'queue:r-too-fast' }), 'collector:relay')).admitted, true);
 });
 
+test('shared scheduler status retains journal allowance usage across relay takeover', async () => {
+  const now = { value: origin };
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease(primaryLease());
+  const admission = await scheduler.admit(request({ sendPath: 'JOURNAL_WORK' }), 'collector:relay');
+  await scheduler.recordBoundary({ admissionId: admission.admissionId, boundaryAt: new Date(now.value).toISOString(), boundaryKind: 'CLICKED', conversationUrlSha256: null }, 'collector:relay');
+  now.value = Date.parse('2026-09-10T13:01:00.000Z');
+  const successor = makeScheduler(store, now);
+  await successor.activateLease(secondaryTakeoverLease({ transferredLastBoundaryAt: new Date(origin).toISOString() }));
+  assert.equal((await successor.status()).journalCallsToday, 1);
+  now.value += 86_400_000;
+  assert.equal((await successor.status()).journalCallsToday, 0);
+});
+
 test('FIFO queue is durable before grant, exposes its head/depth, and protects queue-key identity', async () => {
   const now = { value: origin };
   const store = new MemoryStore();

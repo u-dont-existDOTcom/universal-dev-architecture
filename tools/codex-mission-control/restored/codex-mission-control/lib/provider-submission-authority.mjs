@@ -1497,6 +1497,8 @@ function schedulerStatus(state, minIntervalMs, nowMs) {
     && Date.parse(state.activeLease.issuedAt) <= nowMs && Date.parse(state.activeLease.expiresAt) > nowMs;
   return {
     schedulerState: state.activeLease ? (leaseReady ? 'ACTIVE_LEASE' : 'LEASE_STALE') : 'LEASE_MISSING',
+    journalCallsToday: state.admissions.filter((item) => item.sendPath === 'JOURNAL_WORK'
+      && item.boundaryAt?.slice(0, 10) === new Date(nowMs).toISOString().slice(0, 10)).length,
     minimumIntervalMs: minIntervalMs,
     lastSubmissionAt: state.lastBoundaryAt,
     retryAfterMs: effectiveRetryAfterMs,

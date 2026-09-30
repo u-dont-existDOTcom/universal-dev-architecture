@@ -173,6 +173,7 @@ try {
     const journal = new JournalWorkRunner({
       config: journalConfig,
       browser,
+      sharedAllowanceReader: async () => (await schedulerClient.status()).journalCallsToday,
       memoryReader: async () => {
         const metrics = await readMemoryMetrics(config.browser.profileDir);
         return classifyMemoryPressure(metrics, resolveMemoryPolicy(metrics.totalMb, config.memory));

@@ -117,8 +117,14 @@ export function installStuckRecovery(browser, {
     const logicalWait = ++logicalWaitSequence;
     const allowGenericRecovery = options?.allowSameChatRecovery !== false;
     const recoveries = [];
+    let pendingStall = null;
     for (;;) {
       try {
+        if (pendingStall) {
+          const error = pendingStall;
+          pendingStall = null;
+          throw error;
+        }
         const completed = await originalWait(target, options);
         if (completed?.conversationUrl) options = { ...options, expectedUrl: completed.conversationUrl };
         let control = allowGenericRecovery ? await inspectFn(target, options.expectedUrl) : { recoverable: false, controlLabel: null };
@@ -165,12 +171,17 @@ export function installStuckRecovery(browser, {
         let interruption;
         if (explicitSystemStall) {
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: true });
-          const cooldownWaited = await awaitRecoveryAdmission(options);
-          if (cooldownWaited && interruption?.stoppedGeneration === false) {
+          await awaitRecoveryAdmission(options);
+          if (interruption?.stoppedGeneration === false) {
             try {
               const completed = await originalWait(target, options);
               return completionWithRecoveries(completed, recoveries, maxNudges);
             } catch (revalidationError) {
+              if (allowGenericRecovery
+                && (isGenerationStallTimeout(revalidationError) || isProgressHeartbeatStall(revalidationError))) {
+                pendingStall = revalidationError;
+                continue;
+              }
               if (!isSystemsThinkingMoreThanUsual(revalidationError) && !isConnectionInterrupted(revalidationError)) {
                 throw revalidationError;
               }
@@ -188,12 +199,29 @@ export function installStuckRecovery(browser, {
               const control = await inspectFn(target, options.expectedUrl);
               if (!control?.recoverable) return completionWithRecoveries(completed, recoveries, maxNudges);
             } catch (revalidationError) {
+              if (isSystemsThinkingMoreThanUsual(revalidationError) || isConnectionInterrupted(revalidationError)) {
+                pendingStall = revalidationError;
+                continue;
+              }
               if (!isGenerationStallTimeout(revalidationError) && !isProgressHeartbeatStall(revalidationError)) {
                 throw revalidationError;
               }
             }
           }
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: false });
+          if (interruption?.stoppedGeneration === false) {
+            try {
+              const completed = await originalWait(target, options);
+              return completionWithRecoveries(completed, recoveries, maxNudges);
+            } catch (revalidationError) {
+              if (isSystemsThinkingMoreThanUsual(revalidationError) || isConnectionInterrupted(revalidationError)) {
+                pendingStall = revalidationError;
+                continue;
+              }
+              if (!isGenerationStallTimeout(revalidationError) && !isProgressHeartbeatStall(revalidationError)) throw revalidationError;
+              if (revalidationError?.conversationUrl) options = { ...options, expectedUrl: revalidationError.conversationUrl };
+            }
+          }
         }
         const recovery = await sendContinue(submitFn, target, options, logicalWait, recoveries.length + 1, maxNudges, options?.recoveryLogger ?? logger, {
           source: systemsThinkingStall

@@ -302,6 +302,15 @@ class RepositoryAuditTests(unittest.TestCase):
                     self.severities(findings, "continuity.task-state.identity-mismatch"),
                 )
 
+    def test_valid_branch_with_backtick_keeps_exact_checkpoint_identity(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(task_state_dir="state/tasks")
+        branch = "team/has`tick"
+        task_id = "pr-281"
+        self.write(checkpoint_path(branch, task_id), f"- Branch: `{branch}`.\n- Task ID: `{task_id}`.\n")
+        findings = audit_repository(self.root, task_branch=branch, task_id=task_id)
+        self.assertEqual(set(), self.severities(findings, "continuity.task-state.identity-mismatch"))
+
     def test_pr_audit_command_fails_for_missing_active_checkpoint(self) -> None:
         self.add_minimal_repository_files()
         self.write_profile(task_state_dir="state/tasks")

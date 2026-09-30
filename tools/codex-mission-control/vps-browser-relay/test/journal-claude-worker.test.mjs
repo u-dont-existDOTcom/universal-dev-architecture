@@ -338,6 +338,9 @@ test('an answered in-flight item is reconciled after a transient listing failure
     JSON.parse(await readFile(fixture.config.summaryFile, 'utf8')).in_flight,
     { work_id: 'hard-1', attempt: 1 },
   );
+  const paused = JSON.parse(await readFile(fixture.config.summaryFile, 'utf8'));
+  paused.paused_until = '2026-09-28T13:00:00.000Z';
+  await writeFile(fixture.config.summaryFile, JSON.stringify(paused));
 
   assert.deepEqual(
     await fixture.worker.runPass(),
@@ -349,6 +352,129 @@ test('an answered in-flight item is reconciled after a transient listing failure
   const summary = JSON.parse(await readFile(fixture.config.summaryFile, 'utf8'));
   assert.equal(summary.in_flight, undefined);
   assert.equal(summary.pending_import, undefined);
+  assert.equal(summary.today_utc.runs, 1);
+  assert.equal(summary.today_utc.items_answered, 1);
+  assert.equal(summary.last_seven_days.items_answered, 1);
+  assert.equal(summary.paused_until, paused.paused_until);
+});
+
+test('answered recovery records the current item when the last event answered another item', async (t) => {
+  const priorEvent = {
+    at: new Date(NOW).toISOString(),
+    lane: 'journal-hardest',
+    outcome: 'answered',
+    work_id: 'hard-1',
+    attempt: 1,
+  };
+  const fixture = await makeFixture(t, {
+    dispatchRecords: () => [{ ...record(true), work_id: 'hard-2' }],
+  });
+  await writeFile(fixture.config.usageFile, `${JSON.stringify(priorEvent)}\n`);
+  await writeFile(fixture.config.summaryFile, JSON.stringify({
+    ...buildUsageSummary([priorEvent], NOW),
+    in_flight: { work_id: 'hard-2', attempt: 1 },
+  }));
+
+  assert.deepEqual(await fixture.worker.runPass(), { status: 'ANSWERED', workId: 'hard-2' });
+  assert.equal(fixture.claudeRuns(), 0);
+  assert.equal(fixture.imports(), 1);
+  const events = (await readFile(fixture.config.usageFile, 'utf8')).trim().split('\n').map(JSON.parse);
+  assert.deepEqual(events.map((event) => [event.work_id, event.outcome, event.reconciliation]), [
+    ['hard-1', 'answered', undefined],
+    ['hard-2', 'answered', true],
+  ]);
+  const summary = JSON.parse(await readFile(fixture.config.summaryFile, 'utf8'));
+  assert.equal(summary.in_flight, undefined);
+  assert.equal(summary.today_utc.items_answered, 2);
+});
+
+test('answered recovery rebuilds a stale summary from an existing event', async (t) => {
+  const event = {
+    at: new Date(NOW).toISOString(),
+    lane: 'journal-hardest',
+    outcome: 'answered',
+    work_id: 'hard-1',
+    attempt: 1,
+  };
+  const fixture = await makeFixture(t, { dispatchRecords: () => [record(true)] });
+  await writeFile(fixture.config.usageFile, `${JSON.stringify(event)}\n`);
+  await writeFile(fixture.config.summaryFile, JSON.stringify({
+    ...buildUsageSummary([], NOW),
+    in_flight: { work_id: 'hard-1', attempt: 1 },
+  }));
+
+  assert.deepEqual(await fixture.worker.runPass(), { status: 'ANSWERED', workId: 'hard-1' });
+  assert.equal((await readFile(fixture.config.usageFile, 'utf8')).trim().split('\n').length, 1);
+  const summary = JSON.parse(await readFile(fixture.config.summaryFile, 'utf8'));
+  assert.equal(summary.in_flight, undefined);
+  assert.equal(summary.today_utc.items_answered, 1);
+  assert.equal(summary.last_seven_days.items_answered, 1);
+});
+
+test('answered recovery preserves a legacy answered event without duplicating its metric', async (t) => {
+  const legacyEvent = {
+    at: new Date(NOW).toISOString(),
+    lane: 'journal-hardest',
+    outcome: 'answered',
+    input_tokens: 17,
+  };
+  const fixture = await makeFixture(t, { dispatchRecords: () => [record(true)] });
+  await writeFile(fixture.config.usageFile, `${JSON.stringify(legacyEvent)}\n`);
+  await writeFile(fixture.config.summaryFile, JSON.stringify({
+    ...buildUsageSummary([legacyEvent], NOW),
+    in_flight: { work_id: 'hard-1', attempt: 1 },
+  }));
+
+  assert.deepEqual(await fixture.worker.runPass(), { status: 'ANSWERED', workId: 'hard-1' });
+  assert.equal(fixture.claudeRuns(), 0);
+  assert.equal(fixture.imports(), 1);
+  assert.equal((await readFile(fixture.config.usageFile, 'utf8')).trim().split('\n').length, 1);
+  const summary = JSON.parse(await readFile(fixture.config.summaryFile, 'utf8'));
+  assert.equal(summary.today_utc.runs, 1);
+  assert.equal(summary.today_utc.items_answered, 1);
+  assert.equal(summary.last_seven_days.items_answered, 1);
+  assert.equal(summary.today_utc.input_tokens, 17);
+  assert.deepEqual(summary.legacy_answered_reconciliation, { work_id: 'hard-1', status: 'AMBIGUOUS' });
+});
+
+test('answered recovery skips a torn usage-log tail and imports the answer', async (t) => {
+  const priorEvent = {
+    at: new Date(NOW).toISOString(),
+    lane: 'journal-hardest',
+    outcome: 'answered',
+    work_id: 'hard-2',
+    attempt: 1,
+  };
+  const fixture = await makeFixture(t, { dispatchRecords: () => [record(true)] });
+  await writeFile(fixture.config.usageFile, `${JSON.stringify(priorEvent)}\n{torn`);
+  await writeFile(fixture.config.summaryFile, JSON.stringify({
+    ...buildUsageSummary([priorEvent], NOW),
+    in_flight: { work_id: 'hard-1', attempt: 1 },
+  }));
+
+  assert.deepEqual(await fixture.worker.runPass(), { status: 'ANSWERED', workId: 'hard-1' });
+  assert.equal(fixture.claudeRuns(), 0);
+  assert.equal(fixture.imports(), 1);
+  const validEvents = (await readFile(fixture.config.usageFile, 'utf8'))
+    .trim().split('\n').flatMap((line) => {
+      try { return [JSON.parse(line)]; } catch { return []; }
+    });
+  assert.deepEqual(validEvents.map((event) => [event.work_id, event.outcome]), [
+    ['hard-2', 'answered'],
+    ['hard-1', 'answered'],
+  ]);
+  const summary = JSON.parse(await readFile(fixture.config.summaryFile, 'utf8'));
+  assert.equal(summary.in_flight, undefined);
+  assert.equal(summary.today_utc.items_answered, 2);
+  assert.equal(summary.last_seven_days.items_answered, 2);
+});
+
+test('an unreadable durable Claude summary stops before a second invocation', async (t) => {
+  const fixture = await makeFixture(t);
+  await writeFile(fixture.config.summaryFile, '{broken');
+  await assert.rejects(() => fixture.worker.runPass(), /Invalid Claude usage summary/);
+  assert.equal(fixture.claudeRuns(), 0);
+  assert.equal(fixture.imports(), 0);
 });
 
 test('listing failures cannot reset the two-invocation budget for one work ID', async (t) => {
