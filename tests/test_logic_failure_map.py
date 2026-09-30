@@ -91,6 +91,29 @@ class LogicFailureMapTests(unittest.TestCase):
         self.assertIn("implementation boundary", guidance)
         self.assertIn("only if that check or rule is itself defective", guidance)
 
+    def test_documentation_index_routes_repair_to_diagnosed_boundary(self):
+        docs = (ROOT / "docs/INDEX.md").read_text(encoding="utf-8")
+        route = docs.split("For any failure diagnosis,", 1)[1].split("For a project", 1)[0]
+        self.assertIn("repairing the diagnosed boundary", route)
+        self.assertIn("only if it is itself defective", route)
+        self.assertNotIn("repairing its check or rule", route)
+
+    def test_safe_reversible_choices_do_not_require_owner_interruption(self):
+        row = next(line for line in self.map_text.splitlines() if line.startswith("| LF-1.5 |"))
+        check = row.split("|")[3]
+        self.assertIn("safe, in-scope, reversible", check)
+        self.assertIn("decide", check)
+        self.assertIn("material owner tradeoff", check)
+        self.assertIn("genuine human gate", check)
+        self.assertNotIn("routine and reversible", check)
+
+    def test_independent_evaluation_is_risk_adjusted(self):
+        row = next(line for line in self.map_text.splitlines() if line.startswith("| LF-4.6 |"))
+        failure, check = row.split("|")[2:4]
+        self.assertIn("when independent evaluation is materially valuable", failure)
+        self.assertIn("If independence is materially valuable", check)
+        self.assertIn("otherwise ordinary self-review suffices", check)
+
     def test_live_bootstrap_check_requires_an_active_requirement(self):
         row = next(line for line in self.map_text.splitlines() if line.startswith("| LF-2.1 |"))
         check = row.split("|")[3]

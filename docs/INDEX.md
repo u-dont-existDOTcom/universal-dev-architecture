@@ -10,7 +10,7 @@ Read in this order:
 
 For repeated local approval prompts or worker permission setup, use `../patterns/codex-worker-permissions.md` and its portable config/rules. The existing operating-system pattern owns the owner-interruption decision test.
 
-For any failure diagnosis, place the failure by stage in `../patterns/logic-failure-map.md` before repairing its check or rule. For a project whose runtime runs outside this architecture, use `../patterns/carrying-uda-into-standalone-projects.md` to select, adapt, record, synchronize, and test applicable imports.
+For any failure diagnosis, place the failure by stage in `../patterns/logic-failure-map.md` before repairing the diagnosed boundary. Change the map entry's check or rule only if it is itself defective. For a project whose runtime runs outside this architecture, use `../patterns/carrying-uda-into-standalone-projects.md` to select, adapt, record, synchronize, and test applicable imports.
 
 After the lesson index selects one or more task-relevant rules, use `../rules/UDA-RULE-GRAPH.json` and `../scripts/uda_rule_graph.py resolve` when those rules are graph-covered. The graph is dependency/routing metadata only: it expands declared companion rules, supersession, conflicts, and enforcement phases; canonical prose and current owner/project authority remain normative, and graph absence never makes an indexed rule inapplicable.
 

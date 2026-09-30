@@ -30,7 +30,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-1.2 | Misreading what a short reply refers to. | Resolve the reply against the message it answers, in order, before the topic. | `patterns/reasoning-selection.md` | |
 | LF-1.3 | The owner's outcome is quietly replaced by an easier contract. | Trace the deliverable back to the owner's own words. | `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md`; `patterns/supervision-assurance-planes-and-pro-meta-review.md` | FM-1.1 |
 | LF-1.4 | A requirement the owner never asked for becomes a blocker. | Declare each new requirement's origin and necessity. | `patterns/owner-goal-followup-and-requirement-accretion.md` | |
-| LF-1.5 | Guessing on a decision that is the owner's, or asking about one that isn't. | Is the choice routine and reversible? Then decide; otherwise ask once, with a recommendation. | Root `AGENTS.md` (Workflow); `patterns/worker-self-remediation-before-owner-interruption.md` | FM-2.2 |
+| LF-1.5 | Guessing on a decision that is the owner's, or asking about one that isn't. | For a safe, in-scope, reversible choice, decide if authority covers it; ask only when a material owner tradeoff is unresolved or a genuine human gate applies. | Root `AGENTS.md` (Workflow); `patterns/worker-self-remediation-before-owner-interruption.md` | FM-2.2 |
 | LF-1.6 | Critiquing or transforming a long source without its whole argument. | Reconstruct the complete claim before changing or judging it. | `patterns/whole-argument-reconstruction.md` | |
 
 ### 2. Loading instructions and context
@@ -66,7 +66,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-4.3 | A numeric comparison that is wrong: units, denominators, the direction of "cheaper" or "more". | Normalize, recompute and recheck each inequality at the point of use. | `patterns/reasoning-selection.md` | |
 | LF-4.4 | A failure explained with shorthand ("I forgot") instead of its mechanism. | Name the mechanism; separate facts, inferences and guesses. | Root `AGENTS.md` (Causal failure diagnosis); `patterns/logic-failure-map.md` | |
 | LF-4.5 | A costly-if-wrong conclusion checked only by the model family that reached it. | Send it to the other family. | `patterns/cross-family-reasoning-check.md` | |
-| LF-4.6 | Grading your own work. | Separate the evaluator from the producing context. | `patterns/independent-evaluation-separation.md` | |
+| LF-4.6 | Grading your own work when independent evaluation is materially valuable. | If independence is materially valuable, use an evaluator separate from the producing context; otherwise ordinary self-review suffices. | `patterns/independent-evaluation-separation.md` | |
 
 ### 5. Deciding and planning
 
