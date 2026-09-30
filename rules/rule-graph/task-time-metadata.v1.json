@@ -22,7 +22,7 @@
           },
           {
             "kind": "exact_text",
-            "text": "- Read the clock twice per turn and only then: quickly at the start, and again right before writing the final answer (owner, 2026-09-30). Use the fastest source available, such as a current-time tool or `date -u` in a shell; approximate is fine, so don't search for the time or deliberate over it, and never read it mid-task. The final answer opens with the second reading and says how long the turn took in total, from the first reading to the second. Don't reuse a prior-turn timestamp or present capture time as hidden provider sent time. If no clock is accessible, disclose that limit rather than inventing a time."
+            "text": "- Two clock readings per turn, no others (owner, 2026-09-30). First: the message's sent time if the surface shows it, else a read as the turn's first action. Second: a read right before writing the final answer. Read with `date -u` in a shell tool, else the current-time tool, else the code tool's clock; if a read fails or isn't later than the first, use the next one once. Never compare clocks or read mid-task. The final answer opens with the second reading and says how long the turn took in total. Don't reuse a prior-turn timestamp or present capture time as hidden provider sent time. If no clock answers, say so rather than inventing a time."
           },
           {
             "kind": "exact_text",

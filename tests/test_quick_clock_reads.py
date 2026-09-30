@@ -17,22 +17,26 @@ class QuickClockReadsTests(unittest.TestCase):
 
     def test_two_read_clock_rule_sits_in_the_per_turn_invariants(self) -> None:
         for phrase in (
-            "Read the clock twice per turn and only then: quickly at the start, and again right before writing the final answer",
-            "Use the fastest source available, such as a current-time tool or `date -u` in a shell",
-            "don't search for the time or deliberate over it, and never read it mid-task",
+            "Two clock readings per turn, no others (owner, 2026-09-30).",
+            "First: the message's sent time if the surface shows it, else a read as the turn's first action.",
+            "Second: a read right before writing the final answer.",
+            "Read with `date -u` in a shell tool, else the current-time tool, else the code tool's clock;",
+            "if a read fails or isn't later than the first, use the next one once.",
+            "Never compare clocks or read mid-task.",
             "final answer opens with the second reading and says how long the turn took in total",
             "prepend the second reading; the check needs no further reading",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, self.per_turn)
 
-    def test_old_mid_task_fallback_is_gone(self) -> None:
+    def test_superseded_clock_wordings_are_gone(self) -> None:
         self.assertNotIn("If two reads that should differ match exactly", self.per_turn)
         self.assertNotIn("Use the first clock available", self.per_turn)
+        self.assertNotIn("Use the fastest source available", self.per_turn)
 
     def test_literal_output_check_follows_the_clock_read_rule(self) -> None:
         self.assertLess(
-            self.per_turn.index("Read the clock twice per turn"),
+            self.per_turn.index("Two clock readings per turn"),
             self.per_turn.index("Before finalizing every assistant turn"),
         )
 
@@ -57,6 +61,22 @@ class QuickClockReadsTests(unittest.TestCase):
                     self.assertTrue(surface.get("reason"))
         self.assertNotIn("LIVE_VERIFIED", data["learning_state_at_merge"])
         self.assertTrue(data["nonclaims"])
+
+
+class HardcodedClockOrderTests(unittest.TestCase):
+    def test_requirement_records_the_owner_request_and_the_measurement(self) -> None:
+        data = json.loads((ROOT / "docs" / "requirements" / "2026-09-30-hardcoded-clock-order.owner-requirement.json").read_text(encoding="utf-8"))
+        self.assertEqual(data["origin"]["classification"], "OWNER_REQUIRED")
+        self.assertIn("hardcode that (with fallback if it fails)", data["owner_statement"])
+        self.assertIn("2026-09-30-clock-at-start-and-end", data["authority"])
+        seconds = data["measurement"]["seconds_between_reads"]
+        self.assertTrue(seconds["shell_then_tool"] and seconds["shell_then_shell"])
+        self.assertTrue(any("sent time" in item for item in data["required_behavior"]))
+        for surface in data["execution_surfaces"]:
+            if surface["disposition"] in {"DEFERRED", "NOT_APPLICABLE"}:
+                with self.subTest(surface=surface["surface"]):
+                    self.assertTrue(surface.get("reason"))
+        self.assertNotIn("LIVE_VERIFIED", data["learning_state_at_merge"])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,64 @@
+{
+  "requirement_id": "2026-09-30-hardcoded-clock-order",
+  "date": "2026-09-30",
+  "source": "Owner answer on 2026-09-30 to question 2 on the UDA owner questions page, which asked how agents working under this architecture should pick a clock.",
+  "owner_statement": "it should be smarter than this, you should fin dout right now what is the fastest clock to use and hardcode that (with fallback if it fails)",
+  "problem": "The per-turn clock rule told agents to use the fastest source available. That left the agent to work out which source was fastest each turn, which is the searching the owner had already complained about.",
+  "measurement": {
+    "date": "2026-09-30",
+    "surface": "A Claude session with a shell tool and the claude.ai current-time tool",
+    "method": "Six clock reads in sequence, with minimal reasoning between them, each timestamped by the shell clock: shell, tool, shell, tool, shell, shell.",
+    "seconds_between_reads": {
+      "shell_then_tool": [2.305, 2.358],
+      "tool_then_shell": [2.078, 2.141],
+      "shell_then_shell": [2.062]
+    },
+    "findings": [
+      "Each read cost about two seconds, almost all of it the agent's own step between tool calls rather than the clock itself.",
+      "The current-time tool took about a quarter of a second longer than the shell. In this session its values were live and agreed with the shell clock.",
+      "In an earlier Claude chat the current-time tool returned an identical value on two reads separated by a web search, while the shell gave live values.",
+      "The message's sent time, when the surface shows it, needs no read at all. In this turn the message was sent at 17:12 and the first shell read came at 17:13:34, so a start read taken after the agent begins thinking misses time the owner has already waited."
+    ]
+  },
+  "required_behavior": [
+    "Two clock readings per turn and no others.",
+    "First reading: the message's sent time when the surface shows it; otherwise a read as the turn's first action.",
+    "Second reading: a read right before writing the final answer.",
+    "Fixed clock order: `date -u` in a shell tool, else the current-time tool, else the code tool's clock. No comparing clocks or searching for another.",
+    "If a read fails, or is not later than the first reading, use the next clock in the order once; if none answers, say so."
+  ],
+  "authority": "OWNER_REQUIRED. This replaces the clock-source wording of 2026-09-30-clock-at-start-and-end ('Use the fastest source available'). That requirement's two-reading limit, first-line timestamp, and total-time report stay in force.",
+  "scope": "Every clock reading taken for the per-turn timestamp and for timing a reply.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "notes": "The owner asked for the fastest clock to be measured and hardcoded, with a fallback. The order and the sent-time start come from the measurement above."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "Root AGENTS.md per-turn bootstrap invariants, and the matching selector in rules/rule-graph/task-time-metadata.v1.json with its generated lock and Mission Control projection",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Claude chats on claude.ai",
+      "disposition": "PROJECTED",
+      "note": "The owner's Claude memory preference on timing replies was rewritten on 2026-09-30 with the same order and the sent-time start."
+    },
+    {
+      "surface": "ChatGPT chats that do not load this repository",
+      "disposition": "DEFERRED",
+      "reason": "They follow the owner's ChatGPT custom instructions; if those ask for reply timing, the same order belongs there."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED",
+    "TESTED_TEXT_ONLY"
+  ],
+  "nonclaims": [
+    "Measured once, in one session. The order holds while a shell read stays at least as fast as a tool call.",
+    "Most of each read's cost is the agent's own step, so reading only twice matters more than which clock is read.",
+    "Nothing here is LIVE_VERIFIED."
+  ]
+}

@@ -63,8 +63,8 @@
     },
     {
       "surface": "Claude chats on claude.ai",
-      "disposition": "DEFERRED",
-      "reason": "They load the owner's Claude memory preferences, not this repository, and the failures came from one of those chats. The owner can ask Claude to save a compact version there."
+      "disposition": "PROJECTED",
+      "note": "They load the owner's Claude memory preferences, not this repository, and the failures came from one of those chats. On 2026-09-30 the owner approved a compact version for his preferences, and it was added that day."
     },
     {
       "surface": "Inner Signal product runtime (a declared public app in portable/PUBLIC-APPS.json)",
