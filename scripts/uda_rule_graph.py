@@ -248,6 +248,8 @@ def main() -> int:
     check.add_argument("--contract", required=True)
     check.add_argument("--phase", choices=task_time.PHASES, required=True)
     check.add_argument("--payload", required=True)
+    check.add_argument("--clock-start")
+    check.add_argument("--clock-end")
     check.add_argument("--output")
     impact = subparsers.add_parser("impact")
     impact.add_argument("paths", nargs="+")
@@ -320,6 +322,8 @@ def main() -> int:
                 task_time.read_json(Path(args.contract)),
                 args.phase,
                 Path(args.payload).read_text(encoding="utf-8"),
+                args.clock_start,
+                args.clock_end,
             )
             task_time.emit(args.output, result)
             return 0 if result["admission"] == "ADMITTED" else 4
