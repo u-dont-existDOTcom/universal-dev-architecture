@@ -81,5 +81,20 @@ class CurrentStateConcisionTests(unittest.TestCase):
                     section = text.split(f"## {heading}", 1)[1].split("\n## ", 1)[0]
                     self.assertTrue(section.strip())
                 self.assertNotIn("replace-with", text)
+
+    def test_pr_297_recovery_checkpoints_route_past_published_repair(self) -> None:
+        for name in (
+            "task-c9c0fffdc4040cf56325d5d487b6f8dbdb5615432ed48f292abbebd7c74ecc22.md",
+            "task-42196ace1e80fec5b957f664ae6f352337b7324c7f0ceeb6526c612bf7a35894.md",
+        ):
+            with self.subTest(path=name):
+                text = (TASK_STATES / name).read_text(encoding="utf-8")
+                current = text.split("## Current checkpoint", 1)[1].split("\n## ", 1)[0]
+                remaining = text.split("## Remaining", 1)[1].split("\n## ", 1)[0]
+                next_action = text.split("## Next safe action", 1)[1].split("\n## ", 1)[0]
+
+                self.assertIn("817bed7", current)
+                self.assertNotRegex(remaining + next_action, r"(?i)\brunner\b[^\n]*\b(?:commit|push)\b")
+
 if __name__ == "__main__":
     unittest.main()
