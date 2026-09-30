@@ -11,7 +11,7 @@ Agents that develop a project load this architecture, but a project's runtime of
 ## Rule
 
 1. **Name the runtime.** List what runs outside this architecture's reach: which agents or processes, who they serve, and what can go wrong there.
-2. **Select what applies.** From this architecture, and first from `patterns/logic-failure-map.md`, pick the entries whose failures can happen in that runtime. Leave out development-process rules (pull requests, review loops, repository governance, the laptop runner) and every owner-specific deployment detail.
+2. **Select what applies.** From this architecture, and first from `patterns/logic-failure-map.md`, pick the entries whose failures can happen in that runtime. For runtime imports, leave out development-process rules (pull requests, review loops, repository governance, the laptop runner). Keep applicable development-time rules in the selection for the project's `AGENTS.md` route in step 3. Leave out every owner-specific deployment detail.
 3. **Import each item in the most enforceable form that fits:**
    - A mechanical rule becomes code: a validator, a gate or a test in the project.
    - A reasoning behavior of a runtime agent becomes part of the project's own runtime protocol or prompt, rewritten for that audience and domain.
@@ -23,7 +23,7 @@ Agents that develop a project load this architecture, but a project's runtime of
 
 ## Bounds
 
-- Import only what can happen in the runtime. A rule that governs how agents develop the project stays here.
+- Import into runtime only what can happen there. A rule that governs how agents develop the project stays here and is referenced from the project's `AGENTS.md` when applicable.
 - An import adds no authority. The project's own owner decisions, privacy boundaries and gates still apply.
 - When a project's runtime already enforces a rule its own way, record that in the manifest instead of importing a second copy.
 

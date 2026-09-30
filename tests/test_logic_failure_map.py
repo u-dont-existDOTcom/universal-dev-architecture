@@ -84,6 +84,30 @@ class LogicFailureMapTests(unittest.TestCase):
             self.assertIn(f"`patterns/{pattern}.md`", self.index_text)
             self.assertIn(f"`../patterns/{pattern}.md`", docs)
 
+    def test_map_classifies_before_repairing_the_diagnosed_boundary(self):
+        guidance = self.map_text.split("1. **When something goes wrong", 1)[1].split("\n2. **", 1)[0]
+        self.assertIn("classify the failure", guidance)
+        self.assertIn("repair the diagnosed", guidance)
+        self.assertIn("implementation boundary", guidance)
+        self.assertIn("only if that check or rule is itself defective", guidance)
+
+    def test_live_bootstrap_check_requires_an_active_requirement(self):
+        row = next(line for line in self.map_text.splitlines() if line.startswith("| LF-2.1 |"))
+        check = row.split("|")[3]
+        self.assertIn("owner or project instructions require", check)
+        self.assertIn("otherwise compile", check)
+        self.assertIn("authoritative route", check)
+
+    def test_standalone_selection_preserves_development_reference_route(self):
+        rule = self.carrying_text.split("## Rule", 1)[1].split("\n## ", 1)[0]
+        selection = rule.split("2. **Select what applies.**", 1)[1].split("3. **Import", 1)[0]
+        self.assertIn("For runtime imports, leave out development-process rules", selection)
+        self.assertIn("Keep applicable development-time rules in the selection", selection)
+        self.assertIn("project's `AGENTS.md`", selection)
+        bounds = self.carrying_text.split("## Bounds", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("Import into runtime only", bounds)
+        self.assertIn("referenced from the project's `AGENTS.md`", bounds)
+
     def test_carrying_rules_and_example_boundary(self):
         self.assert_carrying_rules_and_example_boundary(self.carrying_text)
 

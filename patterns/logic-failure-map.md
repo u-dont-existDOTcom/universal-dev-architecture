@@ -10,7 +10,7 @@ The rules in this architecture were each added after a real failure. They work, 
 
 Use it three ways:
 
-1. **When something goes wrong, place it on the map first.** Find the stage and the entry. If an entry fits, repair that entry's check or rule; that is where the generating condition lives (`AGENTS.md` → **Causal failure diagnosis**). Add a new entry only when a real failure fits none, with the failure, a check and the example.
+1. **When something goes wrong, place it on the map first.** Find the stage and the entry to classify the failure. Diagnose the generating condition from evidence, then repair the diagnosed authority, activation, routing, state, phase, destination, enforcement, or implementation boundary (`AGENTS.md` → **Causal failure diagnosis**). Change the entry's check or rule only if that check or rule is itself defective. Add a new entry only when a real failure fits none, with the failure, a check and the example.
 2. **At task time, load the stages the task touches, not the whole map.** Before reporting to the owner, run stage 9's checks; before a consequential action, stage 6's. `patterns/task-time-lesson-activation.md` selects them.
 3. **To see where the architecture is weakest,** count owner-marked failures per entry (`patterns/owner-marked-mission-control-failure-capture.md`). Entries that keep recurring need a stronger check, preferably a mechanical one.
 
@@ -37,7 +37,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 
 | ID | Failure | Quick check | Covered by | MAST |
 |---|---|---|---|---|
-| LF-2.1 | Working from stale or missing instructions: a remembered copy, or rules that never loaded. | Fetch the live bootstrap; compile the task's active rules. | Root `AGENTS.md` (bootstrap invariants); `patterns/task-time-lesson-activation.md`; `patterns/rule-graph-activation-and-dependency-resolution.md`; `patterns/github-first-agent-bootstrap.md`; `patterns/durable-chat-learning.md`; `patterns/canonical-design-os-bootstrap.md` | |
+| LF-2.1 | Working from stale or missing instructions: a remembered copy, or rules that never loaded. | When owner or project instructions require the canonical GitHub bootstrap, fetch its live default-branch root; otherwise compile the task's active rules from the authoritative route that activated them. | Root `AGENTS.md` (bootstrap invariants); `patterns/task-time-lesson-activation.md`; `patterns/rule-graph-activation-and-dependency-resolution.md`; `patterns/github-first-agent-bootstrap.md`; `patterns/durable-chat-learning.md`; `patterns/canonical-design-os-bootstrap.md` | |
 | LF-2.2 | Losing state across a context reset and then redoing or contradicting finished work. | Resume from the checkpoint, reconciled against Git. | `patterns/context-compaction-resilience.md`; `state/CURRENT-STATE.md` (Task checkpoints) | FM-1.4 |
 | LF-2.3 | Working on the wrong task or branch while several are open. | Check the task lock and the branch before acting. | `patterns/exclusive-active-task-locks.md`; `patterns/parallel-chat-write-isolation.md` | |
 | LF-2.4 | Treating a stale artifact as current authority. | Promote by exact identity; follow supersession. | `patterns/github-first-agent-bootstrap.md`; `patterns/artifact-authority-promotion-and-supersession.md` | |
