@@ -237,6 +237,8 @@ allowance-aware selection, and prospective calibration contract, apply
 pattern owns the exact model-plus-effort tiers; this section retains the generic
 minimum-sufficient-effort rule.
 
+For the general, cross-provider form of this lowest-sufficient-tier rule, apply [`delegate-easy-work-to-cheaper-models.md`](delegate-easy-work-to-cheaper-models.md).
+
 Apply these rules:
 
 1. **Reduce before routing.** Chat resolves architecture, strategy, methodology, owner intent, prioritization, acceptance criteria, substantive prose, decomposition, execution instructions, and predictable failure handling when those can be resolved reliably in Chat.
