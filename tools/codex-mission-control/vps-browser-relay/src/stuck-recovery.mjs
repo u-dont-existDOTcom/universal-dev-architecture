@@ -165,8 +165,8 @@ export function installStuckRecovery(browser, {
         let interruption;
         if (explicitSystemStall) {
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: true });
-          const cooldownWaited = await awaitRecoveryAdmission(options);
-          if (cooldownWaited && interruption?.stoppedGeneration === false) {
+          await awaitRecoveryAdmission(options);
+          if (interruption?.stoppedGeneration === false) {
             try {
               const completed = await originalWait(target, options);
               return completionWithRecoveries(completed, recoveries, maxNudges);
@@ -194,6 +194,15 @@ export function installStuckRecovery(browser, {
             }
           }
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: false });
+          if (interruption?.stoppedGeneration === false) {
+            try {
+              const completed = await originalWait(target, options);
+              return completionWithRecoveries(completed, recoveries, maxNudges);
+            } catch (revalidationError) {
+              if (!isGenerationStallTimeout(revalidationError) && !isProgressHeartbeatStall(revalidationError)) throw revalidationError;
+              if (revalidationError?.conversationUrl) options = { ...options, expectedUrl: revalidationError.conversationUrl };
+            }
+          }
         }
         const recovery = await sendContinue(submitFn, target, options, logicalWait, recoveries.length + 1, maxNudges, options?.recoveryLogger ?? logger, {
           source: systemsThinkingStall

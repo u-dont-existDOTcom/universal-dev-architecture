@@ -338,6 +338,9 @@ test('an answered in-flight item is reconciled after a transient listing failure
     JSON.parse(await readFile(fixture.config.summaryFile, 'utf8')).in_flight,
     { work_id: 'hard-1', attempt: 1 },
   );
+  const paused = JSON.parse(await readFile(fixture.config.summaryFile, 'utf8'));
+  paused.paused_until = '2026-09-28T13:00:00.000Z';
+  await writeFile(fixture.config.summaryFile, JSON.stringify(paused));
 
   assert.deepEqual(
     await fixture.worker.runPass(),
@@ -349,6 +352,18 @@ test('an answered in-flight item is reconciled after a transient listing failure
   const summary = JSON.parse(await readFile(fixture.config.summaryFile, 'utf8'));
   assert.equal(summary.in_flight, undefined);
   assert.equal(summary.pending_import, undefined);
+  assert.equal(summary.today_utc.runs, 1);
+  assert.equal(summary.today_utc.items_answered, 1);
+  assert.equal(summary.last_seven_days.items_answered, 1);
+  assert.equal(summary.paused_until, paused.paused_until);
+});
+
+test('an unreadable durable Claude summary stops before a second invocation', async (t) => {
+  const fixture = await makeFixture(t);
+  await writeFile(fixture.config.summaryFile, '{broken');
+  await assert.rejects(() => fixture.worker.runPass(), /Invalid Claude usage summary/);
+  assert.equal(fixture.claudeRuns(), 0);
+  assert.equal(fixture.imports(), 0);
 });
 
 test('listing failures cannot reset the two-invocation budget for one work ID', async (t) => {

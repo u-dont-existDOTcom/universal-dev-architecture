@@ -15,7 +15,7 @@ For **every assistant turn** governed by this architecture, the **first line of 
 - If required GitHub/bootstrap access is unavailable, the final answer must still begin with the timestamp and then state the access failure explicitly rather than pretending the bootstrap occurred.
 - Treat failure to emit the timestamp as the first line of the final user-visible answer on any assistant turn as an instruction-following failure even when the timestamp appeared during thinking or the underlying task answer is otherwise correct.
 
-These invariants are duplicated at the root so they survive task triage, cross-turn instruction decay, and the reasoning-to-final-answer transition: apply them without first judging a downstream pattern “task-relevant”, without relying on a stale prior-turn activation, and carry each obligation into the final output.
+These root invariants apply before task triage and on every final answer; never rely on stale activation or a downstream “task-relevant” check.
 
 **Every turn:** reusable output over ~8,000 characters goes in a file, for any recipient; chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`.
 

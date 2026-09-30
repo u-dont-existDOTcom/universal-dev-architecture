@@ -73,6 +73,7 @@ export class JournalClaudeWorker {
       if (!listing.ok) return { status: 'LISTING_FAILED', workId: inFlightWorkId };
       const inFlightItem = listing.records.find((entry) => entry.work_id === inFlightWorkId);
       if (inFlightItem?.answered === true) {
+        await this.#reconcileAnswered(inFlightWorkId, prior.in_flight.attempt);
         return this.#importAnswered(inFlightWorkId);
       }
       // A legacy marker without an attempt count cannot safely restart its budget.
@@ -155,7 +156,7 @@ export class JournalClaudeWorker {
       if (refreshed.ok && !answered && attempt === 2) {
         await this.#clearInFlight(item.work_id, item.expires_at);
       }
-      await this.#record(result, outcome);
+      await this.#record(result, outcome, item.work_id, attempt);
 
       if (answered) return this.#importAnswered(item.work_id);
       if (!refreshed.ok) return { status: 'LISTING_FAILED', workId: item.work_id };
@@ -249,11 +250,13 @@ export class JournalClaudeWorker {
     };
   }
 
-  async #record(result, outcome) {
+  async #record(result, outcome, workId, attempt) {
     const event = {
       at: new Date(this.now()).toISOString(),
       lane: LANE,
       outcome,
+      work_id: workId,
+      attempt,
       duration_ms: number(result.duration_ms),
       num_turns: number(result.num_turns),
       input_tokens: number(result.input_tokens),
@@ -281,6 +284,32 @@ export class JournalClaudeWorker {
     if (Array.isArray(prior?.exhausted)) summary.exhausted = prior.exhausted;
     await atomicJson(this.config.summaryFile, summary);
     this.logger.log({ status: outcome.toUpperCase(), at: event.at });
+  }
+
+  async #reconcileAnswered(workId, attempt) {
+    const raw = await readFile(this.config.usageFile, 'utf8').catch((error) => {
+      if (error?.code === 'ENOENT') return null;
+      throw error;
+    });
+    if (raw === null) return;
+    const events = raw.split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+    if (events.length === 0) return;
+    const matching = events.filter((event) => event.work_id === workId && event.attempt === attempt);
+    if (matching.some((event) => event.outcome === 'answered' && event.reconciliation !== true)) return;
+    if (matching.length === 0 && events.at(-1)?.outcome === 'answered') return;
+    if (!matching.some((event) => event.reconciliation === true && event.outcome === 'answered')) {
+      const correction = { at: new Date(this.now()).toISOString(), lane: LANE, outcome: 'answered', work_id: workId, attempt, reconciliation: true };
+      await appendFile(this.config.usageFile, `${JSON.stringify(correction)}\n`, { mode: 0o600 });
+      events.push(correction);
+    }
+    const summary = buildUsageSummary(events, this.now());
+    const prior = await readJson(this.config.summaryFile);
+    const priorPause = Date.parse(prior?.paused_until ?? '');
+    if (priorPause > this.now() && priorPause > (Date.parse(summary.paused_until ?? '') || 0)) summary.paused_until = prior.paused_until;
+    for (const key of ['last_import', 'pending_import', 'in_flight', 'exhausted']) {
+      if (prior?.[key] !== undefined) summary[key] = prior[key];
+    }
+    await atomicJson(this.config.summaryFile, summary);
   }
 
   async #clearInFlight(workId, exhaustedUntil = null) {
@@ -331,7 +360,7 @@ export function buildUsageSummary(events, nowMs = Date.now()) {
     limit_events: 0,
   };
   const aggregate = (selected) => selected.reduce((sum, event) => ({
-    runs: sum.runs + 1,
+    runs: sum.runs + (event.reconciliation === true ? 0 : 1),
     items_answered: sum.items_answered + (event.outcome === 'answered' ? 1 : 0),
     input_tokens: sum.input_tokens + number(event.input_tokens),
     output_tokens: sum.output_tokens + number(event.output_tokens),
@@ -412,7 +441,14 @@ function isRecord(value) {
 }
 
 async function readJson(path) {
-  try { return JSON.parse(await readFile(path, 'utf8')); } catch { return null; }
+  let raw;
+  try { raw = await readFile(path, 'utf8'); }
+  catch (error) { if (error?.code === 'ENOENT') return null; throw error; }
+  let value;
+  try { value = JSON.parse(raw); }
+  catch (error) { throw new Error('Invalid Claude usage summary JSON.', { cause: error }); }
+  if (!isRecord(value)) throw new Error('Invalid Claude usage summary shape.');
+  return value;
 }
 
 async function atomicJson(path, value) {

@@ -7,6 +7,38 @@ import { GlobalSubmissionPacer } from '../src/submission-pacing.mjs';
 
 const noRecoverableControl = async () => ({ recoverable: false, controlLabel: null });
 
+test('an already idle generation is revalidated before generic Continue without cooldown', async () => {
+  let waits = 0;
+  let submits = 0;
+  const browser = { async waitForGenerationComplete() {
+    if (++waits === 1) throw new Error('ChatGPT generation did not reach a stable complete UI state.');
+    return { status: 'GENERATION_COMPLETE' };
+  } };
+  installStuckRecovery(browser, {
+    submitMessage: async () => { submits += 1; },
+    stopStalledGeneration: async () => ({ stoppedGeneration: false, stopReason: 'ALREADY_IDLE' }),
+    inspectRecoverableControl: noRecoverableControl,
+  });
+  assert.equal((await browser.waitForGenerationComplete({ id: 'idle' }, { expectedUrl: 'https://chatgpt.com/c/idle', generationStarted: true })).status, 'GENERATION_COMPLETE');
+  assert.equal(submits, 0);
+});
+
+test('an already idle explicit stall is revalidated before Continue without cooldown', async () => {
+  let waits = 0;
+  let submits = 0;
+  const browser = { async waitForGenerationComplete() {
+    if (++waits === 1) throw Object.assign(new Error('system stall'), { code: 'CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL' });
+    return { status: 'GENERATION_COMPLETE' };
+  } };
+  installStuckRecovery(browser, {
+    submitMessage: async () => { submits += 1; },
+    stopStalledGeneration: async () => ({ stoppedGeneration: false, stopReason: 'ALREADY_IDLE' }),
+    inspectRecoverableControl: noRecoverableControl,
+  });
+  assert.equal((await browser.waitForGenerationComplete({ id: 'idle' }, { expectedUrl: 'https://chatgpt.com/c/idle', generationStarted: true })).status, 'GENERATION_COMPLETE');
+  assert.equal(submits, 0);
+});
+
 test('recognizes only the stable-generation timeout as recoverable', () => {
   assert.equal(isGenerationStallTimeout(new Error('ChatGPT generation did not reach a stable complete UI state.')), true);
   assert.equal(isGenerationStallTimeout(new Error('ChatGPT login is required')), false);

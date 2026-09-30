@@ -61,6 +61,9 @@ def section_after(text: str, heading: str) -> str:
 
 
 class RootInstructionNestingTests(unittest.TestCase):
+    def test_root_instructions_fit_the_auditor_soft_limit(self) -> None:
+        self.assertLessEqual((ROOT / "AGENTS.md").stat().st_size, 24 * 1024)
+
     def test_root_sections_point_to_the_moved_rules(self) -> None:
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         for pattern, (root_heading, _) in MOVES.items():
