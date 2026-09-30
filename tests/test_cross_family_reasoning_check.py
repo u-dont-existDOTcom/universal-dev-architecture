@@ -22,13 +22,22 @@ class CrossFamilyReasoningCheckTests(unittest.TestCase):
         for phrase in (
             "Origin: **OWNER** instruction, 2026-09-24",
             "Claude Opus 5.5 at effort `max`",
-            "GPT-5.6 Sol at Extra High (XHigh)",
+            "GPT-6.1 Sol at Extra High (XHigh), or GPT-6 Sol at Extra High where 6.1 is not offered",
+            "GPT (any GPT model",
             "Never present one as a cross-family check.",
             "`Cross-family check: not run (<reason>)`",
             "no API-key fallback",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)
+
+    def test_active_gpt_5_6_producer_has_a_claude_reviewer(self) -> None:
+        text = PATTERN.read_text(encoding="utf-8")
+        rows = [line.split("|") for line in text.splitlines() if line.startswith("| GPT (")]
+        self.assertEqual(len(rows), 1)
+        producer, reviewer = rows[0][1:3]
+        self.assertIn("GPT-5.6", producer)
+        self.assertIn("Claude Opus 5.5 at effort `max`", reviewer)
 
     def test_trigger_is_scoped_and_bounded_for_cost(self) -> None:
         text = PATTERN.read_text(encoding="utf-8")
@@ -62,6 +71,31 @@ class CrossFamilyReasoningCheckTests(unittest.TestCase):
         for dependency in node["requires"]:
             self.assertIn(dependency, nodes)
         self.assertTrue(set(node["enforcement_phase"]) <= set(graph["allowed_enforcement_phases"]))
+
+
+    def test_long_running_reviewer_liveness_is_not_inferred_from_elapsed_time(self) -> None:
+        text = PATTERN.read_text(encoding="utf-8")
+        section = text.split("## Long-running reviewer liveness", 1)[1].split(
+            "## Reviewer unavailable", 1
+        )[0]
+        for phrase in (
+            "Elapsed wall time, a caller/tool timeout, or a long thinking phase is never by itself evidence",
+            "query the reviewer runtime itself for liveness",
+            "Treat \u0060busy/working\u0060",
+            "Treat a wrapper timeout as scoped to the wrapper",
+            "Do not use a fixed minute cutoff as the stall criterion",
+            "\u0060claude agents --json\u0060",
+            "\u0060claude logs <session-id>\u0060",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, section)
+
+    def test_unavailable_path_requires_liveness_evidence_first(self) -> None:
+        text = PATTERN.read_text(encoding="utf-8")
+        unavailable = text.split("## Reviewer unavailable", 1)[1].split(
+            "## Relation to assurance lanes", 1
+        )[0]
+        self.assertIn("only after the liveness rule above establishes", unavailable)
 
 
 if __name__ == "__main__":

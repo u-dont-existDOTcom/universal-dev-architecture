@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 
 // Ad-hoc library helpers (for example an authorized cadence test) keep a short default.
 export const HELPER_DEFAULT_LIFETIME_MS = 30 * 60_000;
-export const MAX_LOCK_LIFETIME_MS = 86_400_000;
+// Node timers clamp larger delays to 1 ms, so every bounded watchdog lifetime
+// (including derived journal ladders longer than one day) must fit this limit.
+export const MAX_LOCK_LIFETIME_MS = 2_147_483_647;
 // CLI one-shots derive their default from the configured operation ceilings plus
 // this margin (HTTP round trips, pacing/rate-limit waits, recovery idle waits,
 // provider-session projection and process shutdown) ...
@@ -34,7 +36,8 @@ function metadata(lockFile) {
     const stat = lstatSync(lockFile);
     if (!stat.isFile() || stat.size > 16_384) throw new Error('Invalid lock metadata file.');
     const raw = readFileSync(lockFile, 'utf8');
-    const owner = JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    const owner = Number.isSafeInteger(parsed) ? { pid: parsed } : parsed;
     if (!Number.isSafeInteger(owner.pid) || owner.pid <= 0) throw new Error('Invalid lock owner PID.');
     const identity = processIdentity(owner.pid);
     const dead = !identity || identity.state === 'Z' || identity.state === 'X';
@@ -102,13 +105,44 @@ export function oneShotLockLifetimeMs({ browser, runtime, codexExecMaxTimeoutMs 
   return Math.min(derived, ONE_SHOT_LOCK_CEILING_MS);
 }
 
+export function journalWorkLockLifetimeMs({ browser, runtime, freshChatThreshold, paceMs, dispatchTimeoutMs, importTimeoutMs, env = process.env }) {
+  const override = lockLifetimeOverrideMs(env);
+  if (override !== null) return override;
+  const attemptsPerSubmission = runtime.stuckRecoveryMaxNudges + 1;
+  const logicalSubmissions = freshChatThreshold + 2; // fresh conversations plus Continue and Retry
+  // Every scheduler submission, including a stuck-recovery nudge, can encounter
+  // the supported provider rate-limit dialog once, wait through the central
+  // cooldown, and replay once. Budget both browser attempts and the cooldown
+  // that can precede each attempt.
+  const providerAttempts = 2;
+  const browserAttemptMs = browser.pageReadyTimeoutMs + browser.submitTimeoutMs + browser.generationTimeoutMs;
+  const browserTurnMs = attemptsPerSubmission * providerAttempts * (browserAttemptMs + runtime.minSubmissionIntervalMs);
+  const maximumPacingDelayMs = 4 * paceMs;
+  // A pass lists before and after pacing, may reconcile persisted current work,
+  // and lists after every logical submission. Its import can wait behind one
+  // Claude-lane import at the same configured ceiling before running its own.
+  const commandRuntimeMs = (logicalSubmissions + 3) * dispatchTimeoutMs + (2 * importTimeoutMs);
+  const derived = maximumPacingDelayMs + logicalSubmissions * browserTurnMs + commandRuntimeMs + ONE_SHOT_LOCK_MARGIN_MS;
+  if (!Number.isSafeInteger(derived) || derived < 1) throw new Error('Cannot derive a finite journal-work relay lock lifetime from the configuration.');
+  if (derived > MAX_LOCK_LIFETIME_MS) throw new Error(`Derived journal-work relay lock lifetime exceeds the supported ${MAX_LOCK_LIFETIME_MS} ms watchdog limit.`);
+  return derived;
+}
+
 const PERSISTENT_RELAY_COMMANDS = new Set(['run', 'controller-run']);
 
 // Lock options for one mc-chatgpt-relay command. Only the explicit service loops
 // are persistent; every other command is a bounded one-shot owner.
-export function relayCommandLockOptions(command, { config, codexExecutionConfig = null, env = process.env }) {
+export function relayCommandLockOptions(command, { config, codexExecutionConfig = null, journalWorkConfig = null, env = process.env }) {
   const taskId = `relay:${command}`;
   if (PERSISTENT_RELAY_COMMANDS.has(command)) return { taskId, persistent: true };
+  if (command === 'journal-work') {
+    if (!journalWorkConfig?.settings) throw new Error('Journal-work lock lifetime requires the journal recovery settings.');
+    return { taskId, persistent: false, maxLifetimeMs: journalWorkLockLifetimeMs({
+      browser: config.browser, runtime: config.runtime, freshChatThreshold: journalWorkConfig.settings.freshChatThreshold,
+      paceMs: journalWorkConfig.settings.paceMs, dispatchTimeoutMs: journalWorkConfig.dispatchTimeoutMs,
+      importTimeoutMs: journalWorkConfig.importTimeoutMs, env,
+    }) };
+  }
   const codexExecMaxTimeoutMs = command === 'once' && codexExecutionConfig?.previewEnabled === true ? codexExecutionConfig.maxTimeoutMs : null;
   return { taskId, persistent: false, maxLifetimeMs: oneShotLockLifetimeMs({ browser: config.browser, runtime: config.runtime, codexExecMaxTimeoutMs, env }) };
 }

@@ -2,13 +2,15 @@
   "schemaVersion": 1,
   "status": "ACTIVE_TRIAL",
   "policyRef": "patterns/work-model-and-effort-routing.md",
-  "requirementRef": "docs/requirements/2026-09-17-work-model-routing-calibration.owner-requirement.json",
+  "requirementRef": "docs/requirements/2026-09-29-gpt-6-1-sol-work-default.owner-requirement.json",
   "templateRef": "templates/WORK-MODEL-ROUTING-TELEMETRY.json",
   "trial": {
     "startedAt": "2026-09-17T19:25:00Z",
     "scheduledReviewOn": "2026-10-08",
-    "baselineDifficultModel": "GPT_5_6_SOL",
+    "baselineDifficultModel": "GPT_6_1_SOL",
     "baselineDifficultEffort": "XHIGH",
+    "availabilityFallbackModel": "GPT_6_SOL",
+    "availabilityFallbackEffort": "SAME_AS_SELECTED_RUNG",
     "failureChallengerModel": "GPT_6_ASTRA",
     "failureChallengerEffort": "XHIGH",
     "automaticPolicyMutationAuthorized": false
@@ -32,11 +34,13 @@
   "trackingRules": [
     "The supervising Chat appends one entry after each nontrivial Work execution once the Work receipt is available.",
     "Routine tasks record the actual model and effort used; they are not upgraded merely to create comparison data.",
-    "Genuinely difficult tasks start with GPT-5.6 Sol XHigh during this trial.",
+    "Genuinely difficult tasks from 2026-09-29 start with GPT-6.1 Sol XHigh where offered, otherwise GPT-6 Sol XHigh; preserve every recorded exact model label and compare different Sol versions separately.",
+    "Record the model that actually ran when verified; keep effective model unknown when only setter evidence exists.",
     "Astra XHigh is a challenger only after a classified Sol XHigh failure, unless the owner explicitly requests otherwise.",
     "Matched challenger attempts share a comparisonGroupId and hold base, directive, permissions, and direct endpoint constant as closely as practical.",
     "Scope, stop-condition, or consequential-adjacent-action violations count as endpoint failures even when other implementation work succeeds.",
-    "Do not duplicate otherwise unnecessary tasks solely to fill the telemetry window."
+    "Do not duplicate otherwise unnecessary tasks solely to fill the telemetry window.",
+    "The 2026-10-08 review date and 10-task early-review trigger count active Sol genuinely difficult baseline tasks, including GPT-6 Sol availability fallbacks; report exact model-version counts separately."
   ],
   "historicalObservations": [
     {

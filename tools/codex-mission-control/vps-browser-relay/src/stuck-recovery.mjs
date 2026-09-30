@@ -80,6 +80,7 @@ export function installStuckRecovery(browser, {
   logger = console,
   submitMessage = null,
   beforeRecoverySend = null,
+  sleep = delay,
   stopStalledGeneration = null,
   inspectRecoverableControl = null,
 } = {}) {
@@ -93,20 +94,49 @@ export function installStuckRecovery(browser, {
   const submitFn = submitMessage;
   const stopFn = stopStalledGeneration ?? ((target, expectedUrl) => interruptStalledGeneration(browser, target, expectedUrl));
   const inspectFn = inspectRecoverableControl ?? ((target, expectedUrl) => detectRecoverableControl(browser, target, expectedUrl));
+  let logicalWaitSequence = 0;
+
+  const awaitRecoveryAdmission = async (options) => {
+    let cooldownWaited = false;
+    for (;;) {
+      try {
+        if (beforeRecoverySend) await beforeRecoverySend();
+        if (options?.beforeRecoverySend) await options.beforeRecoverySend();
+        return cooldownWaited;
+      } catch (error) {
+        if (error?.code !== 'GLOBAL_SUBMISSION_COOLDOWN') throw error;
+        const retryAfterMs = Number(error.retryAfterMs);
+        if (!Number.isFinite(retryAfterMs) || retryAfterMs < 0) throw error;
+        await sleep(retryAfterMs);
+        cooldownWaited = true;
+      }
+    }
+  };
 
   browser.waitForGenerationComplete = async (target, options) => {
+    const logicalWait = ++logicalWaitSequence;
     const allowGenericRecovery = options?.allowSameChatRecovery !== false;
     const recoveries = [];
     for (;;) {
       try {
         const completed = await originalWait(target, options);
-        const control = allowGenericRecovery ? await inspectFn(target, options.expectedUrl) : { recoverable: false, controlLabel: null };
+        if (completed?.conversationUrl) options = { ...options, expectedUrl: completed.conversationUrl };
+        let control = allowGenericRecovery ? await inspectFn(target, options.expectedUrl) : { recoverable: false, controlLabel: null };
         if (control?.recoverable) {
           if (recoveries.length >= maxNudges) {
             throw new Error(`ChatGPT recoverable stall control ${control.controlLabel} persisted after ${maxNudges} continue nudges.`);
           }
-          if (beforeRecoverySend) await beforeRecoverySend();
-          const recovery = await sendContinue(submitFn, target, options, recoveries.length + 1, maxNudges, logger, {
+          const cooldownWaited = await awaitRecoveryAdmission(options);
+          if (cooldownWaited) {
+            const revalidatedCompletion = await originalWait(target, options);
+            if (revalidatedCompletion?.conversationUrl) options = { ...options, expectedUrl: revalidatedCompletion.conversationUrl };
+            const revalidatedControl = await inspectFn(target, options.expectedUrl);
+            if (!revalidatedControl?.recoverable) {
+              return completionWithRecoveries(revalidatedCompletion, recoveries, maxNudges);
+            }
+            control = revalidatedControl;
+          }
+          const recovery = await sendContinue(submitFn, target, options, logicalWait, recoveries.length + 1, maxNudges, options?.recoveryLogger ?? logger, {
             source: 'RECOVERABLE_UI_CONTROL',
             controlLabel: control.controlLabel,
             interruption: { stoppedGeneration: false, stopReason: 'ALREADY_IDLE', inspectedAssistantOutput: false },
@@ -125,6 +155,7 @@ export function installStuckRecovery(browser, {
           },
         };
       } catch (error) {
+        if (error?.conversationUrl) options = { ...options, expectedUrl: error.conversationUrl };
         const systemsThinkingStall = isSystemsThinkingMoreThanUsual(error);
         const connectionInterruptedStall = isConnectionInterrupted(error);
         const progressHeartbeatStall = isProgressHeartbeatStall(error);
@@ -134,12 +165,37 @@ export function installStuckRecovery(browser, {
         let interruption;
         if (explicitSystemStall) {
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: true });
-          if (beforeRecoverySend) await beforeRecoverySend();
+          const cooldownWaited = await awaitRecoveryAdmission(options);
+          if (cooldownWaited && interruption?.stoppedGeneration === false) {
+            try {
+              const completed = await originalWait(target, options);
+              return completionWithRecoveries(completed, recoveries, maxNudges);
+            } catch (revalidationError) {
+              if (!isSystemsThinkingMoreThanUsual(revalidationError) && !isConnectionInterrupted(revalidationError)) {
+                throw revalidationError;
+              }
+              if (revalidationError?.conversationUrl) {
+                options = { ...options, expectedUrl: revalidationError.conversationUrl };
+              }
+            }
+          }
         } else {
-          if (beforeRecoverySend) await beforeRecoverySend();
+          const cooldownWaited = await awaitRecoveryAdmission(options);
+          if (cooldownWaited) {
+            try {
+              const completed = await originalWait(target, options);
+              if (completed?.conversationUrl) options = { ...options, expectedUrl: completed.conversationUrl };
+              const control = await inspectFn(target, options.expectedUrl);
+              if (!control?.recoverable) return completionWithRecoveries(completed, recoveries, maxNudges);
+            } catch (revalidationError) {
+              if (!isGenerationStallTimeout(revalidationError) && !isProgressHeartbeatStall(revalidationError)) {
+                throw revalidationError;
+              }
+            }
+          }
           interruption = await stopFn(target, options.expectedUrl, { requireSendControl: false });
         }
-        const recovery = await sendContinue(submitFn, target, options, recoveries.length + 1, maxNudges, logger, {
+        const recovery = await sendContinue(submitFn, target, options, logicalWait, recoveries.length + 1, maxNudges, options?.recoveryLogger ?? logger, {
           source: systemsThinkingStall
             ? 'SYSTEMS_THINKING_MORE_THAN_USUAL'
             : (connectionInterruptedStall ? 'CONNECTION_INTERRUPTED' : (progressHeartbeatStall ? 'PROGRESS_HEARTBEAT_STALLED' : 'ACTIVE_GENERATION_TIMEOUT')),
@@ -156,6 +212,20 @@ export function installStuckRecovery(browser, {
 
   return browser;
 }
+
+function completionWithRecoveries(completed, recoveries, maxNudges) {
+  return recoveries.length === 0 ? completed : {
+    ...completed,
+    stuckRecovery: {
+      nudgesSent: recoveries.length,
+      maxNudges,
+      recoveries,
+      inspectedAssistantOutput: false,
+    },
+  };
+}
+
+function delay(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
 export function isGenerationStallTimeout(error) {
   const message = error instanceof Error ? error.message : String(error);
@@ -183,14 +253,16 @@ export function isProgressHeartbeatStall(error) {
     || message.includes('CHATGPT_PROGRESS_HEARTBEAT_STALLED');
 }
 
-async function sendContinue(submitMessage, target, options, index, maxNudges, logger, context) {
+async function sendContinue(submitMessage, target, options, logicalWait, index, maxNudges, logger, context) {
   const recoveredAt = new Date().toISOString();
   const body = 'continue';
   const start = await submitMessage(target, {
     expectedUrl: options.expectedUrl,
     body,
     bodySha256: sha256(body),
-    schedulerAttemptKey: `nudge:${index}`,
+    schedulerAttemptKey: `wait:${logicalWait}:nudge:${index}`,
+    beforeRecoverySend: options.beforeRecoverySend,
+    onSubmissionBoundary: options.onRecoverySubmissionBoundary,
   });
   const recovery = {
     index,
@@ -210,7 +282,7 @@ async function sendContinue(submitMessage, target, options, index, maxNudges, lo
     observedControl: recovery.observedControl,
     maxNudges,
     targetId: target.id,
-    conversationUrl: normalizeConversationUrl(options.expectedUrl),
+    ...(options.recoveryLogConversationUrl === false ? {} : { conversationUrl: normalizeConversationUrl(options.expectedUrl) }),
     assistantContentObserved: false,
   }));
   return recovery;

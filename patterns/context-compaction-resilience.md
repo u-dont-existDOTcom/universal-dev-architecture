@@ -28,6 +28,8 @@ For any project with multi-step, multi-session, or long autonomous work, maintai
 
 The exact filename may vary, but there must be one obvious current recovery entry point referenced by the project's main index/bootstrap.
 
+With concurrent branches, keep that entry point for repository-level state and give each task its own checkpoint. Per-task files avoid merge conflicts while the recovery entry point stays obvious.
+
 At minimum, the state checkpoint should record:
 
 - current goal / task;

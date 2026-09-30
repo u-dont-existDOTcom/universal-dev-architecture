@@ -9,6 +9,149 @@ import {
   defaultSchedulerState,
 } from '../src/submission-scheduler-service.mjs';
 
+for (const code of ['UNEXPECTED_APP_CONFIRMATION', 'APP_CONFIRMATION_CONTROL_MISSING', 'APP_CONFIRMATION_REVALIDATION_FAILED']) {
+  test(`generation polling propagates ${code} without waiting for the generation timeout`, async () => {
+    const transport = passiveGenerationTransport();
+    const browser = new ChromeDevtoolsBrowser({
+      WebSocketImpl: transport.WebSocketImpl,
+      generationTimeoutMs: 1_000,
+    });
+    let polls = 0;
+    await assert.rejects(
+      browser.waitForGenerationComplete({
+        id: 'confirmation-policy-target',
+        webSocketDebuggerUrl: 'ws://controlled/page',
+      }, {
+        expectedUrl: 'https://chatgpt.com/c/confirmation-policy',
+        generationStarted: true,
+        onGenerationPoll: async () => {
+          polls += 1;
+          throw Object.assign(new Error(code), { code });
+        },
+      }),
+      (error) => error?.code === code,
+    );
+    assert.equal(polls, 1);
+  });
+}
+
+test('generation polling reports a canonicalized conversation URL before journal callbacks run', async () => {
+  const canonical = 'https://chatgpt.com/c/stable-journal';
+  const transport = canonicalizingGenerationTransport(canonical);
+  const browser = new ChromeDevtoolsBrowser({ WebSocketImpl: transport.WebSocketImpl, generationTimeoutMs: 3_000 });
+  const observedUrls = [];
+  const completed = await browser.waitForGenerationComplete({
+    id: 'canonicalizing-target', webSocketDebuggerUrl: 'ws://controlled/page',
+  }, {
+    expectedUrl: 'https://chatgpt.com/c/WEB:provisional-journal',
+    generationStarted: true,
+    onGenerationPoll: async (expectedUrl) => { observedUrls.push(expectedUrl); },
+  });
+  assert.equal(completed.conversationUrl, canonical);
+  assert.equal(completed.conversationUrlCanonicalized, true);
+  assert.deepEqual(observedUrls, [canonical, canonical, canonical, canonical]);
+});
+
+test('generation recovery signals preserve a newly canonicalized conversation URL', async () => {
+  const canonical = 'https://chatgpt.com/c/stalled-journal';
+  const transport = canonicalizingGenerationTransport(canonical, {
+    systemsThinkingMoreThanUsual: true,
+  });
+  const browser = new ChromeDevtoolsBrowser({ WebSocketImpl: transport.WebSocketImpl, generationTimeoutMs: 3_000 });
+
+  await assert.rejects(
+    browser.waitForGenerationComplete({
+      id: 'canonicalizing-stalled-target', webSocketDebuggerUrl: 'ws://controlled/page',
+    }, {
+      expectedUrl: 'https://chatgpt.com/c/WEB:provisional-stalled-journal',
+      generationStarted: true,
+    }),
+    (error) => error?.code === 'CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL'
+      && error?.conversationUrl === canonical,
+  );
+});
+
+test('journal confirmation approval types a changed binding as a revalidation failure', async () => {
+  const browser = new ChromeDevtoolsBrowser({ WebSocketImpl: approvalRevalidationTransport() });
+  await assert.rejects(
+    browser.approveJournalWriteConfirmation({ id: 'approval-target', webSocketDebuggerUrl: 'ws://controlled/page' }, {
+      expectedUrl: 'https://chatgpt.com/c/confirmation-policy', appName: 'InnerSignal', toolName: 'submit_journal_work_result', button: 'Always allow',
+    }),
+    (error) => error?.code === 'APP_CONFIRMATION_REVALIDATION_FAILED' && /BINDING_CHANGED/.test(error.message),
+  );
+});
+
+function approvalRevalidationTransport() {
+  return class ApprovalRevalidationWebSocket {
+    constructor() { this.listeners = new Map(); queueMicrotask(() => this.emit('open', {})); }
+    addEventListener(type, listener) { this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]); }
+    send(raw) {
+      const message = JSON.parse(raw);
+      const result = message.method === 'Runtime.evaluate'
+        ? { result: { objectId: 'global-object' } }
+        : { result: { value: { approved: false, reason: 'BINDING_CHANGED' } } };
+      queueMicrotask(() => this.emit('message', { data: JSON.stringify({ id: message.id, result }) }));
+    }
+    close() {}
+    emit(type, event) { for (const listener of this.listeners.get(type) ?? []) listener(event); }
+  };
+}
+
+function passiveGenerationTransport() {
+  class PassiveGenerationWebSocket {
+    constructor() {
+      this.listeners = new Map();
+      queueMicrotask(() => this.emit('open', {}));
+    }
+
+    addEventListener(type, listener) {
+      const listeners = this.listeners.get(type) ?? [];
+      listeners.push(listener);
+      this.listeners.set(type, listeners);
+    }
+
+    send(raw) {
+      const message = JSON.parse(raw);
+      queueMicrotask(() => this.emit('message', { data: JSON.stringify({
+        id: message.id,
+        result: message.method === 'Runtime.evaluate'
+          ? { result: { objectId: 'global-object' } }
+          : { result: { value: { generating: true, idleReady: false } } },
+      }) }));
+    }
+
+    close() {}
+
+    emit(type, event) {
+      for (const listener of this.listeners.get(type) ?? []) listener(event);
+    }
+  }
+
+  return { WebSocketImpl: PassiveGenerationWebSocket };
+}
+
+function canonicalizingGenerationTransport(canonicalUrl, postCanonicalState = null) {
+  class CanonicalizingGenerationWebSocket {
+    constructor() { this.listeners = new Map(); this.polls = 0; queueMicrotask(() => this.emit('open', {})); }
+    addEventListener(type, listener) { this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]); }
+    send(raw) {
+      const message = JSON.parse(raw);
+      let result;
+      if (message.method === 'Runtime.evaluate') result = { result: { objectId: 'global-object' } };
+      else {
+        this.polls += 1;
+        result = { result: { value: this.polls === 1
+          ? { urlMismatch: true, currentUrl: canonicalUrl, conversationUrl: canonicalUrl }
+          : (postCanonicalState ?? { urlMismatch: false, idleReady: true, generating: false, generationProgress: { outputBegun: true, counter: 1 } }) } };
+      }
+      queueMicrotask(() => this.emit('message', { data: JSON.stringify({ id: message.id, result }) }));
+    }
+    close() {}
+    emit(type, event) { for (const listener of this.listeners.get(type) ?? []) listener(event); }
+  }
+  return { WebSocketImpl: CanonicalizingGenerationWebSocket };
+}
+
 test('CDP disconnect after click dispatch is reported as crossed uncertainty', async () => {
   const transport = controlledClickDisconnectTransport();
   const browser = new ChromeDevtoolsBrowser({

@@ -111,9 +111,12 @@ wrapper-plus-worker tests enforce that invariant.
 
 ## 5. Diagnose recurring execution failures architecturally
 
-When the owner has repeatedly corrected the same observable failure and local
-instruction repairs do not change the product result, treat recurrence as
-evidence of a state-machine, projection, integration, or verification defect.
+When the same observable failure recurs after a fix (corrected again by the
+owner, or found again by a reviewer, test, CI or evaluation run) and local
+repairs do not change the product result, treat recurrence as evidence of a
+state-machine, projection, integration, verification, or method-fit defect
+(`patterns/reasoning-selection.md` → recurring-finding check and
+pattern-matching fit check).
 
 Inspect the authoritative checkpoint, operation/frontier divergence,
 server-derived next capabilities, wrapper composition, and signed receipts.

@@ -74,6 +74,21 @@ The integrator must:
 
 Do not let child writers update integration-state files "just to keep everyone current." That recreates the shared mutable state race.
 
+## Publication and retrievability
+
+Isolation is not enough if the integrator cannot retrieve the worker result. For repository work intended to be reconciled later, apply `patterns/worker-github-publication-and-recovery.md` in addition to branch isolation.
+
+Each child writer must end in one of these states:
+
+- `LOCAL_COMPLETE_REMOTE_UNPUBLISHED` — useful work exists only in the worker workspace; this is nonterminal for integration-bound work;
+- `PUBLISHED_UNVERIFIED` — a remote worker ref/checkpoint exists but has not yet been content/diff verified;
+- `INTEGRATION_READY` — the integrator can retrieve the output and has verified the declared delta;
+- `BLOCKED` — no authorized transport/recovery path remains.
+
+The worker directive must name the intended remote worker branch/destination and publication evidence. If shell Git cannot publish, the worker must try an already-authorized connected GitHub API/connector or durable recovery path before interrupting the owner. A transport failure does not consume existing same-destination publication authority.
+
+The integrator must discover and verify every expected child output before declaring the parallel phase complete. A worker's clean local commit or prose receipt is not sufficient integration evidence.
+
 ## Fresh contexts and independent tests
 
 A genuinely fresh or blind writer should normally use:

@@ -24,9 +24,10 @@ For Codex + GitHub work, the canonical current pattern is:
 
 - `patterns/codex-github-operating-system.md`
 
-The canonical recovery checkpoint is:
+The repository recovery entry point and task checkpoints are:
 
 - `state/CURRENT-STATE.md`
+- One retained checkpoint per task in `state/tasks/`; assign a stable unique ID (`pr-<number>` for a pull request) and find its path with `python3 scripts/task_checkpoint_path.py "$(git branch --show-current)" "<task-id>"`.
 
 Reusable files are indexed in:
 

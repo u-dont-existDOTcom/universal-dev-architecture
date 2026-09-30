@@ -10,6 +10,7 @@
     "audit": "python3 scripts/audit_codex_github.py --root . --fail-on error"
   },
   "current_state": "state/CURRENT-STATE.md",
+  "task_state_dir": "state/tasks",
   "github_controls": {
     "default_branch_rules": "verified",
     "actions_policy": "verified",

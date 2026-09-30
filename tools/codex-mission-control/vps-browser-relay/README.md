@@ -95,6 +95,50 @@ GitHub is the handoff between stages. Conversation history is never required for
 an external-tool operation. The relay never reads, copies, hashes, parses,
 summarizes, or transports assistant response text.
 
+## InnerSignal journal work runner
+
+`npm run journal-work` performs one content-free journal work pass. It selects
+the oldest eligible standard-tier dispatch, opens a fresh automation-owned
+ChatGPT conversation, verifies the configured model and effort, selects the
+configured InnerSignal app, and submits the fixed work-ID-only instruction.
+Completion is established only by reading the dispatch listing again; neither
+assistant output nor page text is read or persisted.
+
+The runner retains the relay process lock, automation-owned target fence, and
+central submission scheduler. Its private environment supplies the dispatch
+and import commands and app label. Runtime state contains only dispatch
+metadata, outcome/rung history, adaptive pacing and backoff settings, daily
+counts, owner-action codes, and allowlisted import summary fields. The command
+is a one-pass operation and does not deploy or modify services.
+
+Before the pilot, calibrate `settings.controlObservations[model][effort]` in
+the journal runner's private state with the account's observed
+`modelVisibleLabel`, `thinkingControlLabel`, and `thinkingVisibleLabel`. The
+runner fails closed with `JOURNAL_CONTROLS_UNCALIBRATED` rather than assuming a
+page label. `freshChatThreshold` is the total number of fresh conversations
+allowed for one work item, including its initial conversation.
+
+### Hardest journal lane and status page
+
+`npm run journal-claude` performs one disabled-by-default, content-free pass
+over the oldest eligible `hardest` dispatch. It starts Claude Code in a new
+empty temporary directory with only the configured journal MCP server and its
+two packet/result tools enabled. Completion still comes only from the refreshed
+dispatch listing. The worker records allowlisted usage counts and Claude Code's
+USD cost equivalent (not a subscription charge), never packet or result text.
+
+The standard and hardest lanes share `MC_JOURNAL_IMPORT_LOCK_FILE`, so only one
+import command runs at a time. The Claude lane additionally holds its own
+one-pass worker lock and does nothing unless `MC_JOURNAL_CLAUDE_ENABLED=1`.
+Its private environment supplies `CLAUDE_CODE_OAUTH_TOKEN`, created by the
+owner with `claude setup-token`; the worker never writes or logs that token.
+
+`npm run mc-status` serves the allowlisted journal/Claude status fields on
+`127.0.0.1` at `MC_STATUS_PORT` (default `8787`). The adjacent systemd user
+unit is an installation example. From the owner's laptop,
+`scripts/mc-status-tunnel.sh <ssh-host>` opens a local SSH tunnel and prints
+the loopback address.
+
 The controller-mediated route is an explicit, one-cycle command path. It uses
 GitHub as the only semantic mailbox. Its owner-only restart ledger stores exact
 target/window/session identities, send boundaries, immutable comment identities,
@@ -195,7 +239,7 @@ the exact owner's metadata; failed acquisition/double release cannot unlink a
 successor. CLI one-shots (including `once-exact`) release in `finally`; only
 explicit `run` and `controller-run` service modes use unbounded ownership, and
 `health-report` takes no exclusive lock so it never contends with the service. A one-shot can set
-`MC_RELAY_LOCK_MAX_MS` (1..86400000 ms) as an explicit override, shorter or
+`MC_RELAY_LOCK_MAX_MS` (1..2147483647 ms) as an explicit override, shorter or
 longer than the derived default, when its authorized operation requires a
 different bounded lifetime. The override never shortens global pacing or clears
 ambiguous send intents; after interruption the normal doctor/ledger gates still

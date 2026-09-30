@@ -13,6 +13,9 @@
     "codex:candidate": "node bin/mc-codex-exec-candidate.mjs diagnose",
     "doctor": "node bin/mc-chatgpt-relay.mjs doctor",
     "once": "node bin/mc-chatgpt-relay.mjs once",
+    "journal-work": "node bin/mc-chatgpt-relay.mjs journal-work",
+    "journal-claude": "node bin/mc-journal-claude.mjs",
+    "mc-status": "node bin/mc-status.mjs",
     "start": "node bin/mc-chatgpt-relay.mjs run",
     "status": "node bin/mc-chatgpt-relay.mjs status"
   }

@@ -413,14 +413,45 @@ test('exact provider rate-limit dialog is dismissed and converted to one bounded
   });
   const store = new MemoryOwnershipStore(ownership(7, { owned: record('owned', 'bootstrap', chatA) }));
   const protocol = new FakeProtocol(raw);
-  protocol.rateLimitResult = { present: true, dismissed: true };
+  protocol.rateLimitResult = { present: true, dismissed: true, conversationUrl: chatA };
   const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol });
 
   await assert.rejects(
     browser.submitExactMessage(raw.byId('owned'), { expectedUrl: chatA, body: 'x', bodySha256: 'x' }),
+    (error) => error.code === CHATGPT_RATE_LIMIT_RETRY && error.retryAfterMs === 30_000 && error.relayStage === 'CLICKED' && error.conversationUrl === chatA,
+  );
+  assert.equal(protocol.rateLimitDismissals, 1);
+});
+
+test('failed-Continue Retry applies the same exact provider rate-limit recovery', async () => {
+  const raw = new FakeRawBrowser([page('owned', chatA, 7)]);
+  raw.submitError = Object.assign(new Error('Retry generation did not start'), { relayStage: 'CLICKED' });
+  const store = new MemoryOwnershipStore(ownership(7, { owned: record('owned', 'bootstrap', chatA) }));
+  const protocol = new FakeProtocol(raw);
+  protocol.rateLimitResult = { present: true, dismissed: true };
+  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol });
+
+  await assert.rejects(
+    browser.retryExactFailedContinue(raw.byId('owned'), { expectedUrl: chatA, anchor: {}, binding: {} }),
     (error) => error.code === CHATGPT_RATE_LIMIT_RETRY && error.retryAfterMs === 30_000 && error.relayStage === 'CLICKED',
   );
   assert.equal(protocol.rateLimitDismissals, 1);
+});
+
+test('journal confirmation detection forwards the bound expected URL', async () => {
+  const raw = new FakeRawBrowser([page('owned', chatA, 7)]);
+  const calls = [];
+  raw.detectJournalWriteConfirmation = async (...args) => {
+    calls.push(args);
+    return { present: false };
+  };
+  const store = new MemoryOwnershipStore(ownership(7, { owned: record('owned', 'bootstrap', chatA) }));
+  const browser = new AutomationOwnedBrowser(raw, { ownershipStore: store, protocol: new FakeProtocol(raw) });
+
+  const result = await browser.detectJournalWriteConfirmation(raw.byId('owned'), { expectedUrl: chatA });
+
+  assert.deepEqual(result, { present: false });
+  assert.deepEqual(calls, [[raw.byId('owned'), { expectedUrl: chatA }]]);
 });
 
 class MemoryOwnershipStore {
@@ -500,6 +531,7 @@ class FakeRawBrowser {
     return true;
   }
   async submitExactMessage() { if (this.submitError) throw this.submitError; return { generationStarted: true }; }
+  async retryExactFailedContinue() { if (this.submitError) throw this.submitError; return { generationStarted: true }; }
   byId(id) { return this.targets.find((target) => target.id === id); }
 }
 

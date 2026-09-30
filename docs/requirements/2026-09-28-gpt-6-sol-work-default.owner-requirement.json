@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "requirement_id": "REQ-GPT-6-SOL-WORK-DEFAULT-20260928",
+  "recorded_at": "2026-09-29T14:25:01Z",
+  "status": "ACTIVE_TRIAL_AMENDMENT",
+  "amends": "docs/requirements/2026-09-17-work-model-routing-calibration.owner-requirement.json",
+  "owner_source": {
+    "reasoning": {
+      "at": "2026-09-28T21:20:00Z",
+      "verbatim": "yes i think gpt 5.6 sol may be cheaper but openai says gpt 6.0 sol has almost 3x less hallucination rate so i'm thinking 6.0 should work better...",
+      "sha256": "b331f7626914684811efec1c61be137242d86019f8e521126c56ce25826771c5"
+    },
+    "confirmation": {
+      "at": "2026-09-28T21:42:00Z",
+      "question": "Whether UDA's Work rules should switch to GPT-6 Sol as well.",
+      "verbatim": "sure switch it",
+      "sha256": "9c1c5b7e1d4a30069630103337c9137af978b8eed2b713b9527f13fc93bb2f75"
+    }
+  },
+  "normalized_outcome": "Use GPT-6 Sol at the same Low, Medium, optional High, and Extra High rungs of the Work model-and-effort ladder. GPT-6 Sol Extra High is the genuinely difficult trial baseline from 2026-09-28. Keep GPT-6 Astra Extra High as a matched challenger after the same qualified Sol failure. Preserve earlier GPT-5.6 Sol result labels and do not pool those results with GPT-6 Sol in a single comparison. The scheduled 2026-10-08 review and 10 genuinely difficult baseline-task trigger apply to GPT-6 Sol baseline tasks. This amendment changes the policy and trial defaults, not runtime availability or historical evidence.",
+  "trial": {
+    "baseline_effective_on": "2026-09-28",
+    "scheduled_review_on": "2026-10-08",
+    "also_review_after_genuinely_difficult_baseline_count": 10,
+    "baseline_for_genuinely_difficult_work": {
+      "model": "GPT_6_SOL",
+      "effort": "XHIGH"
+    },
+    "failure_challenger": {
+      "model": "GPT_6_ASTRA",
+      "effort": "XHIGH"
+    }
+  },
+  "context_sources": [
+    {
+      "kind": "CLAUDE_VERIFIED_EXTERNAL_SOURCE",
+      "verified_on": "2026-09-28",
+      "url": "https://openai.com/index/introducing-gpt-6-sol-and-luna/",
+      "reported_finding": "OpenAI's announcement says GPT-6 Sol makes about half as many mistakes as GPT-5.6 Sol on OpenAI's internal factuality evaluation. This is source context, not the owner's wording or a local Work-task result."
+    },
+    {
+      "kind": "CLAUDE_VERIFIED_EXTERNAL_SOURCE",
+      "verified_on": "2026-09-28",
+      "url": "https://developers.openai.com/api/docs/pricing",
+      "reported_finding": "OpenAI's API pricing listed GPT-6 Sol at $2/$10 per million input/output tokens and GPT-5.6 Sol at $4/$20. These were API list prices at verification, not a Work allowance measurement."
+    },
+    {
+      "kind": "CLAUDE_VERIFIED_RUNTIME_CONTEXT",
+      "verified_on": "2026-09-28",
+      "reported_finding": "The owner's laptop Codex runner switched to gpt-6-sol at xhigh. This is historical runner context, not verification of every Work or Mission Control runtime."
+    }
+  ]
+}

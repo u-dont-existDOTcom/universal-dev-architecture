@@ -322,6 +322,26 @@ export class AutomationOwnedBrowser {
     return this.rawBrowser.selectAppsForMessage(target, input);
   }
 
+  async detectJournalWriteConfirmation(target, input) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.detectJournalWriteConfirmation(target, input);
+  }
+
+  async approveJournalWriteConfirmation(target, input) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.approveJournalWriteConfirmation(target, input);
+  }
+
+  async continueJournalWork(target, input) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.continueJournalWork(target, input);
+  }
+
+  async retryJournalWork(target, input) {
+    await this.#assertOwned(target?.id);
+    return this.rawBrowser.retryJournalWork(target, input);
+  }
+
   async ensureExactConsumerControls(target, input) {
     await this.#assertOwned(target?.id);
     return this.rawBrowser.ensureExactConsumerControls(target, input);
@@ -329,8 +349,12 @@ export class AutomationOwnedBrowser {
 
   async submitExactMessage(target, input) {
     await this.#assertOwned(target?.id);
+    return this.#withRateLimitRecovery(target, () => this.rawBrowser.submitExactMessage(target, input));
+  }
+
+  async #withRateLimitRecovery(target, operation) {
     try {
-      return await this.rawBrowser.submitExactMessage(target, input);
+      return await operation();
     } catch (error) {
       const recovery = await this.protocol.dismissRateLimit(target).catch(() => ({ present: false, dismissed: false }));
       if (!recovery?.present) throw error;
@@ -348,6 +372,7 @@ export class AutomationOwnedBrowser {
         clickedAtObserved: error?.clickedAtObserved ?? null,
         startedAtObserved: error?.startedAtObserved ?? null,
       });
+      retry.conversationUrl = recovery.conversationUrl ?? null;
       if (error?.submissionBoundaryPersistenceAttempted) retry.submissionBoundaryPersistenceAttempted = true;
       throw retry;
     }
@@ -370,7 +395,7 @@ export class AutomationOwnedBrowser {
 
   async retryExactFailedContinue(target, input) {
     await this.#assertOwned(target?.id);
-    return this.rawBrowser.retryExactFailedContinue(target, input);
+    return this.#withRateLimitRecovery(target, () => this.rawBrowser.retryExactFailedContinue(target, input));
   }
 
   #reusableTarget(ownership, owned, reusableTargetId, wantedUrl, purpose) {
@@ -1136,10 +1161,11 @@ const RATE_LIMIT_DISMISS_EXPRESSION = `(() => {
     return text.includes('too many chat requests are coming too quick') || text.includes('too many chat requests are coming too quickly');
   });
   const buttons = matched.flatMap((dialog) => [...dialog.querySelectorAll('button')].filter(visible).filter((button) => normalize(button.innerText || button.getAttribute('aria-label')) === 'got it'));
-  if (matched.length === 0) return { present: false, dismissed: false, dialogCount: 0, gotItCount: 0 };
-  if (matched.length !== 1 || buttons.length !== 1) return { present: true, dismissed: false, reason: 'RATE_LIMIT_MODAL_OR_GOT_IT_AMBIGUOUS', dialogCount: matched.length, gotItCount: buttons.length };
+  const conversationUrl = location.href;
+  if (matched.length === 0) return { present: false, dismissed: false, dialogCount: 0, gotItCount: 0, conversationUrl };
+  if (matched.length !== 1 || buttons.length !== 1) return { present: true, dismissed: false, reason: 'RATE_LIMIT_MODAL_OR_GOT_IT_AMBIGUOUS', dialogCount: matched.length, gotItCount: buttons.length, conversationUrl };
   buttons[0].click();
-  return { present: true, dismissed: true, dialogCount: 1, gotItCount: 1 };
+  return { present: true, dismissed: true, dialogCount: 1, gotItCount: 1, conversationUrl };
 })()`;
 
 function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }

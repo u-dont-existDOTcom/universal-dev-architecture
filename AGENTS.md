@@ -84,11 +84,13 @@ Lane default and definitions, hard-gate, expensive-validation, outage, no-ratche
 
 Hard, costly-if-wrong reasoning: `patterns/cross-family-reasoning-check.md`.
 
+Claims about another agent, and agents that disagree: consult it directly, never through the owner: `patterns/agent-to-agent-consultation.md`.
+
 ## Workflow
 
 Use a task branch or worktree for substantive changes when isolation/recovery is useful. Open a pull request when the current task is actually approaching a review/merge boundary or the owner/project requires one; a reversible experimental candidate does not need to become merge-ready before the owner can try it.
 
-Track complex work in a durable plan, update `state/CURRENT-STATE.md` at meaningful boundaries, run the checks appropriate to the active assurance lane, review the relevant diff before crossing the corresponding boundary, and complete lesson closeout at the task's actual completion level. Do not use release completion semantics for an iteration experiment.
+Track complex work in a durable plan. Give each task a stable unique ID (use `pr-<number>` for a pull request) and record its checkpoint at the path from `python3 scripts/task_checkpoint_path.py "$(git branch --show-current)" "<task-id>"` at meaningful boundaries. The helper hashes the exact branch and task ID into a case-fold-safe filename. Change `state/CURRENT-STATE.md` only when repository-level state changes. Run the checks appropriate to the active assurance lane, review the relevant diff before crossing the corresponding boundary, and complete lesson closeout at the task's actual completion level. Do not use release completion semantics for an iteration experiment.
 
 When multiple safe in-scope execution approaches achieve the same outcome, choose the better-coordinated approach without asking the owner to select an execution mode: use isolated workspaces, a durable plan and recovery ledger, delegation plus independent review when safely separable and decision-relevant, and serialize shared mutable state. This standing permission does not broaden task authority and does not replace substantive owner decisions.
 
@@ -106,6 +108,8 @@ When you explicitly commit to a substantive operation, method, comparison, audit
 Adjacent analysis, planning, preparation, or a different method does not count as completion. Before switching methods, declaring progress complete, or ending a substantial pass, verify what observable result proves each promised operation actually occurred. If a still-valid promised step was displaced by later work, execute it before continuing.
 
 Concurrent writers must follow `patterns/parallel-chat-write-isolation.md`; never share a mutable branch.
+
+For integration-bound repository workers, also apply `patterns/worker-github-publication-and-recovery.md`: a local-only scratch commit is nonterminal, worker directives must define the remote publication contract, and an authorized GitHub connector/API is the required fallback before owner interruption when shell Git cannot publish.
 
 ## Follow-up goal derivation and assistant-added requirements
 
@@ -129,7 +133,7 @@ thinking. Chat owns reasoning and ordinary GitHub work; Work/Codex is execution-
 Before Work, discover deferred Chat tools too. If Chat/RDC can perform the bounded
 SSH/VPS/deployment action, keep it in Chat.
 When Work is admitted, apply `patterns/work-model-and-effort-routing.md` for the
-canonical GPT-5.6 Sol / GPT-6 Astra model-and-effort ladder and telemetry contract.
+canonical GPT-6.1 Sol (GPT-6 Sol fallback) / GPT-6 Astra model-and-effort ladder and telemetry contract.
 For controlled supervisory routes also apply
 `patterns/runtime-chat-work-authority-admission-and-internal-routing.md`.
 Worker handoffs follow `patterns/worker-directive-delivery-and-chat-output-budget.md`:
