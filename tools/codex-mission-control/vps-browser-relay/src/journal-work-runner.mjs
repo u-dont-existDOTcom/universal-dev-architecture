@@ -18,11 +18,12 @@ export function withJournalRuntime(journalConfig, runtime) {
 }
 
 export class JournalWorkRunner {
-  constructor({ config, browser, submit, commandRunner = runCommand, memoryReader = async () => ({ pressure: 'NORMAL' }), now = Date.now, sleep = delay, logger = console }) {
+  constructor({ config, browser, submit, sharedAllowanceReader, commandRunner = runCommand, memoryReader = async () => ({ pressure: 'NORMAL' }), now = Date.now, sleep = delay, logger = console }) {
     if (!config?.dispatchCommand || !config?.importCommand || !config?.appLabel) throw new Error('Journal work requires dispatch/import commands and an app label.');
     if (!browser || typeof submit !== 'function') throw new Error('Journal work requires the automation-owned browser and central submission scheduler.');
+    if (typeof sharedAllowanceReader !== 'function') throw new Error('Journal work requires the shared submission allowance reader.');
     this.config = config; this.browser = browser; this.submit = submit; this.commandRunner = commandRunner;
-    this.memoryReader = memoryReader; this.now = now; this.sleep = sleep; this.logger = logger; this.passTail = Promise.resolve();
+    this.sharedAllowanceReader = sharedAllowanceReader; this.memoryReader = memoryReader; this.now = now; this.sleep = sleep; this.logger = logger; this.passTail = Promise.resolve();
   }
 
   async runPass() {
@@ -55,6 +56,7 @@ export class JournalWorkRunner {
     }
     const memory = await this.memoryReader();
     if (memory?.pressure === 'SOFT' || memory?.pressure === 'HARD') return this.#backOff(state, 'MEMORY_PRESSURE');
+    await this.#syncSharedAllowance(state);
     if (state.today.calls >= state.settings.dailyAllowance) return this.#finish(state, 'DAILY_ALLOWANCE_REACHED');
     if (Date.parse(state.backoff.until ?? '') > this.now()) return this.#finish(state, 'BACKING_OFF');
     // Keep an unresolved delivery identifiable until every pre-delivery gate has
@@ -73,6 +75,7 @@ export class JournalWorkRunner {
     const paceMultiplier = allowanceRatio >= 0.9 ? 4 : (allowanceRatio >= 0.8 ? 2 : 1);
     await this.sleep(state.settings.paceMs * paceMultiplier);
     this.#rollDay(state);
+    await this.#syncSharedAllowance(state);
     const pacedMemory = await this.memoryReader();
     if (pacedMemory?.pressure === 'SOFT' || pacedMemory?.pressure === 'HARD') return this.#backOff(state, 'MEMORY_PRESSURE');
     if (state.today.calls >= state.settings.dailyAllowance) return this.#finish(state, 'DAILY_ALLOWANCE_REACHED');
@@ -155,7 +158,7 @@ export class JournalWorkRunner {
   }
 
   async #fresh(item, state, rung, freshChatAttempt) {
-    this.#assertSubmissionAllowance(state);
+    await this.#assertSubmissionAllowance(state);
     const target = await this.browser.createFreshChatTarget({ hardCeiling: this.config.runtime?.maxHotTabs ?? 3 });
     const controls = state.settings.controlObservations?.[item.model]?.[item.effort];
     if (!controls) { const error = new Error('No calibrated consumer controls exist for the requested model and effort.'); error.code = 'JOURNAL_CONTROLS_UNCALIBRATED'; throw error; }
@@ -179,13 +182,12 @@ export class JournalWorkRunner {
     };
     const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target, rung, freshChatAttempt, providerSessionId, expectedUrl: ROOT_URL, bodySha256: sha256(body), submit: submitExact }));
     const submittedUrl = started.conversationUrl ?? ROOT_URL;
-    await this.#handleConfirmation(target, item, submittedUrl);
     const completed = await this.browser.waitForGenerationComplete(target, this.#journalWaitOptions(state, target, submittedUrl, started.generationStarted, item));
     return { target, providerSessionId, expectedUrl: completed?.conversationUrl ?? submittedUrl };
   }
 
   async #continue(item, session, state) {
-    this.#assertSubmissionAllowance(state);
+    await this.#assertSubmissionAllowance(state);
     const anchor = await this.browser.captureContinueRecoveryAnchor(session.target, { expectedUrl: session.expectedUrl });
     const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target: session.target, rung: 'CONTINUE', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: sha256(CONTINUE_BODY), submit: (callbacks = {}) => this.browser.submitExactMessage(session.target, { expectedUrl: session.expectedUrl, body: CONTINUE_BODY, bodySha256: sha256(CONTINUE_BODY), ...this.#countedCallbacks(item, state, callbacks) }) }));
     await this.#handleConfirmation(session.target, item, session.expectedUrl);
@@ -196,7 +198,7 @@ export class JournalWorkRunner {
   async #retry(item, session, anchor, state) {
     const classified = await this.browser.inspectFailedContinueRetry(session.target, { expectedUrl: session.expectedUrl, anchor });
     if (classified.status !== 'RETRY_FAILED_CONTINUE') return false;
-    this.#assertSubmissionAllowance(state);
+    await this.#assertSubmissionAllowance(state);
     const started = await this.#submitAfterCooldown(item, state, () => this.submit({ item, target: session.target, rung: 'RETRY', providerSessionId: session.providerSessionId, expectedUrl: session.expectedUrl, bodySha256: classified.bindingSha256, submit: (callbacks = {}) => this.browser.retryExactFailedContinue(session.target, { expectedUrl: session.expectedUrl, anchor, binding: classified.binding, ...this.#countedCallbacks(item, state, callbacks) }) }));
     await this.#handleConfirmation(session.target, item, session.expectedUrl);
     if (started?.generationStarted === true) await this.browser.waitForGenerationComplete(session.target, this.#journalWaitOptions(state, session.target, session.expectedUrl, true, item));
@@ -216,7 +218,7 @@ export class JournalWorkRunner {
           expired.code = 'JOURNAL_ITEM_EXPIRED';
           throw expired;
         }
-        this.#assertSubmissionAllowance(state);
+        await this.#assertSubmissionAllowance(state);
       }
     }
   }
@@ -231,7 +233,7 @@ export class JournalWorkRunner {
           throw expired;
         }
         await this.#assertMemoryAvailable();
-        this.#assertSubmissionAllowance(state);
+        await this.#assertSubmissionAllowance(state);
         return callbacks.onBeforeSubmissionBoundary?.(...args);
       },
       onSubmissionBoundary: async (...args) => {
@@ -255,7 +257,7 @@ export class JournalWorkRunner {
           throw expired;
         }
         await this.#assertMemoryAvailable();
-        this.#assertSubmissionAllowance(state);
+        await this.#assertSubmissionAllowance(state);
       },
       onRecoverySubmissionBoundary: async () => {
         this.#rollDay(state);
@@ -279,8 +281,15 @@ export class JournalWorkRunner {
     };
   }
 
-  #assertSubmissionAllowance(state) {
+  async #syncSharedAllowance(state) {
     this.#rollDay(state);
+    const calls = await this.sharedAllowanceReader();
+    if (!Number.isSafeInteger(calls) || calls < 0) throw new Error('Invalid shared journal allowance count.');
+    state.today.calls = Math.max(state.today.calls, calls);
+  }
+
+  async #assertSubmissionAllowance(state) {
+    await this.#syncSharedAllowance(state);
     if (state.today.calls < state.settings.dailyAllowance) return;
     const error = new Error('Journal provider-call daily allowance reached.');
     error.code = 'JOURNAL_DAILY_ALLOWANCE_REACHED';
@@ -367,6 +376,7 @@ export class JournalWorkRunner {
   async #readState() {
     let stored = {};
     try { stored = JSON.parse(await readFile(this.config.stateFile, 'utf8')); } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+    validateJournalState(stored);
     const legacyAttemptFloor = (stored.today?.calls ?? stored.today?.answered ?? 0) + 1;
     return {
       schemaVersion: 1,
@@ -386,7 +396,6 @@ export class JournalWorkRunner {
   }
   #rollDay(state) {
     if (state.today.date !== this.#day()) state.today = { date: this.#day(), answered: 0, calls: 0, expired: 0, waiting: 0 };
-    else if (!Number.isInteger(state.today.calls)) state.today.calls = state.today.answered;
   }
   #day() { return new Date(this.now()).toISOString().slice(0, 10); }
   #iso() { return new Date(this.now()).toISOString(); }
@@ -475,7 +484,25 @@ function supportsModelEffort(models, model, effort) {
 export async function withPersistedJournalWorkSettings(config) {
   let stored = {};
   try { stored = JSON.parse(await readFile(config.stateFile, 'utf8')); } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+  validateJournalState(stored);
   return { ...config, settings: { ...(config.settings ?? {}), ...(stored.settings ?? {}) } };
+}
+function validateJournalState(stored) {
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) throw new Error('Invalid journal work state.');
+  const bounds = { dailyAllowance: [1, 10_000], paceMs: [1_000, 3_600_000], backoffBaseMs: [1_000, 3_600_000], backoffMaxMs: [1_000, 86_400_000], freshChatThreshold: [1, 20] };
+  if (stored.settings !== undefined) {
+    if (!stored.settings || typeof stored.settings !== 'object' || Array.isArray(stored.settings)) throw new Error('Invalid journal work state settings.');
+    for (const [key, [min, max]] of Object.entries(bounds)) {
+      if (key in stored.settings && (!Number.isInteger(stored.settings[key]) || stored.settings[key] < min || stored.settings[key] > max)) throw new Error(`Invalid journal work state settings.${key}.`);
+    }
+  }
+  if (stored.today !== undefined) {
+    if (!stored.today || typeof stored.today !== 'object' || Array.isArray(stored.today)) throw new Error('Invalid journal work state today.');
+    if (stored.today.date !== undefined && (typeof stored.today.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(stored.today.date) || Number.isNaN(Date.parse(`${stored.today.date}T00:00:00Z`)))) throw new Error('Invalid journal work state today.date.');
+    for (const key of ['answered', 'calls', 'expired', 'waiting']) {
+      if (key in stored.today && (!Number.isSafeInteger(stored.today[key]) || stored.today[key] < 0)) throw new Error(`Invalid journal work state today.${key}.`);
+    }
+  }
 }
 function sanitizeImportResult(result) {
   let parsed = {};

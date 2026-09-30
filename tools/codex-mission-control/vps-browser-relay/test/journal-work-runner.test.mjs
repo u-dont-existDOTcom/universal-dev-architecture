@@ -190,7 +190,7 @@ test('a canonicalized fresh conversation URL binds confirmation polling and late
     browserOptions: { submittedConversationUrl: provisional, completionConversationUrl: canonical },
   });
   assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
-  assert.deepEqual(fixture.browser.confirmationExpectedUrls, [provisional, canonical, canonical, canonical]);
+  assert.deepEqual(fixture.browser.confirmationExpectedUrls, [canonical, canonical, canonical]);
   assert.equal(fixture.submissions[1].expectedUrl, canonical);
   assert.equal(fixture.browser.continueExpectedUrls[0], canonical);
 });
@@ -329,6 +329,22 @@ test('a write confirmation appearing during generation is approved before comple
   assert.equal(fixture.browser.approvals[0].expectedUrl, 'https://chatgpt.com/c/fake');
 });
 
+test('fresh journal confirmation follows the canonical conversation URL', async (t) => {
+  const canonical = 'https://chatgpt.com/c/canonical';
+  const fixture = await makeFixture(t, {
+    answeredAt: 3,
+    browserOptions: {
+      submittedConversationUrl: 'https://chatgpt.com/c/WEB:provisional',
+      completionConversationUrl: canonical,
+      observedConversationUrl: canonical,
+      confirmation: { present: true, appName: 'InnerSignal', toolName: 'submit_journal_work_result', buttons: ['Allow'] },
+    },
+  });
+  assert.equal((await fixture.runner.runPass()).status, 'ANSWERED');
+  assert.deepEqual(fixture.browser.confirmationExpectedUrls, [canonical]);
+  assert.equal(fixture.browser.approvals[0].expectedUrl, canonical);
+});
+
 test('a confirmation for any other tool is refused and becomes an owner action', async (t) => {
   const fixture = await makeFixture(t, { browserOptions: { confirmation: { present: true, appName: 'InnerSignal', toolName: 'delete_everything', buttons: ['Allow'] } } });
   const result = await fixture.runner.runPass();
@@ -445,6 +461,29 @@ test('daily allowance stops before listing or browser work', async (t) => {
   const fixture = await makeFixture(t, { initialState: { today: { date: '2026-09-28', answered: 170, expired: 0, waiting: 0 } } });
   assert.equal((await fixture.runner.runPass()).status, 'DAILY_ALLOWANCE_REACHED');
   assert.equal(fixture.dispatchRuns(), 0);
+});
+
+test('a successor relay honors journal calls recorded by the shared scheduler', async (t) => {
+  const fixture = await makeFixture(t, { sharedCalls: 170 });
+  const result = await fixture.runner.runPass();
+  assert.equal(result.status, 'DAILY_ALLOWANCE_REACHED');
+  assert.equal(result.state.today.calls, 170);
+  assert.equal(fixture.dispatchRuns(), 0);
+  assert.equal(fixture.browser.messages.length, 0);
+});
+
+test('malformed persisted allowance and counters fail closed before dispatch', async (t) => {
+  for (const initialState of [
+    { settings: { dailyAllowance: 'oops' } },
+    { settings: { paceMs: -1 } },
+    { today: { date: '2026-09-28', calls: 'oops' } },
+    { today: { date: '2026-09-27', calls: 'oops' } },
+  ]) {
+    const fixture = await makeFixture(t, { initialState });
+    await assert.rejects(() => fixture.runner.runPass(), /Invalid journal work state/);
+    assert.equal(fixture.dispatchRuns(), 0);
+    assert.equal(fixture.browser.messages.length, 0);
+  }
 });
 
 test('failing and malformed listing commands mean no work and do not touch the browser', async (t) => {
@@ -839,7 +878,7 @@ test('dispatch validation rejects work IDs that can alter the fixed provider pro
   assert.equal(parseDispatchRecord(JSON.stringify(record({ work_id: 'Opaque_123-safe' }))).work_id, 'Opaque_123-safe');
 });
 
-async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserOptions = {}, now: nowImpl = () => now, sleep = async () => {}, onContinue, memoryReader, initialState, dispatchResult, dispatchHandler, importHandler, submitHandler, recordOverrides = {}, settings = {}, runtime = { maxHotTabs: 3 } } = {}) {
+async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserOptions = {}, now: nowImpl = () => now, sleep = async () => {}, onContinue, memoryReader, initialState, dispatchResult, dispatchHandler, importHandler, submitHandler, recordOverrides = {}, settings = {}, sharedCalls = 0, runtime = { maxHotTabs: 3 } } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'journal-work-test-')); t.after(() => rm(dir, { recursive: true, force: true }));
   const stateFile = join(dir, 'state.json'); const statusFile = join(dir, 'status.json');
   if (initialState) await import('node:fs/promises').then(({ writeFile }) => writeFile(stateFile, JSON.stringify(initialState)));
@@ -850,7 +889,7 @@ async function makeFixture(t, { answeredAt = Infinity, pageText = null, browserO
     imports += 1; return importHandler ? importHandler() : { exitCode: 0, stdout: `npm run journal:import\n${JSON.stringify({ stage: 'complete', blocker: null, completed_units: 1, residuals: { waiting: 0 }, ignored: SENTINEL })}` };
   };
   const logs = []; const warnLogs = []; const submissions = [];
-  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', dispatchTimeoutMs: 60_000, importTimeoutMs: 300_000, appLabel: 'InnerSignal', stateFile, statusFile, runtime, settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' } } }, ...settings } }, browser, submit: async (entry) => { submissions.push(entry); return submitHandler ? submitHandler(entry, submissions.length) : entry.submit(); }, commandRunner, memoryReader, now: nowImpl, sleep, logger: { log: (value) => logs.push(value), warn: (value) => warnLogs.push(value) } });
+  const runner = new JournalWorkRunner({ config: { dispatchCommand: 'dispatch', importCommand: 'import', dispatchTimeoutMs: 60_000, importTimeoutMs: 300_000, appLabel: 'InnerSignal', stateFile, statusFile, runtime, settings: { controlObservations: { 'GPT-5.6 Sol': { Pro: { modelVisibleLabel: 'GPT-5.6 Sol', thinkingControlLabel: 'Power', thinkingVisibleLabel: 'Pro' } } }, ...settings } }, browser, sharedAllowanceReader: async () => sharedCalls, submit: async (entry) => { submissions.push(entry); return submitHandler ? submitHandler(entry, submissions.length) : entry.submit(); }, commandRunner, memoryReader, now: nowImpl, sleep, logger: { log: (value) => logs.push(value), warn: (value) => warnLogs.push(value) } });
   return { runner, browser, stateFile, statusFile, logs, warnLogs, submissions, importRuns: () => imports, dispatchRuns: () => dispatches };
 }
 
@@ -883,7 +922,7 @@ class FakeBrowser {
   async captureContinueRecoveryAnchor(_target, input) { this.anchorCaptures += 1; this.continueExpectedUrls.push(input.expectedUrl); return createContinueRecoveryAnchor({ turns: [{ key: 'initial-user', role: 'user', retryControls: [] }, { key: 'initial-assistant', role: 'assistant', retryControls: [] }] }); }
   async inspectFailedContinueRetry() { this.retryInspections += 1; return this.retryAvailable === false ? { status: 'CONTINUE_TURN_COMPLETE_NO_RETRY' } : { status: 'RETRY_FAILED_CONTINUE', binding: { schemaVersion: 1, anchorStructuralSha256: 'a'.repeat(64), continueUserTurnKey: 'continue-user', failedAssistantTurnKey: 'continue-assistant', controlLabel: 'Retry' }, bindingSha256: 'b'.repeat(64) }; }
   async retryExactFailedContinue(_target, input) { await input.onBeforeSubmissionBoundary?.(); this.beforeSubmissionBoundaryRecord?.(); await input.onSubmissionBoundary?.(); this.exactRetries += 1; return { generationStarted: true }; }
-  async detectJournalWriteConfirmation(_target, input) { this.confirmationExpectedUrls.push(input.expectedUrl); const value = this.confirmation ?? { present: false, appName: null, toolName: null, buttons: [] }; this.confirmation = null; return value; }
+  async detectJournalWriteConfirmation(_target, input) { this.confirmationExpectedUrls.push(input.expectedUrl); if (this.observedConversationUrl && input.expectedUrl !== this.observedConversationUrl) return { urlMismatch: true }; const value = this.confirmation ?? { present: false, appName: null, toolName: null, buttons: [] }; this.confirmation = null; return value; }
   async approveJournalWriteConfirmation(_target, input) { this.approvals.push(input); }
 }
 

@@ -644,8 +644,8 @@ def _audit_task_states(
             )
             continue
         if path == expected and (
-            re.findall(r"(?m)^- Branch: `([^`]+)`\.$", text) != [task_branch]
-            or re.findall(r"(?m)^- Task ID: `([^`]+)`\.$", text) != [task_id]
+            re.findall(r"(?m)^- Branch: `(.*)`\.$", text) != [task_branch]
+            or re.findall(r"(?m)^- Task ID: `(.*)`\.$", text) != [task_id]
         ):
             findings.append(
                 finding(

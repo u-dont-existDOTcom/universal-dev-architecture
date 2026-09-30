@@ -36,8 +36,8 @@ class CurrentStateConcisionTests(unittest.TestCase):
         for path in sorted(TASK_STATES.glob("*.md")):
             with self.subTest(path=path.relative_to(ROOT)):
                 text = path.read_text(encoding="utf-8")
-                branch = re.search(r"(?m)^- Branch: `([^`]+)`\.$", text)
-                task_id = re.search(r"(?m)^- Task ID: `([^`]+)`\.$", text)
+                branch = re.search(r"(?m)^- Branch: `(.*)`\.$", text)
+                task_id = re.search(r"(?m)^- Task ID: `(.*)`\.$", text)
                 self.assertIsNotNone(branch)
                 self.assertIsNotNone(task_id)
                 if branch is None or task_id is None:
