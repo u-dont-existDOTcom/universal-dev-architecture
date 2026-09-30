@@ -11,7 +11,7 @@
   "records": [
     {
       "rule_id": "uda.final.timestamp",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -64,6 +64,21 @@
           "mechanical_check": {
             "kind": "final_timestamp_first_line"
           }
+        },
+        {
+          "obligation_id": "final-elapsed-time",
+          "required_behavior": "Report the total elapsed time from the two current-turn clock readings in the final user-visible answer.",
+          "due_phase": "final-delivery",
+          "destination": "owner-visible-final",
+          "acceptance_evidence": "The first and second current-turn clock readings and their difference agree with the elapsed time reported in the final answer.",
+          "non_substitutes": [
+            "first-line timestamp alone",
+            "elapsed time asserted without both clock readings"
+          ],
+          "carry_through": "Verify the reported total after any final rewrite.",
+          "repair": "Calculate the difference between the two readings and report it in the final answer.",
+          "enforcement": "semantic",
+          "mechanical_check": null
         }
       ],
       "provenance": {

@@ -79,8 +79,23 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
         contract = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
         good = task_time.check_contract(contract, "final-delivery", "2026-09-22 17:55 UTC\nResult")
         bad = task_time.check_contract(contract, "final-delivery", "Result\n2026-09-22 17:55 UTC")
-        self.assertEqual(good["admission"], "ADMITTED")
-        self.assertEqual(bad["admission"], "BLOCKED")
+        timestamp = "final-first-line-timestamp"
+        self.assertEqual(next(x for x in good["results"] if x["obligation_id"] == timestamp)["status"], "PASS")
+        self.assertEqual(next(x for x in bad["results"] if x["obligation_id"] == timestamp)["status"], "FAIL")
+
+    def test_elapsed_time_cannot_be_certified_from_final_payload_alone(self):
+        compiled = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
+        generated = json.loads((ROOT / "tools/codex-mission-control/restored/codex-mission-control/generated/rule-graph/work-handoff-contract.json").read_text())
+        for contract in (compiled, generated):
+            timestamp = next(x for x in contract["selected_rules"] if x["rule_id"] == "uda.final.timestamp")
+            elapsed = next(x for x in timestamp["obligations"] if x["obligation_id"] == "final-elapsed-time")
+            self.assertIn("elapsed", elapsed["required_behavior"].lower())
+            self.assertIn("clock readings", elapsed["acceptance_evidence"].lower())
+            self.assertEqual(elapsed["enforcement"], "semantic")
+            for payload in ("2026-09-30 09:40 UTC\nDone.", "2026-09-30 09:40 UTC\nElapsed: 2 minutes. Done."):
+                checked = task_time.check_contract(contract, "final-delivery", payload)
+                self.assertEqual(checked["admission"], "BLOCKED")
+                self.assertEqual(next(x for x in checked["results"] if x["obligation_id"] == "final-elapsed-time")["status"], "UNKNOWN")
 
     def test_semantic_handoff_does_not_self_certify(self):
         contract = task_time.compile_contract(self.catalog, self.profile, self.work, "graph")
