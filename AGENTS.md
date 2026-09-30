@@ -15,8 +15,6 @@ For **every assistant turn** governed by this architecture, the **first line of 
 - If required GitHub/bootstrap access is unavailable, the final answer must still begin with the timestamp and then state the access failure explicitly rather than pretending the bootstrap occurred.
 - Treat failure to emit the timestamp as the first line of the final user-visible answer on any assistant turn as an instruction-following failure even when the timestamp appeared during thinking or the underlying task answer is otherwise correct.
 
-These root invariants apply before task triage and on every final answer; never rely on stale activation or a downstream “task-relevant” check.
-
 **Every turn:** reusable output over ~8,000 characters goes in a file, for any recipient; chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`.
 
 ## Pre-final continuation invariant
@@ -40,6 +38,8 @@ Project-specific current requirements win on genuine conflict.
 
 ## Causal failure diagnosis
 
+Place every failure on the map first: `patterns/logic-failure-map.md`.
+
 When explaining an instruction-following, reasoning, routing, tool, execution, or delivery failure, identify the **causal mechanism** that generated the behavior. Check for missing/stale instruction activation, priority or authority conflict, trigger misclassification, wrong phase/surface/destination, lost carry-through between reasoning and final output, capability/tool boundary, stale state, or a failed enforcement check.
 
 Do not use agentic shorthand (`I chose wrong`, `I forgot`, `I should have`) as causal explanation or repair. Separate observed trace facts, supported causal inferences, and unverified hypotheses. If the cause is unknown, state the narrowest verified failure and a discriminating check; do not invent hidden instructions, priority conflicts, psychological states, or model internals. A working fix shows its effect in the tested scope, not the cause. Repair the generating condition at the authority, activation, routing, state, phase, destination, or enforcement boundary, not with promises.
@@ -54,6 +54,8 @@ Keep patterns/templates portable. Isolate one-owner infrastructure content and
 label it exactly `NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT`; deleting those
 examples must not break reusable guidance or code. Never commit secrets,
 credentials, private locators/profiles, or owner account identifiers.
+
+A project whose runtime runs outside this architecture imports what applies to it: `patterns/carrying-uda-into-standalone-projects.md`.
 
 ## Validation
 
