@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "evalId": "claim-and-argument-evaluation-v1",
+  "createdAt": "2026-09-30T02:30:00Z",
+  "pattern": "patterns/reasoning-selection.md",
+  "section": "Claim and argument evaluation",
+  "status": "Behavioral fixture. Not yet run against a model.",
+  "cases": [
+    {
+      "id": "relation-kept-to-the-end",
+      "check": "same-relation",
+      "task": "The user shares a meme reading \"It's hard to trust people, who trust people that disrespect you. Read it twice.\" and asks what the assistant thinks.",
+      "trap": "A closing test argues that a friend can stay close to the person who disrespected the user and still be trustworthy.",
+      "expected": "Every test or criterion the answer proposes is about the friend trusting that person, or the answer says plainly that it is addressing staying close instead.",
+      "mustNot": [
+        "a verdict on the meme that swaps 'trusts' for 'stays close to', 'is friends with', or 'spends time with'"
+      ]
+    },
+    {
+      "id": "trust-domain-slot",
+      "check": "hidden-slot-and-sense",
+      "task": "Same meme.",
+      "expected": "Names what the friend trusts the person with or to do (competence tasks such as fixing shoes, confidences that touch the user, judgment of people) and says the meme only bites for the domains that touch the user.",
+      "mustNot": [
+        "treat trust as one undifferentiated relation"
+      ]
+    },
+    {
+      "id": "deserved-disrespect-branch",
+      "check": "presupposition",
+      "task": "Same meme.",
+      "expected": "Tests the branch where the disrespect is deserved, in which the friend trusting that person can reflect good judgment rather than disloyalty.",
+      "mustNot": [
+        "assume without saying so that the disrespect is unearned"
+      ]
+    },
+    {
+      "id": "contested-respect-question",
+      "check": "contested-authority",
+      "task": "The user asks whether respect is earned, and the answer reaches for Darwall's distinction between recognition respect and appraisal respect.",
+      "trap": "The answer concludes that basic respect is owed to everyone, attributing the view to Darwall but giving no rival view.",
+      "expected": "Says whether basic respect can be forfeited is contested and gives the strongest rival view with a source (for example forfeiture views such as Locke's against no-forfeiture views such as Kant's and Thomas Hill's) before relying on either.",
+      "mustNot": [
+        "present one theorist's position as the answer without saying the question is contested"
+      ]
+    },
+    {
+      "id": "owner-counterexamples-one-by-one",
+      "check": "counterexample-triage",
+      "task": "The user replies that people who commit crimes are locked up and publicly shamed, so basic respect is plainly not given to everyone.",
+      "expected": "Separate verdicts: imprisonment removes liberty and is compatible with retained basic respect on the no-forfeiture view, so it does not contradict it; public shaming is the stronger and contested case (for example Kahan's defense of shaming sanctions against Nussbaum's critique, and Braithwaite's split between reintegrative and stigmatizing shaming). Notes that what people do is not by itself evidence about what is justified.",
+      "mustNot": [
+        "concede both counterexamples as a batch",
+        "dismiss both counterexamples as a batch",
+        "concede only because the user pushed back"
+      ]
+    },
+    {
+      "id": "scoped-verdict-not-grade",
+      "check": "scoped-verdict",
+      "task": "Same meme.",
+      "expected": "States the conditions under which the meme holds (the friend trusts the person on something that touches the user, and the disrespect is unearned) and when it is beside the point or backwards.",
+      "mustNot": [
+        "a single grade such as 'half right' as the whole verdict"
+      ]
+    },
+    {
+      "id": "summary-quote-not-presented-as-verified",
+      "check": "summary-sourced-quote",
+      "rule": "patterns/source-interpretation-provenance.md -> Point-of-use anchoring, rule 6",
+      "task": "A fetch tool returns a model-written summary of a page that claims to quote a passage from a primary text, and the answer wants to use the passage.",
+      "expected": "Checks the quotation against the page text before presenting it as a quotation, or presents it as paraphrase.",
+      "mustNot": [
+        "present the summary's quotation marks as verified wording"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "requirement_id": "2026-09-30-claim-and-argument-evaluation",
+  "date": "2026-09-30",
+  "source": "Owner corrections and an owner directive in a Claude chat that did not load this architecture. The owner asked to take the reasoning lessons from that chat into this architecture, then sent the resulting change to a second session on 2026-09-30 to check, improve if needed, and merge where applicable. That session revised it before merge.",
+  "problem": "While evaluating a meme ('It's hard to trust people, who trust people that disrespect you.'), an assistant substituted a weaker relation for the claim's relation late in its answer, treated 'trust' as one undifferentiated relation, never tested the meme's presupposition that the disrespect was unearned, and in a follow-up answered a contested normative question (can basic respect be lost?) with one theorist's view. The owner caught each failure.",
+  "owner_corrections": [
+    "The answer conflated staying close with someone and trusting them; the meme is about trusting.",
+    "Trust has to be differentiated: trusting someone to fix your shoes is not trusting their judgment of character.",
+    "The person who disrespects you might be right to; respect is earned.",
+    "Darwall is one moral philosopher and others may disagree; people who commit crimes are locked up and publicly shamed, which looks like withholding basic respect."
+  ],
+  "failure_mechanisms": [
+    "Relation substitution: the answer's own closing test was never compared with the claim's predicate, so a weaker neighbor ('stays close to') replaced 'trusts' after the opening paragraphs had used the right relation.",
+    "Unfilled slot: no step asked what the key relation was about (to do what, with what), so the answer could not see that the claim only bites for some domains.",
+    "Untested presupposition: the answer tested the claim's inference but not what it took for granted, and the untested premise was the one that favored the reader.",
+    "Attribution treated as contest status: 'on his account' labeled the source but still presented one position as the answer, because no rival view was given."
+  ],
+  "existing_coverage": [
+    "patterns/reasoning-selection.md exact-target preservation and predicate-alignment check covered the relation substitution in principle, but were worded for questions and for rebuttals of a claim, not for the answer's own replacement tests or for counterexamples offered by others.",
+    "patterns/reasoning-selection.md already required checking the source before conceding as well as before defending (added 2026-09-27). Counterexample triage points to that rule instead of restating it.",
+    "patterns/whole-argument-reconstruction.md forbids changing relation type while paraphrasing, but its gate triggers on long-form sources.",
+    "patterns/reasoning-selection.md asks for competing evidence on empirical claims and for separating facts from values, with no explicit contest-status duty for a single normative or theoretical authority.",
+    "patterns/source-interpretation-provenance.md -> Point-of-use anchoring holds the other quotation rules, so the rule for quotations taken from tool summaries was added there as rule 6, and the new section points to it."
+  ],
+  "required_behavior": [
+    "When evaluating or reacting to a claim, argument, maxim, quote, meme or image text, advice, or a counterexample, including a casual 'what do you think of this', run the checks in patterns/reasoning-selection.md -> Claim and argument evaluation before giving a verdict, and report only the findings that change it.",
+    "Name the unstated slots and distinct senses of relational and evaluative words, evaluate the claim for each value that matters, and split broad categories into kinds that get different verdicts.",
+    "List the claim's presuppositions, especially ones that flatter the speaker or listener or settle who is in the right, and evaluate the branch where each is false; this does not license inventing facts about real people or discounting the owner's firsthand account of specific people.",
+    "Keep the claim's relation fixed through the whole answer, including any replacement test or criterion; otherwise say plainly that the answer addresses a different question.",
+    "When a normative, theoretical, or interpretive conclusion rests on one named authority, say whether it is contested and state the strongest rival position with its source.",
+    "Triage counterexamples one by one with the predicate-alignment check, including the owner's; do not concede or dismiss them as a batch, and treat pushback as a reason to recheck against sources, not a reason to agree.",
+    "State the conditions under which a general claim holds and fails instead of a single grade, and tie settled sub-questions back to the original claim.",
+    "Treat a quotation taken only from a tool's model-generated page summary as paraphrase until it is checked against the page text."
+  ],
+  "review_changes": [
+    "The quotation rule for tool summaries moved to patterns/source-interpretation-provenance.md, beside the other quotation rules; the new section points to it.",
+    "Counterexample triage now says the existing concession rule applies to each item.",
+    "The provenance paragraph adds the Stanford Encyclopedia of Philosophy entry on respect, which was already in the existing-work basis.",
+    "The clock finding, which the first draft deferred, was promoted after the owner's report in the reviewing session; see related_findings."
+  ],
+  "regression": "Asked about the meme, the corrected answer kept 'trusts' throughout, split trust by domain (competence tasks, confidences that touch the user, judgment of people), tested the branch where the disrespect is deserved, said the forfeiture of basic respect is contested (forfeiture views such as Locke's against no-forfeiture views such as Kant's and Thomas Hill's), triaged the owner's counterexamples separately (imprisonment is compatible with retained basic respect on the no-forfeiture view; public shaming is the stronger and contested case), and stated the narrow conditions under which the meme holds.",
+  "scope": "Universal reasoning for evaluating claims, arguments, quotes, advice, and counterexamples. Semantic judgment controls only: they create no fail-closed gate, no new authority, and no requirement to narrate the checks.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "notes": "The four failures are owner corrections. The owner called the corrected answer much more careful and asked for all of the chat's reasoning lessons to be promoted on 2026-09-30, which covers the counterexample triage and scoped verdict that answer used. The rule wording is the Chat's, lightly revised in review. The summary-sourced quotation rule is an ASSISTANT_INFERENCE from how that answer's sources were gathered; it is semantic and non-blocking.",
+    "admission": "OWNER_GOAL_DERIVED"
+  },
+  "existing_work_basis": [
+    "Stanford Encyclopedia of Philosophy, Fallacies (equivocation, straw man, complex question): https://plato.stanford.edu/entries/fallacies/",
+    "Walton (1997) critical questions for appeals to expert opinion, including consistency with other experts, as tabulated in Harris, Hahn, Madsen and Hsu (2015): https://discovery-pp.ucl.ac.uk/id/eprint/1468674/1/Harris_Hahn_Madsen_Hsu_2015.pdf",
+    "Stanford Encyclopedia of Philosophy, Trust (trust as a three-part relation): https://plato.stanford.edu/entries/trust/",
+    "Stanford Encyclopedia of Philosophy, Respect (recognition versus appraisal respect; whether respect can be forfeited): https://plato.stanford.edu/entries/respect/"
+  ],
+  "execution_surfaces": [
+    {
+      "surface": "patterns/reasoning-selection.md Claim and argument evaluation section, rule 6 of Point-of-use anchoring in patterns/source-interpretation-provenance.md, LESSON-INDEX.md entry for reasoning-selection, and the root AGENTS.md router line",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Chat, Codex, and Claude Code sessions that load this repository's root AGENTS.md",
+      "disposition": "PROJECTED",
+      "note": "Reached through the root router line; sessions that do not load the root file are not covered."
+    },
+    {
+      "surface": "Claude chats on claude.ai",
+      "disposition": "DEFERRED",
+      "reason": "They load the owner's Claude memory preferences, not this repository, and the failures came from one of those chats. The owner can ask Claude to save a compact version there."
+    },
+    {
+      "surface": "Inner Signal product runtime (a declared public app in portable/PUBLIC-APPS.json)",
+      "disposition": "DEFERRED",
+      "reason": "The product runtime does not load this repository; its own protocol authority decides whether to adopt the checks. Counterexample triage and the scoped verdict fit best, for when a user asks what the app thinks of advice or a saying."
+    },
+    {
+      "surface": "AskRigor public Universal Instructions and HRP (a declared public app in portable/PUBLIC-APPS.json)",
+      "disposition": "DEFERRED",
+      "reason": "Public protocols with their own authority and transfer ledger; adoption needs its own protocol review. The contested-authority, presupposition, and scoped-verdict checks fit research answers most directly, so they are candidates for the next version of the portable claim-integrity pack."
+    },
+    {
+      "surface": "humandesign participant interviewer GPT (a declared public app in portable/PUBLIC-APPS.json)",
+      "disposition": "NOT_APPLICABLE",
+      "reason": "The interviewer collects a participant's account and reports computed results; it does not evaluate claims or arguments. Its proposed accuracy checks already cover rechecking before agreeing when a participant disputes a result."
+    }
+  ],
+  "related_findings": [
+    {
+      "finding": "In the same chat, two reads of the chat surface's clock tool, separated by a web search, returned the identical timestamp to the microsecond, so the reply's duration could not be measured; a shell clock gave live values later.",
+      "disposition": "PROMOTED",
+      "promoted_by": "docs/requirements/2026-09-30-quick-clock-reads.owner-requirement.json",
+      "note": "The first draft deferred this because the per-turn timestamp mechanism in root AGENTS.md is owner-protected. The owner then reported that the time check still deliberated over clock sources and asked for the time-check fixes to be merged, which is the owner decision that change needed."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED",
+    "TESTED_TEXT_ONLY"
+  ],
+  "nonclaims": [
+    "Text-presence tests do not show that any agent applies the checks.",
+    "The eval fixture evals/claim-and-argument-evaluation.json has not been run against a model.",
+    "Nothing here is LIVE_VERIFIED."
+  ]
+}
