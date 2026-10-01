@@ -114,6 +114,8 @@ Do not emit a terminal execution receipt merely because a human-only gate was en
 
 The worker must not solve or bypass CAPTCHAs itself, capture passwords/2FA codes/passkeys, or use the assist channel to substitute for a new spending, publication, destructive-action, or semantic owner decision.
 
+This covers gates met in a browser session the worker drives, such as logins, 2FA, account challenges, and consent prompts. Fetching an anonymous public page through an approved web data provider that handles bot checks itself is governed by `patterns/web-data-provider-escalation.md` (owner, 2026-10-01); that pattern never permits using a provider to get into an account, a login, or paywalled content.
+
 Owner-specific assist channels are deployment bindings rather than universal infrastructure. Apply the current owner binding when one exists; private hostnames, ports, passwords, cookies, and tokens remain outside the public portable rule.
 
 An owner deployment binding may be broader than the human-gate case above. When the active binding requires viewer-first assistance, open or focus the configured viewer and bring the exact relevant remote window or control into view **before every request for the owner to view or interact**. Apply that requirement to visual inspection and ordinary GUI collaboration as well as login, MFA, approval, and other human-only gates; a textual request or claim that the session is ready does not satisfy the binding when authorized viewer control is available.

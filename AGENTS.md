@@ -94,6 +94,7 @@ High-tier models hand easy, well-specified work to cheaper models when it saves 
 Evaluating a claim, argument, quote, meme, advice, or counterexample, even a casual "what do you think of this": `patterns/reasoning-selection.md` → **Claim and argument evaluation**.
 
 Claims about what ChatGPT, Claude, or Codex can do or did: `patterns/chatgpt-client-surface-capability-and-thread-recovery.md` → **Claims about the system itself**.
+Public web data that ordinary search or fetch can't get (blocked pages, CAPTCHAs, transcripts, comments and other platform data, country-targeted search): `patterns/web-data-provider-escalation.md`. Ask the owner before costly runs; AskRigor keeps its own rules.
 
 Saving or remembering an instruction or preference: `patterns/durable-chat-learning.md` → **12. User-specific instructions**.
 
@@ -192,8 +193,6 @@ Cheap exploratory work may defer the scan only by recording explicit research de
 ## Specialist architecture dependencies
 
 For any task materially involving UI/UX, frontend visual implementation, website or app design/redesign, long-form reading experience, visual hierarchy, typography, color, layout, motion, interaction design, components, design systems, design critique/study, or design-production/accessibility/responsive review, load the current `u-dont-existDOTcom/design` repository before substantive design work. Start with its live default-branch `skills/design/SKILL.md` and follow `patterns/canonical-design-os-bootstrap.md`. Do not rely on remembered copies of the design methodology.
-
-The design repository is specialist guidance below current owner/project truth and this universal architecture. It is not required for backend-only or other non-design work. If it is inaccessible, do not reconstruct its current contents from memory; continue from local authority and record the missing dependency.
 
 ## Branch roles
 
