@@ -61,6 +61,9 @@ class WebDataProviderEscalationTests(unittest.TestCase):
         example = section(text, "## Example (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT)")
         self.assertIn("500 credits", example)
         self.assertIn("4,000", example)
+        self.assertIn("If the readout fails, or the deployment sets no thresholds", rule)
+        self.assertIn("with the month's use read, go ahead without asking", rule)
+        self.assertNotIn("returns 403 because the key lacks billing permission", example)
 
     def test_routes_and_captcha_scope(self) -> None:
         agents = AGENTS.read_text(encoding="utf-8")

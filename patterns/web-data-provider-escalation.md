@@ -16,7 +16,7 @@ Ordinary search and fetch tools fail on part of the public web: pages behind bot
    - the task needs search results for a specific country or language, and the ordinary search tool can't target one.
 2. **Cheapest unit that answers the question.** A single page fetch or search usually costs less than a structured scraper, and one record that already carries what is needed costs less than many records. Use a remote browser only for pages that need clicks, scrolling, or forms.
 3. **Estimate first.** Before any job beyond a few calls, estimate its cost in the provider's units from the number of pages, searches, or records it will return.
-4. **Ask the owner when it's costly.** Ask before running when the estimate passes the deployment's per-task threshold, when the run would take the month's use past its monthly threshold, or when it would spend anything beyond the free allowance. The question states the estimate, the cheaper options (fewer records, a free official API, a sample), and a recommended default. Below the thresholds, go ahead without asking.
+4. **Ask the owner when it's costly.** Ask before running when the estimate passes the deployment's per-task threshold, when the run would take the month's use past its monthly threshold, or when it would spend anything beyond the free allowance. Before any job beyond a few calls, read the month's use from the deployment's usage readout. If the readout fails, or the deployment sets no thresholds, the month's use or the limit is unknown: ask before any job beyond a few calls. The question states the estimate, the cheaper options (fewer records, a free official API, a sample), and a recommended default. Below the thresholds, with the month's use read, go ahead without asking.
 5. **Never spend money unasked.** Depositing funds, adding a payment method, changing plans, or using a paid promotion always needs the owner.
 6. **Public content only.** Use the provider for public pages and public platform data. Never use it to get into an account, a login, a private group, or paywalled content, or to collect data about a private individual. Bot checks the provider handles on anonymous public pages fall under this pattern. A gate in a browser session the agent drives as the owner stays under `patterns/worker-self-remediation-before-owner-interruption.md` §3A.
 7. **Keys stay where they are configured.** Use the provider only through surfaces already set up for it. Never print, copy, or commit its key, and never set it up on another machine or service without the owner. Where no surface is available, say so and continue by other means.
@@ -42,7 +42,7 @@ Provider: Bright Data, connected on 2026-10-01.
 
 Where agents can use it:
 
-- Claude chats with the owner's Bright Data connector: tools named `mcp__BrightData__*`.
+- Claude chats with the owner's Bright Data connector: tools named `mcp__Bright_Data__*` (`mcp__BrightData__*` before the owner reconnected it on 2026-10-01). Its `session_stats` tool covers only its own session, not the month.
 - Agents on the owner's laptop: the logged-in command-line tool `bdata`.
 - Anywhere else (VPSes, ChatGPT, cloud sessions without the connector): not set up. Don't set it up without the owner.
 
@@ -63,4 +63,4 @@ Known quirks on 2026-10-01:
 
 - The AI-ranked Discover tool (connector `discover`, `bdata discover`) is retired and returns "no longer available".
 - A first call can fail with "Customer is not active"; retry once after a minute.
-- `bdata budget` returns 403 because the key lacks billing permission, so agents can't see month-to-date use. Keep the task-record log.
+- The usage readout is `bdata budget`. It needs a key with billing access (Bright Data's Admin or Finance permission level). The first key had neither and returned 403; the owner replaced it on 2026-10-01. If the readout fails, the month's use is unknown, so ask as rule 4 says, and keep logging each use in the task record.
