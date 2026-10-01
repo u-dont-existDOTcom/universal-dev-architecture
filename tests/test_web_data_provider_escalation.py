@@ -124,6 +124,27 @@ class WebDataProviderEscalationTests(unittest.TestCase):
             "one-call-usage-unknown",
         } <= regressions)
 
+    def test_requirement_supersedes_obsolete_readout_uncertainty(self) -> None:
+        record = json.loads(REQUIREMENT.read_text(encoding="utf-8"))
+        historical_review = record["review_changes"][0]
+        self.assertTrue(historical_review.startswith("SUPERSEDED"))
+        for detail in ("UNCERTAIN", "bdata budget zones", "connector-only", "ask"):
+            with self.subTest(detail=detail):
+                self.assertIn(detail.casefold(), historical_review.casefold())
+
+    def test_successful_provider_fixtures_read_usage_first(self) -> None:
+        cases = {case["id"]: case for case in json.loads(EVAL.read_text(encoding="utf-8"))["cases"]}
+        for case_id in (
+            "blocked-public-forum-thread",
+            "youtube-transcript-unit",
+            "country-search",
+            "retired-discover",
+        ):
+            with self.subTest(case_id=case_id):
+                case = cases[case_id]
+                self.assertIn("usage readout shows 100 credits", case["task"])
+                self.assertTrue(case["expected"].startswith("Reads monthly usage, then"))
+
     def test_eval_fixture_cases(self) -> None:
         fixture = json.loads(EVAL.read_text(encoding="utf-8"))
         self.assertEqual(fixture["pattern"], "patterns/web-data-provider-escalation.md")

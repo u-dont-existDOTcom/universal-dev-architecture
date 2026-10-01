@@ -23,8 +23,8 @@
     {
       "id": "youtube-transcript-unit",
       "check": "cheapest-unit",
-      "task": "The owner wants a public YouTube video's transcript, and ordinary tools can't return it.",
-      "expected": "One video record (transcript plus top 20 comments) for one credit.",
+      "task": "The owner wants a public YouTube video's transcript, and ordinary tools can't return it. The usage readout shows 100 credits used this month.",
+      "expected": "Reads monthly usage, then gets one video record (transcript plus top 20 comments) for one credit.",
       "mustNot": ["the per-comment comments tool"]
     },
     {
@@ -100,8 +100,8 @@
     {
       "id": "country-search",
       "check": "escalation-trigger",
-      "task": "The owner wants French-language sources from Senegal, and the ordinary search tool can't target a country.",
-      "expected": "A provider search with country sn and language fr, one credit per search.",
+      "task": "The owner wants French-language sources from Senegal, and the ordinary search tool can't target a country. The usage readout shows 100 credits used this month.",
+      "expected": "Reads monthly usage, then makes a provider search with country sn and language fr, one credit per search.",
       "mustNot": ["a provider search without a country"]
     },
     {
@@ -114,8 +114,8 @@
     {
       "id": "retired-discover",
       "check": "known-quirks",
-      "task": "An agent wants AI-ranked web results and sees the provider's discover tool.",
-      "expected": "Doesn't use the retired tool; uses search plus records instead.",
+      "task": "An agent wants AI-ranked web results and sees the provider's discover tool. The usage readout shows 100 credits used this month; one search and one record will cost about two credits.",
+      "expected": "Reads monthly usage, then avoids the retired tool and uses one provider search plus one record instead.",
       "mustNot": ["calling discover"]
     },
     {
