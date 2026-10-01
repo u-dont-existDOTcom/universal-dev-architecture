@@ -17,8 +17,12 @@ The module's own first section, "Authority", names AskRigor's Universal Instruct
 
 ## Module text (AskRigor shopping module v0.2, sections 1 to 9)
 
-### 0. Task-time activation and correction recovery
-Before the first substantive product search, compile this shopping module together with `patterns/recommendation-preflight-integrity.md` into the Active Lesson Contract. For open-ended, broad, `best`, `best value`, or landscape selection, also activate `patterns/coverage-before-depth-in-selection.md`. A direct owner correction or rejection makes the shopping contract STALE; recompile before resuming substantive product research or naming/recommending a candidate. Reading or retrieving these files without compiling and applying their obligations does not satisfy activation.
+### 0. Task-time activation and open-selection enforcement
+Before the first substantive product search, compile this shopping module together with `patterns/recommendation-preflight-integrity.md` into the Active Lesson Contract. A direct owner correction or rejection makes the shopping contract STALE; recompile before resuming substantive product research or naming/recommending a candidate.
+
+For open-ended, broad, `best`, `best value`, budget/value, or landscape selection, also activate `patterns/coverage-before-depth-in-selection.md`. Breadth precedes depth: inventory materially distinct viable candidate classes and obvious high-signal market alternatives before deep research on one ecosystem. Do not promote the first easy-to-verify, highly compatible, or well-documented candidate into a benchmark, finalist, value leader, winner, or top pick until that coverage pass is complete and every exposed finalist passes the material preflight gates.
+
+For U.S.-market consumer goods, when an exact materially relevant Amazon.com product/variant listing has a meaningful product-rating history, treat its current star rating, rating count, and useful critical/comparative/long-term reviews as a default review-evidence source alongside other relevant marketplaces, specialist retailers, owner forums, and first-party documentation. Do not make Amazon mandatory when the exact variant is absent, pooled ambiguously, inaccessible, or too sparse; record that limitation instead. Amazon product ratings never substitute for offer verification, seller/fulfillment checks, or better-matched specialist evidence.
 
 ### 1. Scope
 Recover outcome/use, budget/currency, destination/deadline, compatibility, quantity, exclusions and permitted routes. Current instructions override defaults. Separate constraints/preferences; do not repeat questions. Ask only consequential questions; otherwise disclose assumptions.
@@ -27,8 +31,6 @@ Narrow lookups verify the fact, identity, source/time without endorsement. Named
 
 ### 2. Discovery
 Search permitted local/import channels and relevant languages. Consider repair/rental/refurbished/samples/no purchase only when relevant. Screen mismatches; compare SCREENED finalists fairly. Search/cards are discovery. Match claims to manuals, tests, owners, sellers or authorities; inspect methods/incentives.
-
-For open-ended, broad, `best`, `best value`, or landscape requests, **breadth precedes depth**. Inventory materially distinct viable candidate classes and the obvious high-signal market alternatives before doing deep research on one ecosystem. Include major marketplace leaders and credible specialist alternatives when relevant to the destination/use case. Do not promote the first easy-to-verify, highly compatible, or well-documented candidate into a benchmark, finalist, or value leader until this coverage pass shows that omitted alternatives are unlikely to reverse the choice. Preserve uncovered/unknown classes explicitly rather than treating them as losses.
 
 ### 3. Identity
 Product key: model/revision/formulation and variant affecting fit, composition, performance, compatibility or safety.
@@ -51,8 +53,6 @@ Check forwarding packed/chargeable weight, route-specific volumetric/minimum fee
 Normalize equivalent goods per usable unit. Ownership cost uses a stated horizon: energy, consumables, maintenance, subscriptions, parts/support, defensible resale. Never invent lifespan/failure rates/risk penalties. Check expiry/storage, bundles/split orders, price matching/history/support expiry when consequential. Countdown/“was” prices do not prove savings.
 
 ### 6. Ratings and review selection
-For U.S.-market consumer goods, when an exact materially relevant Amazon.com product/variant listing has a meaningful product-rating history, treat its current star rating, rating count, and useful critical/comparative/long-term reviews as a **default review-evidence source** alongside other relevant marketplaces, specialist retailers, owner forums, and first-party documentation. Do not make Amazon mandatory when the exact variant is absent, pooled ambiguously, inaccessible, or too sparse; record that limitation instead. Amazon product ratings never substitute for offer verification, seller/fulfillment checks, or evidence from better-matched specialist sources.
-
 Record available platform, variant scope, stars and rating versus written-review count; add consequential recency/distribution/incentives. Separate product/seller/fulfillment ratings. No cross-platform averaging, duplicates or false confidence intervals. Sparse ratings are uncertainty, not bad quality; high means do not cancel serious defects.
 
 For SCREENED finalists read recent, useful, mixed/critical, comparative/long-term accounts, seeking benefit/no improvement/failure/returns/contrary comparisons. Use comparable search directions/windows; disclose coverage asymmetry. Read relevant full accounts/updates/replies, not just helpfulness rankings, snippets, unboxing or summaries.
@@ -69,7 +69,7 @@ Complaint volume can reflect popularity/search exposure, not reliability. Invest
 Check visible duplication/variant drift/incentives/documented manipulation. Detail, stars, badges or AI detectors cannot certify truth/fakery; incentives are not automatic falsity. Separate usefulness/credibility.
 
 ### 8. Decision and output
-Only VERIFIED candidates may become RECOMMENDED. Caveats do not permit UNKNOWN endorsements. Evidenced ranges suffice only when they cannot reverse the choice or breach constraints. Separate preference forks/future contingencies from unresolved present material risks. For an open-ended/broad/value search, no candidate may be called a benchmark, winner, best value, top pick, or equivalent until the breadth-before-depth pass is complete and every exposed finalist has passed the rating/review and other material preflight gates.
+Only VERIFIED candidates may become RECOMMENDED. Caveats do not permit UNKNOWN endorsements. Evidenced ranges suffice only when they cannot reverse the choice or breach constraints. Separate preference forks/future contingencies from unresolved present material risks.
 
 Compare benefit, landed/ownership cost, reliability, fit, delivery/support; explain the premium and who would not benefit. Consider evidence asymmetry without rejecting all new products. No rejected-bargain baseline, filler or fake scores. Use the gate's exceptions for requested items/unsuccessful searches; never disguise UNKNOWN buy options as “product winners.” Scope no-results to checked channels/date.
 
