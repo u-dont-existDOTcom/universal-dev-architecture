@@ -1,0 +1,68 @@
+{
+  "requirement_id": "2026-10-01-root-kernel-and-shared-modules",
+  "date": "2026-10-01",
+  "source": "Owner messages in a Claude chat on 2026-10-01, after root AGENTS.md reached 24,518 bytes against its 24,576-byte test cap.",
+  "problem": "Root AGENTS.md held both every-turn invariants and task-specific rules, and every new rule added a root route line, so the always-loaded file filled up (58 bytes left after #303). AskRigor's universal instructions restate several UDA modules by hand, such as the recommendation preflight gate, parts of the shopping checks, claim evaluation, argument reconstruction, obligation closure and research before reinvention, so the same logic is maintained twice and can drift.",
+  "owner_corrections": [
+    "and it looks like agents.md is maxed out now, i think it should probably be refactored because a lot of it is also in AskRigor universal instructions so maybe we can make a common core module in universal instructions which UDA can quote?  like the shopping protocol for example, we don't need duplication on all the logic either right?",
+    "and there should be a way to not max out agents.md i'm thinking it's not modular enough?",
+    "and yes on the refactor if it will work without losing compliance"
+  ],
+  "failure_mechanisms": [
+    "Root accretion: each new rule added a route line to the always-loaded root instead of an entry in the routing index.",
+    "Mixed classes: every-turn invariants and task-specific procedures shared one capped file, so the cap pressed on both.",
+    "Hand-maintained duplication: AskRigor restates UDA modules in its own protocol without a pinned source or drift check, so the copies diverge."
+  ],
+  "existing_coverage": [
+    "LESSON-INDEX.md routes task lessons.",
+    "tests/test_root_instruction_nesting.py and the 'Compact rules moved from root AGENTS.md' pattern sections.",
+    "rules/UDA-RULE-GRAPH.json and scripts/uda_rule_graph.py compile task-specific rule sets.",
+    "patterns/carrying-uda-into-standalone-projects.md: import manifest and drift check for standalone projects."
+  ],
+  "required_behavior": [
+    "Root AGENTS.md keeps only rules that apply on every turn or every task.",
+    "Every rule moved out of root appears word for word in its pattern's 'Compact rules moved from root AGENTS.md' section, reachable from one LESSON-INDEX entry with a plain trigger.",
+    "A new task-specific rule adds a pattern and an index entry, never a root line.",
+    "Tests prove each moved paragraph exists byte for byte at its destination and nowhere in root, and cap the root so it can't silently regrow.",
+    "Shared modules get one source in UDA; AskRigor imports them at build time into its complete protocol with a pinned manifest and a drift check, and keeps its own HRP, source-access, privacy and zero-spend rules."
+  ],
+  "review_changes": [],
+  "regression": "tests/test_root_instruction_nesting.py and the root-kernel migration fixture test.",
+  "scope": "This pull request: UDA root AGENTS.md, LESSON-INDEX.md, the patterns that receive moved rules, their tests, and generated rule-graph files. AskRigor changes come in later pull requests.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "notes": "The owner asked for the refactor and a shared core on 2026-10-01 and approved it 'if it will work without losing compliance'. The kernel contents, destinations and module list come from a read-only Codex analysis of both repositories (ASSISTANT_INFERENCE).",
+    "admission": "OWNER_DIRECT"
+  },
+  "existing_work_basis": [
+    "patterns/instruction-composition-and-portable-intelligence.md",
+    "patterns/task-time-lesson-activation.md",
+    "patterns/carrying-uda-into-standalone-projects.md",
+    "tests/test_root_instruction_nesting.py"
+  ],
+  "execution_surfaces": [
+    {
+      "surface": "Codex and Chat agents that read root AGENTS.md",
+      "disposition": "PROJECTED",
+      "note": "They load the smaller kernel and reach task rules through LESSON-INDEX.md."
+    },
+    {
+      "surface": "AskRigor's live protocol",
+      "disposition": "DEFERRED",
+      "note": "Unchanged here; the import comes in a later AskRigor pull request, described to the owner before merge."
+    }
+  ],
+  "related_findings": [
+    "2026-10-01: root AGENTS.md was 24,518 bytes against a 24,576-byte cap after #303.",
+    "2026-10-01: a read-only analysis projected an 11,806-byte kernel that keeps the every-turn gates.",
+    "2026-10-01: AskRigor's Universal_Instructions.xml (about 172 KB) restates the recommendation-preflight gate, argument reconstruction, obligation closure and research-before-reinvention modules."
+  ],
+  "learning_state_at_merge": [
+    "CANDIDATE_RULE",
+    "TESTED_TEXT_ONLY"
+  ],
+  "nonclaims": [
+    "Text-presence tests show where rules live, not that agents load them.",
+    "No claim that routed rules activate as reliably as root rules; the kernel keeps the every-turn gates for that reason."
+  ]
+}
