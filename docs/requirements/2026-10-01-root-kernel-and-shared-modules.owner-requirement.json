@@ -29,7 +29,8 @@
   "review_changes": [
     "PR #307 is UDA-only. Kept the specified every-turn kernel and added one task-rule routing sentence; moved all other operative root paragraphs verbatim into one compact section per destination pattern.",
     "Rebound the Chat/Work task-time selector and rule-graph canonical path to its pattern, then regenerated the source lock and Mission Control Work-handoff contract with the repository compiler.",
-    "Changed root-pinned tests to assert the operative destination text plus its single index route; retained the canonical-prose-over-graph assertion and lowered the root cap to 16 KiB."
+    "Changed root-pinned tests to assert the operative destination text plus its single index route; retained the canonical-prose-over-graph assertion and lowered the root cap to 16 KiB.",
+    "Restored the `owner rule:` label on five LESSON-INDEX entries that the trigger rewrite had dropped, and widened three triggers back to the scope root gave those rules (outcome advancement: substantive or iterative work; worker publication: integration-bound workers and their directives; failure diagnosis: routing failures too). Tests pin the labels and scopes."
   ],
   "regression": "tests/test_root_instruction_nesting.py and the root-kernel migration fixture test.",
   "scope": "This pull request: UDA root AGENTS.md, LESSON-INDEX.md, the patterns that receive moved rules, their tests, and generated rule-graph files. AskRigor changes come in later pull requests.",

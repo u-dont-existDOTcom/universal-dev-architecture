@@ -59,6 +59,22 @@ def moves() -> dict[str, tuple[str, ...]]:
 MOVES = moves()
 
 
+# Index entries the owner set as owner rules: their trigger wording may change, the label stays.
+OWNER_RULE_ENTRIES = (
+    "patterns/cross-family-reasoning-check.md",
+    "patterns/agent-to-agent-consultation.md",
+    "patterns/delegate-easy-work-to-cheaper-models.md",
+    "patterns/owner-questions-page.md",
+    "patterns/suggested-fix-queue.md",
+)
+# Root's own wording for when a moved rule applies; its index trigger keeps that scope.
+ROOT_SCOPES = {
+    "patterns/outcome-advancement-and-strategy-efficacy.md": "For substantive or iterative work",
+    "patterns/worker-github-publication-and-recovery.md": "For integration-bound repository workers",
+    "patterns/logic-failure-map.md": "instruction-following, reasoning, routing, tool, execution, or delivery failure",
+}
+
+
 class RootInstructionNestingTests(unittest.TestCase):
     def test_root_instructions_fit_the_new_kernel_cap(self) -> None:
         self.assertLessEqual((ROOT / "AGENTS.md").stat().st_size, 16 * 1024)
@@ -81,7 +97,7 @@ class RootInstructionNestingTests(unittest.TestCase):
                 lines = [line for line in index.splitlines() if f"`{path}` —" in line]
                 self.assertEqual(len(lines), 1)
                 trigger = lines[0].split(" — ", 1)[1]
-                self.assertRegex(trigger, r"^(When|Before|For)\b")
+                self.assertRegex(trigger, r"^(?:owner rule: )?(?:When|Before|For|when|before|for)\b")
                 self.assertGreater(len(trigger.split()), 8)
 
     def test_fixture_paragraphs_are_exactly_once_in_destination_section_and_absent_from_root(self) -> None:
@@ -107,6 +123,22 @@ class RootInstructionNestingTests(unittest.TestCase):
             self.assertIn(phrase, agents)
         index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
         self.assertRegex(index, re.compile(r"(?m)^- `AGENTS\.md` → \*\*Workflow\*\* — When closing a substantive pass"))
+    def test_owner_rule_labels_survive_the_trigger_rewrite(self) -> None:
+        index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
+        for path in OWNER_RULE_ENTRIES:
+            with self.subTest(path=path):
+                lines = [line for line in index.splitlines() if f"`{path}` —" in line]
+                self.assertEqual(len(lines), 1)
+                self.assertIn(f"`{path}` — owner rule: ", lines[0])
+
+    def test_index_triggers_keep_the_root_activation_scope(self) -> None:
+        index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
+        for path, scope in ROOT_SCOPES.items():
+            with self.subTest(path=path):
+                lines = [line for line in index.splitlines() if f"`{path}` —" in line]
+                self.assertEqual(len(lines), 1)
+                self.assertIn(scope, lines[0])
+
 
 
 if __name__ == "__main__":
