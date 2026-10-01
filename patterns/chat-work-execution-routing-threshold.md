@@ -12,6 +12,7 @@ Work human-gate assist requirement: `docs/requirements/2026-09-18-work-human-gat
 ChatGPT multi-surface recovery requirement: `docs/requirements/2026-09-19-chatgpt-multi-surface-thread-recovery.owner-requirement.json`.
 ChatGPT Work cloud dispatch requirement: `docs/requirements/2026-09-19-chatgpt-work-cloud-dispatch.owner-requirement.json`.
 Direct-Chat execution capability requirement: `docs/requirements/2026-09-19-chat-direct-execution-capability-preflight.owner-requirement.json`.
+Claude-session requirement: `docs/requirements/2026-10-01-claude-sessions-reason-and-execute.owner-requirement.json`.
 
 ## Controlling rule
 
@@ -28,6 +29,18 @@ It is:
 > Can the current Chat surface reliably perform the next bounded action with its own authorized tools, including any directly exposed terminal, filesystem, browser, computer-use, remote-desktop, or connected-device tool? If not, is the missing execution capability or sustained statefulness substantial enough to justify Work/Codex?
 
 If Chat can perform the action directly and reliably, keep the action in Chat. Action category alone is never a Work trigger.
+
+### Claude sessions reason and execute
+
+Owner correction, 2026-10-01: "you're giving tasks now to a reasoning chat? i though you were doing the reasoning? maybe you are getting confused because of old Mission Control rules that applied to the intelligence difference in GPT between chat and work but claude tells me that doesn't apply to claude. so fix that if that's the issue".
+
+The Chat/Work split in this pattern is for OpenAI surfaces, where Work/Codex is an executor and not the preferred reasoning surface. A Claude session (Claude Code, the Claude app or claude.ai) is one surface that both reasons and executes:
+
+- It does its own reasoning: method within the owner's decisions, analysis, interpretation, verdicts and recommendations. It does not hand that reasoning to a separate reasoning chat or a Project Manager chat, and does not wait for one.
+- A directive written for a Codex/Work worker binds a Claude session's scope, data handling, spending caps and safety limits, not its reasoning. The session runs the bounded steps, also does the reasoning the directive reserved for a chat, and gives the owner its conclusions.
+- It reports to the owner directly, in its replies and on the owner questions page (`patterns/owner-questions-page.md`). Internal supervisor routing (`patterns/runtime-chat-work-authority-admission-and-internal-routing.md`) is for OpenAI workers.
+- Owner-only decisions stay with the owner: spending beyond an existing allowance, merges and deployments a project gates, account and credential changes, external publication, and whatever a project reserves for owner judgment.
+- Where a check calls for another model family (`patterns/cross-family-reasoning-check.md`), the session still runs it.
 
 ### Provider-native subscription CLI before metered model API/gateway
 
