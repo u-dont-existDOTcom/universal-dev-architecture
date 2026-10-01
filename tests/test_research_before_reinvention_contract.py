@@ -1,3 +1,4 @@
+import re
 import unittest
 from pathlib import Path
 from tests.root_migration_assertions import assert_routed_rule
@@ -72,6 +73,20 @@ class ResearchBeforeReinventionContractTests(unittest.TestCase):
         self.assertIn("patterns/research-before-reinvention.md", docs)
         self.assertIn("templates/PRIOR-WORK-SCAN.md", docs)
         self.assertTrue((ROOT / "templates/PRIOR-WORK-SCAN.md").is_file())
+
+    def test_lesson_index_trigger_keeps_full_bespoke_work_scope(self):
+        index = self.read("LESSON-INDEX.md")
+        route = next(
+            line.split(" — ", 1)[1]
+            for line in index.splitlines()
+            if "`patterns/research-before-reinvention.md` —" in line
+        )
+        for category in (
+            "method", "framework", "architecture", "metric", "algorithm",
+            "taxonomy", "protocol", "evaluation system", "workflow",
+        ):
+            with self.subTest(category=category):
+                self.assertRegex(route, rf"\b{re.escape(category)}\b")
 
 
 if __name__ == "__main__":
