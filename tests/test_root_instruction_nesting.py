@@ -82,10 +82,16 @@ class RootInstructionNestingTests(unittest.TestCase):
     def test_kernel_requires_task_time_index_loading(self) -> None:
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         composition = section_after(agents, "## Instruction composition")
-        self.assertIn(
-            "Before substantive task work, open `LESSON-INDEX.md`, select the entries triggered by the task, and read their current patterns.",
-            composition,
-        )
+        instruction = composition.strip().split("\n\n", 1)[0]
+        self.assertRegex(instruction, r"(?i)\b(?:any|every) task\b")
+        self.assertIn("`LESSON-INDEX.md`", instruction)
+        self.assertRegex(instruction, r"\bselect\b.*\btriggers?\b")
+        self.assertRegex(instruction, r"\bread\b.*\bcurrent patterns?\b")
+
+    def test_kernel_routes_brief_preference_tasks_through_index(self) -> None:
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        instruction = section_after(agents, "## Instruction composition").strip().split("\n\n", 1)[0]
+        self.assertRegex(instruction, r"(?i)\bbrief request\b.*\bremember\b.*\bpreference\b")
 
     def test_fixture_covers_each_moved_destination(self) -> None:
         self.assertEqual({path: len(paragraphs) for path, paragraphs in MOVES.items()}, EXPECTED_COUNTS)
