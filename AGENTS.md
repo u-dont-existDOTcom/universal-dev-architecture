@@ -24,6 +24,10 @@ Before final delivery, apply `patterns/codex-github-operating-system.md` → **C
 
 Instruction maintenance uses `patterns/instruction-composition-and-portable-intelligence.md`; activation uses `patterns/task-time-lesson-activation.md`. After selection, resolve graph-covered dependencies via `rules/UDA-RULE-GRAPH.json`/`scripts/uda_rule_graph.py`; canonical prose remains authoritative; unmapped rules stay index-routed.
 
+### Shopping task-time activation
+
+For any task that finds, compares, prices, shortlists, or recommends products or purchase offers, **before the first substantive product search** load `patterns/shopping-research.md` and `patterns/recommendation-preflight-integrity.md` into the Active Lesson Contract. For open-ended, landscape, `best`, `best value`, budget/value, or broad comparison requests, also load `patterns/coverage-before-depth-in-selection.md` before selecting a benchmark or finalist. A direct owner correction or rejection during shopping makes that contract **STALE**; recompile it before resuming substantive shopping research or naming/recommending a candidate. Retrieval of the files alone is not activation evidence, and an easy-to-verify first candidate must not become the benchmark before the breadth and preflight gates pass.
+
 ## Authority
 
 1. Current owner and task requirements
