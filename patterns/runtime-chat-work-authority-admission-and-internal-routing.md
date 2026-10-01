@@ -6,6 +6,10 @@ Status: current universal supervision pattern.
 
 This pattern converts the Chat-to-Work authority boundary from a documented expectation into a pre-action admission control. ChatGPT Chat/Pro owns reasoning, proposals, methodology, prioritization, spending design, consequential tradeoffs, adequacy judgments, and strategy. Codex/Work owns only bounded execution that the current Chat-authored directive establishes cannot be completed reliably in Chat.
 
+## Scope
+
+This control supervises OpenAI Chat/Work execution. A Claude session both reasons and executes (`patterns/chat-work-execution-routing-threshold.md`, "Claude sessions reason and execute"): it is not an execution-only worker under this admission control, and it reports to the owner directly instead of queuing packets for a supervisor chat.
+
 ## Required order of operations
 
 ### Owner-authorized maintenance is a separate path

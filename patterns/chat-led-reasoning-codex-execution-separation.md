@@ -4,6 +4,8 @@
 **Date:** 2026-08-31  
 **Authority:** Owner correction: chats perform the reasoning; Codex is used only for execution that chats cannot reliably perform.
 
+**Scope (owner correction, 2026-10-01):** this separation governs OpenAI surfaces: ChatGPT chats reason and Codex/Work executes. It does not apply to Claude. A Claude session (Claude Code, the Claude app or claude.ai) both reasons and executes, as `patterns/chat-work-execution-routing-threshold.md` ("Claude sessions reason and execute") states. A directive written for a Codex worker binds a Claude session's scope and limits, not its reasoning.
+
 ## 1. Normative correction
 
 The prior architecture still allowed Codex to behave as a combined controller, strategist, self-supervisor, and executor. That is prohibited.
