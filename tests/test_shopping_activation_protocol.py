@@ -4,18 +4,22 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 
 class ShoppingActivationProtocolTests(unittest.TestCase):
-    def test_root_routes_shopping_before_substantive_search(self):
+    def test_root_routes_shopping_to_live_index(self):
         text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("### Shopping task-time activation", text)
-        self.assertIn("before the first substantive product search", text)
+        self.assertIn("shopping routes through `LESSON-INDEX.md`", text)
+
+    def test_shopping_protocol_activates_before_research_and_reactivates_after_correction(self):
+        text = (ROOT / "patterns" / "shopping-research.md").read_text(encoding="utf-8")
+        self.assertIn("### 0. Task-time activation and open-selection enforcement", text)
+        self.assertIn("Before the first substantive product search", text)
+        self.assertIn("shopping contract STALE", text)
         self.assertIn("coverage-before-depth-in-selection.md", text)
-        self.assertIn("contract **STALE**", text)
 
     def test_shopping_protocol_prevents_first_candidate_anchoring(self):
         text = (ROOT / "patterns" / "shopping-research.md").read_text(encoding="utf-8")
-        self.assertIn("**breadth precedes depth**", text)
+        self.assertIn("Breadth precedes depth", text)
         self.assertIn("Do not promote the first easy-to-verify", text)
-        self.assertIn("no candidate may be called a benchmark, winner, best value", text)
+        self.assertIn("benchmark, finalist, value leader, winner, or top pick", text)
 
     def test_us_consumer_goods_default_to_amazon_review_signal_when_available(self):
         shopping = (ROOT / "patterns" / "shopping-research.md").read_text(encoding="utf-8")
