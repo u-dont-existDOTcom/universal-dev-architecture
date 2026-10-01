@@ -26,6 +26,7 @@
     "Use ordinary search and fetch first; escalate only for blocked or JavaScript-only public pages, unavailable or inferior platform data, or country/language targeting ordinary search cannot provide.",
     "Choose the cheapest unit that answers the question; use a remote browser only when interaction is needed.",
     "Estimate provider units before any job beyond a few calls.",
+    "Before every provider job, read the month's use; if the readout fails or the deployment sets no thresholds, ask before any provider job, including one-call jobs.",
     "Ask before crossing per-task or monthly thresholds or the free allowance; include estimate, cheaper options, and a recommended default.",
     "Ask before any deposit, payment method, plan change, or paid promotion.",
     "Use the provider only for public content, never accounts, logins, private groups, paywalls, or data about private individuals; keep owner-driven browser gates under §3A.",
@@ -35,10 +36,10 @@
   ],
   "review_changes": [
     "UNCERTAIN: The 500-credit task and 4,000-credit monthly lines are reasonable provisional limits, but the shared month-to-date total is not visible through bdata budget. A complete cross-surface usage ledger or a working provider balance readout would settle whether agents can enforce the monthly line reliably. The rule text was not edited.",
-    "Review of #303 (P2, rule text frozen then): fail closed when monthly usage is unobservable. Fixed after merge on the owner's instruction: rule 4 reads the month's use before larger jobs and asks when the readout fails.",
-    "Review of #303 (P2): fail closed when deployment thresholds are absent. Fixed the same way: with no thresholds set, rule 4 asks before any job beyond a few calls."
+    "Review of #303 (P2, rule text frozen then): fail closed when monthly usage is unobservable. Fixed after merge on the owner's instruction: rule 4 reads the month's use before every provider job, including one-call jobs, and asks before any provider job when the readout fails.",
+    "Review of #303 (P2): fail closed when deployment thresholds are absent. Fixed the same way: with no thresholds set, rule 4 asks before any provider job, including one-call jobs."
   ],
-  "regression": "free-fetch-first; blocked-public-forum-thread; youtube-transcript-unit; bulk-comments-ask; monthly-threshold; money-gate; askrigor-excluded; private-content; country-search; surface-missing; retired-discover; owner-session-captcha; returned-instructions; usage-unknown-ask; thresholds-undefined-ask",
+  "regression": "free-fetch-first; blocked-public-forum-thread; youtube-transcript-unit; bulk-comments-ask; monthly-threshold; one-call-monthly-threshold; one-call-free-allowance; one-call-usage-unknown; money-gate; askrigor-excluded; private-content; country-search; surface-missing; retired-discover; owner-session-captcha; returned-instructions; usage-unknown-ask; thresholds-undefined-ask",
   "scope": "Universal pattern; Bright Data specifics only in the NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT section. Excludes AskRigor and any project whose own source or spending rules cover the case.",
   "origin": {
     "classification": "OWNER_REQUIRED",

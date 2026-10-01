@@ -107,6 +107,23 @@ class WebDataProviderEscalationTests(unittest.TestCase):
             " ".join(record["owner_corrections"]),
         )
 
+    def test_requirement_preserves_every_job_readout(self) -> None:
+        record = json.loads(REQUIREMENT.read_text(encoding="utf-8"))
+        required = " ".join(record["required_behavior"])
+        reviews = " ".join(record["review_changes"])
+        regressions = set(record["regression"].split("; "))
+
+        self.assertIn("Before every provider job, read the month's use", required)
+        self.assertIn("the month's use before every provider job", reviews)
+        self.assertIn("asks before any provider job", reviews)
+        self.assertNotIn("larger jobs", reviews)
+        self.assertNotIn("beyond a few calls", reviews)
+        self.assertTrue({
+            "one-call-monthly-threshold",
+            "one-call-free-allowance",
+            "one-call-usage-unknown",
+        } <= regressions)
+
     def test_eval_fixture_cases(self) -> None:
         fixture = json.loads(EVAL.read_text(encoding="utf-8"))
         self.assertEqual(fixture["pattern"], "patterns/web-data-provider-escalation.md")
