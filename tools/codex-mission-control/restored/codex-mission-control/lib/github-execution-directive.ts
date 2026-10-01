@@ -1,5 +1,6 @@
 import path from "node:path";
 import { canonicalJson, sha256 } from "./canonical";
+import { fleetTaskEvidenceBoundary, sameFleetEvidenceBoundary, trustedFleetRoutes } from "./fleet-evidence-boundary";
 import type { AppendEnvelope, BoundedExecutionResidue, MissionControlEventV2, StoredEvent } from "./schema";
 import { launchSelectionFor } from "./work-execution-profile";
 
@@ -20,6 +21,13 @@ export function buildExecutionDirectiveFromGitHubDecision(
   occurredAt = receiptEvent.data.ingested_at,
 ): AppendEnvelope | null {
   const receipt = receiptEvent.data;
+  if (receipt.request_id.startsWith("fleet-watch:")) {
+    const route = trustedFleetRoutes(priorEvents, receipt.worker, receipt.task_id)
+      .find(candidate => candidate.requestId === receipt.request_id);
+    if (!route) throw new Error("Accepted fleet decision has no trusted source route.");
+    const currentBoundary = fleetTaskEvidenceBoundary(priorEvents, receipt.worker, receipt.task_id);
+    if (!sameFleetEvidenceBoundary(route.boundary, currentBoundary)) return null;
+  }
   const bounded = receipt.bounded_execution;
   if (!bounded) return null;
   if (!receipt.bounded_execution_sha256
