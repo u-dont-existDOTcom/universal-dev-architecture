@@ -156,3 +156,11 @@ The following cross-project workflows do not prevent a general logic failure; th
 - Decision it changes: where a new failure goes when it happens, and which checks a task loads by stage.
 - Why the simpler standard is insufficient: the patchwork gives no view of coverage, overlap or gaps, and a new failure has no place to be classified before a new rule is written.
 - Why it is scoped: the map adds no gate. It routes to rules that already exist, and "No check yet" rows stay gaps until a real failure shows a check is needed.
+
+## Compact rules moved from root `AGENTS.md`
+
+Place every failure on the map first: `patterns/logic-failure-map.md`.
+
+When explaining an instruction-following, reasoning, routing, tool, execution, or delivery failure, identify the **causal mechanism** that generated the behavior. Check for missing/stale instruction activation, priority or authority conflict, trigger misclassification, wrong phase/surface/destination, lost carry-through between reasoning and final output, capability/tool boundary, stale state, or a failed enforcement check.
+
+Do not use agentic shorthand (`I chose wrong`, `I forgot`, `I should have`) as causal explanation or repair. Separate observed trace facts, supported causal inferences, and unverified hypotheses. If the cause is unknown, state the narrowest verified failure and a discriminating check; do not invent hidden instructions, priority conflicts, psychological states, or model internals. A working fix shows its effect in the tested scope, not the cause. Repair the generating condition at the authority, activation, routing, state, phase, destination, or enforcement boundary, not with promises.

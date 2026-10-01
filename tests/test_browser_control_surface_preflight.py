@@ -1,4 +1,5 @@
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 import json
 import unittest
 
@@ -22,7 +23,6 @@ class BrowserControlSurfacePreflightTests(unittest.TestCase):
         self.assertIn("irreducible human authentication/consent gesture", data["normalized_rule"])
 
     def test_root_bootstrap_forbids_shell_browser_false_negative(self):
-        text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         required = (
             "browser-surface preflight",
             "distinguish them from shell/process access",
@@ -37,9 +37,7 @@ class BrowserControlSurfacePreflightTests(unittest.TestCase):
             "pre-position the exact page",
             "resume automatically after the gate clears",
         )
-        for fragment in required:
-            with self.subTest(fragment=fragment):
-                self.assertIn(fragment, text)
+        assert_routed_rule(self, "patterns/persistent-browser-automation-hygiene.md", required, compact=True)
 
 
 if __name__ == "__main__":

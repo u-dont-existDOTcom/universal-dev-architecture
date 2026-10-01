@@ -1,90 +1,104 @@
 """Source-layout regression for root rules moved into routed patterns; not evidence that agents load them."""
 from __future__ import annotations
 
+import json
+import re
 import unittest
+from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 HEADING = "## Compact rules moved from root `AGENTS.md`"
-SECTION_REF = "→ **Compact rules moved from root `AGENTS.md`**"
-
-# pattern -> (root section that routes to it, fragments of the rules moved out of that root section)
-MOVES = {
-    "patterns/development-assurance-lanes.md": (
-        "## Development assurance lanes",
-        (
-            "Default to the **Iteration lane** unless the owner or current project requirements actually establish a stronger boundary.",
-            "- **Iteration:** smallest reversible candidate, focused/affected tests, a few representative product cases, and early owner/product evaluation.",
-            "- **Decision:** use a bounded direct comparison only when a material architecture/product choice genuinely remains unresolved.",
-            "- **Release:** run the full applicable repository, CI, security/privacy, independent-review, rollback, publication, installation, and release gates",
-            "High-risk invariants can require targeted hard gates in Iteration/Decision",
-            "**what current decision can this result change?** If none, defer it as later assurance debt.",
-            "Never bypass a hard gate or substitute an unauthorized model merely to avoid a limit.",
-            "Do not create an assurance ratchet where one difficult task permanently makes every later change release-grade.",
-            "update/supersede that task state rather than continuing the obsolete campaign.",
-        ),
-    ),
-    "patterns/research-before-reinvention.md": (
-        "## Research before reinvention",
-        (
-            "Preserve an independent conception snapshot before outside exposure when prior examples could constrain genuinely creative ideation.",
-            "benchmark bespoke work against the strongest relevant established baseline.",
-            "the orchestration pattern routes to `patterns/existing-work-scan-and-scholarly-discovery.md` as the specialist discovery layer.",
-            "Prefer a scholarly semantic discovery system such as SciSpace when available",
-        ),
-    ),
-    "patterns/test-efficiency-and-verification-budget.md": (
-        "## Test-efficiency policy",
-        (
-            "Focused and affected tests are the default inner loop.",
-            "Full suites are checkpoint-based, not an after-every-edit reflex.",
-            "Do not rerun an unchanged green full or mutation suite unless a material external/environment reason is recorded.",
-            "Mutation testing requires an explicit test-quality, high-risk, survivor-followup, owner, or release trigger;",
-        ),
-    ),
-    "patterns/human-readable-operational-references.md": (
-        "### Owner-facing artifact delivery",
-        (
-            "1. give the actual file/attachment when the active surface can materialize or attach it;",
-            "2. otherwise give a direct clickable file/download link to the artifact itself;",
-            "3. only if neither is technically possible, provide the usable contents inline when practical",
-            "may be included **afterward as provenance**, but they are never a substitute for owner-facing delivery.",
-            "When a handoff needs companion material, deliver the complete usable set.",
-            "verify that the owner can use what was delivered **without browsing GitHub or reconstructing missing pieces**",
-        ),
-    ),
+FIXTURE = ROOT / "tests/fixtures/root-kernel-migration.json"
+EXPECTED_COUNTS = {
+    "patterns/canonical-design-os-bootstrap.md": 1,
+    "patterns/carrying-uda-into-standalone-projects.md": 1,
+    "patterns/chat-work-execution-routing-threshold.md": 1,
+    "patterns/codex-github-operating-system.md": 3,
+    "patterns/human-readable-operational-references.md": 2,
+    "patterns/logic-failure-map.md": 3,
+    "patterns/outcome-advancement-and-strategy-efficacy.md": 1,
+    "patterns/owner-marked-mission-control-failure-capture.md": 1,
+    "patterns/parallel-chat-write-isolation.md": 1,
+    "patterns/persistent-browser-automation-hygiene.md": 5,
+    "patterns/research-before-reinvention.md": 2,
+    "patterns/suggested-fix-queue.md": 1,
+    "patterns/test-efficiency-and-verification-budget.md": 4,
+    "patterns/worker-github-publication-and-recovery.md": 1,
 }
+ROUTE_ONLY_DESTINATIONS = (
+    "patterns/development-assurance-lanes.md",
+    "patterns/cross-family-reasoning-check.md",
+    "patterns/agent-to-agent-consultation.md",
+    "patterns/delegate-easy-work-to-cheaper-models.md",
+    "patterns/reasoning-selection.md",
+    "patterns/chatgpt-client-surface-capability-and-thread-recovery.md",
+    "patterns/web-data-provider-escalation.md",
+    "patterns/durable-chat-learning.md",
+    "patterns/existing-work-scan-and-scholarly-discovery.md",
+    "patterns/owner-questions-page.md",
+    "patterns/work-model-and-effort-routing.md",
+    "patterns/runtime-chat-work-authority-admission-and-internal-routing.md",
+    "patterns/worker-directive-delivery-and-chat-output-budget.md",
+)
 
 
 def section_after(text: str, heading: str) -> str:
     return text.split(heading + "\n", 1)[1].split("\n## ", 1)[0]
 
 
+def moves() -> dict[str, tuple[str, ...]]:
+    fixture = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    assert fixture["source"] == "AGENTS.md"
+    grouped = defaultdict(list)
+    for record in fixture["paragraphs"]:
+        grouped[record["destination"]].append(record["text"])
+    return {path: tuple(paragraphs) for path, paragraphs in grouped.items()}
+
+
+MOVES = moves()
+
+
 class RootInstructionNestingTests(unittest.TestCase):
-    def test_root_instructions_fit_the_auditor_soft_limit(self) -> None:
-        self.assertLessEqual((ROOT / "AGENTS.md").stat().st_size, 24 * 1024)
+    def test_root_instructions_fit_the_new_kernel_cap(self) -> None:
+        self.assertLessEqual((ROOT / "AGENTS.md").stat().st_size, 16 * 1024)
 
-    def test_root_sections_point_to_the_moved_rules(self) -> None:
+    def test_fixture_covers_each_moved_destination(self) -> None:
+        self.assertEqual({path: len(paragraphs) for path, paragraphs in MOVES.items()}, EXPECTED_COUNTS)
+
+    def test_destinations_have_exactly_one_triggered_index_entry(self) -> None:
+        index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
+        for path in (*MOVES, *ROUTE_ONLY_DESTINATIONS):
+            with self.subTest(path=path):
+                lines = [line for line in index.splitlines() if f"`{path}` —" in line]
+                self.assertEqual(len(lines), 1)
+                trigger = lines[0].split(" — ", 1)[1]
+                self.assertRegex(trigger, r"^(When|Before|For)\b")
+                self.assertGreater(len(trigger.split()), 8)
+
+    def test_fixture_paragraphs_are_exactly_once_in_destination_section_and_absent_from_root(self) -> None:
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        for pattern, (root_heading, _) in MOVES.items():
-            with self.subTest(pattern=pattern):
-                self.assertIn(f"`{pattern}` {SECTION_REF}", section_after(agents, root_heading))
+        for path, paragraphs in MOVES.items():
+            body = (ROOT / path).read_text(encoding="utf-8")
+            self.assertEqual(body.count(HEADING), 1, path)
+            section = section_after(body, HEADING)
+            for paragraph in paragraphs:
+                with self.subTest(path=path, paragraph=paragraph[:60]):
+                    self.assertEqual(section.count(paragraph), 1)
+                    self.assertNotIn(paragraph, agents)
 
-    def test_moved_rules_live_in_the_named_pattern_section(self) -> None:
-        for pattern, (_, fragments) in MOVES.items():
-            text = (ROOT / pattern).read_text(encoding="utf-8")
-            self.assertEqual(text.count(HEADING), 1, pattern)
-            section = section_after(text, HEADING)
-            for fragment in fragments:
-                with self.subTest(pattern=pattern, fragment=fragment[:60]):
-                    self.assertIn(fragment, section)
-
-    def test_moved_rules_are_absent_from_root(self) -> None:
+    def test_kernel_keeps_continuation_and_explicit_commitment_rules(self) -> None:
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        for pattern, (_, fragments) in MOVES.items():
-            for fragment in fragments:
-                with self.subTest(pattern=pattern, fragment=fragment[:60]):
-                    self.assertNotIn(fragment, agents)
+        for phrase in (
+            "## Per-turn bootstrap invariants",
+            "## Pre-final continuation invariant",
+            "When you explicitly commit to a substantive operation",
+            "Adjacent analysis, planning, preparation, or a different method does not count as completion.",
+            "a new task rule adds a pattern and an index entry, never a root line.",
+        ):
+            self.assertIn(phrase, agents)
+        index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
+        self.assertRegex(index, re.compile(r"(?m)^- `AGENTS\.md` → \*\*Workflow\*\* — When closing a substantive pass"))
 
 
 if __name__ == "__main__":

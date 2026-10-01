@@ -289,7 +289,7 @@ If an exclusive active-task lock currently encodes release-grade completion whil
 
 ## Compact rules moved from root `AGENTS.md`
 
-Moved verbatim on 2026-09-26 from the root `AGENTS.md` section **Development assurance lanes** so the root instruction chain stays inside Codex's 32 KiB default discovery budget. The root still routes software/product development here and keeps its cross-family reasoning pointer.
+Moved verbatim on 2026-09-26 from the root `AGENTS.md` section **Development assurance lanes** so the root instruction chain stays inside Codex's 32 KiB default discovery budget. As of 2026-10-01, `LESSON-INDEX.md` routes software/product development here and routes cross-family reasoning to its own pattern.
 
 Default to the **Iteration lane** unless the owner or current project requirements actually establish a stronger boundary. A request such as “fix this,” “why is this worse?”, “try this architecture,” “make the app better,” or “let me test it” is not by itself a request for merge/release certification.
 

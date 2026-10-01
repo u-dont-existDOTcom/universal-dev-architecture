@@ -149,3 +149,7 @@ Branch names, repository paths, PR numbers, and commit SHAs may be included **af
 When a handoff needs companion material, deliver the complete usable set. For example, a packet that requires a controller prompt or reader protocol is incomplete if only the data windows are handed over and the instructions are merely named by repository location. Prefer one ZIP/file set where useful; when isolation or staged disclosure requires separation, give direct files/links for every artifact needed at the current stage.
 
 Before closing an owner-facing handoff, verify that the owner can use what was delivered **without browsing GitHub or reconstructing missing pieces**, unless a real technical, security, privacy, or experimental-isolation constraint prevents that.
+
+On first use, and again after a topic shift, state the plain-language object or function first and put the identifier in parentheses; when several identifiers are involved, explain how they relate in ordinary language, not as a bare chain (examples: `patterns/human-readable-operational-references.md`).
+
+When an owner decision is required, state the actual choice, consequences, and recommended default in plain language. Do not ask the owner to decide among opaque identifiers or branch/PR numbers. Keep every open owner question on one continuously updated page: `patterns/owner-questions-page.md`. Internal logs, code, machine-readable receipts, and developer-only diagnostics may remain identifier-dense when that precision is useful.

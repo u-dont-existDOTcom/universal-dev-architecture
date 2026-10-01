@@ -248,8 +248,12 @@ If not, the task is not ready for substantial bespoke investment.
 
 ## Compact rules moved from root `AGENTS.md`
 
-Moved verbatim on 2026-09-26 from the root `AGENTS.md` section **Research before reinvention** so the root instruction chain stays inside Codex's 32 KiB default discovery budget. The root keeps the activation sentence, the research-debt and repeated-refinement trigger paragraph, and a pointer here.
+Moved verbatim on 2026-09-26 from the root `AGENTS.md` section **Research before reinvention** so the root instruction chain stays inside Codex's 32 KiB default discovery budget. As of 2026-10-01, the activation sentence and research-debt and repeated-refinement trigger paragraph are preserved below; `LESSON-INDEX.md` provides the task trigger.
 
 Preserve an independent conception snapshot before outside exposure when prior examples could constrain genuinely creative ideation. Then run a bounded existing-work scan across the underlying problem, not merely the project's chosen terminology. Check the strongest relevant academic literature, standards, mature implementations/tools, and adjacent disciplines. Record what is solved, partially solved, composable, incompatible, unresolved, or merely not found; choose `reuse`, `adapt`, `compose`, `invent`, or `experiment`; identify the novel remainder; and benchmark bespoke work against the strongest relevant established baseline.
 
 When academic literature is material, the orchestration pattern routes to `patterns/existing-work-scan-and-scholarly-discovery.md` as the specialist discovery layer. Prefer a scholarly semantic discovery system such as SciSpace when available for terminology/literature mapping before primary-source verification; ordinary web search alone is not the default when the specialized route materially improves discovery.
+
+Before substantial investment in a bespoke method, framework, architecture, metric, algorithm, taxonomy, protocol, evaluation system, or workflow that plausibly overlaps established knowledge, follow `patterns/research-before-reinvention.md`.
+
+Cheap exploratory work may defer the scan only by recording explicit research debt and a hard trigger before architecture commitment, scaling, productionization, repeated refinement, public novelty claims, cross-project promotion, or substantial implementation. Repeated bespoke refinement is itself a trigger: do not keep polishing a homemade solution without checking whether the problem is already substantially solved.

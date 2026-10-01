@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -65,11 +66,9 @@ class SystemCapabilityClaimsTests(unittest.TestCase):
                 self.assertIn(phrase, self.body)
 
     def test_root_agents_routes_capability_claims(self) -> None:
-        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn(
-            "`patterns/chatgpt-client-surface-capability-and-thread-recovery.md` → **Claims about the system itself**",
-            agents,
-        )
+        assert_routed_rule(self, "patterns/chatgpt-client-surface-capability-and-thread-recovery.md", (
+            "Claims about the system itself", "Distinguish an intended action from an attempted one",
+        ))
 
     def test_lesson_index_entry_names_the_rule(self) -> None:
         index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")

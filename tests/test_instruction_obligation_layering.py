@@ -2,6 +2,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,7 +25,7 @@ class InstructionBoundarySourceTests(unittest.TestCase):
         text = (ROOT / "AGENTS.md").read_text()
         self.assertIn("every assistant turn", text)
         self.assertIn("use the second reading in the final answer", text)
-        self.assertIn("If the cause is unknown", text)
+        assert_routed_rule(self, "patterns/logic-failure-map.md", ("If the cause is unknown",), compact=True)
 
     def test_unknown_is_not_admission(self):
         contract = (ROOT / "templates/ACTIVE-LESSON-CONTRACT.md").read_text()

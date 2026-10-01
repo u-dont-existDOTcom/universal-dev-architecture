@@ -26,7 +26,11 @@
     "Tests prove each moved paragraph exists byte for byte at its destination and nowhere in root, and cap the root so it can't silently regrow.",
     "Shared modules get one source in UDA; AskRigor imports them at build time into its complete protocol with a pinned manifest and a drift check, and keeps its own HRP, source-access, privacy and zero-spend rules."
   ],
-  "review_changes": [],
+  "review_changes": [
+    "PR #307 is UDA-only. Kept the specified every-turn kernel and added one task-rule routing sentence; moved all other operative root paragraphs verbatim into one compact section per destination pattern.",
+    "Rebound the Chat/Work task-time selector and rule-graph canonical path to its pattern, then regenerated the source lock and Mission Control Work-handoff contract with the repository compiler.",
+    "Changed root-pinned tests to assert the operative destination text plus its single index route; retained the canonical-prose-over-graph assertion and lowered the root cap to 16 KiB."
+  ],
   "regression": "tests/test_root_instruction_nesting.py and the root-kernel migration fixture test.",
   "scope": "This pull request: UDA root AGENTS.md, LESSON-INDEX.md, the patterns that receive moved rules, their tests, and generated rule-graph files. AskRigor changes come in later pull requests.",
   "origin": {
@@ -55,7 +59,12 @@
   "related_findings": [
     "2026-10-01: root AGENTS.md was 24,518 bytes against a 24,576-byte cap after #303.",
     "2026-10-01: a read-only analysis projected an 11,806-byte kernel that keeps the every-turn gates.",
-    "2026-10-01: AskRigor's Universal_Instructions.xml (about 172 KB) restates the recommendation-preflight gate, argument reconstruction, obligation closure and research-before-reinvention modules."
+    "2026-10-01: AskRigor's Universal_Instructions.xml (about 172 KB) restates the recommendation-preflight gate, argument reconstruction, obligation closure and research-before-reinvention modules.",
+    "2026-10-01 PR #307 checkout baseline: root AGENTS.md 24,546 bytes; largest discovered root-plus-nested AGENTS.md chain 30,075 bytes (Mission Control restored path). Both were below the 32,768-byte audit limit.",
+    "2026-10-01 PR #307 candidate: root AGENTS.md 11,958 bytes; largest discovered root-plus-nested AGENTS.md chain 17,487 bytes. Both remain below the 32,768-byte audit limit; the root is below the new 16,384-byte test cap.",
+    "The migration fixture binds 27 exact moved paragraphs to 14 canonical pattern destinations. Route-only root lines are represented by single triggered LESSON-INDEX entries, including new Chat/Work, owner-marked failure capture, parallel-write, and runtime authority-admission routes.",
+    "Local verification: 628 socket-free Python tests passed; the exact full Python gate remains for CI because one storage-canary test opens a loopback socket. The CI-style deterministic audit passed with 0 errors and 0 warnings.",
+    "The relay Node test run reported 20 passing test files and four file-level failures in this sandbox; the socket-containing state-and-client case and the remaining relay failures are deferred to CI without changing the tests."
   ],
   "learning_state_at_merge": [
     "CANDIDATE_RULE",

@@ -1,6 +1,7 @@
 import importlib.util
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = ROOT / "scripts" / "test_efficiency.py"
@@ -31,7 +32,6 @@ class TestEfficiencyPatternTests(unittest.TestCase):
 
     def test_universal_entry_points_route_to_pattern(self):
         for rel in (
-            "AGENTS.md",
             "LESSON-INDEX.md",
             "docs/INDEX.md",
             "templates/AGENTS-UNIVERSAL-BOOTSTRAP.md",
@@ -53,11 +53,13 @@ class TestEfficiencyPatternTests(unittest.TestCase):
 
         self.assertIn("missing local observer", pattern)
         self.assertIn("--root <project>", pattern)
-        self.assertIn("do not silently skip", agents)
+        assert_routed_rule(self, "patterns/test-efficiency-and-verification-budget.md", (
+            "do not silently skip", "Vendor", "--root <PROJECT>",
+        ), compact=True)
         self.assertIn("do not silently skip", bootstrap)
         self.assertIn("missing local observer", task)
         self.assertIn("missing local observer", plan)
-        for text in (pattern, agents, bootstrap, task, plan):
+        for text in (pattern, bootstrap, task, plan):
             self.assertIn("vendor", text)
 
     def test_full_and_mutation_scopes_require_explicit_trigger_vocabularies(self):

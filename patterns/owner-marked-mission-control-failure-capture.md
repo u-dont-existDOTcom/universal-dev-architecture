@@ -94,3 +94,7 @@ This rule composes with:
 - `templates/SUPERVISION-ESCAPE.json`.
 
 It does not authorize passive surveillance of arbitrary personal chats, automatic publication of complaints, or semantic classification by deterministic code.
+
+## Compact rules moved from root `AGENTS.md`
+
+When the owner explicitly identifies a current or prior assistant/Chat/Work/Codex reasoning, instruction-following, routing, or execution failure as a Mission Control example; asks to save/record/capture it for Mission Control; or asks to recover/check such examples, load `patterns/owner-marked-mission-control-failure-capture.md` before further substantive action. A generic complaint or disagreement alone is not authorization to publish conversation content.

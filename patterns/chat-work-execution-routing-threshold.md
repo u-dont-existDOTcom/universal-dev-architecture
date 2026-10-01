@@ -409,3 +409,19 @@ A valid Work handoff records:
 - explicit semantic authority = none beyond the bounded implementation choices.
 
 The execution receipt becomes input to Chat only through a verified Mission Control/controller route. In the normal path, that return is automatic: receipt ingestion creates exactly one fresh source-bound reasoning review for the original supervisor/current owner outcome. It is not permission for Work to select the next consequential step, and the owner must not copy the receipt between surfaces.
+
+## Compact rules moved from root `AGENTS.md`
+
+Follow `patterns/chat-work-execution-routing-threshold.md` for Chat-first reasoning,
+ordinary GitHub work, bounded execution eligibility, and minimum-sufficient Work
+thinking. Chat owns reasoning and ordinary GitHub work; Work/Codex is execution-only;
+a Claude session does both.
+Before Work, discover deferred Chat tools too. If Chat/RDC can perform the bounded
+SSH/VPS/deployment action, keep it in Chat.
+When Work is admitted, apply `patterns/work-model-and-effort-routing.md` for the
+canonical GPT-6.1 Sol (GPT-6 Sol fallback) / GPT-6 Astra model-and-effort ladder and telemetry contract.
+For controlled supervisory routes also apply
+`patterns/runtime-chat-work-authority-admission-and-internal-routing.md`.
+Worker handoffs follow `patterns/worker-directive-delivery-and-chat-output-budget.md`:
+same-turn runnable directive; long operational payloads go to `.md`/text artifacts.
+These references preserve the existing rules rather than creating local copies.

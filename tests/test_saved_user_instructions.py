@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -58,8 +59,9 @@ class SavedUserInstructionsTests(unittest.TestCase):
                 self.assertIn(phrase, self.body)
 
     def test_root_agents_routes_save_requests(self) -> None:
-        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("`patterns/durable-chat-learning.md` → **12. User-specific instructions**", agents)
+        assert_routed_rule(self, "patterns/durable-chat-learning.md", (
+            "12. User-specific instructions", "Saved Instructions.md",
+        ))
 
     def test_lesson_index_entry_names_the_rule(self) -> None:
         index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")

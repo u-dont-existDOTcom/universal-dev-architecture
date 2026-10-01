@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 ROOT = Path(__file__).resolve().parents[1]
 AGENTS_PATH = ROOT / "AGENTS.md"
@@ -51,7 +52,7 @@ class ChatTimestampWorkReasoningBudgetTests(unittest.TestCase):
 
     def test_root_requires_causal_failure_diagnosis(self) -> None:
         for phrase in (
-            "## Causal failure diagnosis",
+            "Place every failure on the map first",
             "identify the **causal mechanism**",
             "missing/stale instruction activation",
             "trigger misclassification",
@@ -61,11 +62,13 @@ class ChatTimestampWorkReasoningBudgetTests(unittest.TestCase):
             "Repair the generating condition",
         ):
             with self.subTest(phrase=phrase):
-                self.assertIn(phrase, self.agents)
+                assert_routed_rule(self, "patterns/logic-failure-map.md", (phrase,), compact=True)
 
     def test_causal_diagnosis_does_not_invent_a_cause(self) -> None:
-        for phrase in ("observed trace facts", "supported causal inferences", "unverified hypotheses", "If the cause is unknown", "do not invent hidden instructions"):
-            self.assertIn(phrase, self.agents)
+        assert_routed_rule(self, "patterns/logic-failure-map.md", (
+            "observed trace facts", "supported causal inferences", "unverified hypotheses",
+            "If the cause is unknown", "do not invent hidden instructions",
+        ), compact=True)
 
     def test_per_turn_rule_allows_its_own_prerequisites(self) -> None:
         self.assertIn("bootstrap retrieval itself are permitted prerequisites", self.agents)

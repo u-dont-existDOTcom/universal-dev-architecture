@@ -603,3 +603,12 @@ These are the primary sources reviewed for this pattern. Recheck them before a m
 - Retained the risk-adjusted repository-kind and solo-maintainer rules. The
   source review did not justify broad Actions allowances, fake independent
   approval, or inferring hosted settings from committed files.
+
+## Compact rules moved from root `AGENTS.md`
+
+Use a task branch or worktree for substantive changes when isolation/recovery is useful. Open a pull request when the current task is actually approaching a review/merge boundary or the owner/project requires one; a reversible experimental candidate does not need to become merge-ready before the owner can try it.
+
+Track complex work in a durable plan. Give each task a stable unique ID (use `pr-<number>` for a pull request) and record its checkpoint at the path from `python3 scripts/task_checkpoint_path.py "$(git branch --show-current)" "<task-id>"` at meaningful boundaries. The helper hashes the exact branch and task ID into a case-fold-safe filename. Change `state/CURRENT-STATE.md` only when repository-level state changes. Run the checks appropriate to the active assurance lane, review the relevant diff before crossing the corresponding boundary, and complete lesson closeout at the task's actual completion level. Do not use release completion semantics for an iteration experiment.
+
+- `main`: canonical universal guidance
+- task branches: proposed changes

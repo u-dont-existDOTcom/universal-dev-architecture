@@ -56,3 +56,7 @@ Design work recurs across unrelated projects, while a generic coding agent other
 - Origin: synthesis of Impeccable, Perception-First Design, UI UX Pro Max, Hallmark, and optional Vercel preview-review integration, with source pinning and conflict rules maintained in the design repository.
 
 The commit above is provenance, not a permanent pin. Future workers must resolve the current live design head.
+
+## Compact rules moved from root `AGENTS.md`
+
+For any task materially involving UI/UX, frontend visual implementation, website or app design/redesign, long-form reading experience, visual hierarchy, typography, color, layout, motion, interaction design, components, design systems, design critique/study, or design-production/accessibility/responsive review, load the current `u-dont-existDOTcom/design` repository before substantive design work. Start with its live default-branch `skills/design/SKILL.md` and follow `patterns/canonical-design-os-bootstrap.md`. Do not rely on remembered copies of the design methodology.

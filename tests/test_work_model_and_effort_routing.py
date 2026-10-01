@@ -4,6 +4,7 @@ import hashlib
 import json
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 ROOT = Path(__file__).resolve().parents[1]
 AGENTS = ROOT / "AGENTS.md"
@@ -31,8 +32,10 @@ class WorkModelAndEffortRoutingTests(unittest.TestCase):
 
     def test_canonical_pattern_is_discoverable_from_all_required_entry_points(self) -> None:
         ref = "work-model-and-effort-routing.md"
-        self.assertIn(ref, self.agents)
-        self.assertIn(ref, self.chat_work)
+        assert_routed_rule(self, "patterns/chat-work-execution-routing-threshold.md", (ref,), compact=True)
+        assert_routed_rule(self, "patterns/work-model-and-effort-routing.md", (
+            "GPT-6.1 Sol", "lowest-sufficient-tier",
+        ))
         self.assertIn(ref, self.index)
 
     def test_canonical_ladder_preserves_active_trial_routing_invariants(self) -> None:

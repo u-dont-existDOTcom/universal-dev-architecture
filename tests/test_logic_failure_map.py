@@ -3,6 +3,7 @@
 import re
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -74,12 +75,13 @@ class LogicFailureMapTests(unittest.TestCase):
         self.assertEqual(len(ids), len(set(ids)))
 
     def test_routes_exist(self):
-        root = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         docs = (ROOT / "docs/INDEX.md").read_text(encoding="utf-8")
-        causal = root.split("## Causal failure diagnosis", 1)[1].split("\n## ", 1)[0]
-        boundary = root.split("## Universal and owner-specific infrastructure boundary", 1)[1].split("\n## ", 1)[0]
-        self.assertIn("Place every failure on the map first: `patterns/logic-failure-map.md`.", causal)
-        self.assertIn("A project whose runtime runs outside this architecture imports what applies to it: `patterns/carrying-uda-into-standalone-projects.md`.", boundary)
+        assert_routed_rule(self, "patterns/logic-failure-map.md", (
+            "Place every failure on the map first: `patterns/logic-failure-map.md`.",
+        ), compact=True)
+        assert_routed_rule(self, "patterns/carrying-uda-into-standalone-projects.md", (
+            "A project whose runtime runs outside this architecture imports what applies to it: `patterns/carrying-uda-into-standalone-projects.md`.",
+        ), compact=True)
         for pattern in ("logic-failure-map", "carrying-uda-into-standalone-projects"):
             self.assertIn(f"`patterns/{pattern}.md`", self.index_text)
             self.assertIn(f"`../patterns/{pattern}.md`", docs)

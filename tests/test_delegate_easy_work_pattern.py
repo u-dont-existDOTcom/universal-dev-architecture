@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,9 +15,8 @@ class DelegateEasyWorkPatternTests(unittest.TestCase):
         return (ROOT / relative_path).read_text(encoding="utf-8")
 
     def test_root_index_docs_and_work_patterns_route_the_pattern(self) -> None:
-        for relative_path in ("AGENTS.md", "LESSON-INDEX.md"):
-            with self.subTest(path=relative_path):
-                self.assertIn(ROUTE, self.read(relative_path))
+        assert_routed_rule(self, ROUTE, ("Split before doing", "Delegate a piece when it pays"))
+        self.assertIn(ROUTE, self.read("LESSON-INDEX.md"))
         self.assertIn("../" + ROUTE, self.read("docs/INDEX.md"))
         for relative_path in (
             "patterns/chat-work-execution-routing-threshold.md",
@@ -25,9 +25,9 @@ class DelegateEasyWorkPatternTests(unittest.TestCase):
             with self.subTest(path=relative_path):
                 self.assertIn("delegate-easy-work-to-cheaper-models.md", self.read(relative_path))
 
-        root_lines = self.read("AGENTS.md").splitlines()
-        consultation = next(i for i, line in enumerate(root_lines) if "Claims about another agent" in line)
-        self.assertIn(ROUTE, root_lines[consultation + 1])
+        index_lines = self.read("LESSON-INDEX.md").splitlines()
+        consultation = next(i for i, line in enumerate(index_lines) if "`patterns/agent-to-agent-consultation.md` —" in line)
+        self.assertIn(ROUTE, index_lines[consultation + 1])
 
         index_lines = self.read("LESSON-INDEX.md").splitlines()
         entry_58 = next(i for i, line in enumerate(index_lines) if line.startswith("58. "))
