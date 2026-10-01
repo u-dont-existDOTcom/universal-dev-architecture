@@ -61,6 +61,9 @@ class WebDataProviderEscalationTests(unittest.TestCase):
         example = section(text, "## Example (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT)")
         self.assertIn("500 credits", example)
         self.assertIn("4,000", example)
+        self.assertIn("If the readout fails, or the deployment sets no thresholds", rule)
+        self.assertIn("with the month's use read, go ahead without asking", rule)
+        self.assertNotIn("returns 403 because the key lacks billing permission", example)
 
     def test_routes_and_captcha_scope(self) -> None:
         agents = AGENTS.read_text(encoding="utf-8")
@@ -75,6 +78,23 @@ class WebDataProviderEscalationTests(unittest.TestCase):
         entries = [line for line in index.splitlines() if "`patterns/web-data-provider-escalation.md` —" in line]
         self.assertEqual(len(entries), 1)
 
+    def test_one_call_jobs_check_monthly_usage(self) -> None:
+        rule = section(PATTERN.read_text(encoding="utf-8"), "## Rule")
+        cost_gate = rule.split("4. **Ask the owner when it's costly.**", 1)[1].split("\n5. ", 1)[0]
+        self.assertIn("Before every provider job, read the month's use", cost_gate)
+        self.assertNotIn("beyond a few calls", cost_gate)
+
+        cases = {case["id"]: case for case in json.loads(EVAL.read_text(encoding="utf-8"))["cases"]}
+        for case_id in (
+            "one-call-monthly-threshold",
+            "one-call-free-allowance",
+            "one-call-usage-unknown",
+        ):
+            with self.subTest(case_id=case_id):
+                self.assertIn(case_id, cases)
+                self.assertIn("one credit", cases[case_id]["task"])
+                self.assertIn("Asks", cases[case_id]["expected"])
+
     def test_requirement_schema_and_owner_quote(self) -> None:
         record = json.loads(REQUIREMENT.read_text(encoding="utf-8"))
         reference = json.loads(REFERENCE.read_text(encoding="utf-8"))
@@ -86,6 +106,44 @@ class WebDataProviderEscalationTests(unittest.TestCase):
             "if it would be very costly to ask me (but not applying to AskRigor which has its own rules fo rthis)",
             " ".join(record["owner_corrections"]),
         )
+
+    def test_requirement_preserves_every_job_readout(self) -> None:
+        record = json.loads(REQUIREMENT.read_text(encoding="utf-8"))
+        required = " ".join(record["required_behavior"])
+        reviews = " ".join(record["review_changes"])
+        regressions = set(record["regression"].split("; "))
+
+        self.assertIn("Before every provider job, read the month's use", required)
+        self.assertIn("the month's use before every provider job", reviews)
+        self.assertIn("asks before any provider job", reviews)
+        self.assertNotIn("larger jobs", reviews)
+        self.assertNotIn("beyond a few calls", reviews)
+        self.assertTrue({
+            "one-call-monthly-threshold",
+            "one-call-free-allowance",
+            "one-call-usage-unknown",
+        } <= regressions)
+
+    def test_requirement_supersedes_obsolete_readout_uncertainty(self) -> None:
+        record = json.loads(REQUIREMENT.read_text(encoding="utf-8"))
+        historical_review = record["review_changes"][0]
+        self.assertTrue(historical_review.startswith("SUPERSEDED"))
+        for detail in ("UNCERTAIN", "bdata budget zones", "connector-only", "ask"):
+            with self.subTest(detail=detail):
+                self.assertIn(detail.casefold(), historical_review.casefold())
+
+    def test_successful_provider_fixtures_read_usage_first(self) -> None:
+        cases = {case["id"]: case for case in json.loads(EVAL.read_text(encoding="utf-8"))["cases"]}
+        for case_id in (
+            "blocked-public-forum-thread",
+            "youtube-transcript-unit",
+            "country-search",
+            "retired-discover",
+        ):
+            with self.subTest(case_id=case_id):
+                case = cases[case_id]
+                self.assertIn("usage readout shows 100 credits", case["task"])
+                self.assertTrue(case["expected"].startswith("Reads monthly usage, then"))
 
     def test_eval_fixture_cases(self) -> None:
         fixture = json.loads(EVAL.read_text(encoding="utf-8"))
