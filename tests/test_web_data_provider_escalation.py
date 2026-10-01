@@ -78,6 +78,23 @@ class WebDataProviderEscalationTests(unittest.TestCase):
         entries = [line for line in index.splitlines() if "`patterns/web-data-provider-escalation.md` —" in line]
         self.assertEqual(len(entries), 1)
 
+    def test_one_call_jobs_check_monthly_usage(self) -> None:
+        rule = section(PATTERN.read_text(encoding="utf-8"), "## Rule")
+        cost_gate = rule.split("4. **Ask the owner when it's costly.**", 1)[1].split("\n5. ", 1)[0]
+        self.assertIn("Before every provider job, read the month's use", cost_gate)
+        self.assertNotIn("beyond a few calls", cost_gate)
+
+        cases = {case["id"]: case for case in json.loads(EVAL.read_text(encoding="utf-8"))["cases"]}
+        for case_id in (
+            "one-call-monthly-threshold",
+            "one-call-free-allowance",
+            "one-call-usage-unknown",
+        ):
+            with self.subTest(case_id=case_id):
+                self.assertIn(case_id, cases)
+                self.assertIn("one credit", cases[case_id]["task"])
+                self.assertIn("Asks", cases[case_id]["expected"])
+
     def test_requirement_schema_and_owner_quote(self) -> None:
         record = json.loads(REQUIREMENT.read_text(encoding="utf-8"))
         reference = json.loads(REFERENCE.read_text(encoding="utf-8"))
