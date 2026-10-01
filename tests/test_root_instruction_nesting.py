@@ -139,6 +139,31 @@ class RootInstructionNestingTests(unittest.TestCase):
                 self.assertEqual(len(lines), 1)
                 self.assertIn(scope, lines[0])
 
+    def test_failure_map_route_covers_diagnosis_and_repair_without_explanation(self) -> None:
+        index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
+        route = next(
+            line.split(" — ", 1)[1]
+            for line in index.splitlines()
+            if "`patterns/logic-failure-map.md` —" in line
+        )
+        self.assertRegex(route, r"^When diagnosing, repairing, or explaining an instruction-following")
+
+    def test_supervisor_grant_route_covers_non_gui_creation(self) -> None:
+        index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
+        route = next(
+            line.split(" — ", 1)[1]
+            for line in index.splitlines()
+            if "`patterns/persistent-browser-automation-hygiene.md` —" in line
+        )
+        self.assertIn(
+            "When creating or privately registering a missing MC-only supervisor conversation through any surface, including MCP/API",
+            route,
+        )
+        self.assertIn(
+            "Standing authority includes creating and privately registering missing MC-only supervisor conversations without repeat approval",
+            (ROOT / "patterns/persistent-browser-automation-hygiene.md").read_text(encoding="utf-8"),
+        )
+
     def test_repository_governance_route_is_not_limited_to_complex_work(self) -> None:
         index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
         route = next(
