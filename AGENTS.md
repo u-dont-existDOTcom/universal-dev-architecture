@@ -141,7 +141,8 @@ This gate runs at follow-up-task authoring, before the new framing is handed to 
 
 Follow `patterns/chat-work-execution-routing-threshold.md` for Chat-first reasoning,
 ordinary GitHub work, bounded execution eligibility, and minimum-sufficient Work
-thinking. Chat owns reasoning and ordinary GitHub work; Work/Codex is execution-only.
+thinking. Chat owns reasoning and ordinary GitHub work; Work/Codex is execution-only;
+a Claude session does both.
 Before Work, discover deferred Chat tools too. If Chat/RDC can perform the bounded
 SSH/VPS/deployment action, keep it in Chat.
 When Work is admitted, apply `patterns/work-model-and-effort-routing.md` for the

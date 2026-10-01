@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "requirement_id": "2026-10-01-claude-sessions-reason-and-execute",
+  "date": "2026-10-01",
+  "status": "ACTIVE_OWNER_REQUIREMENT",
+  "origin": "Owner correction in a Claude Code session on 2026-10-01, after the session executed a Bright Data evaluation directive written for a Codex worker and left the adoption verdict and relevance labeling to a reasoning chat and a Project Manager chat.",
+  "owner_correction": "you're giving tasks now to a reasoning chat? i though you were doing the reasoning? maybe you are getting confused because of old Mission Control rules that applied to the intelligence difference in GPT between chat and work but claude tells me that doesn't apply to claude. so fix that if that's the issue",
+  "causal_failure": "The Chat/Work rules name ChatGPT Chat as the reasoning surface and Codex/Work as execution-only, and say nothing about Claude. A Claude Code session given a directive written for a Codex worker classed itself as that execution-only actor (it filed AskRigor's authority-validator request as CODEX). It therefore withheld its own adoption verdict and relevance labeling, routing them to a reasoning chat and a Project Manager chat; the relay to the latter was offline, so they reached no one. The split exists for the reasoning difference between OpenAI's Chat and Work surfaces; on Claude one surface does both.",
+  "normalized_rule": "A Claude session (Claude Code, the Claude app or claude.ai) both reasons and executes. It does its own reasoning (method within the owner's decisions, analysis, interpretation, verdicts and recommendations) and never hands reasoning to a separate reasoning chat or Project Manager chat. A directive written for a Codex/Work worker binds a Claude session's scope, data handling, spending caps and safety limits, not its reasoning. The session reports to the owner directly, with owner-only decisions on the owner questions page. The Chat/Work split and internal supervisor routing remain for OpenAI surfaces.",
+  "enforcement": [
+    "patterns/chat-work-execution-routing-threshold.md, section 'Claude sessions reason and execute'.",
+    "patterns/runtime-chat-work-authority-admission-and-internal-routing.md, section 'Scope'.",
+    "patterns/chat-led-reasoning-codex-execution-separation.md: scope note before the normative correction.",
+    "AGENTS.md, 'Chat / Work execution routing': a Claude session does both.",
+    "tests/test_claude_sessions_reason_and_execute.py."
+  ],
+  "nonclaims": [
+    "This grants no spending, merge, deployment, account, credential or publication authority.",
+    "This does not change the Chat/Work split or internal supervisor routing for OpenAI surfaces.",
+    "This does not remove a project's own owner-judgment gates, or the cross-family reasoning check where its trigger holds."
+  ]
+}
