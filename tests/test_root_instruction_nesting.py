@@ -139,6 +139,24 @@ class RootInstructionNestingTests(unittest.TestCase):
                 self.assertEqual(len(lines), 1)
                 self.assertIn(scope, lines[0])
 
+    def test_repository_governance_route_is_not_limited_to_complex_work(self) -> None:
+        index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
+        route = next(
+            line.split(" — ", 1)[1]
+            for line in index.splitlines()
+            if "`patterns/codex-github-operating-system.md` —" in line
+        )
+        graph = json.loads((ROOT / "rules/UDA-RULE-GRAPH.json").read_text(encoding="utf-8"))
+        graph_trigger = next(
+            node["trigger"] for node in graph["nodes"]
+            if node["rule_id"] == "codex-github-operating-system"
+        )
+        for scope in ("repository-governed development", "GitHub mutation"):
+            with self.subTest(scope=scope):
+                self.assertIn(scope.casefold(), graph_trigger.casefold())
+                self.assertIn(scope.casefold(), route.casefold())
+        self.assertRegex(route, r"(?i)\b(?:for|when) (?:starting or resuming )?complex (?:repository )?work\b[^;]*\bstable task ID and durable checkpoint\b")
+
 
 
 if __name__ == "__main__":
