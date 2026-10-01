@@ -63,4 +63,4 @@ Known quirks on 2026-10-01:
 
 - The AI-ranked Discover tool (connector `discover`, `bdata discover`) is retired and returns "no longer available".
 - A first call can fail with "Customer is not active"; retry once after a minute.
-- The usage readout is `bdata budget`. It needs a key with billing access (Bright Data's Admin or Finance permission level). The first key had neither and returned 403; the owner replaced it on 2026-10-01. If the readout fails, the month's use is unknown, so ask as rule 4 says, and keep logging each use in the task record.
+- The usage readout is `bdata budget zones --from <the 1st of this month>`: the month's cost by zone, in dollars (at the pay-as-you-go rate, $1.50 is about 1,000 credits). `bdata budget balance` shows the balance. It needs a key with billing access (Bright Data's Admin or Finance permission level). The first key had neither and returned 403; the owner replaced it on 2026-10-01, and the readout worked that day. Claude chats that have only the connector can't read it, so rule 4 has them ask first. If the readout fails, the month's use is unknown, so ask as rule 4 says, and keep logging each use in the task record.
