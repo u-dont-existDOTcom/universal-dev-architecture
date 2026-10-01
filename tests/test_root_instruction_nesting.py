@@ -63,6 +63,14 @@ class RootInstructionNestingTests(unittest.TestCase):
     def test_root_instructions_fit_the_new_kernel_cap(self) -> None:
         self.assertLessEqual((ROOT / "AGENTS.md").stat().st_size, 16 * 1024)
 
+    def test_kernel_requires_task_time_index_loading(self) -> None:
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        composition = section_after(agents, "## Instruction composition")
+        self.assertIn(
+            "Before substantive task work, open `LESSON-INDEX.md`, select the entries triggered by the task, and read their current patterns.",
+            composition,
+        )
+
     def test_fixture_covers_each_moved_destination(self) -> None:
         self.assertEqual({path: len(paragraphs) for path, paragraphs in MOVES.items()}, EXPECTED_COUNTS)
 

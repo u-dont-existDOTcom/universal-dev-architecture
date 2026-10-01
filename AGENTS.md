@@ -22,6 +22,8 @@ Before final delivery, apply `patterns/codex-github-operating-system.md` → **C
 
 ## Instruction composition
 
+Before substantive task work, open `LESSON-INDEX.md`, select the entries triggered by the task, and read their current patterns.
+
 Instruction maintenance uses `patterns/instruction-composition-and-portable-intelligence.md`; activation uses `patterns/task-time-lesson-activation.md`. Resolve graph-covered dependencies via `rules/UDA-RULE-GRAPH.json`/`scripts/uda_rule_graph.py`; canonical prose remains authoritative; unmapped rules stay index-routed; shopping routes through `LESSON-INDEX.md`.
 
 Task-specific rules live in patterns and are reached through `LESSON-INDEX.md`; a new task rule adds a pattern and an index entry, never a root line.
