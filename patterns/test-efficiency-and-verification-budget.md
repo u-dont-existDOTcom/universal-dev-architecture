@@ -259,6 +259,14 @@ Projects with better native tooling may replace the script, but the replacement 
 
 ## Compact rules moved from root `AGENTS.md`
 
-Moved verbatim on 2026-09-26 from the root `AGENTS.md` section **Test-efficiency policy** so the root keeps only always-needed rules and its instruction chain keeps headroom inside Codex's 32 KiB default discovery budget. The root keeps the load trigger, the missing-observer rule, the declared-gate checkpoint rule, and a pointer here.
+Moved verbatim on 2026-09-26 from the root `AGENTS.md` section **Test-efficiency policy** so the root keeps only always-needed rules and its instruction chain keeps headroom inside Codex's 32 KiB default discovery budget. As of 2026-10-01, the load trigger, missing-observer rule, declared-gate checkpoint rule, and inner-loop pointer are preserved below; `LESSON-INDEX.md` provides the task trigger.
 
 Focused and affected tests are the default inner loop. Full suites are checkpoint-based, not an after-every-edit reflex. Do not rerun an unchanged green full or mutation suite unless a material external/environment reason is recorded. Mutation testing requires an explicit test-quality, high-risk, survivor-followup, owner, or release trigger; ordinary green tests are not by themselves a reason to launch mutation testing.
+
+For non-trivial software tasks where repeated testing could materially affect task wall time, load `patterns/test-efficiency-and-verification-budget.md` before the implementation loop. Start test-cost measurement before substantive implementation and route agent-initiated test commands through `scripts/test_efficiency.py` or a project-native equivalent preserving the same semantics and measurements.
+
+If the active project does not already contain an equivalent observer, do not silently skip measurement. Vendor the current canonical `scripts/test_efficiency.py` from this repository, run the current canonical observer from a checked-out copy with `--root <PROJECT>`, or use a verified project-native equivalent. A missing local observer is not a reason to mark telemetry not applicable.
+
+Before choosing which tests to run, load the inner-loop, full-suite checkpoint, redundant-rerun, and mutation-trigger rules: `patterns/test-efficiency-and-verification-budget.md` → **Compact rules moved from root `AGENTS.md`**.
+
+Required repository-declared completion/CI gates still run at their proper checkpoint. Test-efficiency optimization changes scheduling and selection, not the required confidence boundary.

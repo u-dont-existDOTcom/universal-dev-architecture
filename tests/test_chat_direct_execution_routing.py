@@ -1,4 +1,5 @@
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 import json
 import unittest
 
@@ -46,11 +47,9 @@ class ChatDirectExecutionRoutingTests(unittest.TestCase):
         self.assertIn("secret manager/environment store may supply credentials", text)
 
     def test_root_bootstrap_reminds_direct_execution_preflight(self):
-        text = (ROOT / "AGENTS.md").read_text()
-        self.assertIn("Before Work, discover deferred Chat tools too", text)
-        self.assertIn("Chat/RDC", text)
-        self.assertIn("SSH/VPS/deployment", text)
-        self.assertIn("keep it in Chat", text)
+        assert_routed_rule(self, "patterns/chat-work-execution-routing-threshold.md", (
+            "Before Work, discover deferred Chat tools too", "Chat/RDC", "SSH/VPS/deployment", "keep it in Chat"
+        ), compact=True)
 
 
 if __name__ == "__main__":

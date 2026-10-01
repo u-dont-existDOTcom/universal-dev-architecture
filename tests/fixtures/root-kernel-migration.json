@@ -1,0 +1,113 @@
+{
+  "source": "AGENTS.md",
+  "paragraphs": [
+    {
+      "destination": "patterns/logic-failure-map.md",
+      "text": "Place every failure on the map first: `patterns/logic-failure-map.md`."
+    },
+    {
+      "destination": "patterns/logic-failure-map.md",
+      "text": "When explaining an instruction-following, reasoning, routing, tool, execution, or delivery failure, identify the **causal mechanism** that generated the behavior. Check for missing/stale instruction activation, priority or authority conflict, trigger misclassification, wrong phase/surface/destination, lost carry-through between reasoning and final output, capability/tool boundary, stale state, or a failed enforcement check."
+    },
+    {
+      "destination": "patterns/logic-failure-map.md",
+      "text": "Do not use agentic shorthand (`I chose wrong`, `I forgot`, `I should have`) as causal explanation or repair. Separate observed trace facts, supported causal inferences, and unverified hypotheses. If the cause is unknown, state the narrowest verified failure and a discriminating check; do not invent hidden instructions, priority conflicts, psychological states, or model internals. A working fix shows its effect in the tested scope, not the cause. Repair the generating condition at the authority, activation, routing, state, phase, destination, or enforcement boundary, not with promises."
+    },
+    {
+      "destination": "patterns/owner-marked-mission-control-failure-capture.md",
+      "text": "When the owner explicitly identifies a current or prior assistant/Chat/Work/Codex reasoning, instruction-following, routing, or execution failure as a Mission Control example; asks to save/record/capture it for Mission Control; or asks to recover/check such examples, load `patterns/owner-marked-mission-control-failure-capture.md` before further substantive action. A generic complaint or disagreement alone is not authorization to publish conversation content."
+    },
+    {
+      "destination": "patterns/carrying-uda-into-standalone-projects.md",
+      "text": "A project whose runtime runs outside this architecture imports what applies to it: `patterns/carrying-uda-into-standalone-projects.md`."
+    },
+    {
+      "destination": "patterns/suggested-fix-queue.md",
+      "text": "Before other fixes in a project, read its lane in `suggested-fixes/`; file suggestions for other projects there, not as pull requests in them: `patterns/suggested-fix-queue.md`."
+    },
+    {
+      "destination": "patterns/test-efficiency-and-verification-budget.md",
+      "text": "For non-trivial software tasks where repeated testing could materially affect task wall time, load `patterns/test-efficiency-and-verification-budget.md` before the implementation loop. Start test-cost measurement before substantive implementation and route agent-initiated test commands through `scripts/test_efficiency.py` or a project-native equivalent preserving the same semantics and measurements."
+    },
+    {
+      "destination": "patterns/test-efficiency-and-verification-budget.md",
+      "text": "If the active project does not already contain an equivalent observer, do not silently skip measurement. Vendor the current canonical `scripts/test_efficiency.py` from this repository, run the current canonical observer from a checked-out copy with `--root <PROJECT>`, or use a verified project-native equivalent. A missing local observer is not a reason to mark telemetry not applicable."
+    },
+    {
+      "destination": "patterns/test-efficiency-and-verification-budget.md",
+      "text": "Before choosing which tests to run, load the inner-loop, full-suite checkpoint, redundant-rerun, and mutation-trigger rules: `patterns/test-efficiency-and-verification-budget.md` → **Compact rules moved from root `AGENTS.md`**."
+    },
+    {
+      "destination": "patterns/test-efficiency-and-verification-budget.md",
+      "text": "Required repository-declared completion/CI gates still run at their proper checkpoint. Test-efficiency optimization changes scheduling and selection, not the required confidence boundary."
+    },
+    {
+      "destination": "patterns/codex-github-operating-system.md",
+      "text": "Use a task branch or worktree for substantive changes when isolation/recovery is useful. Open a pull request when the current task is actually approaching a review/merge boundary or the owner/project requires one; a reversible experimental candidate does not need to become merge-ready before the owner can try it."
+    },
+    {
+      "destination": "patterns/codex-github-operating-system.md",
+      "text": "Track complex work in a durable plan. Give each task a stable unique ID (use `pr-<number>` for a pull request) and record its checkpoint at the path from `python3 scripts/task_checkpoint_path.py \"$(git branch --show-current)\" \"<task-id>\"` at meaningful boundaries. The helper hashes the exact branch and task ID into a case-fold-safe filename. Change `state/CURRENT-STATE.md` only when repository-level state changes. Run the checks appropriate to the active assurance lane, review the relevant diff before crossing the corresponding boundary, and complete lesson closeout at the task's actual completion level. Do not use release completion semantics for an iteration experiment."
+    },
+    {
+      "destination": "patterns/codex-github-operating-system.md",
+      "text": "- `main`: canonical universal guidance\n- task branches: proposed changes"
+    },
+    {
+      "destination": "patterns/outcome-advancement-and-strategy-efficacy.md",
+      "text": "**Continuation is goal-directed, not method-directed.** For substantive or iterative work, apply `patterns/outcome-advancement-and-strategy-efficacy.md`. After an observed direct-outcome failure, apply its repair-candidate admission rule before broader validation. Flat/regressing/unclear progress triggers diagnosis: check exposure, effect model/window, and source-bound bottleneck; refine only a supported implementation/preparation/pacing/delivery gap with a predeclared signal/review, and stop/switch only for evidence-backed refusal, harm, infeasibility, mismatch, adequate contradiction/nonresponse, or a better alternative. Never invent fixed attempt counts for stochastic, skill-learning, or delayed strategies. If unclear, run the cheapest discriminating test. Sunk cost or green tests do not justify a genuinely failing strategy. Continue automatically after supported continuation, refinement, or replacement unless a genuine owner/authority boundary blocks the next step."
+    },
+    {
+      "destination": "patterns/parallel-chat-write-isolation.md",
+      "text": "Concurrent writers must follow `patterns/parallel-chat-write-isolation.md`; never share a mutable branch."
+    },
+    {
+      "destination": "patterns/worker-github-publication-and-recovery.md",
+      "text": "For integration-bound repository workers, also apply `patterns/worker-github-publication-and-recovery.md`: a local-only scratch commit is nonterminal, worker directives must define the remote publication contract, and an authorized GitHub connector/API is the required fallback before owner interruption when shell Git cannot publish."
+    },
+    {
+      "destination": "patterns/chat-work-execution-routing-threshold.md",
+      "text": "Follow `patterns/chat-work-execution-routing-threshold.md` for Chat-first reasoning,\nordinary GitHub work, bounded execution eligibility, and minimum-sufficient Work\nthinking. Chat owns reasoning and ordinary GitHub work; Work/Codex is execution-only;\na Claude session does both.\nBefore Work, discover deferred Chat tools too. If Chat/RDC can perform the bounded\nSSH/VPS/deployment action, keep it in Chat.\nWhen Work is admitted, apply `patterns/work-model-and-effort-routing.md` for the\ncanonical GPT-6.1 Sol (GPT-6 Sol fallback) / GPT-6 Astra model-and-effort ladder and telemetry contract.\nFor controlled supervisory routes also apply\n`patterns/runtime-chat-work-authority-admission-and-internal-routing.md`.\nWorker handoffs follow `patterns/worker-directive-delivery-and-chat-output-budget.md`:\nsame-turn runnable directive; long operational payloads go to `.md`/text artifacts.\nThese references preserve the existing rules rather than creating local copies."
+    },
+    {
+      "destination": "patterns/persistent-browser-automation-hygiene.md",
+      "text": "Before browser/GUI action, perform a **browser-surface preflight**: discover current-turn browser/computer-control surfaces and distinguish them from shell/process access. A remote shell is not the user's graphical browser session unless verified. Failure of shell launch helpers (`xdg-open`, `open`, `start`) is not evidence that browser control is unavailable; never substitute a shell URL-launch attempt for current-turn browser-control discovery. Before asking the owner to open a URL, copy a code, or click, use authorized control for automatable steps. For genuine human-only authentication/consent/passkey/CAPTCHA, pre-position the exact page when possible; the owner performs only the irreducible gesture, then resume automatically after the gate clears."
+    },
+    {
+      "destination": "patterns/persistent-browser-automation-hygiene.md",
+      "text": "Default browser automation to **headless mode**. Use headed/visible only for browser/OS interaction, headed-only behavior, extensions/native dialogs, window/focus, WebAuthn/passkeys, visual debugging, or capability unavailable headlessly; record the reason when a task record exists."
+    },
+    {
+      "destination": "patterns/persistent-browser-automation-hygiene.md",
+      "text": "Reuse browser process/context/page/tab; navigate/reset instead of churning. Create fresh only for isolation, parallelism, clean auth/storage, account separation, corrupt-state recovery, or fresh-context-dependent behavior. Close it when the task ends or retention creates material resource/security/privacy/contamination risk."
+    },
+    {
+      "destination": "patterns/persistent-browser-automation-hygiene.md",
+      "text": "For managed ChatGPT browser automation, **New chat in the current verified reusable ChatGPT tab** means no new browser tab. Keep **one** tab steady; **two** only for transition/recovery; **three** is the hard ceiling and **fail closed before opening a fourth**. Open a **replacement** only after the current tab is unusable, then **close the superseded** tab. **Never fan out duplicate** tabs. Report `managedChatGptTabCount`; **clean** completed/superseded tabs toward one. Do not retain bootstrap/pinned automation tabs merely as history when durable evidence exists."
+    },
+    {
+      "destination": "patterns/persistent-browser-automation-hygiene.md",
+      "text": "Standing authority includes creating and privately registering missing MC-only supervisor conversations without repeat approval; automation ownership, private identity, pacing, fixed controls, and personal/external-chat exclusion still apply."
+    },
+    {
+      "destination": "patterns/human-readable-operational-references.md",
+      "text": "On first use, and again after a topic shift, state the plain-language object or function first and put the identifier in parentheses; when several identifiers are involved, explain how they relate in ordinary language, not as a bare chain (examples: `patterns/human-readable-operational-references.md`)."
+    },
+    {
+      "destination": "patterns/human-readable-operational-references.md",
+      "text": "When an owner decision is required, state the actual choice, consequences, and recommended default in plain language. Do not ask the owner to decide among opaque identifiers or branch/PR numbers. Keep every open owner question on one continuously updated page: `patterns/owner-questions-page.md`. Internal logs, code, machine-readable receipts, and developer-only diagnostics may remain identifier-dense when that precision is useful."
+    },
+    {
+      "destination": "patterns/research-before-reinvention.md",
+      "text": "Before substantial investment in a bespoke method, framework, architecture, metric, algorithm, taxonomy, protocol, evaluation system, or workflow that plausibly overlaps established knowledge, follow `patterns/research-before-reinvention.md`."
+    },
+    {
+      "destination": "patterns/research-before-reinvention.md",
+      "text": "Cheap exploratory work may defer the scan only by recording explicit research debt and a hard trigger before architecture commitment, scaling, productionization, repeated refinement, public novelty claims, cross-project promotion, or substantial implementation. Repeated bespoke refinement is itself a trigger: do not keep polishing a homemade solution without checking whether the problem is already substantially solved."
+    },
+    {
+      "destination": "patterns/canonical-design-os-bootstrap.md",
+      "text": "For any task materially involving UI/UX, frontend visual implementation, website or app design/redesign, long-form reading experience, visual hierarchy, typography, color, layout, motion, interaction design, components, design systems, design critique/study, or design-production/accessibility/responsive review, load the current `u-dont-existDOTcom/design` repository before substantive design work. Start with its live default-branch `skills/design/SKILL.md` and follow `patterns/canonical-design-os-bootstrap.md`. Do not rely on remembered copies of the design methodology."
+    }
+  ]
+}

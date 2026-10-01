@@ -42,3 +42,7 @@ Two of the owner's projects run outside this architecture:
 - **AskRigor**: its research protocols run in other people's assistants through its connector. The evidence and reasoning stages of the map (coverage before depth, specificity, evidence direction, base rates, provenance, observed-state claims) belong in those protocols, rewritten for research users.
 
 Each project records its imports in its own manifest; this repository keeps no copy of their runtime text.
+
+## Compact rules moved from root `AGENTS.md`
+
+A project whose runtime runs outside this architecture imports what applies to it: `patterns/carrying-uda-into-standalone-projects.md`.

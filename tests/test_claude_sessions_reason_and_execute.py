@@ -1,4 +1,5 @@
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 import json
 import unittest
 
@@ -34,8 +35,9 @@ class ClaudeSessionsReasonAndExecuteTests(unittest.TestCase):
         self.assertIn("It does not apply to Claude", text)
 
     def test_root_routes_claude_sessions(self):
-        text = (ROOT / "AGENTS.md").read_text()
-        self.assertIn("a Claude session does both", text)
+        assert_routed_rule(self, "patterns/chat-work-execution-routing-threshold.md", (
+            "a Claude session does both",
+        ), compact=True)
 
 
 if __name__ == "__main__":

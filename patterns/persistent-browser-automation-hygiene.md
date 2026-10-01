@@ -158,3 +158,15 @@ on the Pangram local-Playwright task branch, with Mission Control implementation
 - Closing tabs before inspecting them can destroy recoverable evidence after an ambiguous paid/irreversible action; recovery mode must run first when that risk exists.
 - An exact artifact contract is application-specific. Do not replace one generic marker with another generic marker merely to satisfy this pattern.
 - Application History may itself be incomplete, deleted, expired, permission-scoped, or unavailable; the rule is about authority ordering, not a guarantee that every result can be recovered.
+
+## Compact rules moved from root `AGENTS.md`
+
+Before browser/GUI action, perform a **browser-surface preflight**: discover current-turn browser/computer-control surfaces and distinguish them from shell/process access. A remote shell is not the user's graphical browser session unless verified. Failure of shell launch helpers (`xdg-open`, `open`, `start`) is not evidence that browser control is unavailable; never substitute a shell URL-launch attempt for current-turn browser-control discovery. Before asking the owner to open a URL, copy a code, or click, use authorized control for automatable steps. For genuine human-only authentication/consent/passkey/CAPTCHA, pre-position the exact page when possible; the owner performs only the irreducible gesture, then resume automatically after the gate clears.
+
+Default browser automation to **headless mode**. Use headed/visible only for browser/OS interaction, headed-only behavior, extensions/native dialogs, window/focus, WebAuthn/passkeys, visual debugging, or capability unavailable headlessly; record the reason when a task record exists.
+
+Reuse browser process/context/page/tab; navigate/reset instead of churning. Create fresh only for isolation, parallelism, clean auth/storage, account separation, corrupt-state recovery, or fresh-context-dependent behavior. Close it when the task ends or retention creates material resource/security/privacy/contamination risk.
+
+For managed ChatGPT browser automation, **New chat in the current verified reusable ChatGPT tab** means no new browser tab. Keep **one** tab steady; **two** only for transition/recovery; **three** is the hard ceiling and **fail closed before opening a fourth**. Open a **replacement** only after the current tab is unusable, then **close the superseded** tab. **Never fan out duplicate** tabs. Report `managedChatGptTabCount`; **clean** completed/superseded tabs toward one. Do not retain bootstrap/pinned automation tabs merely as history when durable evidence exists.
+
+Standing authority includes creating and privately registering missing MC-only supervisor conversations without repeat approval; automation ownership, private identity, pacing, fixed controls, and personal/external-chat exclusion still apply.

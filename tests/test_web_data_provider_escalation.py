@@ -4,6 +4,7 @@ import json
 import re
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -66,9 +67,10 @@ class WebDataProviderEscalationTests(unittest.TestCase):
         self.assertNotIn("returns 403 because the key lacks billing permission", example)
 
     def test_routes_and_captcha_scope(self) -> None:
-        agents = AGENTS.read_text(encoding="utf-8")
-        self.assertEqual(agents.splitlines().count(B1), 1)
-        self.assertLess(agents.index("Claims about what ChatGPT, Claude, or Codex can do or did"), agents.index(B1))
+        assert_routed_rule(self, "patterns/web-data-provider-escalation.md", (
+            "Free tools first.", "AskRigor keeps its own source-access",
+        ))
+        self.assertNotIn(B1, AGENTS.read_text(encoding="utf-8"))
         assist = ASSIST.read_text(encoding="utf-8")
         gate = assist.split("### 3A. Human-only browser gates", 1)[1].split("### 4.", 1)[0]
         self.assertIn("The worker must not solve or bypass CAPTCHAs itself", gate)

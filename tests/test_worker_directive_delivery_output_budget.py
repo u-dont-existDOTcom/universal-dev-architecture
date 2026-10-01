@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,15 +40,14 @@ class WorkerDirectiveDeliveryOutputBudgetTests(unittest.TestCase):
                 self.assertIn(phrase, text)
 
     def test_root_agents_enforces_pattern(self) -> None:
-        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        required = (
+        assert_routed_rule(self, "patterns/chat-work-execution-routing-threshold.md", (
             "patterns/worker-directive-delivery-and-chat-output-budget.md",
             "same-turn runnable directive",
             "long operational payloads go to `.md`/text artifacts",
-        )
-        for phrase in required:
-            with self.subTest(phrase=phrase):
-                self.assertIn(phrase, agents)
+        ), compact=True)
+        assert_routed_rule(self, "patterns/worker-directive-delivery-and-chat-output-budget.md", (
+            "runnable execution directive in the same turn", "create a `.md` or other appropriate text artifact",
+        ))
 
     def test_output_budget_is_a_per_turn_rule_for_any_recipient(self) -> None:
         # 2026-09-24 owner correction: takeover handoffs were pasted inline because the rule

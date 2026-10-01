@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,12 +47,9 @@ class OwnerQuestionsPageTests(unittest.TestCase):
         self.assertEqual(order, sorted(order))
 
     def test_routes(self) -> None:
-        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        owner_facing = agents.split("## Owner-facing operational references", 1)[1].split("\n## ", 1)[0]
-        self.assertIn(
+        assert_routed_rule(self, "patterns/human-readable-operational-references.md", (
             "Keep every open owner question on one continuously updated page: `patterns/owner-questions-page.md`.",
-            owner_facing,
-        )
+        ), compact=True)
         index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
         self.assertEqual(sum("`patterns/owner-questions-page.md` —" in line for line in index.splitlines()), 1)
         self.assertIn("`../patterns/owner-questions-page.md`", (ROOT / "docs" / "INDEX.md").read_text(encoding="utf-8"))

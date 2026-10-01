@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,9 +14,10 @@ class AgentToAgentConsultationPatternTests(unittest.TestCase):
         return (ROOT / relative_path).read_text(encoding="utf-8")
 
     def test_root_index_and_docs_route_the_pattern(self) -> None:
-        for relative_path in ("AGENTS.md", "LESSON-INDEX.md", "docs/INDEX.md"):
+        for relative_path in ("LESSON-INDEX.md", "docs/INDEX.md"):
             with self.subTest(path=relative_path):
                 self.assertIn("patterns/agent-to-agent-consultation.md", self.read(relative_path))
+        assert_routed_rule(self, "patterns/agent-to-agent-consultation.md", ("Scope every claim about another agent", "Talk directly"))
 
     def test_claims_are_scoped_and_settled_in_their_runtime(self) -> None:
         text = PATTERN.read_text(encoding="utf-8")

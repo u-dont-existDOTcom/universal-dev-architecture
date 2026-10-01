@@ -1,5 +1,7 @@
+import re
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -28,10 +30,10 @@ class ResearchBeforeReinventionContractTests(unittest.TestCase):
         self.assertIn("authorial-flow", scholarly.lower())
 
     def test_agents_routes_triggered_work_to_pattern(self):
-        text = self.read("AGENTS.md")
-        self.assertIn("patterns/research-before-reinvention.md", text)
-        self.assertIn("patterns/existing-work-scan-and-scholarly-discovery.md", text)
-        self.assertIn("Before substantial investment", text)
+        assert_routed_rule(self, "patterns/research-before-reinvention.md", (
+            "Before substantial investment", "Cheap exploratory work may defer the scan",
+        ), compact=True)
+        self.assertIn("patterns/existing-work-scan-and-scholarly-discovery.md", self.read("patterns/research-before-reinvention.md"))
 
     def test_exec_plan_has_gate_fields(self):
         text = self.read("templates/EXEC-PLAN.md")
@@ -71,6 +73,20 @@ class ResearchBeforeReinventionContractTests(unittest.TestCase):
         self.assertIn("patterns/research-before-reinvention.md", docs)
         self.assertIn("templates/PRIOR-WORK-SCAN.md", docs)
         self.assertTrue((ROOT / "templates/PRIOR-WORK-SCAN.md").is_file())
+
+    def test_lesson_index_trigger_keeps_full_bespoke_work_scope(self):
+        index = self.read("LESSON-INDEX.md")
+        route = next(
+            line.split(" — ", 1)[1]
+            for line in index.splitlines()
+            if "`patterns/research-before-reinvention.md` —" in line
+        )
+        for category in (
+            "method", "framework", "architecture", "metric", "algorithm",
+            "taxonomy", "protocol", "evaluation system", "workflow",
+        ):
+            with self.subTest(category=category):
+                self.assertRegex(route, rf"\b{re.escape(category)}\b")
 
 
 if __name__ == "__main__":

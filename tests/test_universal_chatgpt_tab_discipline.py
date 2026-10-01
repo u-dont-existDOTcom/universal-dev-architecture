@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -12,7 +13,6 @@ class UniversalChatGptTabDisciplineTests(unittest.TestCase):
         self,
     ) -> None:
         documents = {
-            "root agreement": ROOT / "AGENTS.md",
             "browser hygiene": ROOT / "patterns" / "persistent-browser-automation-hygiene.md",
             "supervision routing": ROOT
             / "patterns"
@@ -44,6 +44,12 @@ class UniversalChatGptTabDisciplineTests(unittest.TestCase):
                 for fragment in required_fragments:
                     with self.subTest(fragment=fragment):
                         self.assertIn(fragment, text)
+
+    def test_root_moved_tab_contract_is_index_routed(self) -> None:
+        assert_routed_rule(self, "patterns/persistent-browser-automation-hygiene.md", (
+            "New chat in the current verified reusable ChatGPT tab",
+            "fail closed before opening a fourth", "managedChatGptTabCount",
+        ), compact=True)
 
     def test_runtime_ceiling_cannot_be_configured_above_three(self) -> None:
         config = (

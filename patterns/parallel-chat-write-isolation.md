@@ -144,3 +144,7 @@ writer lease     = which writer may mutate which branch
 ```
 
 Parallel writers may work on the same active task only through separate owned branches/worktrees. Shared mutable state is serialized through the integrator.
+
+## Compact rules moved from root `AGENTS.md`
+
+Concurrent writers must follow `patterns/parallel-chat-write-isolation.md`; never share a mutable branch.

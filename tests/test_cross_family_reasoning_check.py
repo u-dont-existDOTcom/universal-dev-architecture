@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,11 +12,12 @@ PATTERN = ROOT / "patterns" / "cross-family-reasoning-check.md"
 
 class CrossFamilyReasoningCheckTests(unittest.TestCase):
     def test_instruction_surfaces_route_to_the_pattern(self) -> None:
-        for relative_path in ("AGENTS.md", "LESSON-INDEX.md", "docs/INDEX.md"):
+        for relative_path in ("LESSON-INDEX.md", "docs/INDEX.md"):
             with self.subTest(path=relative_path):
                 self.assertIn("cross-family-reasoning-check.md", (ROOT / relative_path).read_text(encoding="utf-8"))
-        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("Hard, costly-if-wrong reasoning: `patterns/cross-family-reasoning-check.md`.", agents)
+        assert_routed_rule(self, "patterns/cross-family-reasoning-check.md", (
+            "only when **all three** of the following hold", "other model family",
+        ))
 
     def test_reviewer_is_the_other_family_and_never_a_disguised_substitute(self) -> None:
         text = PATTERN.read_text(encoding="utf-8")

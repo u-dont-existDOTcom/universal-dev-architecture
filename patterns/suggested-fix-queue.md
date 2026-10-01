@@ -29,3 +29,7 @@ Either way the owner was the channel between agents (`patterns/logic-failure-map
 - A lane adds no authority and bypasses no gate. It carries advice to the agent that decides.
 - Lanes are for suggestions to projects the filing agent isn't working on. An agent working in a project makes the change there.
 - The owner can still talk to any project's agent directly. The lane replaces relaying, not the owner's own requests.
+
+## Compact rules moved from root `AGENTS.md`
+
+Before other fixes in a project, read its lane in `suggested-fixes/`; file suggestions for other projects there, not as pull requests in them: `patterns/suggested-fix-queue.md`.

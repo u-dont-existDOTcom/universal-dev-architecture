@@ -517,7 +517,7 @@
     },
     {
       "rule_id": "uda.chat-work.execution-separation",
-      "canonical_path": "AGENTS.md",
+      "canonical_path": "patterns/chat-work-execution-routing-threshold.md",
       "status": "active",
       "trigger": "Structured task-time predicate in rules/rule-graph/task-time-metadata.v1.json.",
       "requires": [

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,8 +51,9 @@ class OutcomeAdvancementPatternTests(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, pattern)
 
-        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("repair-candidate admission rule before broader validation", agents)
+        assert_routed_rule(self, "patterns/outcome-advancement-and-strategy-efficacy.md", (
+            "repair-candidate admission rule before broader validation",
+        ), compact=True)
 
         lesson_index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
         self.assertIn("development failures reject; development passes do not validate", lesson_index)

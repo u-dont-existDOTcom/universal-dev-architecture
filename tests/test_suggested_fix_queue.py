@@ -4,6 +4,7 @@ import json
 import re
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,11 +42,9 @@ class SuggestedFixQueueTests(unittest.TestCase):
                 self.assertIn(phrase, text)
 
     def test_routes(self) -> None:
-        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn(
+        assert_routed_rule(self, "patterns/suggested-fix-queue.md", (
             "Before other fixes in a project, read its lane in `suggested-fixes/`; file suggestions for other projects there, not as pull requests in them: `patterns/suggested-fix-queue.md`.",
-            agents,
-        )
+        ), compact=True)
         index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
         self.assertEqual(sum("`patterns/suggested-fix-queue.md` —" in line for line in index.splitlines()), 1)
         self.assertIn("`../patterns/suggested-fix-queue.md`", (ROOT / "docs" / "INDEX.md").read_text(encoding="utf-8"))

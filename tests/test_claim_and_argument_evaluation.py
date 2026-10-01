@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from tests.root_migration_assertions import assert_routed_rule
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -73,11 +74,9 @@ class ClaimAndArgumentEvaluationTests(unittest.TestCase):
         self.assertIn("https://plato.stanford.edu/entries/respect/", provenance)
 
     def test_root_agents_routes_claim_evaluation(self) -> None:
-        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn(
-            '`patterns/reasoning-selection.md` → **Claim and argument evaluation**',
-            agents,
-        )
+        assert_routed_rule(self, "patterns/reasoning-selection.md", (
+            "Claim and argument evaluation", "**Hidden-slot and sense check.**",
+        ))
 
     def test_lesson_index_entry_names_the_trigger(self) -> None:
         index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")

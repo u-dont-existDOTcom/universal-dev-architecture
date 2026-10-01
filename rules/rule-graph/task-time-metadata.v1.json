@@ -396,7 +396,7 @@
       "revision": 1,
       "status": "CURRENT",
       "source": {
-        "path": "AGENTS.md",
+        "path": "patterns/chat-work-execution-routing-threshold.md",
         "selectors": [
           {
             "kind": "exact_text",
@@ -404,7 +404,7 @@
           }
         ]
       },
-      "authority_owner": "current UDA root",
+      "authority_owner": "Chat/Work execution routing pattern",
       "authority_domain": "chat-work-routing",
       "applies_to": {
         "roles": [

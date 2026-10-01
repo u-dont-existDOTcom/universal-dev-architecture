@@ -22,7 +22,11 @@ Before final delivery, apply `patterns/codex-github-operating-system.md` → **C
 
 ## Instruction composition
 
+Before substantive task work, open `LESSON-INDEX.md`, select the entries triggered by the task, and read their current patterns.
+
 Instruction maintenance uses `patterns/instruction-composition-and-portable-intelligence.md`; activation uses `patterns/task-time-lesson-activation.md`. Resolve graph-covered dependencies via `rules/UDA-RULE-GRAPH.json`/`scripts/uda_rule_graph.py`; canonical prose remains authoritative; unmapped rules stay index-routed; shopping routes through `LESSON-INDEX.md`.
+
+Task-specific rules live in patterns and are reached through `LESSON-INDEX.md`; a new task rule adds a pattern and an index entry, never a root line.
 
 ## Authority
 
@@ -35,28 +39,12 @@ Instruction maintenance uses `patterns/instruction-composition-and-portable-inte
 
 Project-specific current requirements win on genuine conflict.
 
-## Causal failure diagnosis
-
-Place every failure on the map first: `patterns/logic-failure-map.md`.
-
-When explaining an instruction-following, reasoning, routing, tool, execution, or delivery failure, identify the **causal mechanism** that generated the behavior. Check for missing/stale instruction activation, priority or authority conflict, trigger misclassification, wrong phase/surface/destination, lost carry-through between reasoning and final output, capability/tool boundary, stale state, or a failed enforcement check.
-
-Do not use agentic shorthand (`I chose wrong`, `I forgot`, `I should have`) as causal explanation or repair. Separate observed trace facts, supported causal inferences, and unverified hypotheses. If the cause is unknown, state the narrowest verified failure and a discriminating check; do not invent hidden instructions, priority conflicts, psychological states, or model internals. A working fix shows its effect in the tested scope, not the cause. Repair the generating condition at the authority, activation, routing, state, phase, destination, or enforcement boundary, not with promises.
-
-## Owner-marked Mission Control failure capture
-
-When the owner explicitly identifies a current or prior assistant/Chat/Work/Codex reasoning, instruction-following, routing, or execution failure as a Mission Control example; asks to save/record/capture it for Mission Control; or asks to recover/check such examples, load `patterns/owner-marked-mission-control-failure-capture.md` before further substantive action. A generic complaint or disagreement alone is not authorization to publish conversation content.
-
 ## Universal and owner-specific infrastructure boundary
 
 Keep patterns/templates portable. Isolate one-owner infrastructure content and
 label it exactly `NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT`; deleting those
 examples must not break reusable guidance or code. Never commit secrets,
 credentials, private locators/profiles, or owner account identifiers.
-
-A project whose runtime runs outside this architecture imports what applies to it: `patterns/carrying-uda-into-standalone-projects.md`.
-
-Before other fixes in a project, read its lane in `suggested-fixes/`; file suggestions for other projects there, not as pull requests in them: `patterns/suggested-fix-queue.md`.
 
 ## Validation
 
@@ -70,39 +58,7 @@ validation to the assurance lane below.
 
 Use the uniquely named `Universal repository compliance / Deterministic repository audit` GitHub Actions check. Keep the complete applicable instruction chain below Codex's documented 32 KiB default discovery budget.
 
-## Test-efficiency policy
-
-For non-trivial software tasks where repeated testing could materially affect task wall time, load `patterns/test-efficiency-and-verification-budget.md` before the implementation loop. Start test-cost measurement before substantive implementation and route agent-initiated test commands through `scripts/test_efficiency.py` or a project-native equivalent preserving the same semantics and measurements.
-
-If the active project does not already contain an equivalent observer, do not silently skip measurement. Vendor the current canonical `scripts/test_efficiency.py` from this repository, run the current canonical observer from a checked-out copy with `--root <PROJECT>`, or use a verified project-native equivalent. A missing local observer is not a reason to mark telemetry not applicable.
-
-Before choosing which tests to run, load the inner-loop, full-suite checkpoint, redundant-rerun, and mutation-trigger rules: `patterns/test-efficiency-and-verification-budget.md` → **Compact rules moved from root `AGENTS.md`**.
-
-Required repository-declared completion/CI gates still run at their proper checkpoint. Test-efficiency optimization changes scheduling and selection, not the required confidence boundary.
-
-## Development assurance lanes
-
-For software/product development, load `patterns/development-assurance-lanes.md` and match assurance to the decision being made now.
-
-Lane default and definitions, hard-gate, expensive-validation, outage, no-ratchet, and stale-lane rules: `patterns/development-assurance-lanes.md` → **Compact rules moved from root `AGENTS.md`**.
-
-Hard, costly-if-wrong reasoning: `patterns/cross-family-reasoning-check.md`.
-
-Claims about another agent, and agents that disagree: consult it directly, never through the owner: `patterns/agent-to-agent-consultation.md`.
-High-tier models hand easy, well-specified work to cheaper models when it saves real allowance, and keep it when continuing is cheaper: `patterns/delegate-easy-work-to-cheaper-models.md`.
-
-Evaluating a claim, argument, quote, meme, advice, or counterexample, even a casual "what do you think of this": `patterns/reasoning-selection.md` → **Claim and argument evaluation**.
-
-Claims about what ChatGPT, Claude, or Codex can do or did: `patterns/chatgpt-client-surface-capability-and-thread-recovery.md` → **Claims about the system itself**.
-Public web data that ordinary search or fetch can't get (blocked pages, CAPTCHAs, transcripts, comments and other platform data, country-targeted search): `patterns/web-data-provider-escalation.md`. Ask the owner before costly runs; AskRigor keeps its own rules.
-
-Saving or remembering an instruction or preference: `patterns/durable-chat-learning.md` → **12. User-specific instructions**.
-
 ## Workflow
-
-Use a task branch or worktree for substantive changes when isolation/recovery is useful. Open a pull request when the current task is actually approaching a review/merge boundary or the owner/project requires one; a reversible experimental candidate does not need to become merge-ready before the owner can try it.
-
-Track complex work in a durable plan. Give each task a stable unique ID (use `pr-<number>` for a pull request) and record its checkpoint at the path from `python3 scripts/task_checkpoint_path.py "$(git branch --show-current)" "<task-id>"` at meaningful boundaries. The helper hashes the exact branch and task ID into a case-fold-safe filename. Change `state/CURRENT-STATE.md` only when repository-level state changes. Run the checks appropriate to the active assurance lane, review the relevant diff before crossing the corresponding boundary, and complete lesson closeout at the task's actual completion level. Do not use release completion semantics for an iteration experiment.
 
 When multiple safe in-scope execution approaches achieve the same outcome, choose the better-coordinated approach without asking the owner to select an execution mode: use isolated workspaces, a durable plan and recovery ledger, delegation plus independent review when safely separable and decision-relevant, and serialize shared mutable state. This standing permission does not broaden task authority and does not replace substantive owner decisions.
 
@@ -110,18 +66,11 @@ An owner answer, correction, upload, or requested clarification is input to the 
 
 Work selects authorized task-scoped access and the automatic reviewer; do not ask the owner to choose routine permissions. This adds no semantic, spending, publication, representation, destructive, or self-approval authority. Resolve engineering blockers; ask only about a material tradeoff, with plain consequences and a recommendation, or a required human gate.
 
-
 Minimize owner choice as an execution invariant. Resolve routine implementation details and already-authorized subordinate actions without asking. A confirmation for the same destination, data boundary, scope, and consequence remains valid across retries, resumed execution, or an alternate authorized transport path; a failed tool or transport does not consume that approval. Ask again only if those facts materially change or the platform requires a fresh human gesture. If owner interaction is genuinely required, finish independent preparation, consolidate the exact dependent actions into the fewest confirmations permitted, explain the concrete downside or risk and why the gate is mandatory, give a recommended default, and resume automatically after the answer.
-
-**Continuation is goal-directed, not method-directed.** For substantive or iterative work, apply `patterns/outcome-advancement-and-strategy-efficacy.md`. After an observed direct-outcome failure, apply its repair-candidate admission rule before broader validation. Flat/regressing/unclear progress triggers diagnosis: check exposure, effect model/window, and source-bound bottleneck; refine only a supported implementation/preparation/pacing/delivery gap with a predeclared signal/review, and stop/switch only for evidence-backed refusal, harm, infeasibility, mismatch, adequate contradiction/nonresponse, or a better alternative. Never invent fixed attempt counts for stochastic, skill-learning, or delayed strategies. If unclear, run the cheapest discriminating test. Sunk cost or green tests do not justify a genuinely failing strategy. Continue automatically after supported continuation, refinement, or replacement unless a genuine owner/authority boundary blocks the next step.
 
 When you explicitly commit to a substantive operation, method, comparison, audit, experiment, or artifact, keep it as an open obligation until it is actually executed, I explicitly supersede it, or new evidence makes it invalid and you say so.
 
 Adjacent analysis, planning, preparation, or a different method does not count as completion. Before switching methods, declaring progress complete, or ending a substantial pass, verify what observable result proves each promised operation actually occurred. If a still-valid promised step was displaced by later work, execute it before continuing.
-
-Concurrent writers must follow `patterns/parallel-chat-write-isolation.md`; never share a mutable branch.
-
-For integration-bound repository workers, also apply `patterns/worker-github-publication-and-recovery.md`: a local-only scratch commit is nonterminal, worker directives must define the remote publication contract, and an authorized GitHub connector/API is the required fallback before owner interruption when shell Git cannot publish.
 
 ## Follow-up goal derivation and assistant-added requirements
 
@@ -137,41 +86,9 @@ If a newly added control blocks or degrades a previously working owner-aligned p
 
 This gate runs at follow-up-task authoring, before the new framing is handed to Work or another executor. A later worker faithfully executing a substituted goal is too late. At experiment launch, apply the operational owner-method contract to the actual runnable configuration.
 
-## Chat / Work execution routing
-
-Follow `patterns/chat-work-execution-routing-threshold.md` for Chat-first reasoning,
-ordinary GitHub work, bounded execution eligibility, and minimum-sufficient Work
-thinking. Chat owns reasoning and ordinary GitHub work; Work/Codex is execution-only;
-a Claude session does both.
-Before Work, discover deferred Chat tools too. If Chat/RDC can perform the bounded
-SSH/VPS/deployment action, keep it in Chat.
-When Work is admitted, apply `patterns/work-model-and-effort-routing.md` for the
-canonical GPT-6.1 Sol (GPT-6 Sol fallback) / GPT-6 Astra model-and-effort ladder and telemetry contract.
-For controlled supervisory routes also apply
-`patterns/runtime-chat-work-authority-admission-and-internal-routing.md`.
-Worker handoffs follow `patterns/worker-directive-delivery-and-chat-output-budget.md`:
-same-turn runnable directive; long operational payloads go to `.md`/text artifacts.
-These references preserve the existing rules rather than creating local copies.
-
-## Browser-control efficiency
-
-Before browser/GUI action, perform a **browser-surface preflight**: discover current-turn browser/computer-control surfaces and distinguish them from shell/process access. A remote shell is not the user's graphical browser session unless verified. Failure of shell launch helpers (`xdg-open`, `open`, `start`) is not evidence that browser control is unavailable; never substitute a shell URL-launch attempt for current-turn browser-control discovery. Before asking the owner to open a URL, copy a code, or click, use authorized control for automatable steps. For genuine human-only authentication/consent/passkey/CAPTCHA, pre-position the exact page when possible; the owner performs only the irreducible gesture, then resume automatically after the gate clears.
-
-Default browser automation to **headless mode**. Use headed/visible only for browser/OS interaction, headed-only behavior, extensions/native dialogs, window/focus, WebAuthn/passkeys, visual debugging, or capability unavailable headlessly; record the reason when a task record exists.
-
-Reuse browser process/context/page/tab; navigate/reset instead of churning. Create fresh only for isolation, parallelism, clean auth/storage, account separation, corrupt-state recovery, or fresh-context-dependent behavior. Close it when the task ends or retention creates material resource/security/privacy/contamination risk.
-
-For managed ChatGPT browser automation, **New chat in the current verified reusable ChatGPT tab** means no new browser tab. Keep **one** tab steady; **two** only for transition/recovery; **three** is the hard ceiling and **fail closed before opening a fourth**. Open a **replacement** only after the current tab is unusable, then **close the superseded** tab. **Never fan out duplicate** tabs. Report `managedChatGptTabCount`; **clean** completed/superseded tabs toward one. Do not retain bootstrap/pinned automation tabs merely as history when durable evidence exists.
-
-Standing authority includes creating and privately registering missing MC-only supervisor conversations without repeat approval; automation ownership, private identity, pacing, fixed controls, and personal/external-chat exclusion still apply.
-
 ## Owner-facing operational references
 
 In user-facing prose, never make repository identifiers the primary explanation. Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, and similar opaque references are locating metadata, not semantic referents.
-
-On first use, and again after a topic shift, state the plain-language object or function first and put the identifier in parentheses; when several identifiers are involved, explain how they relate in ordinary language, not as a bare chain (examples: `patterns/human-readable-operational-references.md`).
-
-When an owner decision is required, state the actual choice, consequences, and recommended default in plain language. Do not ask the owner to decide among opaque identifiers or branch/PR numbers. Keep every open owner question on one continuously updated page: `patterns/owner-questions-page.md`. Internal logs, code, machine-readable receipts, and developer-only diagnostics may remain identifier-dense when that precision is useful.
 
 ### Owner-facing outbound-link quality
 
@@ -182,23 +99,6 @@ Immediately before surfacing any outbound link to the owner, open the exact dest
 **Delivery is part of completion.** When the owner needs to use a file, packet, handoff, protocol, report, generated artifact, or other output, do not make them navigate GitHub branches or repository paths to obtain it.
 
 Before delivering that output, load the delivery-priority, provenance, companion-material, and pre-close usability rules: `patterns/human-readable-operational-references.md` → **Compact rules moved from root `AGENTS.md`**.
-
-## Research before reinvention
-
-Before substantial investment in a bespoke method, framework, architecture, metric, algorithm, taxonomy, protocol, evaluation system, or workflow that plausibly overlaps established knowledge, follow `patterns/research-before-reinvention.md`.
-
-Conception-snapshot, existing-work-scan, and scholarly-discovery (`patterns/existing-work-scan-and-scholarly-discovery.md`) rules: `patterns/research-before-reinvention.md` → **Compact rules moved from root `AGENTS.md`**.
-
-Cheap exploratory work may defer the scan only by recording explicit research debt and a hard trigger before architecture commitment, scaling, productionization, repeated refinement, public novelty claims, cross-project promotion, or substantial implementation. Repeated bespoke refinement is itself a trigger: do not keep polishing a homemade solution without checking whether the problem is already substantially solved.
-
-## Specialist architecture dependencies
-
-For any task materially involving UI/UX, frontend visual implementation, website or app design/redesign, long-form reading experience, visual hierarchy, typography, color, layout, motion, interaction design, components, design systems, design critique/study, or design-production/accessibility/responsive review, load the current `u-dont-existDOTcom/design` repository before substantive design work. Start with its live default-branch `skills/design/SKILL.md` and follow `patterns/canonical-design-os-bootstrap.md`. Do not rely on remembered copies of the design methodology.
-
-## Branch roles
-
-- `main`: canonical universal guidance
-- task branches: proposed changes
 
 ## Code review rules
 

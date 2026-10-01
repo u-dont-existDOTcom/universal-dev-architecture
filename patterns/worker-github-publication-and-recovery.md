@@ -180,3 +180,7 @@ Promoted from the 2026-09-28 `humandesign` empirical-astrology parallel extracti
 The portable lesson is not “always use the GitHub API.” It is: **bind worker completion to retrievability at the integration destination, preflight publication transport, and treat transport failure as a recoverable execution-path failure rather than an owner task when an authorized equivalent transport exists.**
 
 This pattern does not authorize publication to a new repository, broader visibility, release, spending, destructive mutation, credential disclosure, or semantic changes that were not already authorized.
+
+## Compact rules moved from root `AGENTS.md`
+
+For integration-bound repository workers, also apply `patterns/worker-github-publication-and-recovery.md`: a local-only scratch commit is nonterminal, worker directives must define the remote publication contract, and an authorized GitHub connector/API is the required fallback before owner interruption when shell Git cannot publish.

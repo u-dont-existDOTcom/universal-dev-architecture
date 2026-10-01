@@ -624,3 +624,7 @@ This is a required companion to:
 - `patterns/failed-strategy-lineage-and-negative-evidence-binding.md`
 
 The owner-outcome pattern preserves the correct target. The dual-alignment pattern ensures the worker and contract point at it. This pattern closes the remaining loop by proving whether the strategy is actually moving toward it and forcing intervention when it is not.
+
+## Compact rules moved from root `AGENTS.md`
+
+**Continuation is goal-directed, not method-directed.** For substantive or iterative work, apply `patterns/outcome-advancement-and-strategy-efficacy.md`. After an observed direct-outcome failure, apply its repair-candidate admission rule before broader validation. Flat/regressing/unclear progress triggers diagnosis: check exposure, effect model/window, and source-bound bottleneck; refine only a supported implementation/preparation/pacing/delivery gap with a predeclared signal/review, and stop/switch only for evidence-backed refusal, harm, infeasibility, mismatch, adequate contradiction/nonresponse, or a better alternative. Never invent fixed attempt counts for stochastic, skill-learning, or delayed strategies. If unclear, run the cheapest discriminating test. Sunk cost or green tests do not justify a genuinely failing strategy. Continue automatically after supported continuation, refinement, or replacement unless a genuine owner/authority boundary blocks the next step.
