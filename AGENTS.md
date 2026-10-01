@@ -22,7 +22,7 @@ Before final delivery, apply `patterns/codex-github-operating-system.md` → **C
 
 ## Instruction composition
 
-Instruction maintenance uses `patterns/instruction-composition-and-portable-intelligence.md`; activation uses `patterns/task-time-lesson-activation.md`. After selection, resolve graph-covered dependencies via `rules/UDA-RULE-GRAPH.json`/`scripts/uda_rule_graph.py`; canonical prose remains authoritative; unmapped rules stay index-routed.
+Instruction maintenance uses `patterns/instruction-composition-and-portable-intelligence.md`; activation uses `patterns/task-time-lesson-activation.md`. Resolve graph-covered dependencies via `rules/UDA-RULE-GRAPH.json`/`scripts/uda_rule_graph.py`; canonical prose remains authoritative; unmapped rules stay index-routed; shopping routes through `LESSON-INDEX.md`.
 
 ## Authority
 

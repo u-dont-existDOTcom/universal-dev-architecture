@@ -14,7 +14,7 @@ A recommendation is a terminal classification after evidence integration. It is 
 
 Apply this pattern when an answer will tell an owner what to buy, subscribe to, upgrade, prepay, replace, choose, use, shortlist, rank, or treat as the best/top/value option and the available evidence can materially distinguish candidates.
 
-For broad option searches, compose with `patterns/coverage-before-depth-in-selection.md`: inventory materially different alternatives before deep auditing, but do not expose failed discovery candidates merely to demonstrate coverage.
+For broad option searches, compose with `patterns/coverage-before-depth-in-selection.md`: inventory materially different alternatives before deep auditing, but do not expose failed discovery candidates merely to demonstrate coverage. In shopping, this includes open-ended, `best`, `best value`, budget/value, and landscape requests; the first easy-to-verify candidate cannot become the benchmark or value leader before that coverage pass completes.
 
 For shopping research, also apply `patterns/shopping-research.md`, the owner's shopping module. It adds scope, discovery, offer verification, landed cost, and review-reading procedures around this pattern's gate, and leaves the candidate states and admission here.
 
@@ -41,10 +41,11 @@ Before a candidate can be called recommended, best value, strongest candidate, t
 
 For shopping tasks, this normally includes:
 
+0. **Coverage breadth for open selection** — when the owner did not name the complete comparison set, perform the required breadth-before-depth pass and keep materially plausible uncovered alternatives visible internally until evidence shows they cannot reverse the choice. Ease of verification, ecosystem documentation, or early compatibility evidence cannot by themselves establish the benchmark.
 1. **Exact use-case fit** — load, dimensions, operating mode, required features, destination/country constraints, and owner budget/value objective.
 2. **Current orderability** — retailer listing is not enough. Verify a current purchase path, stock/order state, or equivalent live offer evidence for the exact variant when retailer-specific availability matters.
 3. **Current price** — a value claim requires a visible current price or tightly bounded current range. Include material shipping, tax, forwarding, required battery/accessory, or variant costs when known; otherwise mark them unresolved.
-4. **Product review signal** — check the exact product/variant rating, review count, and recurring negative themes when available. Do not substitute seller/store ratings for product ratings. A high mean rating does not erase recurring serious defects.
+4. **Product review signal** — check the exact product/variant rating, review count, and recurring negative themes when available. Do not substitute seller/store ratings for product ratings. A high mean rating does not erase recurring serious defects. For U.S.-market consumer goods with a meaningful exact Amazon.com listing, Amazon's current product star rating/count plus useful critical/comparative/long-term review signal is a default evidence source; if that evidence is unavailable, pooled ambiguously, or too sparse, record the limitation rather than silently skipping the review gate.
 5. **Compatibility** — voltage, frequency, plug/grounding, protocols, platform, power topology, waveform, connectors, physical fit, or other task-specific compatibility.
 6. **Performance for the actual load** — capacity, runtime, throughput, durability, or other outcome relevant to the owner's use rather than headline capacity alone.
 7. **Variant/source identity** — confirm that price, rating, specifications, and availability refer to the same materially relevant variant. Conflicting feeds remain `UNKNOWN` until reconciled.
@@ -123,6 +124,7 @@ Immediately before the owner-facing answer, inspect the actual candidates that w
 For every recommendation, require specific evidence for:
 
 ```text
+coverage_breadth          PASS when the comparison set is open-ended/broad/value-sensitive
 use_case_fit              PASS
 orderability              PASS
 price_visible             PASS when value-sensitive

@@ -17,6 +17,13 @@ The module's own first section, "Authority", names AskRigor's Universal Instruct
 
 ## Module text (AskRigor shopping module v0.2, sections 1 to 9)
 
+### 0. Task-time activation and open-selection enforcement
+Before the first substantive product search, compile this shopping module together with `patterns/recommendation-preflight-integrity.md` into the Active Lesson Contract. A direct owner correction or rejection makes the shopping contract STALE; recompile before resuming substantive product research or naming/recommending a candidate.
+
+For open-ended, broad, `best`, `best value`, budget/value, or landscape selection, also activate `patterns/coverage-before-depth-in-selection.md`. Breadth precedes depth: inventory materially distinct viable candidate classes and obvious high-signal market alternatives before deep research on one ecosystem. Do not promote the first easy-to-verify, highly compatible, or well-documented candidate into a benchmark, finalist, value leader, winner, or top pick until that coverage pass is complete and every exposed finalist passes the material preflight gates.
+
+For U.S.-market consumer goods, when an exact materially relevant Amazon.com product/variant listing has a meaningful product-rating history, treat its current star rating, rating count, and useful critical/comparative/long-term reviews as a default review-evidence source alongside other relevant marketplaces, specialist retailers, owner forums, and first-party documentation. Do not make Amazon mandatory when the exact variant is absent, pooled ambiguously, inaccessible, or too sparse; record that limitation instead. Amazon product ratings never substitute for offer verification, seller/fulfillment checks, or better-matched specialist evidence.
+
 ### 1. Scope
 Recover outcome/use, budget/currency, destination/deadline, compatibility, quantity, exclusions and permitted routes. Current instructions override defaults. Separate constraints/preferences; do not repeat questions. Ask only consequential questions; otherwise disclose assumptions.
 
