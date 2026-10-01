@@ -43,7 +43,7 @@ For shopping tasks, this normally includes:
 
 0. **Coverage breadth for open selection** — when the owner did not name the complete comparison set, perform the required breadth-before-depth pass and keep materially plausible uncovered alternatives visible internally until evidence shows they cannot reverse the choice. Ease of verification, ecosystem documentation, or early compatibility evidence cannot by themselves establish the benchmark.
 1. **Exact use-case fit** — load, dimensions, operating mode, required features, destination/country constraints, and owner budget/value objective.
-2. **Current orderability** — retailer listing is not enough. Verify a current purchase path, stock/order state, or equivalent live offer evidence for the exact variant when retailer-specific availability matters.
+2. **Current orderability** — retailer listing is not enough. Immediately before owner-facing recommendation, open the exact offer URL that will be surfaced, follow redirects, confirm it still resolves to the intended product/variant, and verify a current purchase path, stock/order state, or equivalent live offer evidence. Search snippets, cached cards, manufacturer/catalog pages without a purchase path, category pages, sold-out or "no longer available" listings, and seller pages that do not establish the exact item do not pass. If a final rewrite changes the offer, seller, variant, price, or link, recheck the changed offer before delivery.
 3. **Current price** — a value claim requires a visible current price or tightly bounded current range. Include material shipping, tax, forwarding, required battery/accessory, or variant costs when known; otherwise mark them unresolved.
 4. **Product review signal** — check the exact product/variant rating, review count, and recurring negative themes when available. Do not substitute seller/store ratings for product ratings. A high mean rating does not erase recurring serious defects. For U.S.-market consumer goods with a meaningful exact Amazon.com listing, Amazon's current product star rating/count plus useful critical/comparative/long-term review signal is a default evidence source; if that evidence is unavailable, pooled ambiguously, or too sparse, record the limitation rather than silently skipping the review gate.
 5. **Compatibility** — voltage, frequency, plug/grounding, protocols, platform, power topology, waveform, connectors, physical fit, or other task-specific compatibility.
@@ -51,7 +51,7 @@ For shopping tasks, this normally includes:
 7. **Variant/source identity** — confirm that price, rating, specifications, and availability refer to the same materially relevant variant. Conflicting feeds remain `UNKNOWN` until reconciled.
 8. **Relative value** — compare only against other candidates that also pass their material gates. A cheap failed candidate does not set the valid value baseline.
 
-If a material gate is missing, contradictory, or failed, do not endorse the candidate. Continue searching if executable alternatives remain.
+If a material gate is missing, contradictory, or failed, do not endorse the candidate. Continue searching if executable alternatives remain. When a leading candidate specifically fails current orderability, continuation is mandatory within the authorized shopping scope: search alternate legitimate sellers for the same product first, then materially equivalent brands/products if needed, and rerun the affected gates. An unavailable candidate may be mentioned only as unavailable/unknown comparison context when useful; it cannot remain a buy option or value winner.
 
 ## Software plans, subscriptions, and paid replacements
 
@@ -126,6 +126,7 @@ For every recommendation, require specific evidence for:
 ```text
 coverage_breadth          PASS when the comparison set is open-ended/broad/value-sensitive
 use_case_fit              PASS
+exact_offer_live          PASS for every surfaced buy link
 orderability              PASS
 price_visible             PASS when value-sensitive
 rating_review_signal      PASS or explicitly justified NOT_AVAILABLE
@@ -145,6 +146,8 @@ If no candidate passes after a reasonable broad search, return **no verified rec
 Reject these patterns:
 
 - recommending a retailer item and discovering afterward that it is out of stock;
+- recommending or directly linking a search/card/manufacturer result whose exact offer page says sold out, unavailable, or no longer available;
+- letting a dead/out-of-stock leading candidate terminate the search while alternate sellers or materially equivalent products remain executable;
 - recommending a cheap product and checking its weak rating only after the owner objects;
 - showing a product as a candidate and then explaining in the same answer why its known topology/specification makes it unsuitable;
 - omitting prices from a best-value shortlist;
