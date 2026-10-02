@@ -57,6 +57,22 @@ When the owner asks to find, reopen, recover, or continue a prior Chat or Work t
 
 Do not declare the thread missing after checking only web search, only desktop search, or only one browser profile.
 
+### Continue means recover the latest complete exchange
+
+Finding the thread is only the locator step. When the owner asks to **continue** a prior conversation, person-specific thread, or ongoing project discussion, recovery is incomplete until the worker reconstructs the latest relevant conversational edge needed for the next reply.
+
+At minimum, recover and order chronologically:
+
+1. the latest relevant incoming user/participant turn;
+2. the exact assistant/outgoing reply to that turn, when one existed; and
+3. any subsequent incoming turn that answers or reacts to that reply.
+
+Do not resume from the last incoming message while silently omitting the assistant's own intervening reply. The outgoing reply may contain the active question, intervention, promise, interpretation, or constraint that gives the next incoming message its meaning.
+
+If the exact outgoing text cannot be recovered, mark that edge as unavailable and continue from the strongest remaining evidence. Do not reconstruct an "exact" prior reply from a later response, a summary, or what would have been plausible to say.
+
+When sources disagree on recency, compare their actual timestamps and scope. A private handoff, case bundle, checkpoint, or summary that ends before a verified thread/project transcript is **stale for conversation recency**. It may still supply older longitudinal context, but it must not be described as the latest conversational state. Prefer exact transcript text over summaries or remembered paraphrases for the recovered edge.
+
 ## Web/browser recovery
 
 For browser-owned ChatGPT surfaces, local Chromium-family History is a useful direct URL index when available.
