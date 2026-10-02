@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "status": "active",
-  "exclusive_writer": true,
+  "status": "released",
+  "exclusive_writer": false,
   "domain": "MISSION_CONTROL",
   "owned_branch": "chat/mc-claude-integrator-20260924",
   "integration_branch": "main",
   "integration_base_sha": "279d1dd7dfb9daa023e76911e5acc4a6859e47fe",
-  "shared_runtime_mutation_owner": true,
+  "shared_runtime_mutation_owner": false,
   "acquired_at": "2026-09-24T17:38:15Z",
   "scope": "Mission Control integration: integrate the progress-heartbeat (d86774d) and secretless-reconciliation (b050075) candidates, add the owner-authenticated fleet-watch capability POST /api/fleet-supervisor/:projectId, then restore the AskRigor fleet watch through the control plane and resume A19-A20. No token extraction, no second scheduler, no replay of crossed source-review requests.",
   "integrated_candidates": [
@@ -41,5 +41,7 @@
     "askrigor_a19_a20_request": "2026-09-24T19:48:29Z via owner-action source-review (review_attempt_id a19-a20-execution-decision-20260924-claude): 202 QUEUED_FOR_PROVIDER_RELAY, event supervision-request-v6:551561c5af71f1c490029825a5a751c342bd153fdbf6a201ec1f09da9e5630d9 at sequence 18371. Reconcile beforehand appended 0 events. Do not resend.",
     "secondary_relay": "NOT YET DEPLOYED: held until the queued AskRigor request's provider generation completes, to avoid interrupting it.",
     "native_work_endpoint": "native-work-autodispatch:askrigor-system-alignment remains OFFLINE_CONFIGURED; an execution directive will not launch Work until it is online."
-  }
+  },
+  "released_at": "2026-09-26T21:00:25Z",
+  "release_reason": "Superseded by owner-authorized blocked-work integration continuation on 2026-09-26."
 }

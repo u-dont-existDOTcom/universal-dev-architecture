@@ -1,6 +1,7 @@
 import type { MissionControlEventV2 } from "./schema";
 import { POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID } from "./post-work-reasoning-route";
 import { SOURCE_REVIEW_ROUTER_PRODUCER_ID } from "./source-review-route";
+import { FLEET_SUPERVISOR_ROUTER_PRODUCER_ID } from "./fleet-router-producer";
 
 export const producerKinds = [
   "OWNER_AUTHORITY", "WORKER", "SUPERVISOR", "COLLECTOR", "VERIFIER", "SYSTEM", "UI",
@@ -101,7 +102,7 @@ function systemSupervisoryRouteMatches(
   event: Extract<MissionControlEventV2, { type: "worker_message_recorded" }>,
 ): boolean {
   if (producer.kind !== "SYSTEM"
-    || ![POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID, SOURCE_REVIEW_ROUTER_PRODUCER_ID].includes(producer.id)
+    || ![POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID, SOURCE_REVIEW_ROUTER_PRODUCER_ID, FLEET_SUPERVISOR_ROUTER_PRODUCER_ID].includes(producer.id)
     || !event.body.startsWith("MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n")) return false;
   try {
     const value: unknown = JSON.parse(event.body.slice("MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n".length));

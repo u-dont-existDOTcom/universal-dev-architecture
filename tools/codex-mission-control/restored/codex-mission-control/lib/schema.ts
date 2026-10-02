@@ -1620,8 +1620,10 @@ export const liveWorkerEvidenceObservedSchema = z.object({
   head: z.string().regex(/^[a-f0-9]{40}$/),
   directive_id: StableId.nullable(),
   receipt_id: StableId.nullable(),
-  phase: z.enum(["DIRECTED", "IMPLEMENTING", "VERIFYING", "EVIDENCED", "COMPLETE"]),
+  phase: z.enum(["DIRECTED", "IMPLEMENTING", "VERIFYING", "EVIDENCED", "COMPLETE", "BLOCKED"]),
   summary: NonEmpty,
+  task_id: StableId.optional(),
+  blocker_code: z.string().regex(/^[A-Z_]{1,120}$/).nullable().optional(),
 });
 
 export const ownerMessageRecordedSchema = z.object({

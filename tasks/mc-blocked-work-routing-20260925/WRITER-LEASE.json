@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "status": "released",
+  "exclusive_writer": false,
+  "owned_branch": "chat/mc-blocked-work-routing-20260925",
+  "integration_branch": "chat/mc-claude-integrator-20260924",
+  "parent_integrator": "chat/mc-claude-integrator-20260924",
+  "integration_base_sha": "d3abe3d55d1aae84413ae28cfce1a0a744388d35",
+  "shared_runtime_mutation_owner": false,
+  "scope": "Repair factual blocked-work escalation through the existing Mission Control fleet/V6 route; child-only code, tests, and integrator handoff; no shared runtime change.",
+  "parent_outcome": "OPEN",
+  "child_result": "VERIFIED_CANDIDATE_HANDOFF",
+  "shared_runtime_activated": false
+}
