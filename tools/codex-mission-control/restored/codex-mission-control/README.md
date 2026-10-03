@@ -107,6 +107,61 @@ directives remain supported without reinterpretation.
 
 ## Native fleet supervisor
 
+The fleet loop has a stall watchdog. It polls every 60 seconds by default and
+abandons a tick on the first poll after its stall limit: the larger of five poll
+intervals and five minutes. `MISSION_CONTROL_FLEET_SUPERVISOR_STALL_MS` overrides
+that limit (integer 1,000–3,600,000 ms, the same validation range as the poll
+interval). One `fleet_supervisor_tick_stalled` record identifies the abandoned
+tick's start, age, stage and project. Cancellation prevents subsequent hooks,
+watch processing and commits. Late results are still recorded and cannot release
+the replacement tick's guard. `/health` includes `fleetSupervisorLoop` with
+configuration, completion/failure timestamps, error/failure counts and stall
+count; `stalled` becomes true when no tick has completed within the stall limit
+plus one poll interval. Existing readiness decisions are unchanged.
+
+Jev remains shadow-only. A timer race bounds its hook at the configured Jev
+timeout plus 100 ms, independently of provider abort handling. Hook deadline and
+exception failures become `HOOK_TIMEOUT` and `HOOK_ERROR` observations. Every
+non-disabled live observation retains its stdout record and is also written to
+SQLite's `jev_shadow_observations` table. Rows contain observation time/source,
+project, trigger/status/error, model/provider/response ID, latency, token counts,
+cost, Jev and deterministic action/owner signals, agreement, state fingerprint,
+and allowlisted state/answers JSON. Arbitrary text fields are excluded from those
+JSON bodies. Storage failure logs `jev_shadow_record_failed` without failing a
+fleet tick. Response IDs are unique; observations without an ID deduplicate on
+time, trigger, status and error code.
+
+`GET /jev-shadow/summary` and the read-only MCP tool
+`mission_control_get_jev_shadow_summary` use the fleet read scope (owner,
+supervisor or UI). The existing authenticated MCP HTTP and stdio forwarding paths
+both expose the tool. The summary reports first/last observations; source,
+status and error counts; OK comparisons and distinct states; overall/per-trigger
+agreement and disagreement pairs; expected owner cases, false positives and
+misses; live OK latency count, p50/p90/p99/max (nearest-rank milliseconds), timeout
+and provider-error counts; cost and tokens; and timestamps for 25/100/500 OK and
+distinct-state checkpoints. Expected owner cases count every row with known state;
+false positives and misses compare only OK answers with known state and owner
+scores. Absent state is never treated as false. Noul scores
+at least 0.5 mean true; next action is the highest choice score (lexical tie-break).
+Cost per 1,000 calls uses all recorded non-disabled observations as its denominator.
+Repeated states count toward OK checkpoints, but only once toward distinct-state
+checkpoints. These summaries measure observed coverage, not authority to act.
+
+To recover saved stdout observations, stop the daemon and run from the app:
+
+```sh
+tsx scripts/import-jev-shadow-log.ts saved-docker-timestamps.log
+# Or pipe Docker --timestamps lines to stdin:
+tsx scripts/import-jev-shadow-log.ts - < saved-docker-timestamps.log
+```
+
+The script uses `MISSION_CONTROL_DB` or the usual `data/mission-control.db`
+default and the store's exclusive writer lock. It streams lines, keeps only
+`jev_shadow_observation` JSON, uses Docker timestamps, records `LOG_IMPORT` rows,
+and prints only read/imported/skipped/malformed counts. Re-running adds no rows.
+Imports have null project and latency because historical stdout cannot recover
+them. No provider calls are made. Restart the daemon after import.
+
 Every nonterminal project queue is enrolled automatically in the daemon-owned fleet supervisor. The default cadence is 3,600,000 ms (one hour); authenticated owner surfaces can set a project cadence or mark its watch `ACTIVE`, `PAUSED`, `TERMINAL`, or `DISABLED` through `/fleet-supervisor/:projectId`. Paused, terminal, and disabled watches have no next tick.
 
 Each tick performs deterministic ledger, project, queue, outcome-progress, strategy, reasoning-review, continuity, blocker, owner-action, terminality, and pre-send/process-recovery checks before any deeper route. Strategy decisions are queued through the existing Project Manager reasoning lane; a tick never authors a replacement strategy or broadens provider-send, spend, permission, scientific, safety, publication, invalidation, or no-resend authority.

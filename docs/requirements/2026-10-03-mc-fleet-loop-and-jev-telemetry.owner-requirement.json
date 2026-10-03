@@ -50,10 +50,19 @@
   "related_findings": [
     "2026-10-03: the deployed daemon/server.ts, lib/fleet-supervisor.ts, lib/jev-shadow.ts and lib/store.ts were byte-identical to main.",
     "2026-10-03: the last Jev observation was logged at 2026-09-30T14:34:08Z; after it the daemon logged no Jev line, no fleet tick event and no tick failure, while its GitHub reconciliation interval kept logging through 2026-10-03.",
-    "2026-10-03: container logs held 5,697 Jev observations from 2026-09-26T18:37Z to 2026-09-30T14:34Z: 5,607 answered, 89 timeouts at the 1.5 s limit and 1 HTTP error. All 5,607 answers matched the deterministic decision, but only two decision types occurred (5,515 healthy, 92 integrity holds). Summed reported cost was about $0.28."
+    "2026-10-03: container logs held 5,697 Jev observations from 2026-09-26T18:37Z to 2026-09-30T14:34Z: 5,607 answered, 89 timeouts at the 1.5 s limit and 1 HTTP error. All 5,607 answers matched the deterministic decision, but only two decision types occurred (5,515 healthy, 92 integrity holds). Summed reported cost was about $0.28.",
+    "2026-10-03 implementation: separate fleet watchdog with per-invocation cancellation and guard ownership; stage/project diagnostics; independent Jev timeout race; durable allowlisted telemetry and scoped summary; readiness field and idempotent Docker log importer. IMPLEMENTED_NOT_LIVE_VERIFIED; no deploy or historical log import performed.",
+    "Gate npm test: BLOCKED_BY_SANDBOX, 0 tests started. The unchanged tsx CLI attempts an IPC socket and receives EPERM. npm run build: NOT_RUN (0 builds), explicitly deferred to CI.",
+    "Gate app socket/process-free alternative: PASS, 459 test cases across 43 files, including all 48 affected cases. Tests ran via node --import tsx --test --test-isolation=none, separately per file for environment isolation. 20 app cases requiring sockets or restricted child processes are deferred to CI; none was edited to bypass the sandbox.",
+    "Gate npm run typecheck: PASS, 0 TypeScript diagnostics.",
+    "Gate python3 -m unittest discover -s tests -v: FAIL_ENVIRONMENT, 637 tests, 636 passed and 1 socket-bound HTTP canary error (PermissionError). The socket-free selection passes all 636 tests. A first-run checkpoint-format error was repaired before the final gate.",
+    "Gate GITHUB_HEAD_REF=claude/mc-fleet-loop-jev-telemetry-20261003 UDA_TASK_ID=pr-311 python3 scripts/audit_codex_github.py --root . --fail-on error: PASS, 0 errors, 0 warnings. A first-run checkpoint-heading warning was repaired.",
+    "Gate relay state-and-client socket/process-free subset: PASS, 16 tests. Three CLI/socket cases are deferred to CI; the initial unrestricted attempt hit sandbox child-process EPERM and a native Node assertion. Relay code and tests were unchanged.",
+    "Importer executable smoke checks through the permitted shell: PASS, file read=1/imported=1/skipped=0/malformed=0; rerun read=1/imported=0/skipped=1/malformed=0; stdin into a separate temporary store read=1/imported=1/skipped=0/malformed=0. The automated child-process CLI case remains for CI."
   ],
   "learning_state_at_merge": [
-    "CAPTURED"
+    "CAPTURED",
+    "IMPLEMENTED_NOT_LIVE_VERIFIED"
   ],
   "nonclaims": [
     "The logs cannot show which await hung; the fix bounds the network wait and recovers from any wedge rather than assuming one cause.",

@@ -28,27 +28,40 @@ export interface FleetSupervisorHooks {
   continueMechanical?: (watch: FleetSupervisorWatchRecord, decision: FleetSupervisorDecision, events: readonly StoredEvent[]) => unknown | Promise<unknown>;
   notifyOwner?: (watch: FleetSupervisorWatchRecord, decision: FleetSupervisorDecision) => unknown | Promise<unknown>;
   observeJevShadow?: (watch: FleetSupervisorWatchRecord, decision: FleetSupervisorDecision,
-    events: readonly StoredEvent[], chain: { valid: boolean; errors: string[] }) => JevShadowObservation | Promise<JevShadowObservation>;
+    events: readonly StoredEvent[], chain: { valid: boolean; errors: string[] }, signal?: AbortSignal) => JevShadowObservation | Promise<JevShadowObservation>;
 }
 
 export class FleetSupervisorRuntime {
+  private progress = { stage: "selecting", projectId: null as string | null };
+  get currentProgress() { return { ...this.progress }; }
   constructor(private readonly store: EventStore, private readonly hooks: FleetSupervisorHooks = {}) {}
 
-  async tick(now = new Date().toISOString()) {
+  async tick(now = new Date().toISOString(), signal?: AbortSignal) {
     const results: Array<{ projectId: string; decision: FleetSupervisorDecision; committed: boolean;
       notificationDisposition: string; jevShadow: JevShadowObservation | null }> = [];
+    if (signal?.aborted) return results;
+    this.progress = { stage: "selecting", projectId: null };
     for (const watch of this.store.dueFleetSupervisorWatches(now)) {
+      if (signal?.aborted) break;
+      this.progress = { stage: "classifying", projectId: watch.projectId };
       const events = this.store.workerEvents(watch.worker);
       const chain = this.store.verifyChain();
       const decision = classifyFleetSupervisorTick(watch, events, chain);
+      if (signal?.aborted) break;
+      this.progress.stage = "routing reasoning";
       if (decision.mechanicalRecoveryEligible) await this.hooks.continueMechanical?.(watch, decision, events);
+      if (signal?.aborted) break;
       if (decision.reasoningRequired) await this.hooks.routeReasoning?.(watch, decision, events);
+      if (signal?.aborted) break;
       const fingerprint = decision.notifyOwner ? sha256(`${decision.trigger}\n${decision.notificationReason ?? ""}`) : null;
       const duplicate = Boolean(fingerprint && fingerprint === watch.notificationFingerprint);
       const notificationDisposition = decision.notifyOwner
         ? duplicate ? "SUPPRESSED_DUPLICATE" : "OWNER_NOTIFIED"
         : "SUPPRESSED_NOT_ACTIONABLE";
+      this.progress.stage = "notifying";
       if (decision.notifyOwner && !duplicate) await this.hooks.notifyOwner?.(watch, decision);
+      if (signal?.aborted) break;
+      this.progress.stage = "committing";
       const committed = this.store.completeFleetSupervisorTick({
         projectId: watch.projectId,
         dueAt: watch.nextTickAt!,
@@ -63,7 +76,10 @@ export class FleetSupervisorRuntime {
       });
       let jevShadow: JevShadowObservation | null = null;
       try {
-        jevShadow = await this.hooks.observeJevShadow?.(watch, decision, events, chain) ?? null;
+        if (!signal?.aborted) {
+          this.progress.stage = "observing Jev";
+          jevShadow = await this.hooks.observeJevShadow?.(watch, decision, events, chain, signal) ?? null;
+        }
       } catch {
         // Shadow evaluation is intentionally non-authoritative and may never fail the fleet tick.
       }

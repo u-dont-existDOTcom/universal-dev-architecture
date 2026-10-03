@@ -3,6 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { canonicalJson, sha256 } from "./canonical";
+import { initializeJevShadowTelemetry, jevShadowSummary, recordJevShadowObservation, type JevShadowRecordInput } from "./jev-shadow-telemetry";
 import { trustedTaskCreationEvidence } from "./work-task-creation-evidence";
 import { producerMayEmit } from "./ingestion-auth";
 import { CorrectionInvariantError, validateCorrectionTransition } from "./correction-lifecycle";
@@ -91,6 +92,14 @@ export class EventStore {
 
   close() {
     this.db.close();
+  }
+
+  recordJevShadowObservation(input: JevShadowRecordInput) {
+    return recordJevShadowObservation(this.db, input);
+  }
+
+  jevShadowSummary() {
+    return jevShadowSummary(this.db);
   }
 
   count(schemaVersion?: 1 | 2): number {
@@ -564,6 +573,7 @@ export class EventStore {
   }
 
   private createV2Schema(withTriggers = true) {
+    initializeJevShadowTelemetry(this.db);
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS events (
         sequence INTEGER PRIMARY KEY AUTOINCREMENT,

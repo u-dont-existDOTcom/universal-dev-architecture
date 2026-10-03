@@ -33,7 +33,8 @@ export interface JevShadowObservation {
   usage?: { input_tokens?: number; output_tokens?: number; cost?: number };
   provider?: string;
   response_id?: string;
-  error_code?: "STATE_BUILD_ERROR" | "TIMEOUT" | "HTTP_ERROR" | "INVALID_RESPONSE" | "TRANSPORT_ERROR" | "HOOK_ERROR";
+  latency_ms?: number;
+  error_code?: "STATE_BUILD_ERROR" | "TIMEOUT" | "HTTP_ERROR" | "INVALID_RESPONSE" | "TRANSPORT_ERROR" | "HOOK_ERROR" | "HOOK_TIMEOUT";
 }
 
 interface JevDecisionRequest {
@@ -52,6 +53,8 @@ export type JevShadowTransport = (input: {
 export interface JevShadowOptions {
   env?: Readonly<Record<string, string | undefined>>;
   transport?: JevShadowTransport;
+  signal?: AbortSignal;
+  now?: () => number;
 }
 export const MISSION_CONTROL_JEV_QUESTIONS = {
   owner_decision_required: {
@@ -146,7 +149,7 @@ export async function observeFleetSupervisorWithJev(
   }
   const apiKey = env.OPENROUTER_API_KEY?.trim();
   if (!apiKey) {
-    return { status: "MISSING_API_KEY", authoritative: false, model, deterministic_trigger: deterministicTrigger };
+    return { status: "MISSING_API_KEY", authoritative: false, model, deterministic_trigger: deterministicTrigger, latency_ms: 0 };
   }
   let state: JevShadowState;
   try {
@@ -154,13 +157,18 @@ export async function observeFleetSupervisorWithJev(
   } catch {
     return {
       status: "ERROR", authoritative: false, model, deterministic_trigger: deterministicTrigger,
-      error_code: "STATE_BUILD_ERROR",
+      error_code: "STATE_BUILD_ERROR", latency_ms: 0,
     };
   }
-  const timeoutMs = parseTimeout(env.MISSION_CONTROL_JEV_SHADOW_TIMEOUT_MS);
+  const timeoutMs = jevShadowTimeoutMs(env.MISSION_CONTROL_JEV_SHADOW_TIMEOUT_MS);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const transport = options.transport ?? openRouterJevTransport;
+  const now = options.now ?? Date.now;
+  const started = now();
+  const abort = () => controller.abort();
+  options.signal?.addEventListener("abort", abort, { once: true });
+  if (options.signal?.aborted) controller.abort();
 
   try {
     const raw = await transport({
@@ -172,6 +180,7 @@ export async function observeFleetSupervisorWithJev(
     return {
       status: "OK", authoritative: false, model, deterministic_trigger: deterministicTrigger, state,
       answers: response.answers, usage: response.usage, provider: response.provider, response_id: response.id,
+      latency_ms: Math.max(0, now() - started),
     };
   } catch (error) {
     const errorCode = error instanceof JevHttpError ? "HTTP_ERROR"
@@ -180,10 +189,11 @@ export async function observeFleetSupervisorWithJev(
       : "TRANSPORT_ERROR";
     return {
       status: "ERROR", authoritative: false, model, deterministic_trigger: deterministicTrigger,
-      state, error_code: errorCode,
+      state, error_code: errorCode, latency_ms: Math.max(0, now() - started),
     };
   } finally {
     clearTimeout(timer);
+    options.signal?.removeEventListener("abort", abort);
   }
 }
 
@@ -237,7 +247,7 @@ function deliveryErrorFamily(code: string | null): string {
   return "OTHER";
 }
 
-function parseTimeout(raw: string | undefined): number {
+export function jevShadowTimeoutMs(raw: string | undefined): number {
   const value = Number(raw ?? 1500);
   return Number.isInteger(value) && value >= 100 && value <= 10_000 ? value : 1500;
 }
