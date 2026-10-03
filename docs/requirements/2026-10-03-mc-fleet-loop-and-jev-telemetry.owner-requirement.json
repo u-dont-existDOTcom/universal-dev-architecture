@@ -1,0 +1,62 @@
+{
+  "requirement_id": "2026-10-03-mc-fleet-loop-and-jev-telemetry",
+  "date": "2026-10-03",
+  "source": "A Mission Control status report the owner forwarded to a Claude chat on 2026-10-03. It found the fleet-supervisor loop frozen since 2026-09-30 and Jev shadow evidence collection stopped with it.",
+  "problem": "The Mission Control daemon stayed up and reported ready, but its fleet-supervisor loop stopped ticking on 2026-09-30 at about 14:35 UTC. All three active fleet watches froze, so fleet supervision and the Jev shadow experiment both stopped, and nothing reported it. Jev observations were written only to container stdout, so the experiment's counts, agreement, latency and cost could not be read back.",
+  "owner_corrections": [
+    "Decision-relevant change: the Mission Control fleet-supervisor loop has stopped advancing, so Jev has effectively stopped collecting shadow evidence.",
+    "The next Mission Control repair should restore that loop and persist Jev count/agreement/latency/cost telemetry so the 25/100/500 checkpoints become measurable."
+  ],
+  "failure_mechanisms": [
+    "Silent wedge: one fleet tick started and never settled. The loop's re-entry guard then skipped every later tick without logging anything, so no error and no stall were ever recorded.",
+    "Unbounded wait: the Jev shadow hook, the only network wait inside a tick, is bounded only by an AbortSignal inside the hook, and nothing outside the hook bounds it.",
+    "Invisible liveness: readiness does not report the loop, so a stalled loop looked healthy.",
+    "Ephemeral telemetry: Jev observations went only to stdout and lacked latency, so the experiment's checkpoints could not be measured from durable data."
+  ],
+  "existing_coverage": [
+    "lib/fleet-supervisor.ts: deterministic fleet decisions and the shadow hook, which may never fail a tick.",
+    "lib/jev-shadow.ts: sanitized state, typed questions, the provider timeout, and status and error codes.",
+    "tests/fleet-supervisor.test.ts and tests/jev-shadow.test.ts."
+  ],
+  "required_behavior": [
+    "A tick that runs past a stall limit is logged once with its stage and project, abandoned, and replaced by a new tick; an abandoned tick makes no further side effects.",
+    "The Jev hook always settles within a hard deadline independent of the provider's abort signal; timeouts and hook errors become recorded ERROR observations.",
+    "Every non-disabled Jev observation is stored durably with latency, cost, tokens, the deterministic expectation and agreement.",
+    "Owner and supervisor surfaces can read a summary: counts, agreement by decision type, owner false positives and misses, latency percentiles, cost, distinct states, and when the 25, 100 and 500 checkpoints were reached.",
+    "Readiness reports the loop's status without changing how readiness is decided.",
+    "Past observations saved from container logs can be imported once, without duplicates."
+  ],
+  "review_changes": [],
+  "regression": "Mission Control tests for the hook deadline, the loop watchdog, the telemetry store and summary, the import script, the MCP tool and readiness.",
+  "scope": "Mission Control daemon and library code, its tests and docs, in this repository. Deploying the change to the live host is a separate step that needs the owner's approval.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "notes": "The owner forwarded the report that asks for this repair. The diagnosis (a wedged tick behind the re-entry guard, no error logged, other intervals alive) comes from read-only checks of the live daemon's logs by the Claude chat (ASSISTANT_INFERENCE about which await hung).",
+    "admission": "OWNER_DIRECT"
+  },
+  "existing_work_basis": [
+    "docs/exec-plans/active/2026-09-21-mc-jev-shadow.md",
+    "docs/exec-plans/active/2026-09-22-mc-jev-calibration.md",
+    "docs/exec-plans/active/2026-09-22-mc-jev-precedence.md",
+    "docs/exec-plans/active/2026-09-19-mission-control-default-fleet-supervisor.md"
+  ],
+  "execution_surfaces": [
+    {
+      "surface": "Mission Control daemon on the live host",
+      "disposition": "DEFERRED",
+      "note": "Changes nothing live until the owner approves a deploy."
+    }
+  ],
+  "related_findings": [
+    "2026-10-03: the deployed daemon/server.ts, lib/fleet-supervisor.ts, lib/jev-shadow.ts and lib/store.ts were byte-identical to main.",
+    "2026-10-03: the last Jev observation was logged at 2026-09-30T14:34:08Z; after it the daemon logged no Jev line, no fleet tick event and no tick failure, while its GitHub reconciliation interval kept logging through 2026-10-03.",
+    "2026-10-03: container logs held 5,697 Jev observations from 2026-09-26T18:37Z to 2026-09-30T14:34Z: 5,607 answered, 89 timeouts at the 1.5 s limit and 1 HTTP error. All 5,607 answers matched the deterministic decision, but only two decision types occurred (5,515 healthy, 92 integrity holds). Summed reported cost was about $0.28."
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED"
+  ],
+  "nonclaims": [
+    "The logs cannot show which await hung; the fix bounds the network wait and recovers from any wedge rather than assuming one cause.",
+    "Agreement on healthy and integrity-hold states says nothing yet about owner-decision or reasoning-route cases; none occurred."
+  ]
+}
