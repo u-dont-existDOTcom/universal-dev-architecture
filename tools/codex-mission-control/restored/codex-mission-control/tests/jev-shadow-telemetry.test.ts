@@ -205,6 +205,67 @@ test("incomplete OK answers remain stored but cannot dilute agreement or reach c
   } finally { store.close(); }
 });
 
+test("live OK latency includes incomplete actions independently of agreement", () => {
+  const store = new EventStore(":memory:");
+  try {
+    const incomplete = [{}, { next_action: { choice: {} } }, { next_action: { choice: { unknown_action: 1 } } }];
+    incomplete.forEach((answers, i) => store.recordJevShadowObservation({ source: "LIVE", observedAt: at(i),
+      observation: observation({ answers, latency_ms: [10, 30, 40][i] }) }));
+    store.recordJevShadowObservation({ source: "LIVE", observedAt: at(3), observation: observation({ latency_ms: 20 }) });
+    store.recordJevShadowObservation({ source: "LIVE", observedAt: at(4), observation: observation({ answers: {} }) });
+    store.recordJevShadowObservation({ source: "LOG_IMPORT", observedAt: at(5), observation: observation({ answers: {}, latency_ms: 999 }) });
+    store.recordJevShadowObservation({ source: "LIVE", observedAt: at(6), observation: observation({
+      status: "ERROR", error_code: "TIMEOUT", latency_ms: 1500 }) });
+    const summary = store.jevShadowSummary();
+    assert.deepEqual(summary.latency, { count: 4, p50: 20, p90: 40, p99: 40, max: 40, timeoutCount: 1, providerErrorCount: 0 });
+    assert.equal(summary.okComparisons, 1); assert.equal(summary.agreement.agreeing, 1);
+    assert.deepEqual(summary.agreement.disagreeingPairs, []);
+    assert.equal(summary.distinctStateFingerprints, 1);
+    assert.equal(summary.checkpoints[0].okComparisonsReachedAt, null);
+  } finally { store.close(); }
+});
+
+test("provider usage is sanitized before OK observations persist and logs import", async () => {
+  const store = new EventStore(":memory:"), imported = new EventStore(":memory:");
+  try {
+    seedIssue47Store(store);
+    const events = store.workerEvents(store.fleetSupervisorWatch("project:human-design")!.worker);
+    const validUsage = { input_tokens: 100, output_tokens: 2, cost: 0.1 };
+    const cases = [
+      ...(["input_tokens", "output_tokens"] as const).flatMap((field) =>
+        [-1, 1.5, Number.MAX_SAFE_INTEGER + 1, NaN, Infinity].map((value) => ({ field, value }))),
+      ...[-0.1, NaN, Infinity].map((value) => ({ field: "cost" as const, value })),
+    ];
+    for (const [i, { field, value }] of cases.entries()) {
+      const result = await observeFleetSupervisorWithJev("HEALTHY_ADVANCING", events, { valid: true }, {
+        env: { MISSION_CONTROL_JEV_SHADOW_ENABLED: "1", OPENROUTER_API_KEY: "test-only-key" },
+        transport: async () => ({ answers: liveAnswers, usage: { ...validUsage, [field]: value, explanation: "PRIVATE_TEXT" } }),
+      });
+      assert.equal(result.status, "OK");
+      assert.deepEqual(result.usage, { ...validUsage, [field]: undefined });
+      assert.deepEqual(result.answers, sanitizedLiveAnswers);
+      assert.equal(store.recordJevShadowObservation({ source: "LIVE", observedAt: at(i), observation: result }), true);
+      const row = rows(store).at(-1)!;
+      assert.equal(row.input_tokens, result.usage?.input_tokens ?? null);
+      assert.equal(row.output_tokens, result.usage?.output_tokens ?? null);
+      assert.equal(row.cost_usd, result.usage?.cost ?? null);
+      const line = `${at(i)} ${JSON.stringify({ event: "jev_shadow_observation", ...result })}`;
+      assert.doesNotMatch(line, /PRIVATE_TEXT/);
+      assert.deepEqual(await importJevShadowLog([line], imported), { read: 1, imported: 1, skipped: 0, malformed: 0 });
+      assert.deepEqual(await importJevShadowLog([line], imported), { read: 1, imported: 0, skipped: 1, malformed: 0 });
+    }
+    const boundaryUsage = { input_tokens: 0, output_tokens: Number.MAX_SAFE_INTEGER, cost: 0 };
+    const boundary = await observeFleetSupervisorWithJev("HEALTHY_ADVANCING", events, { valid: true }, {
+      env: { MISSION_CONTROL_JEV_SHADOW_ENABLED: "1", OPENROUTER_API_KEY: "test-only-key" },
+      transport: async () => ({ answers: liveAnswers, usage: boundaryUsage }),
+    });
+    assert.equal(boundary.status, "OK"); assert.deepEqual(boundary.usage, boundaryUsage);
+    assert.equal(store.recordJevShadowObservation({ source: "LIVE", observedAt: at(cases.length), observation: boundary }), true);
+    assert.equal(store.jevShadowSummary().counts.total, cases.length + 1);
+    assert.equal(imported.jevShadowSummary().counts.total, cases.length);
+  } finally { store.close(); imported.close(); }
+});
+
 test("valid owner answers count independently of missing or unusable next actions", () => {
   const store = new EventStore(":memory:");
   try {

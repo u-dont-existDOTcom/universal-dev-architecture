@@ -232,8 +232,8 @@ function parseJevResponse(raw: unknown): {
   return {
     answers: answers.data,
     usage: usage ? {
-      input_tokens: numberOrUndefined(usage.input_tokens),
-      output_tokens: numberOrUndefined(usage.output_tokens),
+      input_tokens: numberOrUndefined(usage.input_tokens, true),
+      output_tokens: numberOrUndefined(usage.output_tokens, true),
       cost: numberOrUndefined(usage.cost),
     } : undefined,
     provider: typeof record.provider === "string" ? record.provider : undefined,
@@ -255,8 +255,9 @@ export function jevShadowTimeoutMs(raw: string | undefined): number {
   return Number.isInteger(value) && value >= 100 && value <= 10_000 ? value : 1500;
 }
 
-function numberOrUndefined(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+function numberOrUndefined(value: unknown, integer = false): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    && (!integer || Number.isSafeInteger(value)) ? value : undefined;
 }
 
 function isAbortError(error: unknown): boolean {

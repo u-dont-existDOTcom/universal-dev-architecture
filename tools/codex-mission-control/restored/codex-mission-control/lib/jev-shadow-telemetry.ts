@@ -153,6 +153,7 @@ export function jevShadowSummary(db: DatabaseSync) {
       if (row.expected_owner_decision_required === 0 && row.jev_owner_decision_required === 1) falsePositives += 1;
       if (row.expected_owner_decision_required === 1 && row.jev_owner_decision_required === 0) misses += 1;
     }
+    if (row.status === "OK" && row.source === "LIVE" && row.latency_ms !== null) latencies.push(row.latency_ms);
     if (row.status !== "OK" || row.jev_next_action === null || row.agrees === null) continue;
     ok += 1; agreeing += row.agrees ?? 0;
     const trigger = byTrigger[row.deterministic_trigger] ??= { n: 0, agreeing: 0, rate: 0 };
@@ -163,7 +164,6 @@ export function jevShadowSummary(db: DatabaseSync) {
       pair.count += 1; pairs.set(key, pair);
     }
     if (row.state_fingerprint) states.add(row.state_fingerprint);
-    if (row.source === "LIVE" && row.latency_ms !== null) latencies.push(row.latency_ms);
     for (const checkpoint of checkpoints) {
       if (ok >= checkpoint.n && checkpoint.okComparisonsReachedAt === null) checkpoint.okComparisonsReachedAt = row.observed_at;
       if (states.size >= checkpoint.n && checkpoint.distinctStatesReachedAt === null) checkpoint.distinctStatesReachedAt = row.observed_at;
