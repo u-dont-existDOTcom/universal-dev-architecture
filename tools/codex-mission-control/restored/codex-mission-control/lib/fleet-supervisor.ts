@@ -39,15 +39,23 @@ export interface FleetSupervisorWatchTiming {
   slowestStage: keyof FleetSupervisorWatchTiming["stageMs"];
 }
 
+export interface FleetSupervisorTickResult {
+  projectId: string;
+  decision: FleetSupervisorDecision;
+  committed: boolean;
+  notificationDisposition: string;
+  jevShadow: JevShadowObservation | null;
+}
+
 export class FleetSupervisorRuntime {
   private progress = { stage: "selecting", projectId: null as string | null };
   get currentProgress() { return { ...this.progress }; }
   constructor(private readonly store: EventStore, private readonly hooks: FleetSupervisorHooks = {},
     private readonly clock: () => number = () => performance.now()) {}
 
-  async tick(now = new Date().toISOString(), signal?: AbortSignal, onWatchTiming?: (timing: FleetSupervisorWatchTiming) => void) {
-    const results: Array<{ projectId: string; decision: FleetSupervisorDecision; committed: boolean;
-      notificationDisposition: string; jevShadow: JevShadowObservation | null }> = [];
+  async tick(now = new Date().toISOString(), signal?: AbortSignal, onWatchTiming?: (timing: FleetSupervisorWatchTiming) => void,
+    onWatchResults?: (results: FleetSupervisorTickResult[]) => void) {
+    const results: FleetSupervisorTickResult[] = [];
     if (signal?.aborted) return results;
     this.progress = { stage: "selecting", projectId: null };
     for (const watch of this.store.dueFleetSupervisorWatches(now)) {
@@ -112,7 +120,10 @@ export class FleetSupervisorRuntime {
       timing.slowestStage = (Object.keys(timing.stageMs) as Array<typeof stage>)
         .reduce((slowest, candidate) => timing.stageMs[candidate] > timing.stageMs[slowest] ? candidate : slowest, timing.slowestStage);
       onWatchTiming?.(timing);
-      results.push({ projectId: watch.projectId, decision, committed, notificationDisposition, jevShadow });
+      const result = { projectId: watch.projectId, decision, committed, notificationDisposition, jevShadow };
+      results.push(result);
+      // Publish synchronously before another watch can throw or await a hook.
+      onWatchResults?.([result]);
     }
     return results;
   }

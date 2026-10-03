@@ -30,6 +30,60 @@ function runtimeStore(watches = 1) {
   return { store, commits: () => commits, reads: () => reads };
 }
 
+for (const laterOutcome of ["throws", "stalls", "completes"] as const) {
+  test(`each completed watch is logged and stored before a later watch ${laterOutcome}`, async () => {
+    const store = new EventStore(":memory:"), later = deferred<JevShadowObservation>();
+    store.verifyChain = () => ({ valid: false, errors: ["fixture integrity failure"] });
+    let now = Date.parse("2026-10-03T01:00:00.000Z");
+    const logged: string[] = [], errors: unknown[] = [];
+    for (const projectId of ["project:first", "project:second"]) {
+      store.ensureFleetSupervisorWatch(projectId, "task:fixture", "fixture", "2026-10-03T00:00:00.000Z");
+    }
+    const runtime = new FleetSupervisorRuntime(store, {
+      notifyOwner: (watch) => {
+        if (watch.projectId === "project:second" && laterOutcome === "throws") throw new Error("later watch failure");
+      },
+      observeJevShadow: (watch) => watch.projectId === "project:first" ? observed : later.promise,
+    });
+    const loop = new FleetSupervisorLoop(runtime, {
+      now: () => now, pollMs: 1000, stallMs: 5000,
+      onResults: (results) => {
+        for (const item of results) {
+          if (item.jevShadow && item.jevShadow.status !== "DISABLED") {
+            logged.push(item.projectId);
+            store.recordJevShadowObservation({ source: "LIVE", projectId: item.projectId, observation: item.jevShadow });
+          }
+        }
+      },
+      onFailure: (error) => errors.push(error),
+    });
+    try {
+      loop.advance(); await flush();
+      assert.equal(store.fleetSupervisorTicks("project:first").length, 1);
+      assert.ok(Date.parse(store.fleetSupervisorWatch("project:first")!.nextTickAt!) > now);
+      assert.deepEqual(logged, ["project:first"]);
+      assert.equal(store.jevShadowSummary().counts.bySource.LIVE, 1);
+      if (laterOutcome === "throws") {
+        assert.equal(loop.status().consecutiveFailures, 1);
+        assert.equal(loop.status().lastErrorMessage, "later watch failure");
+        assert.equal(errors.length, 1);
+      } else {
+        assert.equal(loop.status().lastTickCompletedAt, null);
+        if (laterOutcome === "stalls") {
+          now += 6001; loop.advance(); await flush();
+          assert.equal(loop.status().stalledTickCount, 1);
+        }
+        later.resolve(observed); await flush();
+        const expected = laterOutcome === "stalls" ? ["project:first"] : ["project:first", "project:second"];
+        assert.deepEqual(logged, expected);
+        assert.equal(store.jevShadowSummary().counts.bySource.LIVE, expected.length);
+        assert.equal(loop.status().lastTickCompletedAt, new Date(now).toISOString());
+        assert.deepEqual(errors, []);
+      }
+    } finally { loop.stop(); later.resolve(observed); await flush(); store.close(); }
+  });
+}
+
 test("completed tick status and health expose each watch's stages, slowest stage and total duration", async () => {
   let now = 0;
   const fixture = runtimeStore(2), jev = deferred<JevShadowObservation>();

@@ -17,7 +17,8 @@ export interface FleetSupervisorLoopStatus {
 }
 
 interface LoopRuntime<T> {
-  tick(now: string, signal: AbortSignal, onWatchTiming?: (timing: FleetSupervisorWatchTiming) => void): Promise<T>;
+  tick(now: string, signal: AbortSignal, onWatchTiming?: (timing: FleetSupervisorWatchTiming) => void,
+    onWatchResults?: (results: T) => void): Promise<T>;
   readonly currentProgress?: { stage: string; projectId: string | null };
 }
 
@@ -116,7 +117,14 @@ export class FleetSupervisorLoop<T> {
     void (async () => {
       try {
         const watchTimings: FleetSupervisorWatchTiming[] = [];
-        const results = await this.runtime!.tick(new Date(now).toISOString(), invocation.controller.signal, (timing) => watchTimings.push(timing));
+        let published = false;
+        const publish = (results: T) => {
+          if (this.active !== invocation || invocation.controller.signal.aborted) return;
+          published = true;
+          this.options.onResults?.(results);
+        };
+        const results = await this.runtime!.tick(new Date(now).toISOString(), invocation.controller.signal,
+          (timing) => watchTimings.push(timing), publish);
         if (this.active !== invocation || invocation.controller.signal.aborted) return;
         const completed = this.now();
         this.state.lastTickCompletedAt = new Date(completed).toISOString();
@@ -132,7 +140,8 @@ export class FleetSupervisorLoop<T> {
             duration_ms: this.state.lastTickDurationMs, synchronous_ms: synchronousMs,
             project_id: slowestWatch.projectId, watch_timings: watchTimings });
         }
-        this.options.onResults?.(results);
+        // Keep batch-only runtimes compatible without republishing streamed watches.
+        if (!published) publish(results);
       } catch (error) {
         if (this.active !== invocation || invocation.controller.signal.aborted) return;
         this.state.lastTickFailedAt = new Date(this.now()).toISOString();
