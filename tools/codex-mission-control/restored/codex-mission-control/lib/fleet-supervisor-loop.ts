@@ -1,4 +1,6 @@
 import type { FleetSupervisorWatchTiming } from "./fleet-supervisor";
+import { jevShadowTimeoutMs } from "./jev-shadow";
+import { JEV_HOOK_DEADLINE_MARGIN_MS } from "./jev-shadow-hook";
 
 export interface FleetSupervisorLoopStatus {
   enabled: boolean;
@@ -45,11 +47,15 @@ export function fleetSupervisorSlowTickMs(raw: string | undefined) {
   return value;
 }
 
-export function fleetSupervisorStallMs(raw: string | undefined, pollMs: number) {
-  if (raw === undefined) return Math.max(5 * pollMs, 300_000);
-  const value = Number(raw);
-  if (!Number.isInteger(value) || value < 1_000 || value > 3_600_000) {
+export function fleetSupervisorStallMs(raw: string | undefined, pollMs: number,
+  env: Readonly<Record<string, string | undefined>> = {}) {
+  const value = raw === undefined ? Math.max(5 * pollMs, 300_000) : Number(raw);
+  if (raw !== undefined && (!Number.isInteger(value) || value < 1_000 || value > 3_600_000)) {
     throw new Error("MISSION_CONTROL_FLEET_SUPERVISOR_STALL_MS must be 1000-3600000.");
+  }
+  if (env.MISSION_CONTROL_JEV_SHADOW_ENABLED === "1"
+    && value <= jevShadowTimeoutMs(env.MISSION_CONTROL_JEV_SHADOW_TIMEOUT_MS) + JEV_HOOK_DEADLINE_MARGIN_MS) {
+    throw new Error("MISSION_CONTROL_FLEET_SUPERVISOR_STALL_MS must exceed the enabled Jev hook deadline (timeout + 100 ms).");
   }
   return value;
 }

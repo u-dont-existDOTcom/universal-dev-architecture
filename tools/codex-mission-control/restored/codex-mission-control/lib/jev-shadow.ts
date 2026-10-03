@@ -1,5 +1,6 @@
 import { projectWorker } from "./projection";
 import type { StoredEvent } from "./schema";
+import { jevShadowAnswersSchema } from "./jev-shadow-telemetry";
 
 export const DEFAULT_JEV_SHADOW_MODEL = "typesafe/jev-1.13";
 export const OPENROUTER_JEV_DECISIONS_ENDPOINT = "https://openrouter.ai/api/alpha/decisions";
@@ -224,10 +225,12 @@ function parseJevResponse(raw: unknown): {
   if (!record.answers || typeof record.answers !== "object" || Array.isArray(record.answers)) {
     throw new JevResponseError("Response answers are missing.");
   }
+  const answers = jevShadowAnswersSchema.safeParse(record.answers);
+  if (!answers.success) throw new JevResponseError("Response answers are invalid.");
   const usage = record.usage && typeof record.usage === "object" && !Array.isArray(record.usage)
     ? record.usage as Record<string, unknown> : undefined;
   return {
-    answers: record.answers as Record<string, unknown>,
+    answers: answers.data,
     usage: usage ? {
       input_tokens: numberOrUndefined(usage.input_tokens),
       output_tokens: numberOrUndefined(usage.output_tokens),

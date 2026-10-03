@@ -6,8 +6,9 @@ import { spawnSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { canonicalJson, sha256 } from "../lib/canonical";
-import type { JevShadowObservation, JevShadowState } from "../lib/jev-shadow";
+import { observeFleetSupervisorWithJev, type JevShadowObservation, type JevShadowState } from "../lib/jev-shadow";
 import { importJevShadowLog, parseJevShadowLogLine } from "../lib/jev-shadow-log-import";
+import { seedIssue47Store } from "../lib/seed";
 import { EventStore } from "../lib/store";
 
 const state: JevShadowState = {
@@ -202,6 +203,65 @@ test("incomplete OK answers remain stored but cannot dilute agreement or reach c
     store.recordJevShadowObservation({ source: "LIVE", observedAt: at(28), observation: observation() });
     assert.equal(store.jevShadowSummary().checkpoints[0].okComparisonsReachedAt, at(28));
   } finally { store.close(); }
+});
+
+test("valid owner answers count independently of missing or unusable next actions", () => {
+  const store = new EventStore(":memory:");
+  try {
+    const ownerState = { ...state, owner_action_kind: "DECISION_REQUIRED" };
+    const fixtures = [
+      observation({ answers: { owner_decision_required: { noul: 0.9 } } }),
+      observation({ state: ownerState, answers: { next_action: { choice: {} }, owner_decision_required: { noul: false } } }),
+      observation({ state: ownerState, answers: { next_action: { choice: { unknown_action: 1 } }, owner_decision_required: { noul: true } } }),
+      observation({ answers: { owner_decision_required: { noul: 0.1 } } }),
+      observation({ answers: {} }),
+      observation({ state: undefined, answers: { owner_decision_required: { noul: true } } }),
+      observation({ status: "ERROR", error_code: "TIMEOUT", state: ownerState, answers: { owner_decision_required: { noul: false } } }),
+    ];
+    fixtures.forEach((item, i) => store.recordJevShadowObservation({ source: "LIVE", observedAt: at(i), observation: item }));
+    const summary = store.jevShadowSummary();
+    assert.deepEqual(summary.ownerSignals, { comparisons: 4, expectedTrue: 3, falsePositives: 1, misses: 1 });
+    assert.equal(summary.counts.total, fixtures.length);
+    assert.equal(summary.agreement.n, 0);
+    assert.deepEqual(summary.agreement.disagreeingPairs, []);
+    assert.equal(summary.distinctStateFingerprints, 0);
+    assert.equal(summary.checkpoints[0].okComparisonsReachedAt, null);
+  } finally { store.close(); }
+});
+
+test("malformed provider answers produce durable INVALID_RESPONSE observations and importable logs", async () => {
+  const store = new EventStore(":memory:"), imported = new EventStore(":memory:");
+  try {
+    seedIssue47Store(store);
+    const events = store.workerEvents(store.fleetSupervisorWatch("project:human-design")!.worker);
+    const malformedAnswers = [
+      { next_action: "PRIVATE_TEXT" }, { next_action: { choice: "PRIVATE_TEXT" } },
+      { next_action: { choice: "no_action_healthy", probabilities: { no_action_healthy: 2 } } },
+      { owner_decision_required: { noul: "PRIVATE_TEXT" } }, { engineering_blocker: true },
+      { stalled_or_regressing: { noul: 2 } }, { consequence_level: { score: "PRIVATE_TEXT" } },
+      { consequence_level: { score: 1, confidence: -1 } },
+    ];
+    for (const [i, answers] of malformedAnswers.entries()) {
+      let now = 0;
+      const result = await observeFleetSupervisorWithJev("HEALTHY_ADVANCING", events, { valid: true }, {
+        env: { MISSION_CONTROL_JEV_SHADOW_ENABLED: "1", OPENROUTER_API_KEY: "test-only-key" },
+        now: () => now, transport: async () => { now = 12; return { answers }; },
+      });
+      assert.equal(result.status, "ERROR"); assert.equal(result.error_code, "INVALID_RESPONSE");
+      assert.equal(result.authoritative, false); assert.equal(result.latency_ms, 12);
+      assert.equal(result.answers, undefined); assert.ok(result.state);
+      assert.equal(store.recordJevShadowObservation({ source: "LIVE", observedAt: at(i), observation: result }), true);
+      const line = `${at(i)} ${JSON.stringify({ event: "jev_shadow_observation", ...result })}`;
+      assert.doesNotMatch(line, /PRIVATE_TEXT/);
+      assert.deepEqual(await importJevShadowLog([line], imported), { read: 1, imported: 1, skipped: 0, malformed: 0 });
+      assert.deepEqual(await importJevShadowLog([line], imported), { read: 1, imported: 0, skipped: 1, malformed: 0 });
+    }
+    for (const target of [store, imported]) {
+      assert.equal(target.jevShadowSummary().counts.total, malformedAnswers.length);
+      assert.equal(target.jevShadowSummary().latency.providerErrorCount, malformedAnswers.length);
+      assert.ok(rows(target).every((row) => row.answers_json === null && row.agrees === null));
+    }
+  } finally { store.close(); imported.close(); }
 });
 
 test("summary covers per-trigger agreement, disagreement pairs, owner signals, live percentiles, cost and tokens", () => {

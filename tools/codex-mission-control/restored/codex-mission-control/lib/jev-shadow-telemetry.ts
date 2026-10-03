@@ -31,7 +31,7 @@ const choice = z.object({
   choice: z.union([z.enum(JEV_NEXT_ACTIONS), actionProbabilities]),
   probabilities: actionProbabilities.optional(), confidence: probability.optional(),
 });
-const answersSchema = z.object({
+export const jevShadowAnswersSchema = z.object({
   next_action: choice.optional(), owner_decision_required: noul.optional(),
   engineering_blocker: noul.optional(), stalled_or_regressing: noul.optional(),
   consequence_level: z.object({ score: z.number().finite(),
@@ -45,7 +45,7 @@ const observationSchema = z.object({
   model: z.string().min(1).max(200), provider: z.string().min(1).max(200).optional(),
   response_id: z.string().min(1).max(300).optional(),
   error_code: z.enum(["STATE_BUILD_ERROR", "TIMEOUT", "HTTP_ERROR", "INVALID_RESPONSE", "TRANSPORT_ERROR", "HOOK_ERROR", "HOOK_TIMEOUT"]).optional(),
-  state: stateSchema.optional(), answers: answersSchema.optional(),
+  state: stateSchema.optional(), answers: jevShadowAnswersSchema.optional(),
   latency_ms: z.number().finite().nonnegative().optional(),
   usage: z.object({ input_tokens: z.number().int().nonnegative().optional(),
     output_tokens: z.number().int().nonnegative().optional(), cost: z.number().finite().nonnegative().optional() }).optional(),
@@ -148,6 +148,11 @@ export function jevShadowSummary(db: DatabaseSync) {
     increment(bySource, row.source); increment(byStatus, row.status); increment(byErrorCode, row.error_code ?? "NONE");
     totalUsd += row.cost_usd ?? 0; inputTokens += row.input_tokens ?? 0; outputTokens += row.output_tokens ?? 0;
     if (row.expected_owner_decision_required === 1) expectedTrue += 1;
+    if (row.status === "OK" && row.expected_owner_decision_required !== null && row.jev_owner_decision_required !== null) {
+      ownerComparisons += 1;
+      if (row.expected_owner_decision_required === 0 && row.jev_owner_decision_required === 1) falsePositives += 1;
+      if (row.expected_owner_decision_required === 1 && row.jev_owner_decision_required === 0) misses += 1;
+    }
     if (row.status !== "OK" || row.jev_next_action === null || row.agrees === null) continue;
     ok += 1; agreeing += row.agrees ?? 0;
     const trigger = byTrigger[row.deterministic_trigger] ??= { n: 0, agreeing: 0, rate: 0 };
@@ -156,11 +161,6 @@ export function jevShadowSummary(db: DatabaseSync) {
       const key = JSON.stringify([row.deterministic_trigger, row.jev_next_action]);
       const pair = pairs.get(key) ?? { trigger: row.deterministic_trigger, jevAction: row.jev_next_action, count: 0 };
       pair.count += 1; pairs.set(key, pair);
-    }
-    if (row.expected_owner_decision_required !== null && row.jev_owner_decision_required !== null) {
-      ownerComparisons += 1;
-      if (row.expected_owner_decision_required === 0 && row.jev_owner_decision_required === 1) falsePositives += 1;
-      if (row.expected_owner_decision_required === 1 && row.jev_owner_decision_required === 0) misses += 1;
     }
     if (row.state_fingerprint) states.add(row.state_fingerprint);
     if (row.source === "LIVE" && row.latency_ms !== null) latencies.push(row.latency_ms);

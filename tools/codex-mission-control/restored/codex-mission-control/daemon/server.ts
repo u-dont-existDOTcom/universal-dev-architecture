@@ -565,7 +565,7 @@ function startFleetSupervisor() {
   if (!Number.isInteger(configured) || configured < 1_000 || configured > 3_600_000) {
     throw new Error("MISSION_CONTROL_FLEET_SUPERVISOR_POLL_MS must be 1000-3600000.");
   }
-  const stallMs = fleetSupervisorStallMs(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_STALL_MS, configured);
+  const stallMs = fleetSupervisorStallMs(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_STALL_MS, configured, process.env);
   const slowTickMs = fleetSupervisorSlowTickMs(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_SLOW_TICK_MS);
   const runtime = new FleetSupervisorRuntime(store, {
     routeReasoning: (watch, decision, events) => routeFleetSupervisorReasoning(store, watch, decision, events),

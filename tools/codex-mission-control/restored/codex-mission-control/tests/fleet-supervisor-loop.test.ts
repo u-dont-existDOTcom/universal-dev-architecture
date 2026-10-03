@@ -309,6 +309,44 @@ test("stall defaults use five polls or five minutes, and overrides use poll vali
   loop.advance(); assert.equal(loop.status().stalled, false);
 });
 
+test("enabled Jev requires a stall limit beyond its hook deadline and persists the timeout before abandonment", async (t) => {
+  const env = { MISSION_CONTROL_JEV_SHADOW_ENABLED: "1", MISSION_CONTROL_JEV_SHADOW_TIMEOUT_MS: "10000" };
+  for (const raw of ["1000", "10000", "10100"]) {
+    assert.throws(() => fleetSupervisorStallMs(raw, 1000, env), /Jev.*deadline/);
+  }
+  assert.equal(fleetSupervisorStallMs("1000", 1000, { ...env, MISSION_CONTROL_JEV_SHADOW_ENABLED: "0" }), 1000);
+  assert.equal(fleetSupervisorStallMs("1000", 1000, { ...env, MISSION_CONTROL_JEV_SHADOW_TIMEOUT_MS: "100" }), 1000);
+  assert.throws(() => fleetSupervisorStallMs("1600", 1000, { MISSION_CONTROL_JEV_SHADOW_ENABLED: "1" }), /Jev.*deadline/);
+  assert.equal(fleetSupervisorStallMs(undefined, 1000, env), 300000);
+  const stallMs = fleetSupervisorStallMs("10101", 1000, env);
+  assert.equal(stallMs, 10101);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const store = new EventStore(":memory:");
+  store.verifyChain = () => ({ valid: false, errors: ["fixture integrity failure"] });
+  let now = Date.parse("2026-10-03T01:00:00Z");
+  store.ensureFleetSupervisorWatch("project:fixture", "task:fixture", "fixture", "2026-10-03T00:00:00Z");
+  const runtime = new FleetSupervisorRuntime(store, {
+    observeJevShadow: boundedJevShadowHook(() => new Promise(() => {}), { env, now: () => now }),
+  });
+  const loop = new FleetSupervisorLoop(runtime, { now: () => now, pollMs: 1000, stallMs,
+    onResults: (results) => {
+      for (const item of results) store.recordJevShadowObservation({ source: "LIVE", projectId: item.projectId, observation: item.jevShadow! });
+    },
+  });
+  try {
+    loop.advance(); await flush();
+    assert.equal(store.dueFleetSupervisorWatches(new Date(now).toISOString()).length, 0);
+    now += 1001; t.mock.timers.tick(1001); loop.advance(); await flush();
+    assert.equal(loop.status().stalledTickCount, 0);
+    assert.equal(store.jevShadowSummary().counts.total, 0);
+    now += 9099; t.mock.timers.tick(9099); await flush();
+    assert.equal(store.jevShadowSummary().counts.total, 1);
+    assert.equal(store.jevShadowSummary().latency.timeoutCount, 1);
+    assert.equal(loop.status().lastTickCompletedAt, new Date(now).toISOString());
+    assert.equal(loop.status().stalledTickCount, 0);
+  } finally { loop.stop(); store.close(); }
+});
+
 test("aborting during an awaited owner hook prevents the commit, Jev and the next watch", async () => {
   const fixture = runtimeStore(2), notification = deferred<void>(), controller = new AbortController();
   let hookCalls = 0;
