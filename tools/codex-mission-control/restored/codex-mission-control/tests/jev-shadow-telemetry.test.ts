@@ -325,6 +325,36 @@ test("malformed provider answers produce durable INVALID_RESPONSE observations a
   } finally { store.close(); imported.close(); }
 });
 
+test("invalid provider answers retain usage and response metadata in durable cost summaries", async () => {
+  const store = new EventStore(":memory:");
+  try {
+    seedIssue47Store(store);
+    const events = store.workerEvents(store.fleetSupervisorWatch("project:human-design")!.worker);
+    const usage = { input_tokens: 100, output_tokens: 2, cost: 0.1 };
+    const malformedAnswers = [undefined, null, [], { next_action: "PRIVATE_TEXT" }];
+    for (const [i, answers] of malformedAnswers.entries()) {
+      const responseId = `response:invalid:${i}`;
+      const result = await observeFleetSupervisorWithJev("HEALTHY_ADVANCING", events, { valid: true }, {
+        env: { MISSION_CONTROL_JEV_SHADOW_ENABLED: "1", OPENROUTER_API_KEY: "test-only-key" },
+        transport: async () => ({ answers, usage: { ...usage, explanation: "PRIVATE_TEXT" }, provider: "TypeSafe", id: responseId }),
+      });
+      assert.equal(result.status, "ERROR"); assert.equal(result.error_code, "INVALID_RESPONSE");
+      assert.equal(result.answers, undefined); assert.deepEqual(result.usage, usage);
+      assert.equal(result.provider, "TypeSafe"); assert.equal(result.response_id, responseId);
+      assert.equal(store.recordJevShadowObservation({ source: "LIVE", observedAt: at(i), observation: result }), true);
+      const row = rows(store).at(-1)!;
+      assert.equal(row.answers_json, null); assert.equal(row.agrees, null);
+      assert.equal(row.input_tokens, 100); assert.equal(row.output_tokens, 2); assert.equal(row.cost_usd, 0.1);
+      assert.equal(row.provider, "TypeSafe"); assert.equal(row.response_id, responseId);
+      assert.doesNotMatch(JSON.stringify(result), /PRIVATE_TEXT/);
+    }
+    const summary = store.jevShadowSummary();
+    assert.equal(summary.counts.byStatus.ERROR, malformedAnswers.length); assert.equal(summary.agreement.n, 0);
+    assert.ok(Math.abs(summary.cost.totalUsd - 0.4) < 1e-12);
+    assert.equal(summary.cost.inputTokens, 400); assert.equal(summary.cost.outputTokens, 8);
+  } finally { store.close(); }
+});
+
 test("summary covers per-trigger agreement, disagreement pairs, owner signals, live percentiles, cost and tokens", () => {
   const store = new EventStore(":memory:");
   try {

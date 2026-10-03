@@ -180,7 +180,7 @@ export async function observeFleetSupervisorWithJev(
     const response = parseJevResponse(raw);
     return {
       status: "OK", authoritative: false, model, deterministic_trigger: deterministicTrigger, state,
-      answers: response.answers, usage: response.usage, provider: response.provider, response_id: response.id,
+      answers: response.answers, usage: response.usage, provider: response.provider, response_id: response.response_id,
       latency_ms: Math.max(0, now() - started),
     };
   } catch (error) {
@@ -191,6 +191,7 @@ export async function observeFleetSupervisorWithJev(
     return {
       status: "ERROR", authoritative: false, model, deterministic_trigger: deterministicTrigger,
       state, error_code: errorCode, latency_ms: Math.max(0, now() - started),
+      ...(error instanceof JevResponseError ? error.metadata : {}),
     };
   } finally {
     clearTimeout(timer);
@@ -199,7 +200,11 @@ export async function observeFleetSupervisorWithJev(
 }
 
 class JevHttpError extends Error {}
-class JevResponseError extends Error {}
+class JevResponseError extends Error {
+  constructor(message: string, readonly metadata: Pick<JevShadowObservation, "usage" | "provider" | "response_id"> = {}) {
+    super(message);
+  }
+}
 
 async function openRouterJevTransport(input: {
   apiKey: string; body: JevDecisionRequest; signal: AbortSignal;
@@ -218,27 +223,27 @@ function parseJevResponse(raw: unknown): {
   answers: Record<string, unknown>;
   usage?: { input_tokens?: number; output_tokens?: number; cost?: number };
   provider?: string;
-  id?: string;
+  response_id?: string;
 } {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new JevResponseError("Response is not an object.");
   const record = raw as Record<string, unknown>;
-  if (!record.answers || typeof record.answers !== "object" || Array.isArray(record.answers)) {
-    throw new JevResponseError("Response answers are missing.");
-  }
-  const answers = jevShadowAnswersSchema.safeParse(record.answers);
-  if (!answers.success) throw new JevResponseError("Response answers are invalid.");
   const usage = record.usage && typeof record.usage === "object" && !Array.isArray(record.usage)
     ? record.usage as Record<string, unknown> : undefined;
-  return {
-    answers: answers.data,
+  const metadata = {
     usage: usage ? {
       input_tokens: numberOrUndefined(usage.input_tokens, true),
       output_tokens: numberOrUndefined(usage.output_tokens, true),
       cost: numberOrUndefined(usage.cost),
     } : undefined,
     provider: typeof record.provider === "string" ? record.provider : undefined,
-    id: typeof record.id === "string" ? record.id : undefined,
+    response_id: typeof record.id === "string" ? record.id : undefined,
   };
+  if (!record.answers || typeof record.answers !== "object" || Array.isArray(record.answers)) {
+    throw new JevResponseError("Response answers are missing.", metadata);
+  }
+  const answers = jevShadowAnswersSchema.safeParse(record.answers);
+  if (!answers.success) throw new JevResponseError("Response answers are invalid.", metadata);
+  return { answers: answers.data, ...metadata };
 }
 
 function deliveryErrorFamily(code: string | null): string {
