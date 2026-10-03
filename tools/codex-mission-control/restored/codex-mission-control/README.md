@@ -119,6 +119,8 @@ configuration, completion/failure timestamps, error/failure counts and stall
 count; `stalled` becomes true when no tick has completed within the stall limit
 plus one poll interval. Existing readiness decisions are unchanged.
 
+The loop's `/health` status also keeps the last completed tick's total duration and each watch's worker-event read, chain verification, classification, reasoning route (including mechanical recovery), notification, commit and Jev timings in milliseconds plus its slowest stage; synchronous work exceeding `MISSION_CONTROL_FLEET_SUPERVISOR_SLOW_TICK_MS` (default 5,000 ms, integer 1,000–3,600,000) emits one `fleet_supervisor_tick_slow` line with project and stage timings, without event content, at most once every ten minutes.
+
 Jev remains shadow-only. A timer race bounds its hook at the configured Jev
 timeout plus 100 ms, independently of provider abort handling. Hook deadline and
 exception failures become `HOOK_TIMEOUT` and `HOOK_ERROR` observations. Every

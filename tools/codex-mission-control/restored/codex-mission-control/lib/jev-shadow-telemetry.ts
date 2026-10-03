@@ -26,11 +26,18 @@ const stateSchema = z.object({
 });
 const probability = z.number().min(0).max(1);
 const noul = z.object({ noul: z.union([probability, z.boolean()]) });
-const choice = z.object({ choice: z.object(Object.fromEntries(JEV_NEXT_ACTIONS.map((action) => [action, probability.optional()]))) });
+const actionProbabilities = z.object(Object.fromEntries(JEV_NEXT_ACTIONS.map((action) => [action, probability.optional()])));
+const choice = z.object({
+  choice: z.union([z.enum(JEV_NEXT_ACTIONS), actionProbabilities]),
+  probabilities: actionProbabilities.optional(), confidence: probability.optional(),
+});
 const answersSchema = z.object({
   next_action: choice.optional(), owner_decision_required: noul.optional(),
   engineering_blocker: noul.optional(), stalled_or_regressing: noul.optional(),
-  consequence_level: z.object({ score: z.number().finite() }).optional(),
+  consequence_level: z.object({ score: z.number().finite(),
+    probabilities: z.object({ "0": probability.optional(), "1": probability.optional(), "2": probability.optional(), "3": probability.optional() }).optional(),
+    confidence: probability.optional(),
+  }).optional(),
 });
 const observationSchema = z.object({
   status: z.enum(["DISABLED", "MISSING_API_KEY", "OK", "ERROR"]), authoritative: z.literal(false),
@@ -85,10 +92,11 @@ export function recordJevShadowObservation(db: DatabaseSync, input: JevShadowRec
   if (input.source !== "LIVE" && input.source !== "LOG_IMPORT") throw new TypeError("Invalid Jev telemetry source.");
   const state = observation.state;
   const answers = observation.answers;
-  const actionScores = Object.entries(answers?.next_action?.choice ?? {})
+  const selectedAction = answers?.next_action?.choice;
+  const actionScores = Object.entries(typeof selectedAction === "object" ? selectedAction : {})
     .filter((entry): entry is [string, number] => typeof entry[1] === "number")
     .sort(([left, a], [right, b]) => b - a || left.localeCompare(right));
-  const jevAction = actionScores[0]?.[0] ?? null;
+  const jevAction = typeof selectedAction === "string" ? selectedAction : actionScores[0]?.[0] ?? null;
   const ownerScore = answers?.owner_decision_required?.noul;
   const jevOwner = typeof ownerScore === "boolean" ? ownerScore : typeof ownerScore === "number" ? ownerScore >= 0.5 : null;
   const expectedOwner = state ? ["DECISION_REQUIRED", "MANUAL_INTERVENTION_REQUIRED"].includes(state.owner_action_kind)

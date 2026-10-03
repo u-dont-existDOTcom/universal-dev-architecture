@@ -31,7 +31,7 @@ import { FleetSupervisorRuntime, routeFleetSupervisorReasoning } from "../lib/fl
 import { enrollFleetSupervisorWatch, parseFleetWatchEnrollment } from "../lib/fleet-watch-enrollment";
 import { observeFleetSupervisorWithJev } from "../lib/jev-shadow";
 import { boundedJevShadowHook } from "../lib/jev-shadow-hook";
-import { FleetSupervisorLoop, fleetSupervisorStallMs } from "../lib/fleet-supervisor-loop";
+import { FleetSupervisorLoop, fleetSupervisorSlowTickMs, fleetSupervisorStallMs } from "../lib/fleet-supervisor-loop";
 import { jevShadowSummaryForProducer, jevShadowSummaryTool } from "../lib/jev-shadow-surface";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
@@ -566,6 +566,7 @@ function startFleetSupervisor() {
     throw new Error("MISSION_CONTROL_FLEET_SUPERVISOR_POLL_MS must be 1000-3600000.");
   }
   const stallMs = fleetSupervisorStallMs(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_STALL_MS, configured);
+  const slowTickMs = fleetSupervisorSlowTickMs(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_SLOW_TICK_MS);
   const runtime = new FleetSupervisorRuntime(store, {
     routeReasoning: (watch, decision, events) => routeFleetSupervisorReasoning(store, watch, decision, events),
     observeJevShadow: boundedJevShadowHook((_watch, decision, events, chain, signal) =>
@@ -576,8 +577,9 @@ function startFleetSupervisor() {
     }),
   });
   return new FleetSupervisorLoop(runtime, {
-    pollMs: configured, stallMs,
+    pollMs: configured, stallMs, slowTickMs,
     onStall: (line) => console.error(JSON.stringify(line)),
+    onSlowTick: (line) => console.warn(JSON.stringify(line)),
     onResults: (results) => {
       for (const item of results) {
         if (item.jevShadow && item.jevShadow.status !== "DISABLED") {

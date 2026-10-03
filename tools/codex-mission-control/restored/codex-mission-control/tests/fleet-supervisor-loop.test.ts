@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FleetSupervisorLoop, fleetSupervisorStallMs } from "../lib/fleet-supervisor-loop";
+import { FleetSupervisorLoop, fleetSupervisorSlowTickMs, fleetSupervisorStallMs } from "../lib/fleet-supervisor-loop";
 import { FleetSupervisorRuntime } from "../lib/fleet-supervisor";
+import { daemonReadiness } from "../lib/daemon-health";
 import { boundedJevShadowHook } from "../lib/jev-shadow-hook";
 import type { JevShadowObservation } from "../lib/jev-shadow";
 import { EventStore, type FleetSupervisorWatchRecord } from "../lib/store";
@@ -28,6 +29,78 @@ function runtimeStore(watches = 1) {
   } as unknown as EventStore;
   return { store, commits: () => commits, reads: () => reads };
 }
+
+test("completed tick status and health expose each watch's stages, slowest stage and total duration", async () => {
+  let now = 0;
+  const fixture = runtimeStore(2), jev = deferred<JevShadowObservation>();
+  const read = fixture.store.workerEvents.bind(fixture.store);
+  fixture.store.workerEvents = (worker) => { now += 6000; return read(worker); };
+  fixture.store.verifyChain = () => { now += 20; return { valid: false, errors: ["PRIVATE_EVENT_CONTENT"] }; };
+  fixture.store.completeFleetSupervisorTick = () => { now += 30; return true; };
+  let jevCalls = 0;
+  const runtime = new FleetSupervisorRuntime(fixture.store, {
+    notifyOwner: () => { now += 40; },
+    observeJevShadow: () => ++jevCalls === 1 ? jev.promise : observed,
+  }, () => now);
+  const loop = new FleetSupervisorLoop(runtime, { now: () => now });
+  loop.advance(); await flush();
+  assert.equal(loop.status().lastTickDurationMs, null);
+  assert.deepEqual(loop.status().lastTickWatchTimings, []);
+  now += 200; jev.resolve(observed); await flush();
+  const status = loop.status();
+  assert.equal(status.lastTickDurationMs, 12380);
+  assert.deepEqual(status.lastTickWatchTimings, [0, 1].map((i) => ({ projectId: `project:fixture-${i}`,
+    stageMs: { reading_worker_events: 6000, verifying_chain: 20, classifying: 0, routing_reasoning: 0,
+      notifying: 40, committing: 30, calling_jev: i === 0 ? 200 : 0 },
+    synchronousMs: 6090, slowestStage: "reading_worker_events" })));
+  const readiness = await daemonReadiness({ latestSequence: () => 1, verifyChain: () => ({ valid: true, errors: [] }) }, {
+    health: async () => ({ configured: false, schedulerState: "UNCONFIGURED", ledger: { valid: true } }),
+  }, status);
+  assert.equal(readiness.fleetSupervisorLoop?.lastTickDurationMs, 12380);
+  assert.deepEqual(readiness.fleetSupervisorLoop?.lastTickWatchTimings, status.lastTickWatchTimings);
+  // An unfinished replacement does not overwrite the last completed tick's timing.
+  fixture.store.workerEvents = () => { throw new Error("fixture failure"); };
+  loop.advance(); await flush();
+  assert.deepEqual(loop.status().lastTickWatchTimings, status.lastTickWatchTimings);
+  assert.equal(loop.status().lastTickDurationMs, 12380);
+  loop.stop();
+});
+
+test("slow synchronous ticks log one structured line per ten minutes without event content", async () => {
+  let now = 0;
+  const fixture = runtimeStore(2), lines: unknown[] = [];
+  fixture.store.workerEvents = () => { now += 3000; return []; };
+  fixture.store.verifyChain = () => ({ valid: false, errors: ["PRIVATE_EVENT_CONTENT"] });
+  const runtime = new FleetSupervisorRuntime(fixture.store, {}, () => now);
+  const loop = new FleetSupervisorLoop(runtime, { now: () => now, onSlowTick: (line) => lines.push(line) });
+  loop.advance(); await flush();
+  assert.equal(lines.length, 1);
+  assert.deepEqual(lines[0], { event: "fleet_supervisor_tick_slow", tick_started_at: "1970-01-01T00:00:00.000Z",
+    duration_ms: 6000, synchronous_ms: 6000, project_id: "project:fixture-0", watch_timings: loop.status().lastTickWatchTimings });
+  assert.doesNotMatch(JSON.stringify(lines), /PRIVATE_EVENT_CONTENT|invalid fixture chain/);
+  now = 60000; loop.advance(); await flush(); assert.equal(lines.length, 1);
+  now = 600000; loop.advance(); await flush(); assert.equal(lines.length, 2);
+  loop.stop();
+});
+
+test("an asynchronous Jev wait alone does not trigger a synchronous slow-tick warning", async () => {
+  let now = 0;
+  const fixture = runtimeStore(), jev = deferred<JevShadowObservation>(), lines: unknown[] = [];
+  const runtime = new FleetSupervisorRuntime(fixture.store, { observeJevShadow: () => jev.promise }, () => now);
+  const loop = new FleetSupervisorLoop(runtime, { now: () => now, onSlowTick: (line) => lines.push(line) });
+  loop.advance(); await flush(); now = 6000; jev.resolve(observed); await flush();
+  assert.equal(loop.status().lastTickDurationMs, 6000);
+  assert.equal(loop.status().lastTickWatchTimings[0].stageMs.calling_jev, 6000);
+  assert.deepEqual(lines, []);
+  loop.stop();
+});
+
+test("slow-tick threshold defaults to five seconds and validates like other loop settings", () => {
+  assert.equal(fleetSupervisorSlowTickMs(undefined), 5000);
+  assert.equal(fleetSupervisorSlowTickMs("1000"), 1000);
+  assert.equal(fleetSupervisorSlowTickMs("3600000"), 3600000);
+  for (const raw of ["", "NaN", "999", "3600001", "1234.5"]) assert.throws(() => fleetSupervisorSlowTickMs(raw));
+});
 
 test("a nonsettling Jev hook reaches its hard deadline and the runtime tick completes", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });

@@ -1,9 +1,14 @@
+import type { FleetSupervisorWatchTiming } from "./fleet-supervisor";
+
 export interface FleetSupervisorLoopStatus {
   enabled: boolean;
   pollMs: number;
   stallMs: number;
+  slowTickMs: number;
   lastTickStartedAt: string | null;
   lastTickCompletedAt: string | null;
+  lastTickDurationMs: number | null;
+  lastTickWatchTimings: FleetSupervisorWatchTiming[];
   lastTickFailedAt: string | null;
   lastErrorMessage: string | null;
   consecutiveFailures: number;
@@ -12,7 +17,7 @@ export interface FleetSupervisorLoopStatus {
 }
 
 interface LoopRuntime<T> {
-  tick(now: string, signal: AbortSignal): Promise<T>;
+  tick(now: string, signal: AbortSignal, onWatchTiming?: (timing: FleetSupervisorWatchTiming) => void): Promise<T>;
   readonly currentProgress?: { stage: string; projectId: string | null };
 }
 
@@ -20,11 +25,23 @@ export interface FleetSupervisorLoopOptions<T> {
   enabled?: boolean;
   pollMs?: number;
   stallMs?: number;
+  slowTickMs?: number;
   now?: () => number;
   onResults?: (results: T) => void;
   onFailure?: (error: unknown) => void;
   onStall?: (line: { event: "fleet_supervisor_tick_stalled"; tick_started_at: string;
     age_ms: number; stage: string | null; project_id: string | null }) => void;
+  onSlowTick?: (line: { event: "fleet_supervisor_tick_slow"; tick_started_at: string; duration_ms: number;
+    synchronous_ms: number; project_id: string; watch_timings: FleetSupervisorWatchTiming[] }) => void;
+}
+
+export function fleetSupervisorSlowTickMs(raw: string | undefined) {
+  if (raw === undefined) return 5_000;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1_000 || value > 3_600_000) {
+    throw new Error("MISSION_CONTROL_FLEET_SUPERVISOR_SLOW_TICK_MS must be 1000-3600000.");
+  }
+  return value;
 }
 
 export function fleetSupervisorStallMs(raw: string | undefined, pollMs: number) {
@@ -43,6 +60,7 @@ export class FleetSupervisorLoop<T> {
   private timer: ReturnType<typeof setInterval> | null = null;
   private readonly now: () => number;
   private readonly enabledAt: number;
+  private lastSlowTickLoggedAt: number | null = null;
   private readonly state: Omit<FleetSupervisorLoopStatus, "stalled">;
 
   constructor(private readonly runtime: LoopRuntime<T> | null, private readonly options: FleetSupervisorLoopOptions<T> = {}) {
@@ -51,7 +69,9 @@ export class FleetSupervisorLoop<T> {
     const pollMs = options.pollMs ?? 60_000;
     this.state = { enabled: options.enabled ?? true, pollMs,
       stallMs: options.stallMs ?? fleetSupervisorStallMs(undefined, pollMs),
+      slowTickMs: options.slowTickMs ?? fleetSupervisorSlowTickMs(undefined),
       lastTickStartedAt: null, lastTickCompletedAt: null, lastTickFailedAt: null,
+      lastTickDurationMs: null, lastTickWatchTimings: [],
       lastErrorMessage: null, consecutiveFailures: 0, stalledTickCount: 0 };
   }
 
@@ -95,10 +115,23 @@ export class FleetSupervisorLoop<T> {
     this.state.lastTickStartedAt = new Date(now).toISOString();
     void (async () => {
       try {
-        const results = await this.runtime!.tick(new Date(now).toISOString(), invocation.controller.signal);
+        const watchTimings: FleetSupervisorWatchTiming[] = [];
+        const results = await this.runtime!.tick(new Date(now).toISOString(), invocation.controller.signal, (timing) => watchTimings.push(timing));
         if (this.active !== invocation || invocation.controller.signal.aborted) return;
-        this.state.lastTickCompletedAt = new Date(this.now()).toISOString();
+        const completed = this.now();
+        this.state.lastTickCompletedAt = new Date(completed).toISOString();
+        this.state.lastTickDurationMs = Math.max(0, completed - now);
+        this.state.lastTickWatchTimings = watchTimings;
         this.state.consecutiveFailures = 0;
+        const synchronousMs = watchTimings.reduce((sum, timing) => sum + timing.synchronousMs, 0);
+        if (synchronousMs > this.state.slowTickMs && this.options.onSlowTick
+          && (this.lastSlowTickLoggedAt === null || completed - this.lastSlowTickLoggedAt >= 600_000)) {
+          this.lastSlowTickLoggedAt = completed;
+          const slowestWatch = watchTimings.reduce((slowest, timing) => timing.synchronousMs > slowest.synchronousMs ? timing : slowest);
+          this.options.onSlowTick({ event: "fleet_supervisor_tick_slow", tick_started_at: new Date(now).toISOString(),
+            duration_ms: this.state.lastTickDurationMs, synchronous_ms: synchronousMs,
+            project_id: slowestWatch.projectId, watch_timings: watchTimings });
+        }
         this.options.onResults?.(results);
       } catch (error) {
         if (this.active !== invocation || invocation.controller.signal.aborted) return;

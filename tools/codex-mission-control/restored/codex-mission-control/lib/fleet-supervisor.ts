@@ -31,38 +31,62 @@ export interface FleetSupervisorHooks {
     events: readonly StoredEvent[], chain: { valid: boolean; errors: string[] }, signal?: AbortSignal) => JevShadowObservation | Promise<JevShadowObservation>;
 }
 
+export interface FleetSupervisorWatchTiming {
+  projectId: string;
+  stageMs: { reading_worker_events: number; verifying_chain: number; classifying: number;
+    routing_reasoning: number; notifying: number; committing: number; calling_jev: number };
+  synchronousMs: number;
+  slowestStage: keyof FleetSupervisorWatchTiming["stageMs"];
+}
+
 export class FleetSupervisorRuntime {
   private progress = { stage: "selecting", projectId: null as string | null };
   get currentProgress() { return { ...this.progress }; }
-  constructor(private readonly store: EventStore, private readonly hooks: FleetSupervisorHooks = {}) {}
+  constructor(private readonly store: EventStore, private readonly hooks: FleetSupervisorHooks = {},
+    private readonly clock: () => number = () => performance.now()) {}
 
-  async tick(now = new Date().toISOString(), signal?: AbortSignal) {
+  async tick(now = new Date().toISOString(), signal?: AbortSignal, onWatchTiming?: (timing: FleetSupervisorWatchTiming) => void) {
     const results: Array<{ projectId: string; decision: FleetSupervisorDecision; committed: boolean;
       notificationDisposition: string; jevShadow: JevShadowObservation | null }> = [];
     if (signal?.aborted) return results;
     this.progress = { stage: "selecting", projectId: null };
     for (const watch of this.store.dueFleetSupervisorWatches(now)) {
       if (signal?.aborted) break;
-      this.progress = { stage: "classifying", projectId: watch.projectId };
-      const events = this.store.workerEvents(watch.worker);
-      const chain = this.store.verifyChain();
-      const decision = classifyFleetSupervisorTick(watch, events, chain);
+      const timing: FleetSupervisorWatchTiming = { projectId: watch.projectId,
+        stageMs: { reading_worker_events: 0, verifying_chain: 0, classifying: 0, routing_reasoning: 0,
+          notifying: 0, committing: 0, calling_jev: 0 }, synchronousMs: 0, slowestStage: "reading_worker_events" };
+      let stage: keyof FleetSupervisorWatchTiming["stageMs"] = "reading_worker_events", stageStarted = this.clock();
+      const nextStage = (next: typeof stage) => {
+        const ended = this.clock(); timing.stageMs[stage] += Math.max(0, ended - stageStarted);
+        stage = next; stageStarted = ended;
+      };
+      const synchronous = <T>(work: () => T): T => {
+        const started = this.clock();
+        try { return work(); } finally { timing.synchronousMs += Math.max(0, this.clock() - started); }
+      };
+      this.progress = { stage: "reading worker events", projectId: watch.projectId };
+      const events = synchronous(() => this.store.workerEvents(watch.worker));
+      nextStage("verifying_chain"); this.progress.stage = "verifying chain";
+      const chain = synchronous(() => this.store.verifyChain());
+      nextStage("classifying"); this.progress.stage = "classifying";
+      const decision = synchronous(() => classifyFleetSupervisorTick(watch, events, chain));
       if (signal?.aborted) break;
+      nextStage("routing_reasoning");
       this.progress.stage = "routing reasoning";
-      if (decision.mechanicalRecoveryEligible) await this.hooks.continueMechanical?.(watch, decision, events);
+      if (decision.mechanicalRecoveryEligible) await synchronous(() => this.hooks.continueMechanical?.(watch, decision, events));
       if (signal?.aborted) break;
-      if (decision.reasoningRequired) await this.hooks.routeReasoning?.(watch, decision, events);
+      if (decision.reasoningRequired) await synchronous(() => this.hooks.routeReasoning?.(watch, decision, events));
       if (signal?.aborted) break;
       const fingerprint = decision.notifyOwner ? sha256(`${decision.trigger}\n${decision.notificationReason ?? ""}`) : null;
       const duplicate = Boolean(fingerprint && fingerprint === watch.notificationFingerprint);
       const notificationDisposition = decision.notifyOwner
         ? duplicate ? "SUPPRESSED_DUPLICATE" : "OWNER_NOTIFIED"
         : "SUPPRESSED_NOT_ACTIONABLE";
-      this.progress.stage = "notifying";
-      if (decision.notifyOwner && !duplicate) await this.hooks.notifyOwner?.(watch, decision);
+      nextStage("notifying"); this.progress.stage = "notifying";
+      if (decision.notifyOwner && !duplicate) await synchronous(() => this.hooks.notifyOwner?.(watch, decision));
       if (signal?.aborted) break;
-      this.progress.stage = "committing";
-      const committed = this.store.completeFleetSupervisorTick({
+      nextStage("committing"); this.progress.stage = "committing";
+      const committed = synchronous(() => this.store.completeFleetSupervisorTick({
         projectId: watch.projectId,
         dueAt: watch.nextTickAt!,
         tickAt: now,
@@ -73,16 +97,21 @@ export class FleetSupervisorRuntime {
         notificationReason: decision.notificationReason,
         notificationFingerprint: fingerprint,
         notifiedAt: notificationDisposition === "OWNER_NOTIFIED" ? now : null,
-      });
+      }));
+      nextStage("calling_jev");
       let jevShadow: JevShadowObservation | null = null;
       try {
         if (!signal?.aborted) {
           this.progress.stage = "observing Jev";
-          jevShadow = await this.hooks.observeJevShadow?.(watch, decision, events, chain, signal) ?? null;
+          jevShadow = await synchronous(() => this.hooks.observeJevShadow?.(watch, decision, events, chain, signal)) ?? null;
         }
       } catch {
         // Shadow evaluation is intentionally non-authoritative and may never fail the fleet tick.
       }
+      nextStage("calling_jev");
+      timing.slowestStage = (Object.keys(timing.stageMs) as Array<typeof stage>)
+        .reduce((slowest, candidate) => timing.stageMs[candidate] > timing.stageMs[slowest] ? candidate : slowest, timing.slowestStage);
+      onWatchTiming?.(timing);
       results.push({ projectId: watch.projectId, decision, committed, notificationDisposition, jevShadow });
     }
     return results;

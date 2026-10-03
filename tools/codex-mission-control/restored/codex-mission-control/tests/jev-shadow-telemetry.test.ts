@@ -25,6 +25,74 @@ const at = (n: number) => new Date(Date.UTC(2026, 9, 3) + n * 1000).toISOString(
 const rows = (store: EventStore) => (store as unknown as { db: DatabaseSync }).db.prepare("SELECT * FROM jev_shadow_observations ORDER BY sequence").all();
 const action = (choice: string, owner: number | boolean) => ({ next_action: { choice: { [choice]: 1 } }, owner_decision_required: { noul: owner } });
 
+const liveState: JevShadowState = { ...state, delivery_status: "DELIVERED" };
+const liveAnswers = {
+  owner_decision_required: { type: "noul", noul: 0.05 },
+  engineering_blocker: { type: "noul", noul: 0.17 },
+  stalled_or_regressing: { type: "noul", noul: 0.02 },
+  next_action: { type: "choice", choice: "no_action_healthy",
+    probabilities: { route_reasoning: 0.01, notify_owner: 0, no_action_healthy: 0.99, stop_terminal: 0,
+      hold_integrity: 0, continue_mechanical: 0, wait_external: 0 }, confidence: 0.99 },
+  consequence_level: { type: "score", score: 1.12,
+    legend: { "0": "Observation only or healthy no-op.", "1": "...", "2": "...", "3": "..." },
+    probabilities: { "0": 0.1, "1": 0.71, "2": 0.15, "3": 0.04 }, confidence: 0.67 },
+};
+const sanitizedLiveAnswers = {
+  owner_decision_required: { noul: 0.05 }, engineering_blocker: { noul: 0.17 }, stalled_or_regressing: { noul: 0.02 },
+  next_action: { choice: "no_action_healthy", probabilities: liveAnswers.next_action.probabilities, confidence: 0.99 },
+  consequence_level: { score: 1.12, probabilities: liveAnswers.consequence_level.probabilities, confidence: 0.67 },
+};
+
+test("live-shaped OK observations record the choice string and only allowlisted answer fields", () => {
+  const store = new EventStore(":memory:");
+  try {
+    const answers = { ...liveAnswers, explanation: "PRIVATE_TEXT",
+      next_action: { ...liveAnswers.next_action, probabilities: { ...liveAnswers.next_action.probabilities, arbitrary_action: 1 }, explanation: "PRIVATE_TEXT" },
+      consequence_level: { ...liveAnswers.consequence_level, probabilities: { ...liveAnswers.consequence_level.probabilities, "4": 1 }, explanation: "PRIVATE_TEXT" } };
+    assert.equal(store.recordJevShadowObservation({ source: "LIVE", observedAt: at(0),
+      observation: observation({ state: liveState, answers, latency_ms: 123 }) }), true);
+    const row = rows(store)[0];
+    assert.equal(row.jev_next_action, "no_action_healthy"); assert.equal(row.agrees, 1);
+    assert.equal(row.jev_owner_decision_required, 0); assert.equal(row.latency_ms, 123);
+    assert.deepEqual(JSON.parse(String(row.answers_json)), sanitizedLiveAnswers);
+    assert.doesNotMatch(String(row.answers_json), /legend|PRIVATE_TEXT|arbitrary_action|explanation|type/);
+    // The declared choice is authoritative even if another action has a higher probability.
+    store.recordJevShadowObservation({ source: "LIVE", observedAt: at(1), observation: observation({ state: liveState,
+      answers: { ...liveAnswers, next_action: { ...liveAnswers.next_action, confidence: 1,
+        probabilities: { ...liveAnswers.next_action.probabilities, route_reasoning: 1, no_action_healthy: 0 } } } }) });
+    assert.equal(rows(store)[1].jev_next_action, "no_action_healthy");
+    assert.equal(JSON.parse(String(rows(store)[1].answers_json)).next_action.confidence, 1);
+  } finally { store.close(); }
+});
+
+test("exact live Docker OK and ERROR TIMEOUT lines import once with nanosecond timestamps", async () => {
+  const store = new EventStore(":memory:");
+  const ok = `2026-09-30T14:34:08.123456789Z ${JSON.stringify({ event: "jev_shadow_observation", status: "OK",
+    authoritative: false, deterministic_trigger: "HEALTHY_ADVANCING", model: "typesafe/jev-1.13", state: liveState, answers: liveAnswers })}`;
+  const timeout = `2026-09-30T14:35:08.987654321Z ${JSON.stringify({ authoritative: false,
+    deterministic_trigger: "HEALTHY_ADVANCING", error_code: "TIMEOUT", event: "jev_shadow_observation", model: "typesafe/jev-1.13",
+    state: { ...liveState, outcome_advancement: "NOT_YET_MEASURABLE", strategy_efficacy: "UNCERTAIN",
+      correction_owner_action_type: "MANUAL_INTERVENTION_REQUIRED", delivery_status: "QUEUED", execution_state: "NOT_STARTED", review_freshness: "UNKNOWN" }, status: "ERROR" })}`;
+  try {
+    assert.deepEqual(await importJevShadowLog([ok], store), { read: 1, imported: 1, skipped: 0, malformed: 0 });
+    assert.deepEqual(await importJevShadowLog([ok], store), { read: 1, imported: 0, skipped: 1, malformed: 0 });
+    assert.deepEqual(await importJevShadowLog([timeout], store), { read: 1, imported: 1, skipped: 0, malformed: 0 });
+    assert.deepEqual(await importJevShadowLog([ok, timeout], store), { read: 2, imported: 0, skipped: 2, malformed: 0 });
+    assert.equal(rows(store)[0].observed_at, "2026-09-30T14:34:08.123456789Z");
+    assert.equal(rows(store)[0].agrees, 1); assert.equal(rows(store)[1].error_code, "TIMEOUT");
+    assert.equal(rows(store)[1].agrees, null);
+    assert.deepEqual(JSON.parse(String(rows(store)[0].answers_json)), sanitizedLiveAnswers);
+    store.recordJevShadowObservation({ source: "LIVE", observedAt: at(0), observation: observation({
+      state: { ...liveState, outcome_advancement: "UNKNOWN", strategy_efficacy: "UNCERTAIN" }, answers: liveAnswers, latency_ms: 120 }) });
+    store.recordJevShadowObservation({ source: "LIVE", observedAt: at(1), observation: observation({
+      state: liveState, answers: { ...liveAnswers, next_action: { ...liveAnswers.next_action, choice: "route_reasoning" } }, latency_ms: 240 }) });
+    const summary = store.jevShadowSummary();
+    assert.deepEqual(summary.counts.byStatus, { OK: 3, ERROR: 1, MISSING_API_KEY: 0 });
+    assert.equal(summary.agreement.n, 3); assert.equal(summary.agreement.agreeing, 2); assert.equal(summary.agreement.rate, 2 / 3);
+    assert.deepEqual(summary.latency, { count: 2, p50: 120, p90: 240, p99: 240, max: 240, timeoutCount: 1, providerErrorCount: 0 });
+  } finally { store.close(); }
+});
+
 test("recording persists columns, canonical fingerprints and allowlisted JSON only", () => {
   const store = new EventStore(":memory:");
   try {
