@@ -36,8 +36,8 @@ export function fleetSupervisorStallMs(raw: string | undefined, pollMs: number) 
   return value;
 }
 
-// Each invocation owns its guard. A late settlement can deliver evidence, but
-// can never release a replacement invocation's guard.
+// Each invocation owns its guard. Abandoned settlements cannot publish evidence
+// or release a replacement invocation's guard.
 export class FleetSupervisorLoop<T> {
   private active: { started: number; controller: AbortController } | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -96,10 +96,12 @@ export class FleetSupervisorLoop<T> {
     void (async () => {
       try {
         const results = await this.runtime!.tick(new Date(now).toISOString(), invocation.controller.signal);
+        if (this.active !== invocation || invocation.controller.signal.aborted) return;
         this.state.lastTickCompletedAt = new Date(this.now()).toISOString();
         this.state.consecutiveFailures = 0;
         this.options.onResults?.(results);
       } catch (error) {
+        if (this.active !== invocation || invocation.controller.signal.aborted) return;
         this.state.lastTickFailedAt = new Date(this.now()).toISOString();
         this.state.lastErrorMessage = error instanceof Error ? error.message : "Unknown fleet supervisor failure";
         this.state.consecutiveFailures += 1;

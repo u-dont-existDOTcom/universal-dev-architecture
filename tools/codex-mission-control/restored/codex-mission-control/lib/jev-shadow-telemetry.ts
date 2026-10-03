@@ -68,8 +68,11 @@ export function initializeJevShadowTelemetry(db: DatabaseSync) {
   );
   CREATE UNIQUE INDEX IF NOT EXISTS jev_shadow_response_id
     ON jev_shadow_observations(response_id) WHERE response_id IS NOT NULL;
-  CREATE UNIQUE INDEX IF NOT EXISTS jev_shadow_without_response_id
-    ON jev_shadow_observations(observed_at, deterministic_trigger, status, COALESCE(error_code, '')) WHERE response_id IS NULL;
+  CREATE UNIQUE INDEX IF NOT EXISTS jev_shadow_without_response_id_v2
+    ON jev_shadow_observations(observed_at, deterministic_trigger, status, COALESCE(error_code, ''),
+      COALESCE(project_id, ''), model, COALESCE(provider, ''), COALESCE(state_fingerprint, ''), COALESCE(answers_json, ''))
+    WHERE response_id IS NULL;
+  DROP INDEX IF EXISTS jev_shadow_without_response_id;
   CREATE INDEX IF NOT EXISTS jev_shadow_observed_at ON jev_shadow_observations(observed_at);`);
 }
 
@@ -103,7 +106,7 @@ export function recordJevShadowObservation(db: DatabaseSync, input: JevShadowRec
     observation.deterministic_trigger, observation.status, observation.error_code ?? null, observation.model,
     observation.provider ?? null, observation.response_id ?? null, input.source === "LIVE" ? observation.latency_ms ?? null : null,
     observation.usage?.input_tokens ?? null, observation.usage?.output_tokens ?? null, observation.usage?.cost ?? null,
-    jevAction, bit(jevOwner), expectedAction, observation.status === "OK" ? Number(jevAction === expectedAction) : null,
+    jevAction, bit(jevOwner), expectedAction, observation.status === "OK" && jevAction !== null ? Number(jevAction === expectedAction) : null,
     bit(expectedOwner), stateJson === null ? null : sha256(stateJson), stateJson, answers ? canonicalJson(answers) : null,
   );
   return Number(changed.changes) === 1;
@@ -137,7 +140,7 @@ export function jevShadowSummary(db: DatabaseSync) {
     increment(bySource, row.source); increment(byStatus, row.status); increment(byErrorCode, row.error_code ?? "NONE");
     totalUsd += row.cost_usd ?? 0; inputTokens += row.input_tokens ?? 0; outputTokens += row.output_tokens ?? 0;
     if (row.expected_owner_decision_required === 1) expectedTrue += 1;
-    if (row.status !== "OK") continue;
+    if (row.status !== "OK" || row.jev_next_action === null || row.agrees === null) continue;
     ok += 1; agreeing += row.agrees ?? 0;
     const trigger = byTrigger[row.deterministic_trigger] ??= { n: 0, agreeing: 0, rate: 0 };
     trigger.n += 1; trigger.agreeing += row.agrees ?? 0; trigger.rate = trigger.agreeing / trigger.n;

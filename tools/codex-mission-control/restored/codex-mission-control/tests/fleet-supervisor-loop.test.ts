@@ -101,7 +101,7 @@ test("watchdog logs one stall per abandoned tick, replaces it and exposes stale 
   loop.stop();
 });
 
-test("an abandoned tick settling late delivers results without clearing the replacement guard", async () => {
+test("an abandoned tick settling late cannot publish results or clear the replacement guard", async () => {
   let now = 0, calls = 0;
   const first = deferred<string[]>(), second = deferred<string[]>();
   const delivered: string[][] = [];
@@ -110,12 +110,34 @@ test("an abandoned tick settling late delivers results without clearing the repl
   });
   loop.advance(); now = 6001; loop.advance();
   first.resolve(["late evidence"]); await flush();
+  assert.equal(loop.status().lastTickCompletedAt, null);
   now = 6002; loop.advance();
   assert.equal(calls, 2);
-  assert.deepEqual(delivered, [["late evidence"]]);
+  assert.deepEqual(delivered, []);
   second.resolve(["new evidence"]); await flush();
+  assert.deepEqual(delivered, [["new evidence"]]);
+  assert.equal(loop.status().lastTickCompletedAt, "1970-01-01T00:00:06.002Z");
   loop.advance(); assert.equal(calls, 3);
   loop.stop(); await flush();
+});
+
+test("an abandoned tick rejecting late cannot publish failure or change replacement status", async () => {
+  let now = 0, calls = 0;
+  let reject!: (error: Error) => void;
+  const first = new Promise<string[]>((_resolve, fail) => { reject = fail; });
+  const replacement = deferred<string[]>(), errors: unknown[] = [];
+  const loop = new FleetSupervisorLoop({ tick: () => ++calls === 1 ? first : replacement.promise }, {
+    now: () => now, pollMs: 1000, stallMs: 5000, onFailure: (error) => errors.push(error),
+  });
+  loop.advance(); now = 6001; loop.advance();
+  reject(new Error("abandoned failure")); await flush();
+  assert.deepEqual(errors, []);
+  assert.equal(loop.status().lastTickFailedAt, null);
+  assert.equal(loop.status().lastErrorMessage, null);
+  assert.equal(loop.status().consecutiveFailures, 0);
+  loop.advance(); assert.equal(calls, 2);
+  replacement.resolve([]); await flush();
+  loop.stop();
 });
 
 test("failure status records errors and consecutive failures; a completion resets the count", async () => {

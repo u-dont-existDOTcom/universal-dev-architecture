@@ -44,7 +44,7 @@ test("recording persists columns, canonical fingerprints and allowlisted JSON on
   } finally { store.close(); }
 });
 
-test("response IDs dedupe across source/time; ID-less rows dedupe on all four fallback fields", () => {
+test("response IDs dedupe across source/time; identical ID-less rows dedupe on fallback identity", () => {
   const store = new EventStore(":memory:");
   try {
     const record = (item: JevShadowObservation, time = at(0)) => store.recordJevShadowObservation({ source: "LIVE", observedAt: time, observation: item });
@@ -58,6 +58,81 @@ test("response IDs dedupe across source/time; ID-less rows dedupe on all four fa
     assert.equal(record(observation({ status: "DISABLED" })), false);
     assert.equal(rows(store).length, 6);
     assert.equal(rows(store).find((row) => row.status === "ERROR")?.agrees, null);
+  } finally { store.close(); }
+});
+
+test("ID-less observations retain project and observation identity at the same timestamp", () => {
+  const store = new EventStore(":memory:");
+  try {
+    const record = (projectId: string, item: JevShadowObservation) => store.recordJevShadowObservation({
+      source: "LIVE", projectId, observedAt: at(0), observation: item,
+    });
+    const missingKey = observation({ status: "MISSING_API_KEY", state: undefined, answers: undefined, usage: undefined });
+    for (const project of ["project:first", "project:second"]) {
+      assert.equal(record(project, missingKey), true);
+      assert.equal(record(project, missingKey), false);
+    }
+    const variants = [observation(), observation({ state: { ...state, queue_terminal: true } }),
+      observation({ answers: action("route_reasoning", 0) }), observation({ model: "other-model" }),
+      observation({ provider: "other-provider" })];
+    for (const item of variants) {
+      assert.equal(record("project:first", item), true);
+      assert.equal(record("project:first", item), false);
+    }
+    assert.equal(rows(store).length, 7);
+    assert.equal(store.jevShadowSummary().counts.byStatus.MISSING_API_KEY, 2);
+    assert.equal(store.jevShadowSummary().okComparisons, 5);
+  } finally { store.close(); }
+});
+
+test("startup migrates the old ID-less unique index and preserves observations", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "mc-jev-index-")), filename = path.join(directory, "events.db");
+  let store = new EventStore(filename);
+  try {
+    store.recordJevShadowObservation({ source: "LIVE", projectId: "project:first", observedAt: at(0), observation: observation() });
+    store.close();
+    const db = new DatabaseSync(filename);
+    try {
+      db.exec(`DROP INDEX IF EXISTS jev_shadow_without_response_id_v2;
+        DROP INDEX IF EXISTS jev_shadow_without_response_id;
+        CREATE UNIQUE INDEX jev_shadow_without_response_id ON jev_shadow_observations
+          (observed_at, deterministic_trigger, status, COALESCE(error_code, '')) WHERE response_id IS NULL;`);
+    } finally { db.close(); }
+    store = new EventStore(filename);
+    assert.equal(store.recordJevShadowObservation({ source: "LIVE", projectId: "project:second", observedAt: at(0), observation: observation() }), true);
+    assert.equal(store.recordJevShadowObservation({ source: "LIVE", projectId: "project:first", observedAt: at(0), observation: observation() }), false);
+    store.close(); store = new EventStore(filename);
+    assert.equal(rows(store).length, 2);
+    assert.equal(store.recordJevShadowObservation({ source: "LIVE", projectId: "project:second", observedAt: at(0), observation: observation() }), false);
+  } finally { store.close(); rmSync(directory, { recursive: true, force: true }); }
+});
+
+test("incomplete OK answers remain stored but cannot dilute agreement or reach checkpoints", () => {
+  const store = new EventStore(":memory:");
+  try {
+    const incomplete = [undefined, {}, { next_action: { choice: {} } }, { next_action: { choice: { unknown_action: 1 } } }];
+    incomplete.forEach((answers, i) => store.recordJevShadowObservation({ source: "LIVE", observedAt: at(i),
+      observation: observation({ answers, state: { ...state, queue_terminal: true } }) }));
+    assert.ok(rows(store).every((row) => row.jev_next_action === null && row.agrees === null));
+    for (let i = 0; i < 24; i++) {
+      store.recordJevShadowObservation({ source: "LIVE", observedAt: at(i + 4), observation: observation() });
+    }
+    const verify = () => {
+      const summary = store.jevShadowSummary();
+      assert.equal(summary.counts.total, 28); assert.equal(summary.counts.byStatus.OK, 28);
+      assert.equal(summary.okComparisons, 24); assert.equal(summary.agreement.n, 24);
+      assert.equal(summary.agreement.agreeing, 24); assert.equal(summary.agreement.rate, 1);
+      assert.deepEqual(summary.agreement.byTrigger.HEALTHY_ADVANCING, { n: 24, agreeing: 24, rate: 1 });
+      assert.deepEqual(summary.agreement.disagreeingPairs, []);
+      assert.equal(summary.distinctStateFingerprints, 1);
+      assert.equal(summary.checkpoints[0].okComparisonsReachedAt, null);
+    };
+    verify();
+    // Older databases stored missing actions as disagreements; summaries must also exclude those rows.
+    (store as unknown as { db: DatabaseSync }).db.exec("UPDATE jev_shadow_observations SET agrees = 0 WHERE jev_next_action IS NULL");
+    verify();
+    store.recordJevShadowObservation({ source: "LIVE", observedAt: at(28), observation: observation() });
+    assert.equal(store.jevShadowSummary().checkpoints[0].okComparisonsReachedAt, at(28));
   } finally { store.close(); }
 });
 
