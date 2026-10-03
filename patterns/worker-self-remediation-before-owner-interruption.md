@@ -205,6 +205,8 @@ This pattern makes an existing principle operational rather than replacing it:
 
 The new contribution is the explicit **self-remediation-before-owner-interruption admission check** plus a **control-plane checkpoint**: inability of the current sandbox to perform the final target operation is not enough to transfer the repair procedure to the owner, and failure of a proposed repair means identify the actual enforcing surface before repeating it.
 
+A hosted merge gate that the agent's permission layer will not let it complete follows `patterns/agent-completable-merge-gates.md`: one early owner decision with a recommendation, never a recurring owner chore and never a bypass.
+
 ## Transfer rationale and limits
 
 Promoted from a 2026-09-13 local Codex recovery incident where the host HDD was writable, the Codex namespace exposed it read-only, and the reasoning chat initially gave the owner manual Codex configuration steps even though Codex could edit its own user configuration. Follow-up evidence then showed a stronger variant: a fresh managed runtime still omitted the HDD from effective writable roots, the intended config change was present but non-controlling, and Codex's own config directory was read-only. That refined the lesson from self-remediation alone to self-remediation **at the actual controlling surface**.

@@ -2,7 +2,7 @@
 
 ## Status
 
-Current universal pattern. Origin: **OWNER**, 2026-09-30. For questions waiting on him, the owner asked every agent to use the AskRigor worker's method: one continuously updated page of the tradeoffs he has to weigh, instead of chat messages about pull request numbers. He asked for it to become a standard method here, because otherwise it is hard to understand exactly what he needs to do. Owner requirement: `docs/requirements/2026-09-30-owner-questions-page.owner-requirement.json`.
+Current universal pattern. Origin: **OWNER**, 2026-09-30. For questions waiting on him, the owner asked every agent to use the AskRigor worker's method: one continuously updated page of the tradeoffs he has to weigh, instead of chat messages about pull request numbers. He asked for it to become a standard method here, because otherwise it is hard to understand exactly what he needs to do. Owner requirement: `docs/requirements/2026-09-30-owner-questions-page.owner-requirement.json`. The sentences under **For you to do** about exact links, grouping, and recurring actions were added 2026-10-03 from `patterns/agent-completable-merge-gates.md`; they come from an observed failure, not from the owner's statement.
 
 ## Problem
 
@@ -14,7 +14,7 @@ An agent that needs the owner tends to ask in the middle of a status message, na
 2. **Where the page lives.** On a surface that can publish a page the owner can open from any device, publish one; on Claude, that is a published artifact. Otherwise keep one file, `OWNER-QUESTIONS.md`, in the workstream's repository and link to it. Before creating a page, look for the workstream's existing one and update it. Never start a second page.
 3. **Sections, in this order:**
    - **Open questions.** Each question has a number that is never reused.
-   - **For you to do (no decision needed).** Actions only the owner can take, with the steps, the time they take, and how to tell they worked.
+   - **For you to do (no decision needed).** Actions only the owner can take, with the steps, the time they take, how to tell they worked, and an exact link to every target. When several actions belong together, group them into one step. An action that comes back on every pull request or run is not listed again each time; it becomes one open question about removing or automating it (`patterns/agent-completable-merge-gates.md`).
    - **Decided.** Each answer in the owner's words, with what was done about it, so he can check it was understood.
    - **Coming up (not a question yet).** Work that may need him later, with the default that applies if nothing changes.
 4. **What each open question says:**

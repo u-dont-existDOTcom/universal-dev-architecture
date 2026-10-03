@@ -130,6 +130,7 @@ This adapts ProCo (Wu et al., "Large Language Models Can Self-Correct with Key C
 - **Opaque independence claim:** reporting "independent review passed" without saying what was independent and what information the reviewer had.
 - **Universalizing the trigger:** requiring a separate reviewer for every minor task regardless of cost or risk.
 - **Read-as-checked:** treating a source already in context as verified without reopening the passage when the sentence about it is written.
+- **Zero-finding gate:** accepting work only when a model reviewer reports nothing, so the reviewer's run-to-run variance decides acceptance and repairs chase it (`patterns/convergent-review-acceptance-gates.md`).
 
 ## Relationship to other universal patterns
 
