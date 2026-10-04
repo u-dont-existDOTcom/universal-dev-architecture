@@ -226,6 +226,41 @@ test('a provider-schema failure whose receipt write was interrupted is reconcile
   assert.equal(fixture.spawnCalls.length, 0);
 });
 
+test('a structured STOPPED result closes the directive and requests independent reasoning review', async () => {
+  const fixture = await candidateFixture('structured-stop');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = structuredStopOutputSchema();
+  const result = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-stop' } });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.protocol.resultRequestsReasoningReviewStop, true);
+  assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  const receipt = fixture.missionControl.events.find((event) => event.data.type === 'execution_receipt_recorded');
+  assert.equal(receipt.data.next_reasoning_review_required, true);
+  assert.equal(receipt.data.stop_trigger_reached, 'integrity evidence unavailable');
+  assert.deepEqual(receipt.data.blockers, ['integrity evidence unavailable']);
+});
+
+test('an interrupted structured STOPPED receipt is reconciled without duplicate execution', async () => {
+  const fixture = await candidateFixture('structured-stop-reconcile');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = structuredStopOutputSchema();
+  fixture.missionControl.failNextReceipt = true;
+  await assert.rejects(
+    fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-stop' } }),
+    /injected receipt interruption/,
+  );
+  const firstSpawnCount = fixture.spawnCalls.length;
+  assert.ok(firstSpawnCount > 0);
+
+  const recovered = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-stop' } });
+  assert.equal(recovered.recoveredTerminalAttempt, true);
+  assert.equal(recovered.missionControlLifecycle.executionStartRecovered, true);
+  assert.equal(recovered.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  assert.equal(fixture.spawnCalls.length, firstSpawnCount);
+});
+
 test('provider schema compatibility inspection is deterministic and non-mutating', () => {
   const schema = { type: 'object', required: ['items'], properties: { items: { type: 'array' } } };
   const before = JSON.stringify(schema);
@@ -510,6 +545,7 @@ class FakeMissionControl {
   preflightCalls = 0;
   admissionOverride = null;
   eventTypes = [];
+  events = [];
   failNextReceipt = false;
 
   bind(admissionInput, profile) {
@@ -564,6 +600,7 @@ class FakeMissionControl {
       this.failNextReceipt = false;
       throw new Error('injected receipt interruption');
     }
+    this.events.push(...events);
     this.eventTypes.push(...events.map((event) => event.data.type));
     return { events };
   }
@@ -607,6 +644,13 @@ if (mode === 'timeout') setInterval(() => {}, 1000);
 else if (mode === 'process-failure') process.exit(7);
 else if (mode === 'malformed-result') { writeFileSync(resultPath, '{not json'); process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n'); }
 else if (mode === 'missing-terminal') writeFileSync(resultPath, JSON.stringify({ success: true, value: 'ok' }));
+else if (mode === 'structured-stop') {
+  writeFileSync(resultPath, JSON.stringify({
+    status: 'STOPPED', next_reasoning_review_required: true,
+    stop_trigger_reached: 'integrity evidence unavailable', deviations: ['receipt was not locatable'],
+  }));
+  process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
+}
 else {
   if (args.some((value) => value.startsWith('mcp_servers.existing_chromium_bridge.command='))) {
     process.stdout.write(JSON.stringify({ type: 'item.completed', item: {
@@ -618,6 +662,20 @@ else {
   process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
 }
 `;
+}
+
+function structuredStopOutputSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['status', 'next_reasoning_review_required', 'stop_trigger_reached', 'deviations'],
+    properties: {
+      status: { type: 'string' },
+      next_reasoning_review_required: { type: 'boolean' },
+      stop_trigger_reached: { type: 'string' },
+      deviations: { type: 'array', items: { type: 'string' } },
+    },
+  };
 }
 
 test('config places ephemeral runtime outside the durable state default', () => {

@@ -567,12 +567,13 @@ function buildExecutionReceiptEnvelope({ worker, summary, authority, route, star
   if (!startEnvelope || startEnvelope.data.worker_run_id !== summary.attemptId) {
     throw new Error('Mission Control execution receipt is missing its exact recorded start.');
   }
-  const completed = summary.status === CODEX_ATTEMPT_STATUSES.COMPLETED;
+  const structuredStop = isStructuredReasoningReviewStop(summary.protocol?.result);
+  const completed = summary.status === CODEX_ATTEMPT_STATUSES.COMPLETED && !structuredStop;
   const schemaIssues = Array.isArray(summary.outputSchemaCompatibilityIssues)
     ? summary.outputSchemaCompatibilityIssues
     : [];
-  if (!completed && schemaIssues.length === 0) {
-    throw new Error('Only completed attempts or deterministic provider-schema rejections may close a directive.');
+  if (!completed && !structuredStop && schemaIssues.length === 0) {
+    throw new Error('Only completed attempts, structured reasoning-review stops, or deterministic provider-schema rejections may close a directive.');
   }
   const providerFailure = summary.protocol?.providerError?.code === 'invalid_json_schema'
     ? 'Provider rejected the exact source-bound output schema with invalid_json_schema before admitting a structured result.'
@@ -596,21 +597,34 @@ function buildExecutionReceiptEnvelope({ worker, summary, authority, route, star
       stopped_at: summary.finishedAt,
       actions_taken: completed
         ? [`Executed exact admitted route ${route}.`]
+        : structuredStop
+          ? ['The exact admitted route returned a structured STOPPED result and requested independent reasoning review.']
         : [providerFailure],
       files_changed: [],
       artifacts_produced: [`attempt:${summary.attemptId}`],
       checks_run: completed
         ? [{ command: 'codex exec structured protocol validation', result: 'PASS', summary: 'Process, terminal event, route contract, and structured result passed.' }]
+        : structuredStop
+          ? [
+              { command: 'codex exec structured protocol validation', result: 'PASS', summary: 'Process, terminal event, route contract, and structured STOPPED result passed.' },
+              { command: 'bounded directive stop gate', result: 'FAIL', summary: summary.protocol.result.stop_trigger_reached },
+            ]
         : [{ command: 'source-bound output schema provider-compatibility validation', result: 'FAIL', summary: schemaIssues.join('; ') }],
       measurements: [],
       evidence_refs: [`attempt:${summary.attemptId}`, `directive-artifact:${authority.directiveArtifactSha256}`],
-      deviations: [],
-      blockers: completed ? [] : schemaIssues,
+      deviations: structuredStop && Array.isArray(summary.protocol.result.deviations)
+        ? summary.protocol.result.deviations.filter((value) => typeof value === 'string' && value.trim() !== '')
+        : [],
+      blockers: completed ? [] : structuredStop ? [summary.protocol.result.stop_trigger_reached] : schemaIssues,
       stop_trigger_reached: completed
         ? 'The bounded mechanical candidate attempt reached its admitted terminal result.'
+        : structuredStop
+          ? summary.protocol.result.stop_trigger_reached
         : 'The source-bound output schema is provider-incompatible; retrying unchanged would repeat the same pre-execution failure, so a new independent reasoning review is required.',
       execution_claim: completed
         ? 'Bounded execution completed; all semantic, progress, and supervisory judgments remain with Chat/Mission Control.'
+        : structuredStop
+          ? 'Bounded execution stopped at its mandated integrity gate; all semantic, progress, and supervisory judgments remain with Chat/Mission Control.'
         : 'No structured execution result was admitted; the immutable failed attempt is closed for independent reasoning review without altering the source schema.',
       strategy_change: null,
       progress_classification: null,
@@ -1174,6 +1188,7 @@ async function inspectProtocol(eventsPath, resultPath, route) {
     routeContractSatisfied,
     structuredResultParsed: result !== null,
     resultReportsSuccess: result?.success === true,
+    resultRequestsReasoningReviewStop: isStructuredReasoningReviewStop(result),
     resultError,
     result,
   };
@@ -1188,7 +1203,7 @@ function deriveTerminalStatus({ processState, timedOut, runnerError, protocol })
     || !protocol.routeContractSatisfied) {
     return CODEX_ATTEMPT_STATUSES.PROTOCOL_ERROR;
   }
-  if (!protocol.resultReportsSuccess) return CODEX_ATTEMPT_STATUSES.FAILED;
+  if (!protocol.resultReportsSuccess && !protocol.resultRequestsReasoningReviewStop) return CODEX_ATTEMPT_STATUSES.FAILED;
   return CODEX_ATTEMPT_STATUSES.COMPLETED;
 }
 
@@ -1208,11 +1223,9 @@ async function readAttemptSummaries(jobDir) {
 
 async function recoverProviderSchemaRejectedAttempt({ normalized, summaries, jobDir, route }) {
   const outputSchemaCompatibilityIssues = providerSchemaCompatibilityIssues(normalized.outputSchema);
-  if (outputSchemaCompatibilityIssues.length === 0) return null;
   const expectedRetry = normalized.retryOfAttemptId ?? null;
   const exact = summaries
     .filter((summary) => TERMINAL_STATUSES.has(summary?.status)
-      && summary.status !== CODEX_ATTEMPT_STATUSES.COMPLETED
       && summary.directiveArtifactSha256 === normalized.directiveArtifactSha256
       && summary.sourceBindingSha256 === normalized.sourceBindingSha256
       && summary.route === route
@@ -1222,7 +1235,22 @@ async function recoverProviderSchemaRejectedAttempt({ normalized, summaries, job
       && canonicalJson(summary.sourceDirective) === canonicalJson(normalized.sourceDirective))
     .sort((left, right) => Date.parse(right.finishedAt ?? '') - Date.parse(left.finishedAt ?? ''));
   if (exact.length === 0) return null;
-  const summary = exact[0];
+  let summary = null;
+  let recoveredProtocol = null;
+  for (const candidate of exact) {
+    const candidateAttemptDir = join(jobDir, candidate.attemptId);
+    const candidateProtocol = await inspectProtocol(
+      join(candidateAttemptDir, 'events.jsonl'),
+      join(candidateAttemptDir, 'result.json'),
+      route,
+    );
+    if (outputSchemaCompatibilityIssues.length > 0 || isStructuredReasoningReviewStop(candidateProtocol.result)) {
+      summary = candidate;
+      recoveredProtocol = candidateProtocol;
+      break;
+    }
+  }
+  if (!summary || !recoveredProtocol) return null;
   if (!SAFE_ID.test(summary.attemptId ?? '')) throw new Error('Recovered attempt identity is invalid.');
   const attemptDir = join(jobDir, summary.attemptId);
   const expectedEvidence = {
@@ -1236,10 +1264,9 @@ async function recoverProviderSchemaRejectedAttempt({ normalized, summaries, job
   }
   const persistedStatus = (await readFile(join(attemptDir, 'status'), 'utf8')).trim();
   if (persistedStatus !== summary.status) throw new Error('Recovered attempt status differs from its immutable summary.');
-  const protocol = await inspectProtocol(expectedEvidence.eventsPath, expectedEvidence.resultPath, route);
   return {
     ...summary,
-    protocol: { ...summary.protocol, providerError: protocol.providerError },
+    protocol: { ...summary.protocol, ...recoveredProtocol },
     outputSchemaCompatibilityIssues,
     recoveredTerminalAttempt: true,
   };
@@ -1247,8 +1274,17 @@ async function recoverProviderSchemaRejectedAttempt({ normalized, summaries, job
 
 function shouldRecordTerminalReceipt(summary) {
   return summary.status === CODEX_ATTEMPT_STATUSES.COMPLETED
+    || isStructuredReasoningReviewStop(summary.protocol?.result)
     || Array.isArray(summary.outputSchemaCompatibilityIssues)
       && summary.outputSchemaCompatibilityIssues.length > 0;
+}
+
+function isStructuredReasoningReviewStop(result) {
+  return isPlainObject(result)
+    && result.status === 'STOPPED'
+    && result.next_reasoning_review_required === true
+    && typeof result.stop_trigger_reached === 'string'
+    && result.stop_trigger_reached.trim() !== '';
 }
 
 export function providerSchemaCompatibilityIssues(schema) {
