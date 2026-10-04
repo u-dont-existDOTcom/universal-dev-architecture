@@ -121,6 +121,33 @@ test('the editor-generated plaintext autolink preserves the observed 5221-charac
   assert.deepEqual(run(VERIFY_COMPOSER_FN, [input], body), { exact: true, length: 5221 });
 });
 
+test('the exact editor-generated GitHub rich-link chip preserves only its identical URL text', () => {
+  const url = 'https://github.com/u-dont-existDOTcom/AskRigor-findings/issues/4';
+  const richLink = (overrides = {}) => {
+    const icon = element('SPAN', [], { 'data-inline-url-icon': '', 'aria-hidden': 'true', contenteditable: 'false' });
+    icon.textContent = '';
+    const label = text(url);
+    const wrapper = element('SPAN', [icon, label], { class: 'RichLinkWrapper' });
+    const link = element('SPAN', [wrapper], {
+      'rich-link-source-app-id': 'github', class: 'RichLink', 'data-appearance': 'inline-mention',
+      'data-layout': 'inline-flow', 'data-font-weight': 'medium', 'data-tone': 'accent',
+      'data-underline-on-hover': '', 'data-breakable-url': '', 'text-link-href': url,
+      'data-rich-text-generated-autolink': '', ...overrides,
+    });
+    link.textContent = url;
+    return link;
+  };
+  const body = `before ${url} after`;
+  const input = composer(paragraph(text('before '), richLink(), text(' after')));
+  assert.deepEqual(run(VERIFY_COMPOSER_FN, [input], body), { exact: true, length: body.length });
+  assert.equal(run(VERIFY_COMPOSER_FN, [composer(paragraph(richLink({ 'rich-link-source-app-id': 'wrong' })))], url).reason,
+    'COMPOSER_MARKUP_UNSUPPORTED');
+  assert.equal(run(VERIFY_COMPOSER_FN, [composer(paragraph(richLink({ 'text-link-href': `${url}/changed` })))], url).reason,
+    'COMPOSER_MARKUP_UNSUPPORTED');
+  assert.equal(run(VERIFY_COMPOSER_FN, [composer(paragraph(richLink({ onclick: 'unexpected' })))], url).reason,
+    'COMPOSER_MARKUP_UNSUPPORTED');
+});
+
 test('transformed, decorated, or non-generated links fail closed', () => {
   const missingMarker = { ...autolinkAttributes };
   delete missingMarker['data-rich-text-generated-autolink'];

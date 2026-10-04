@@ -712,6 +712,33 @@ export function composerTextState(element, expectedBody, expectedMentions = []) 
           text += children[0].nodeValue;
           continue;
         }
+        if (node.nodeType === 1 && node.tagName === 'SPAN'
+          && node.getAttribute('data-rich-text-generated-autolink') !== null) {
+          const attributes = node.getAttributeNames();
+          const allowed = ['rich-link-source-app-id', 'class', 'data-appearance', 'data-layout', 'data-font-weight',
+            'data-tone', 'data-underline-on-hover', 'data-breakable-url', 'text-link-href', 'data-rich-text-generated-autolink'];
+          const outerChildren = [...node.childNodes];
+          const wrapper = outerChildren[0];
+          const wrapperChildren = wrapper?.nodeType === 1 && wrapper.tagName === 'SPAN' ? [...wrapper.childNodes] : [];
+          const icon = wrapperChildren[0];
+          const label = wrapperChildren[1];
+          const href = node.getAttribute('text-link-href');
+          if (attributes.length !== allowed.length || !attributes.every((name) => allowed.includes(name))
+            || node.getAttribute('rich-link-source-app-id') !== 'github'
+            || node.getAttribute('data-appearance') !== 'inline-mention'
+            || node.getAttribute('data-layout') !== 'inline-flow'
+            || node.getAttribute('data-breakable-url') !== ''
+            || node.getAttribute('data-rich-text-generated-autolink') !== ''
+            || outerChildren.length !== 1 || wrapper.getAttributeNames().length !== 1 || wrapper.getAttributeNames()[0] !== 'class'
+            || wrapperChildren.length !== 2 || icon?.nodeType !== 1 || icon.tagName !== 'SPAN'
+            || icon.getAttribute('data-inline-url-icon') !== '' || icon.getAttribute('aria-hidden') !== 'true'
+            || icon.getAttribute('contenteditable') !== 'false' || icon.textContent !== ''
+            || label?.nodeType !== 3 || !href || label.nodeValue !== href || node.textContent !== href) return null;
+          // ChatGPT's generated connected-app URL chip is accepted only when
+          // its exact text remains identical to the underlying URL.
+          text += href;
+          continue;
+        }
         if (node.nodeType !== 1 || node.tagName !== 'BR') return null;
         const last = index === nodes.length - 1;
         if (node.classList.contains('ProseMirror-trailingBreak')) {
