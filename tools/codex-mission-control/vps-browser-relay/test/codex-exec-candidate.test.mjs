@@ -261,6 +261,38 @@ test('an interrupted structured STOPPED receipt is reconciled without duplicate 
   assert.equal(fixture.spawnCalls.length, firstSpawnCount);
 });
 
+test('a structured COMPLETED result closes the directive without requiring a success boolean', async () => {
+  const fixture = await candidateFixture('structured-completed');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = structuredCompletionOutputSchema();
+  const result = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-completed' } });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.protocol.resultReportsSuccess, true);
+  assert.equal(result.protocol.resultReportsStructuredCompletion, true);
+  assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+});
+
+test('an interrupted structured COMPLETED receipt is reconciled without duplicate execution', async () => {
+  const fixture = await candidateFixture('structured-completed-reconcile');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = structuredCompletionOutputSchema();
+  fixture.missionControl.failNextReceipt = true;
+  await assert.rejects(
+    fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-completed' } }),
+    /injected receipt interruption/,
+  );
+  const firstSpawnCount = fixture.spawnCalls.length;
+  assert.ok(firstSpawnCount > 0);
+
+  const recovered = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-completed' } });
+  assert.equal(recovered.recoveredTerminalAttempt, true);
+  assert.equal(recovered.missionControlLifecycle.executionStartRecovered, true);
+  assert.equal(recovered.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  assert.equal(fixture.spawnCalls.length, firstSpawnCount);
+});
+
 test('provider schema compatibility inspection is deterministic and non-mutating', () => {
   const schema = { type: 'object', required: ['items'], properties: { items: { type: 'array' } } };
   const before = JSON.stringify(schema);
@@ -651,6 +683,10 @@ else if (mode === 'structured-stop') {
   }));
   process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
 }
+else if (mode === 'structured-completed') {
+  writeFileSync(resultPath, JSON.stringify({ status: 'COMPLETED', gate_verdict: 'PASS' }));
+  process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
+}
 else {
   if (args.some((value) => value.startsWith('mcp_servers.existing_chromium_bridge.command='))) {
     process.stdout.write(JSON.stringify({ type: 'item.completed', item: {
@@ -674,6 +710,18 @@ function structuredStopOutputSchema() {
       next_reasoning_review_required: { type: 'boolean' },
       stop_trigger_reached: { type: 'string' },
       deviations: { type: 'array', items: { type: 'string' } },
+    },
+  };
+}
+
+function structuredCompletionOutputSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['status', 'gate_verdict'],
+    properties: {
+      status: { type: 'string' },
+      gate_verdict: { type: 'string' },
     },
   };
 }

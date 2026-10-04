@@ -568,7 +568,8 @@ function buildExecutionReceiptEnvelope({ worker, summary, authority, route, star
     throw new Error('Mission Control execution receipt is missing its exact recorded start.');
   }
   const structuredStop = isStructuredReasoningReviewStop(summary.protocol?.result);
-  const completed = summary.status === CODEX_ATTEMPT_STATUSES.COMPLETED && !structuredStop;
+  const structuredCompletion = isStructuredCompletionResult(summary.protocol?.result);
+  const completed = (summary.status === CODEX_ATTEMPT_STATUSES.COMPLETED || structuredCompletion) && !structuredStop;
   const schemaIssues = Array.isArray(summary.outputSchemaCompatibilityIssues)
     ? summary.outputSchemaCompatibilityIssues
     : [];
@@ -1187,7 +1188,8 @@ async function inspectProtocol(eventsPath, resultPath, route) {
     providerError,
     routeContractSatisfied,
     structuredResultParsed: result !== null,
-    resultReportsSuccess: result?.success === true,
+    resultReportsSuccess: result?.success === true || isStructuredCompletionResult(result),
+    resultReportsStructuredCompletion: isStructuredCompletionResult(result),
     resultRequestsReasoningReviewStop: isStructuredReasoningReviewStop(result),
     resultError,
     result,
@@ -1244,7 +1246,9 @@ async function recoverProviderSchemaRejectedAttempt({ normalized, summaries, job
       join(candidateAttemptDir, 'result.json'),
       route,
     );
-    if (outputSchemaCompatibilityIssues.length > 0 || isStructuredReasoningReviewStop(candidateProtocol.result)) {
+    if (outputSchemaCompatibilityIssues.length > 0
+      || isStructuredReasoningReviewStop(candidateProtocol.result)
+      || isStructuredCompletionResult(candidateProtocol.result)) {
       summary = candidate;
       recoveredProtocol = candidateProtocol;
       break;
@@ -1274,9 +1278,14 @@ async function recoverProviderSchemaRejectedAttempt({ normalized, summaries, job
 
 function shouldRecordTerminalReceipt(summary) {
   return summary.status === CODEX_ATTEMPT_STATUSES.COMPLETED
+    || isStructuredCompletionResult(summary.protocol?.result)
     || isStructuredReasoningReviewStop(summary.protocol?.result)
     || Array.isArray(summary.outputSchemaCompatibilityIssues)
       && summary.outputSchemaCompatibilityIssues.length > 0;
+}
+
+function isStructuredCompletionResult(result) {
+  return isPlainObject(result) && result.status === 'COMPLETED';
 }
 
 function isStructuredReasoningReviewStop(result) {
