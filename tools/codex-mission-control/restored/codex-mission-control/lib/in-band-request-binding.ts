@@ -1,5 +1,10 @@
 import { canonicalJson, sha256 } from "./canonical";
-import type { GitHubDecisionCandidate, GitHubReceiptPolicy, PendingDecisionRequest } from "./github-decision-receipts";
+import type {
+  GitHubDecisionCandidate,
+  GitHubDecisionReceiptRelocation,
+  GitHubReceiptPolicy,
+  PendingDecisionRequest,
+} from "./github-decision-receipts";
 import type { CanonicalDecisionEnvelope, StoredEvent } from "./schema";
 
 export const inBandRequestRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n";
@@ -97,17 +102,23 @@ export function assertInBandRequestExecution(
   events: StoredEvent[], request: PendingDecisionRequest, policy: GitHubReceiptPolicy,
   decision: Extract<CanonicalDecisionEnvelope, { schema_version: 5 }>, candidate: GitHubDecisionCandidate,
   ingestedAt: string, submissionAuthorityState: unknown,
+  receiptRelocation: GitHubDecisionReceiptRelocation | null = null,
 ): { preSendReceiptId: string; admissionId: string; promptSha256: string } {
   const fail = (reason: string): never => { throw new Error(`In-band request execution rejected: ${reason}.`); };
   const requestBoundPolicy = policy.requestBound;
   if (!requestBoundPolicy?.enabled || request.routeSchemaVersion !== 6) fail("protocol not enabled for this route");
-  const expected = inBandRequestBindingEnvelope(request, decision.provider_session_id, policy);
+  const bindingPolicy = receiptRelocation ? {
+    ...policy,
+    repository: receiptRelocation.sourceRepository,
+    decisionIssueNumber: receiptRelocation.sourceDecisionIssueNumber,
+  } : policy;
+  const expected = inBandRequestBindingEnvelope(request, decision.provider_session_id, bindingPolicy);
   if (decision.supervisor_id !== request.supervisorId
     || decision.in_band_binding_sha256 !== expected.in_band_binding_sha256) fail("exact in-band request/session/context binding mismatch");
-  const expectedLocator = `${expected.decision_receipt_target.immutable_issue_url}#issuecomment-${candidate.commentId}`;
+  const expectedLocator = `https://github.com/${policy.repository}/issues/${policy.decisionIssueNumber}#issuecomment-${candidate.commentId}`;
   if (candidate.immutableUrl !== expectedLocator) fail("GitHub comment locator mismatch");
-  if (candidate.repository.toLowerCase() !== expected.decision_receipt_target.repository.toLowerCase()
-    || candidate.issueNumber !== expected.decision_receipt_target.issue_number) fail("GitHub decision target mismatch");
+  if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase()
+    || candidate.issueNumber !== policy.decisionIssueNumber) fail("GitHub decision target mismatch");
 
   const relayIds = requestBoundPolicy!.relayProducerIds;
   const scoped = events.filter((event) => boundTo(event, request, decision.provider_session_id)

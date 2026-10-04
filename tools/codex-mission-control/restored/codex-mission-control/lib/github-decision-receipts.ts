@@ -48,6 +48,15 @@ export interface GitHubReceiptPolicy {
   authorizedWriterLogins: string[];
   capabilityChallenges: CapabilityChallenge[];
   requestBound?: { enabled: boolean; relayProducerIds: string[] };
+  decisionReceiptRelocations?: GitHubDecisionReceiptRelocation[];
+}
+export interface GitHubDecisionReceiptRelocation {
+  requestId: string;
+  sourceRepository: string;
+  sourceDecisionIssueNumber: number;
+  destinationRepository: string;
+  destinationDecisionIssueNumber: number;
+  canonicalReceiptSha256: string;
 }
 export interface CapabilityChallenge {
   challengeId: string; supervisorId: string; chatId: string; worker: string; mcNonce: string; githubNonce: string;
@@ -138,7 +147,34 @@ export function parseGitHubReceiptPolicy(raw = process.env.MISSION_CONTROL_GITHU
       || (config.enabled && config.relayProducerIds.length === 0)) throw new Error("requestBound requires an explicit enabled flag and trusted relay producer IDs.");
     requestBound = { enabled: config.enabled, relayProducerIds: [...new Set(config.relayProducerIds as string[])] };
   }
-  return { repository, decisionIssueNumber, capabilityIssueNumber, stageIssueNumber, authorizedWriterLogins, capabilityChallenges, ...(requestBound ? { requestBound } : {}) };
+  let decisionReceiptRelocations: GitHubDecisionReceiptRelocation[] | undefined;
+  if (root.decisionReceiptRelocations !== undefined) {
+    if (!Array.isArray(root.decisionReceiptRelocations)) throw new Error("decisionReceiptRelocations must be an array.");
+    decisionReceiptRelocations = root.decisionReceiptRelocations.map((item, i) => {
+      const relocation = record(item, `decisionReceiptRelocations[${i}]`);
+      const parsed = {
+        requestId: requiredString(relocation.requestId, `decisionReceiptRelocations[${i}].requestId`),
+        sourceRepository: repositoryName(relocation.sourceRepository, `decisionReceiptRelocations[${i}].sourceRepository`),
+        sourceDecisionIssueNumber: positiveInteger(relocation.sourceDecisionIssueNumber, `decisionReceiptRelocations[${i}].sourceDecisionIssueNumber`),
+        destinationRepository: repositoryName(relocation.destinationRepository, `decisionReceiptRelocations[${i}].destinationRepository`),
+        destinationDecisionIssueNumber: positiveInteger(relocation.destinationDecisionIssueNumber, `decisionReceiptRelocations[${i}].destinationDecisionIssueNumber`),
+        canonicalReceiptSha256: digest(relocation.canonicalReceiptSha256, `decisionReceiptRelocations[${i}].canonicalReceiptSha256`),
+      };
+      if (parsed.destinationRepository.toLowerCase() !== repository.toLowerCase()
+        || parsed.destinationDecisionIssueNumber !== decisionIssueNumber) {
+        throw new Error(`decisionReceiptRelocations[${i}] destination must match the configured decision channel.`);
+      }
+      return parsed;
+    });
+    if (new Set(decisionReceiptRelocations.map((item) => item.requestId)).size !== decisionReceiptRelocations.length) {
+      throw new Error("decisionReceiptRelocations request IDs must be unique.");
+    }
+  }
+  return {
+    repository, decisionIssueNumber, capabilityIssueNumber, stageIssueNumber, authorizedWriterLogins, capabilityChallenges,
+    ...(requestBound ? { requestBound } : {}),
+    ...(decisionReceiptRelocations ? { decisionReceiptRelocations } : {}),
+  };
 }
 
 export function validateConfiguredDecisionLocation(repository: string, issueNumber: number, policy: GitHubReceiptPolicy | null) {
@@ -570,6 +606,7 @@ export function buildGitHubDecisionReceiptEnvelope(
   const matches = pendingDecisionRequests(events).filter((r) => r.requestId === decision.request_id);
   if (matches.length !== 1) throw new Error(`Expected one pending supervisory decision request for ${decision.request_id}; found ${matches.length}.`);
   const request = matches[0]!;
+  const receiptRelocation = exactDecisionReceiptRelocation(request, candidate, policy);
   if (request.continuation) {
     if ((decision.schema_version !== 3 && decision.schema_version !== 4 && decision.schema_version !== 5) || !decision.continuation_binding || !decision.continuation_binding_sha256) {
       throw new Error("Continuation decision must echo the exact continuation binding and digest.");
@@ -586,7 +623,7 @@ export function buildGitHubDecisionReceiptEnvelope(
   } else if ((decision.schema_version === 3 || decision.schema_version === 4 || decision.schema_version === 5) && (decision.continuation_binding !== undefined || decision.continuation_binding_sha256 !== undefined)) {
     throw new Error("Unexpected continuation on an ordinary decision request.");
   }
-  validateConfiguredDecisionLocation(request.repository, request.issueNumber, policy);
+  if (!receiptRelocation) validateConfiguredDecisionLocation(request.repository, request.issueNumber, policy);
   assertEqual(decision.nonce, request.nonce, "decision nonce");
   assertEqual(decision.evidence_capsule.id, request.evidenceCapsule.id, "evidence capsule ID");
   assertEqual(decision.evidence_capsule.sha256, request.evidenceCapsule.sha256, "evidence capsule digest");
@@ -629,7 +666,9 @@ export function buildGitHubDecisionReceiptEnvelope(
   } else if (request.routeSchemaVersion === 6) {
     if (decision.schema_version !== 5) throw new Error("In-band request routes require canonical decision schema_version 5.");
     if (!validation?.submissionAuthorityState) throw new Error("In-band request execution requires the current central submission-authority state.");
-    inBandProof = assertInBandRequestExecution(events, request, policy, decision, candidate, ingestedAt, validation.submissionAuthorityState);
+    inBandProof = assertInBandRequestExecution(
+      events, request, policy, decision, candidate, ingestedAt, validation.submissionAuthorityState, receiptRelocation,
+    );
   } else {
     if (decision.schema_version === 4 || decision.schema_version === 5) throw new Error("Request-bound decisions cannot satisfy a legacy route.");
     assertCurrentChatCapabilities(events, request, candidate.createdAt, policy);
@@ -673,6 +712,16 @@ export function buildGitHubDecisionReceiptEnvelope(
         execution_submission_admission_id: inBandProof!.admissionId,
         execution_provider_body_sha256: inBandProof!.promptSha256,
       } : {}),
+      ...(receiptRelocation ? {
+        receipt_relocation: {
+          authority: "OWNER_CONFIGURED_EXACT_RECEIPT_RELOCATION" as const,
+          source_repository: receiptRelocation.sourceRepository,
+          source_issue_number: receiptRelocation.sourceDecisionIssueNumber,
+          destination_repository: receiptRelocation.destinationRepository,
+          destination_issue_number: receiptRelocation.destinationDecisionIssueNumber,
+          canonical_receipt_sha256: receiptRelocation.canonicalReceiptSha256,
+        },
+      } : {}),
       writer_contract: decision.writer_contract, canonical_envelope_sha256: sha256(canonicalJson(decision)),
       github_receipt: {
         repository: candidate.repository, issue_number: candidate.issueNumber, comment_id: candidate.commentId, immutable_url: candidate.immutableUrl,
@@ -681,6 +730,30 @@ export function buildGitHubDecisionReceiptEnvelope(
       ingestion_method: candidate.ingestionMethod, ingested_at: ingestedAt,
     },
   };
+}
+
+function exactDecisionReceiptRelocation(
+  request: PendingDecisionRequest,
+  candidate: GitHubDecisionCandidate,
+  policy: GitHubReceiptPolicy,
+): GitHubDecisionReceiptRelocation | null {
+  const relocation = policy.decisionReceiptRelocations?.find((item) => item.requestId === request.requestId) ?? null;
+  if (!relocation) return null;
+  if (request.routeSchemaVersion !== 6) throw new Error("Decision receipt relocation is supported only for exact V6 in-band receipts.");
+  if (request.repository.toLowerCase() !== relocation.sourceRepository.toLowerCase()
+    || request.issueNumber !== relocation.sourceDecisionIssueNumber) {
+    throw new Error("Decision receipt relocation source does not match the durable request route.");
+  }
+  if (policy.repository.toLowerCase() !== relocation.destinationRepository.toLowerCase()
+    || policy.decisionIssueNumber !== relocation.destinationDecisionIssueNumber
+    || candidate.repository.toLowerCase() !== relocation.destinationRepository.toLowerCase()
+    || candidate.issueNumber !== relocation.destinationDecisionIssueNumber) {
+    throw new Error("Decision receipt relocation destination does not match the configured private channel.");
+  }
+  if (sha256(candidate.body) !== relocation.canonicalReceiptSha256) {
+    throw new Error("Decision receipt relocation requires the exact configured canonical receipt hash.");
+  }
+  return relocation;
 }
 
 const githubReconciliationOverlapMs = 10 * 60_000;

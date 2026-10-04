@@ -21,6 +21,7 @@ import {
   githubDecisionCandidateFromWebhook,
   ingestGitHubSupervisionCandidate,
   modeCapabilityVerifiedSummary,
+  parseGitHubReceiptPolicy,
   parseCanonicalDecisionComment,
   parseStageReceiptComment,
   pendingDecisionRequests,
@@ -94,6 +95,35 @@ test("central policy rejects worker-selected repository/issue and unauthorized w
   assert.throws(() => validateConfiguredDecisionLocation(p.repository, 999, p), /centrally configured/);
   assert.throws(() => buildGitHubDecisionReceiptEnvelope(escalatedEvents(), { ...candidate(), repository: "evil/repo" }, p), /GitHub repository|configured/);
   assert.throws(() => ingestGitHubSupervisionCandidate(fakeStore(escalatedEvents()), { ...candidate(), authorLogin: "other-user" }, p), /not authorized/);
+});
+
+test("receipt relocation policy is exact, destination-bound, and request-unique", () => {
+  const base = policy();
+  const destination = { repository: "u-dont-existDOTcom/private-receipts", issue: 4 };
+  const raw = {
+    ...base,
+    repository: destination.repository,
+    decisionIssueNumber: destination.issue,
+    capabilityIssueNumber: destination.issue,
+    stageIssueNumber: destination.issue,
+    decisionReceiptRelocations: [{
+      requestId: "request-1",
+      sourceRepository: base.repository,
+      sourceDecisionIssueNumber: base.decisionIssueNumber,
+      destinationRepository: destination.repository,
+      destinationDecisionIssueNumber: destination.issue,
+      canonicalReceiptSha256: "a".repeat(64),
+    }],
+  };
+  assert.deepEqual(parseGitHubReceiptPolicy(JSON.stringify(raw))?.decisionReceiptRelocations, raw.decisionReceiptRelocations);
+  assert.throws(() => parseGitHubReceiptPolicy(JSON.stringify({
+    ...raw,
+    decisionReceiptRelocations: [{ ...raw.decisionReceiptRelocations[0], destinationDecisionIssueNumber: 5 }],
+  })), /destination must match/);
+  assert.throws(() => parseGitHubReceiptPolicy(JSON.stringify({
+    ...raw,
+    decisionReceiptRelocations: [raw.decisionReceiptRelocations[0], raw.decisionReceiptRelocations[0]],
+  })), /request IDs must be unique/);
 });
 
 test("capability challenge exposes MC nonce, GitHub nonce hash/location, and stage target", () => {

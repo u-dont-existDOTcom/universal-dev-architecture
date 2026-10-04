@@ -209,6 +209,89 @@ test("V6 admits one exact GitHub decision without any MCP receipt and records di
   } finally { f.store.close(); }
 });
 
+test("V6 relocates one exact pre-bound receipt to an owner-configured private channel without changing its bytes", () => {
+  const f = fixture();
+  try {
+    const destinationRepository = "u-dont-existDOTcom/private-receipts";
+    const destinationIssueNumber = 4;
+    const relocatedPolicy: GitHubReceiptPolicy = {
+      ...policy,
+      repository: destinationRepository,
+      decisionIssueNumber: destinationIssueNumber,
+      capabilityIssueNumber: destinationIssueNumber,
+      stageIssueNumber: destinationIssueNumber,
+      decisionReceiptRelocations: [{
+        requestId,
+        sourceRepository: policy.repository,
+        sourceDecisionIssueNumber: policy.decisionIssueNumber,
+        destinationRepository,
+        destinationDecisionIssueNumber: destinationIssueNumber,
+        canonicalReceiptSha256: sha256(f.candidate.body),
+      }],
+    };
+    const candidate = {
+      ...f.candidate,
+      repository: destinationRepository,
+      issueNumber: destinationIssueNumber,
+      immutableUrl: `https://github.com/${destinationRepository}/issues/${destinationIssueNumber}#issuecomment-${f.candidate.commentId}`,
+    };
+    const envelope = buildGitHubDecisionReceiptEnvelope(
+      f.events, candidate, relocatedPolicy, time("06.000"), { submissionAuthorityState: f.authority },
+    );
+    assert.equal(candidate.body, f.candidate.body);
+    assert.equal(envelope.data.type, "github_decision_receipt_ingested");
+    if (envelope.data.type !== "github_decision_receipt_ingested") return;
+    assert.deepEqual(envelope.data.receipt_relocation, {
+      authority: "OWNER_CONFIGURED_EXACT_RECEIPT_RELOCATION",
+      source_repository: policy.repository,
+      source_issue_number: policy.decisionIssueNumber,
+      destination_repository: destinationRepository,
+      destination_issue_number: destinationIssueNumber,
+      canonical_receipt_sha256: sha256(f.candidate.body),
+    });
+    assert.equal(envelope.data.in_band_binding_sha256, f.binding.in_band_binding_sha256);
+    assert.equal(envelope.data.github_receipt.repository, destinationRepository);
+    assert.equal(envelope.data.github_receipt.issue_number, destinationIssueNumber);
+  } finally { f.store.close(); }
+});
+
+test("V6 exact receipt relocation fails closed on changed bytes or an unconfigured source", () => {
+  const f = fixture();
+  try {
+    const destinationRepository = "u-dont-existDOTcom/private-receipts";
+    const destinationIssueNumber = 4;
+    const relocatedPolicy: GitHubReceiptPolicy = {
+      ...policy,
+      repository: destinationRepository,
+      decisionIssueNumber: destinationIssueNumber,
+      capabilityIssueNumber: destinationIssueNumber,
+      stageIssueNumber: destinationIssueNumber,
+      decisionReceiptRelocations: [{
+        requestId,
+        sourceRepository: policy.repository,
+        sourceDecisionIssueNumber: policy.decisionIssueNumber,
+        destinationRepository,
+        destinationDecisionIssueNumber: destinationIssueNumber,
+        canonicalReceiptSha256: sha256(f.candidate.body),
+      }],
+    };
+    const candidate = {
+      ...f.candidate,
+      repository: destinationRepository,
+      issueNumber: destinationIssueNumber,
+      immutableUrl: `https://github.com/${destinationRepository}/issues/${destinationIssueNumber}#issuecomment-${f.candidate.commentId}`,
+    };
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(
+      f.events, { ...candidate, body: `${candidate.body}\n` }, relocatedPolicy, time("06.000"), { submissionAuthorityState: f.authority },
+    ), /exact configured canonical receipt hash/);
+    const wrongSourcePolicy = structuredClone(relocatedPolicy);
+    wrongSourcePolicy.decisionReceiptRelocations![0]!.sourceDecisionIssueNumber += 1;
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(
+      f.events, candidate, wrongSourcePolicy, time("06.000"), { submissionAuthorityState: f.authority },
+    ), /source does not match/);
+  } finally { f.store.close(); }
+});
+
 test("V6 accepts top-model policy evidence and binds one observed model label across the session", () => {
   const f = fixture();
   try {
