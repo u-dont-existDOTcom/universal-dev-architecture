@@ -285,7 +285,17 @@ export async function dispatchMissionControlExecution({
       await missionControl.recordWorkerEvents(worker, [startEnvelope]);
     },
   });
-  if (summary.status === CODEX_ATTEMPT_STATUSES.COMPLETED) {
+  if (!startEnvelope && summary.recoveredTerminalAttempt === true) {
+    startEnvelope = buildExecutionStartedEnvelope({
+      worker,
+      attemptId: summary.attemptId,
+      startedAt: summary.startedAt,
+      authority,
+      route,
+    });
+  }
+  const terminalReceiptRequired = shouldRecordTerminalReceipt(summary);
+  if (terminalReceiptRequired) {
     const receipt = buildExecutionReceiptEnvelope({ worker, summary, authority, route, startEnvelope });
     await missionControl.recordWorkerEvents(worker, [receipt]);
   }
@@ -295,8 +305,9 @@ export async function dispatchMissionControlExecution({
       admissionRequestId: authority.requestId,
       authorizationId: authority.authorizationId,
       preflightId: authority.preflightId,
-      executionStartRecorded: startEnvelope !== null,
-      executionReceiptRecorded: summary.status === CODEX_ATTEMPT_STATUSES.COMPLETED,
+      executionStartRecorded: startEnvelope !== null && summary.recoveredTerminalAttempt !== true,
+      executionStartRecovered: summary.recoveredTerminalAttempt === true,
+      executionReceiptRecorded: terminalReceiptRequired,
     },
   };
 }
@@ -556,6 +567,16 @@ function buildExecutionReceiptEnvelope({ worker, summary, authority, route, star
   if (!startEnvelope || startEnvelope.data.worker_run_id !== summary.attemptId) {
     throw new Error('Mission Control execution receipt is missing its exact recorded start.');
   }
+  const completed = summary.status === CODEX_ATTEMPT_STATUSES.COMPLETED;
+  const schemaIssues = Array.isArray(summary.outputSchemaCompatibilityIssues)
+    ? summary.outputSchemaCompatibilityIssues
+    : [];
+  if (!completed && schemaIssues.length === 0) {
+    throw new Error('Only completed attempts or deterministic provider-schema rejections may close a directive.');
+  }
+  const providerFailure = summary.protocol?.providerError?.code === 'invalid_json_schema'
+    ? 'Provider rejected the exact source-bound output schema with invalid_json_schema before admitting a structured result.'
+    : 'The exact source-bound output schema failed deterministic provider-compatibility validation before model execution.';
   return {
     schema_version: 2,
     event_id: `codex-execution-receipt:${summary.attemptId}`,
@@ -573,16 +594,24 @@ function buildExecutionReceiptEnvelope({ worker, summary, authority, route, star
       repository_end_state: `directive-artifact:${authority.directiveArtifactSha256}`,
       started_at: summary.startedAt,
       stopped_at: summary.finishedAt,
-      actions_taken: [`Executed exact admitted route ${route}.`],
+      actions_taken: completed
+        ? [`Executed exact admitted route ${route}.`]
+        : [providerFailure],
       files_changed: [],
       artifacts_produced: [`attempt:${summary.attemptId}`],
-      checks_run: [{ command: 'codex exec structured protocol validation', result: 'PASS', summary: 'Process, terminal event, route contract, and structured result passed.' }],
+      checks_run: completed
+        ? [{ command: 'codex exec structured protocol validation', result: 'PASS', summary: 'Process, terminal event, route contract, and structured result passed.' }]
+        : [{ command: 'source-bound output schema provider-compatibility validation', result: 'FAIL', summary: schemaIssues.join('; ') }],
       measurements: [],
       evidence_refs: [`attempt:${summary.attemptId}`, `directive-artifact:${authority.directiveArtifactSha256}`],
       deviations: [],
-      blockers: [],
-      stop_trigger_reached: 'The bounded mechanical candidate attempt reached its admitted terminal result.',
-      execution_claim: 'Bounded execution completed; all semantic, progress, and supervisory judgments remain with Chat/Mission Control.',
+      blockers: completed ? [] : schemaIssues,
+      stop_trigger_reached: completed
+        ? 'The bounded mechanical candidate attempt reached its admitted terminal result.'
+        : 'The source-bound output schema is provider-incompatible; retrying unchanged would repeat the same pre-execution failure, so a new independent reasoning review is required.',
+      execution_claim: completed
+        ? 'Bounded execution completed; all semantic, progress, and supervisory judgments remain with Chat/Mission Control.'
+        : 'No structured execution result was admitted; the immutable failed attempt is closed for independent reasoning review without altering the source schema.',
       strategy_change: null,
       progress_classification: null,
       supervisory_verdict: null,
@@ -666,6 +695,13 @@ async function runCodexAttempt({
   const lock = await acquireJobLock(lockPath);
   try {
     const existing = await readAttemptSummaries(jobDir);
+    const recovered = await recoverProviderSchemaRejectedAttempt({
+      normalized,
+      summaries: existing,
+      jobDir,
+      route,
+    });
+    if (recovered) return recovered;
     enforceRetryIdentity(normalized, existing);
 
     const attemptId = `${compactTimestamp(clock())}-${randomUUID()}`;
@@ -718,7 +754,11 @@ async function runCodexAttempt({
     let authenticationPreflight = null;
     let isolatedCodexHome = null;
     let runtimeCredentialCopyRemoved = false;
+    const outputSchemaCompatibilityIssues = providerSchemaCompatibilityIssues(normalized.outputSchema);
     try {
+      if (outputSchemaCompatibilityIssues.length > 0) {
+        throw new Error(`OUTPUT_SCHEMA_PROVIDER_INCOMPATIBLE: ${outputSchemaCompatibilityIssues.join('; ')}`);
+      }
       const childEnv = withoutApiKeys(config.environment ?? process.env);
       isolatedCodexHome = await createIsolatedCodexHome({
         sourceCodexHome: config.sourceCodexHome,
@@ -787,6 +827,7 @@ async function runCodexAttempt({
       runtimeCredentialCopyRemoved,
       mcpPreflight,
       protocol,
+      outputSchemaCompatibilityIssues,
       structuredFinalResult: protocol.result,
       evidence: {
         attemptDir,
@@ -1086,10 +1127,12 @@ async function inspectProtocol(eventsPath, resultPath, route) {
   const terminalMcpCalls = [];
   let commandExecutionCount = 0;
   let approvalEventCount = 0;
+  let providerError = null;
   for (const line of rawEvents.split(/\r?\n/)) {
     if (!line.trim()) continue;
     try {
       const event = JSON.parse(line);
+      if (event?.type === 'error' && providerError === null) providerError = normalizedProviderError(event);
       if (event?.type === 'turn.completed') terminalTurnCompletedCount += 1;
       const item = event?.item ?? {};
       if (event?.type === 'item.completed' && item.type === 'mcp_tool_call') terminalMcpCalls.push(item);
@@ -1127,6 +1170,7 @@ async function inspectProtocol(eventsPath, resultPath, route) {
     completedRestrictedBrowserToolCallCount: restrictedCalls.length,
     commandExecutionCount,
     approvalEventCount,
+    providerError,
     routeContractSatisfied,
     structuredResultParsed: result !== null,
     resultReportsSuccess: result?.success === true,
@@ -1160,6 +1204,94 @@ async function readAttemptSummaries(jobDir) {
     }
   }
   return summaries;
+}
+
+async function recoverProviderSchemaRejectedAttempt({ normalized, summaries, jobDir, route }) {
+  const outputSchemaCompatibilityIssues = providerSchemaCompatibilityIssues(normalized.outputSchema);
+  if (outputSchemaCompatibilityIssues.length === 0) return null;
+  const expectedRetry = normalized.retryOfAttemptId ?? null;
+  const exact = summaries
+    .filter((summary) => TERMINAL_STATUSES.has(summary?.status)
+      && summary.status !== CODEX_ATTEMPT_STATUSES.COMPLETED
+      && summary.directiveArtifactSha256 === normalized.directiveArtifactSha256
+      && summary.sourceBindingSha256 === normalized.sourceBindingSha256
+      && summary.route === route
+      && summary.requestedModel === normalized.requestedModel
+      && summary.reasoningEffort === normalized.reasoningEffort
+      && (summary.retryOfAttemptId ?? null) === expectedRetry
+      && canonicalJson(summary.sourceDirective) === canonicalJson(normalized.sourceDirective))
+    .sort((left, right) => Date.parse(right.finishedAt ?? '') - Date.parse(left.finishedAt ?? ''));
+  if (exact.length === 0) return null;
+  const summary = exact[0];
+  if (!SAFE_ID.test(summary.attemptId ?? '')) throw new Error('Recovered attempt identity is invalid.');
+  const attemptDir = join(jobDir, summary.attemptId);
+  const expectedEvidence = {
+    attemptDir,
+    eventsPath: join(attemptDir, 'events.jsonl'),
+    stderrPath: join(attemptDir, 'stderr.log'),
+    resultPath: join(attemptDir, 'result.json'),
+  };
+  if (canonicalJson(summary.evidence) !== canonicalJson(expectedEvidence)) {
+    throw new Error('Recovered attempt evidence paths do not match the durable job identity.');
+  }
+  const persistedStatus = (await readFile(join(attemptDir, 'status'), 'utf8')).trim();
+  if (persistedStatus !== summary.status) throw new Error('Recovered attempt status differs from its immutable summary.');
+  const protocol = await inspectProtocol(expectedEvidence.eventsPath, expectedEvidence.resultPath, route);
+  return {
+    ...summary,
+    protocol: { ...summary.protocol, providerError: protocol.providerError },
+    outputSchemaCompatibilityIssues,
+    recoveredTerminalAttempt: true,
+  };
+}
+
+function shouldRecordTerminalReceipt(summary) {
+  return summary.status === CODEX_ATTEMPT_STATUSES.COMPLETED
+    || Array.isArray(summary.outputSchemaCompatibilityIssues)
+      && summary.outputSchemaCompatibilityIssues.length > 0;
+}
+
+export function providerSchemaCompatibilityIssues(schema) {
+  const issues = [];
+  visit(schema, '$');
+  return issues;
+
+  function visit(node, path) {
+    if (!isPlainObject(node)) return;
+    if (node.type === 'object') {
+      if (node.additionalProperties !== false) issues.push(`${path}.additionalProperties must be false`);
+      const properties = isPlainObject(node.properties) ? node.properties : {};
+      const propertyNames = Object.keys(properties);
+      const required = Array.isArray(node.required) ? node.required : [];
+      for (const name of propertyNames) {
+        if (!required.includes(name)) issues.push(`${path}.required must include ${name}`);
+        visit(properties[name], `${path}.properties.${name}`);
+      }
+    }
+    if (node.type === 'array') {
+      if (!isPlainObject(node.items)) issues.push(`${path}.items is required`);
+      else visit(node.items, `${path}.items`);
+    }
+    for (const keyword of ['anyOf', 'oneOf', 'allOf']) {
+      if (Array.isArray(node[keyword])) node[keyword].forEach((entry, index) => visit(entry, `${path}.${keyword}[${index}]`));
+    }
+    if (isPlainObject(node.$defs)) {
+      for (const [name, value] of Object.entries(node.$defs)) visit(value, `${path}.$defs.${name}`);
+    }
+  }
+}
+
+function normalizedProviderError(event) {
+  let root = event;
+  if (typeof event?.message === 'string') {
+    try { root = JSON.parse(event.message); }
+    catch { root = event; }
+  }
+  const error = isPlainObject(root?.error) ? root.error : isPlainObject(event?.error) ? event.error : {};
+  const code = typeof error.code === 'string' && /^[a-z0-9_]{1,80}$/i.test(error.code) ? error.code : null;
+  const type = typeof error.type === 'string' && /^[a-z0-9_]{1,80}$/i.test(error.type) ? error.type : null;
+  const status = Number.isInteger(root?.status) && root.status >= 100 && root.status <= 599 ? root.status : null;
+  return { type, code, status };
 }
 
 function enforceRetryIdentity(directive, summaries) {

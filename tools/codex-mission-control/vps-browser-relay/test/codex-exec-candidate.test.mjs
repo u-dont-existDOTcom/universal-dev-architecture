@@ -15,6 +15,7 @@ import {
   dispatchAutomaticMissionControlExecution,
   dispatchMissionControlExecution,
   executeMissionControlCandidate,
+  providerSchemaCompatibilityIssues,
 } from '../src/codex-exec-candidate.mjs';
 import { loadCodexExecCandidateConfig } from '../src/config.mjs';
 
@@ -181,6 +182,59 @@ test('changed retry semantics are rejected while a valid same-source retry gets 
   assert.equal(completed.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
   assert.notEqual(completed.attemptId, first.attemptId);
   assert.equal(completed.retryOfAttemptId, first.attemptId);
+});
+
+test('provider-incompatible output schema closes for reasoning review without launching Codex', async () => {
+  const fixture = await candidateFixture('invalid-output-schema');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = {
+    type: 'object',
+    required: ['values'],
+    properties: { values: { type: 'array' } },
+  };
+  const result = await fixture.dispatch(directive);
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.FAILED);
+  assert.equal(result.processExitState.started, false);
+  assert.deepEqual(result.outputSchemaCompatibilityIssues, [
+    '$.additionalProperties must be false',
+    '$.properties.values.items is required',
+  ]);
+  assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  assert.equal(fixture.spawnCalls.length, 0);
+});
+
+test('a provider-schema failure whose receipt write was interrupted is reconciled without duplicate execution', async () => {
+  const fixture = await candidateFixture('invalid-schema-reconcile');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = { type: 'object', required: ['values'], properties: { values: { type: 'array' } } };
+  fixture.missionControl.failNextReceipt = true;
+  await assert.rejects(fixture.dispatch(directive), /injected receipt interruption/);
+  const jobDir = join(fixture.config.stateDir, 'jobs', directive.jobId);
+  const firstEntries = (await readdir(jobDir, { withFileTypes: true })).filter((entry) => entry.isDirectory());
+  assert.equal(firstEntries.length, 1);
+  assert.equal(fixture.spawnCalls.length, 0);
+
+  const recovered = await fixture.dispatch(directive);
+  const finalEntries = (await readdir(jobDir, { withFileTypes: true })).filter((entry) => entry.isDirectory());
+  assert.equal(finalEntries.length, 1);
+  assert.equal(recovered.recoveredTerminalAttempt, true);
+  assert.equal(recovered.missionControlLifecycle.executionStartRecorded, false);
+  assert.equal(recovered.missionControlLifecycle.executionStartRecovered, true);
+  assert.equal(recovered.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  assert.equal(fixture.spawnCalls.length, 0);
+});
+
+test('provider schema compatibility inspection is deterministic and non-mutating', () => {
+  const schema = { type: 'object', required: ['items'], properties: { items: { type: 'array' } } };
+  const before = JSON.stringify(schema);
+  assert.deepEqual(providerSchemaCompatibilityIssues(schema), [
+    '$.additionalProperties must be false',
+    '$.properties.items.items is required',
+  ]);
+  assert.equal(JSON.stringify(schema), before);
+  assert.deepEqual(providerSchemaCompatibilityIssues(outputSchema), []);
 });
 
 test('raw CDP remains absent from restricted Codex job configuration', async () => {
@@ -456,6 +510,7 @@ class FakeMissionControl {
   preflightCalls = 0;
   admissionOverride = null;
   eventTypes = [];
+  failNextReceipt = false;
 
   bind(admissionInput, profile) {
     this.admissionInput = admissionInput;
@@ -505,6 +560,10 @@ class FakeMissionControl {
   }
 
   async recordWorkerEvents(_worker, events) {
+    if (this.failNextReceipt && events.some((event) => event.data.type === 'execution_receipt_recorded')) {
+      this.failNextReceipt = false;
+      throw new Error('injected receipt interruption');
+    }
     this.eventTypes.push(...events.map((event) => event.data.type));
     return { events };
   }
