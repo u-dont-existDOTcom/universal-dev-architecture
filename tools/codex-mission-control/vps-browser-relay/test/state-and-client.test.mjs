@@ -394,6 +394,16 @@ test('submission interval config defaults to 60000 and exposes the public value'
     assert.equal(publicConfig(config).submissionHost.role, 'PRIMARY');
     assert.equal(Object.hasOwn(publicConfig(config).submissionHost, 'leaseId'), false);
     assert.doesNotMatch(JSON.stringify(publicConfig(config)), /aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/);
+    const additionallyScoped = await loadConfig({
+      ...configEnv(chatsFile), MC_RELAY_ADDITIONAL_WORKER_IDS_JSON: '["hrp-discern-eval"]',
+    });
+    assert.deepEqual(additionallyScoped.missionControl.workerIds, [configuredChat().workerId, 'hrp-discern-eval']);
+    assert.deepEqual(additionallyScoped.runtime.workerIds, [configuredChat().workerId, 'hrp-discern-eval']);
+    for (const invalid of ['not-json', '{}', '["bad worker"]', '["duplicate","duplicate"]']) {
+      await assert.rejects(() => loadConfig({
+        ...configEnv(chatsFile), MC_RELAY_ADDITIONAL_WORKER_IDS_JSON: invalid,
+      }), /MC_RELAY_ADDITIONAL_WORKER_IDS_JSON/);
+    }
     await assert.rejects(() => loadConfig({
       ...configEnv(chatsFile),
       MC_RELAY_TARGET_BINDING_ATTESTOR_KEY: 'x'.repeat(32),
