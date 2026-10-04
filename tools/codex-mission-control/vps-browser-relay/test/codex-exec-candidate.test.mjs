@@ -261,6 +261,19 @@ test('an interrupted structured STOPPED receipt is reconciled without duplicate 
   assert.equal(fixture.spawnCalls.length, firstSpawnCount);
 });
 
+test('a structured BLOCKED result closes the directive for independent reasoning review', async () => {
+  const fixture = await candidateFixture('structured-blocked');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = structuredStopOutputSchema();
+  const result = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-blocked' } });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.protocol.resultRequestsReasoningReviewStop, true);
+  assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
+  const receipt = fixture.missionControl.events.find((event) => event.data.type === 'execution_receipt_recorded');
+  assert.equal(receipt.data.stop_trigger_reached, 'required inputs unavailable');
+  assert.deepEqual(receipt.data.blockers, ['required inputs unavailable']);
+});
+
 test('a structured COMPLETED result closes the directive without requiring a success boolean', async () => {
   const fixture = await candidateFixture('structured-completed');
   const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
@@ -680,6 +693,13 @@ else if (mode === 'structured-stop') {
   writeFileSync(resultPath, JSON.stringify({
     status: 'STOPPED', next_reasoning_review_required: true,
     stop_trigger_reached: 'integrity evidence unavailable', deviations: ['receipt was not locatable'],
+  }));
+  process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
+}
+else if (mode === 'structured-blocked') {
+  writeFileSync(resultPath, JSON.stringify({
+    status: 'BLOCKED', next_reasoning_review_required: true,
+    stop_trigger_reached: 'required inputs unavailable', deviations: [],
   }));
   process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
 }
