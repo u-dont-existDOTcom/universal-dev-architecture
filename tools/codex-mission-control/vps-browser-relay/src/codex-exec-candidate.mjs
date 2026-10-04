@@ -50,7 +50,9 @@ export function discoverMissionControlExecution(snapshot) {
   for (const workerState of snapshot.workers) {
     if (!isPlainObject(workerState) || typeof workerState.id !== 'string' || !Array.isArray(workerState.timeline)) continue;
     const timeline = workerState.timeline;
-    const directiveEvent = [...timeline].reverse().find((event) => event?.data?.type === 'execution_directive_recorded');
+    const directiveEvent = timeline
+      .filter((event) => event?.data?.type === 'execution_directive_recorded')
+      .sort((left, right) => (Number(right?.sequence) || 0) - (Number(left?.sequence) || 0))[0];
     const persisted = directiveEvent?.data;
     if (!persisted || persisted.directive_schema_version !== 3 || persisted.status !== 'ACTIVE'
       || persisted.work_execution_profile === 'LEGACY_MODEL_PROFILE_UNSPECIFIED') continue;
@@ -63,7 +65,7 @@ export function discoverMissionControlExecution(snapshot) {
     const validatedDecisionSource = persisted.validated_decision_proof
       ? sourceFromValidatedGitHubDecision(timeline, directiveEvent)
       : null;
-    const sourceEvent = persisted.validated_decision_proof ? null : [...timeline].reverse().find((event) => event?.data?.type === 'reasoning_message_recorded'
+    const sourceEvent = persisted.validated_decision_proof ? null : timeline.find((event) => event?.data?.type === 'reasoning_message_recorded'
       && event.data.message_id === persisted.source_message_id);
     const source = validatedDecisionSource?.source ?? sourceEvent?.data;
     if (!source || (!validatedDecisionSource && source.provenance_status === 'UNVERIFIED')

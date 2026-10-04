@@ -212,6 +212,27 @@ test('durable schema-v3 state automatically reaches CODEX_LOCAL without directiv
   assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
 });
 
+test('automatic dispatch selects the highest-sequence directive from a newest-first transport timeline', async () => {
+  const fixture = await automaticFixture('automatic-newest-first', { type: 'LOCAL_FILESYSTEM_COMMAND' });
+  const timeline = fixture.missionControl.snapshot.workers[0].timeline;
+  timeline.push({ sequence: 0, data: {
+    type: 'execution_directive_recorded', worker: fixture.sourceBinding.worker,
+    directive_id: 'directive:historical:0', directive_revision: 1, task_id: 'task:historical',
+    directive_schema_version: 3, directive_artifact_sha256: '0'.repeat(64),
+    source_message_id: 'chat-message:historical:0', source_body_sha256: '0'.repeat(64),
+    work_execution_profile: 'LEGACY_MODEL_PROFILE_UNSPECIFIED', status: 'ACTIVE',
+  } });
+  timeline.sort((left, right) => right.sequence - left.sequence);
+  const result = await dispatchAutomaticMissionControlExecution({
+    config: fixture.config,
+    missionControl: fixture.missionControl,
+    legacyBrowserHandler: async () => { throw new Error('legacy path must not run'); },
+    spawnImpl: fixture.spawnImpl,
+  });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.automaticDispatch.directiveId, fixture.directive.sourceDirective.id);
+});
+
 test('automatic preview-disabled and unsupported-browser fallback retain the exact durable task and request', async (t) => {
   for (const [name, capability, previewEnabled, reason] of [
     ['preview-off', { type: 'LOCAL_FILESYSTEM_COMMAND' }, false, 'PREVIEW_DISABLED'],
