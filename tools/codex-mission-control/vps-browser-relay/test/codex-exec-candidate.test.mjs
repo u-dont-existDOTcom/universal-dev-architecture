@@ -241,6 +241,20 @@ test('a structured STOPPED result closes the directive and requests independent 
   assert.deepEqual(receipt.data.blockers, ['integrity evidence unavailable']);
 });
 
+test('a structured STOPPED_FOR_REASONING_REVIEW result closes the directive and preserves its trigger', async () => {
+  const fixture = await candidateFixture('structured-reasoning-review-stop');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = structuredStopOutputSchema();
+  const result = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-reasoning-review-stop' } });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.protocol.resultRequestsReasoningReviewStop, true);
+  assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  const receipt = fixture.missionControl.events.find((event) => event.data.type === 'execution_receipt_recorded');
+  assert.equal(receipt.data.stop_trigger_reached, 'immutable attempt readback unavailable');
+  assert.deepEqual(receipt.data.blockers, ['immutable attempt readback unavailable']);
+});
+
 test('an interrupted structured STOPPED receipt is reconciled without duplicate execution', async () => {
   const fixture = await candidateFixture('structured-stop-reconcile');
   const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
@@ -706,6 +720,13 @@ else if (mode === 'structured-stop') {
   writeFileSync(resultPath, JSON.stringify({
     status: 'STOPPED', next_reasoning_review_required: true,
     stop_trigger_reached: 'integrity evidence unavailable', deviations: ['receipt was not locatable'],
+  }));
+  process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
+}
+else if (mode === 'structured-reasoning-review-stop') {
+  writeFileSync(resultPath, JSON.stringify({
+    status: 'STOPPED_FOR_REASONING_REVIEW', next_reasoning_review_required: true,
+    stop_trigger_reached: 'immutable attempt readback unavailable', deviations: [],
   }));
   process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
 }
