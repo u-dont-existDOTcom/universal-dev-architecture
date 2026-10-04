@@ -568,6 +568,7 @@ function buildExecutionReceiptEnvelope({ worker, summary, authority, route, star
     throw new Error('Mission Control execution receipt is missing its exact recorded start.');
   }
   const structuredStop = isStructuredReasoningReviewStop(summary.protocol?.result);
+  const structuredStopTrigger = structuredReasoningReviewStopTrigger(summary.protocol?.result);
   const structuredCompletion = isStructuredCompletionResult(summary.protocol?.result);
   const completed = (summary.status === CODEX_ATTEMPT_STATUSES.COMPLETED || structuredCompletion) && !structuredStop;
   const schemaIssues = Array.isArray(summary.outputSchemaCompatibilityIssues)
@@ -608,7 +609,7 @@ function buildExecutionReceiptEnvelope({ worker, summary, authority, route, star
         : structuredStop
           ? [
               { command: 'codex exec structured protocol validation', result: 'PASS', summary: 'Process, terminal event, route contract, and structured STOPPED result passed.' },
-              { command: 'bounded directive stop gate', result: 'FAIL', summary: summary.protocol.result.stop_trigger_reached },
+              { command: 'bounded directive stop gate', result: 'FAIL', summary: structuredStopTrigger },
             ]
         : [{ command: 'source-bound output schema provider-compatibility validation', result: 'FAIL', summary: schemaIssues.join('; ') }],
       measurements: [],
@@ -616,11 +617,11 @@ function buildExecutionReceiptEnvelope({ worker, summary, authority, route, star
       deviations: structuredStop && Array.isArray(summary.protocol.result.deviations)
         ? summary.protocol.result.deviations.filter((value) => typeof value === 'string' && value.trim() !== '')
         : [],
-      blockers: completed ? [] : structuredStop ? [summary.protocol.result.stop_trigger_reached] : schemaIssues,
+      blockers: completed ? [] : structuredStop ? [structuredStopTrigger] : schemaIssues,
       stop_trigger_reached: completed
         ? 'The bounded mechanical candidate attempt reached its admitted terminal result.'
         : structuredStop
-          ? summary.protocol.result.stop_trigger_reached
+          ? structuredStopTrigger
         : 'The source-bound output schema is provider-incompatible; retrying unchanged would repeat the same pre-execution failure, so a new independent reasoning review is required.',
       execution_claim: completed
         ? 'Bounded execution completed; all semantic, progress, and supervisory judgments remain with Chat/Mission Control.'
@@ -1292,8 +1293,15 @@ function isStructuredReasoningReviewStop(result) {
   return isPlainObject(result)
     && ['STOPPED', 'BLOCKED', 'FAILED', 'PARTIAL'].includes(result.status)
     && result.next_reasoning_review_required === true
-    && typeof result.stop_trigger_reached === 'string'
-    && result.stop_trigger_reached.trim() !== '';
+    && structuredReasoningReviewStopTrigger(result) !== null;
+}
+
+function structuredReasoningReviewStopTrigger(result) {
+  if (!isPlainObject(result)) return null;
+  for (const field of ['stop_trigger_reached', 'stop_trigger']) {
+    if (typeof result[field] === 'string' && result[field].trim() !== '') return result[field].trim();
+  }
+  return null;
 }
 
 export function providerSchemaCompatibilityIssues(schema) {
