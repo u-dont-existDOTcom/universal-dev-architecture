@@ -321,11 +321,17 @@ export function assertInBandRequestExecution(
     ? (!Number.isFinite(relayCompleteAt) || relayCompleteAt! < startAt || relayCompleteAt! > requestExpiresAt
       || appReadbackAt! < relayCompleteAt!)
     : false;
-  const completionTimingInvalid = appReadback
-    ? (!Number.isFinite(appReadbackAt) || startAt > appReadbackAt! || appReadbackAt! > createdUpper || created > Date.parse(ingestedAt)
-      || transformTimingInvalid || delayedReadbackInvalid)
-    : (!Number.isFinite(relayCompleteAt) || relayCompleteAt! < created || relayCompleteAt! > Date.parse(ingestedAt)
-      || startAt > relayCompleteAt!);
+  const relocatedTransportTimingInvalid = receiptRelocation
+    ? (!Number.isFinite(relayCompleteAt) || relayCompleteAt! < startAt || relayCompleteAt! > createdUpper
+      || relayCompleteAt! > requestExpiresAt || created > Date.parse(ingestedAt))
+    : false;
+  const completionTimingInvalid = receiptRelocation
+    ? relocatedTransportTimingInvalid
+    : appReadback
+      ? (!Number.isFinite(appReadbackAt) || startAt > appReadbackAt! || appReadbackAt! > createdUpper || created > Date.parse(ingestedAt)
+        || transformTimingInvalid || delayedReadbackInvalid)
+      : (!Number.isFinite(relayCompleteAt) || relayCompleteAt! < created || relayCompleteAt! > Date.parse(ingestedAt)
+        || startAt > relayCompleteAt!);
   if (copiedAfterRequestExpiry && !appReadback) fail("post-expiry transport copy requires current app-owned completion evidence");
   if (commonTimingInvalid || completionTimingInvalid) fail("binding/admission/generation/artifact timing is invalid or stale");
   return {

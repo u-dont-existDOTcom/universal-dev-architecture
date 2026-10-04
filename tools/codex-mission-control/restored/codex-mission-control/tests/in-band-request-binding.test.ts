@@ -233,10 +233,11 @@ test("V6 relocates one exact pre-bound receipt to an owner-configured private ch
       ...f.candidate,
       repository: destinationRepository,
       issueNumber: destinationIssueNumber,
+      createdAt: time("08.000"),
       immutableUrl: `https://github.com/${destinationRepository}/issues/${destinationIssueNumber}#issuecomment-${f.candidate.commentId}`,
     };
     const envelope = buildGitHubDecisionReceiptEnvelope(
-      f.events, candidate, relocatedPolicy, time("06.000"), { submissionAuthorityState: f.authority },
+      f.events, candidate, relocatedPolicy, time("09.000"), { submissionAuthorityState: f.authority },
     );
     assert.equal(candidate.body, f.candidate.body);
     assert.equal(envelope.data.type, "github_decision_receipt_ingested");
@@ -279,16 +280,23 @@ test("V6 exact receipt relocation fails closed on changed bytes or an unconfigur
       ...f.candidate,
       repository: destinationRepository,
       issueNumber: destinationIssueNumber,
+      createdAt: time("08.000"),
       immutableUrl: `https://github.com/${destinationRepository}/issues/${destinationIssueNumber}#issuecomment-${f.candidate.commentId}`,
     };
     assert.throws(() => buildGitHubDecisionReceiptEnvelope(
-      f.events, { ...candidate, body: `${candidate.body}\n` }, relocatedPolicy, time("06.000"), { submissionAuthorityState: f.authority },
+      f.events, { ...candidate, body: `${candidate.body}\n` }, relocatedPolicy, time("09.000"), { submissionAuthorityState: f.authority },
     ), /exact configured canonical receipt hash/);
     const wrongSourcePolicy = structuredClone(relocatedPolicy);
     wrongSourcePolicy.decisionReceiptRelocations![0]!.sourceDecisionIssueNumber += 1;
     assert.throws(() => buildGitHubDecisionReceiptEnvelope(
-      f.events, candidate, wrongSourcePolicy, time("06.000"), { submissionAuthorityState: f.authority },
+      f.events, candidate, wrongSourcePolicy, time("09.000"), { submissionAuthorityState: f.authority },
     ), /source does not match/);
+    const missingCompletion = f.events.filter((event) => !(event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === "MISSION_CONTROL_RELAY_STAGE_V1"
+      && event.data.refs.includes("generation_state:COMPLETE")));
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(
+      missingCompletion, candidate, relocatedPolicy, time("09.000"), { submissionAuthorityState: f.authority },
+    ), /completion evidence missing|generation evidence incomplete|binding\/admission\/generation\/artifact timing/);
   } finally { f.store.close(); }
 });
 
