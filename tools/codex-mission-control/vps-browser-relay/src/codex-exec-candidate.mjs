@@ -77,6 +77,9 @@ export function discoverMissionControlExecution(snapshot) {
     }
     const payload = parseAutomaticExecutionPayload(source.exact_visible_body);
     const selection = selectionForProfile(persisted.work_execution_profile);
+    const executionSurface = validatedDecisionSource
+      ? validatedDecisionSource.executionSurface
+      : persisted.execution_surface ?? null;
     const directive = {
       schemaVersion: 2,
       jobId: payload.jobId,
@@ -95,6 +98,7 @@ export function discoverMissionControlExecution(snapshot) {
       executionCapability: payload.executionCapability,
       outputSchema: payload.outputSchema,
       prompt: payload.prompt,
+      ...(executionSurface ? { executionSurface } : {}),
       ...(payload.retryOfAttemptId ? { retryOfAttemptId: payload.retryOfAttemptId } : {}),
     };
     const artifactSha256 = codexDirectiveArtifactSha256(directive);
@@ -386,6 +390,7 @@ function codexDirectiveArtifact(directive) {
     executionCapability: directive?.executionCapability ?? null,
     outputSchema: directive?.outputSchema ?? null,
     workExecutionProfile: directive?.workExecutionProfile ?? null,
+    ...(directive?.executionSurface ? { executionSurface: directive.executionSurface } : {}),
     requestedModel: directive?.requestedModel ?? null,
     reasoningEffort: directive?.reasoningEffort ?? null,
     executionContract: {
@@ -476,6 +481,7 @@ function sourceFromValidatedGitHubDecision(timeline, directiveEvent) {
   }
   return {
     requestId: receipt.request_id,
+    executionSurface: receipt.bounded_execution.execution_surface ?? null,
     source: {
       message_id: directive.source_message_id,
       body_sha256: directive.source_body_sha256,

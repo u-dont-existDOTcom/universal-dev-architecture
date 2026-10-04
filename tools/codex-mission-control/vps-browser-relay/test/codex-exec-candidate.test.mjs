@@ -306,6 +306,7 @@ async function automaticFixture(name, executionCapability) {
     ...fixture.directive(executionCapability),
     deadline: payload.deadline,
     prompt: payload.prompt,
+    executionSurface: 'CODEX',
     sourceDirective: {
       id: `directive:${name}:1`, revision: 1, taskId: `task:${name}`,
       sourceMessageId: `chat-message:${name}:1`, sourceBodySha256,
@@ -336,7 +337,7 @@ async function automaticFixture(name, executionCapability) {
           directive_id: sourceBinding.directiveId, directive_revision: 1, task_id: sourceBinding.taskId,
           directive_schema_version: 3, directive_artifact_sha256: codexDirectiveArtifactSha256(directive),
           source_message_id: sourceBinding.sourceMessageId, source_body_sha256: sourceBodySha256,
-          work_execution_profile: solLowProfile, status: 'ACTIVE',
+          work_execution_profile: solLowProfile, execution_surface: 'CODEX', status: 'ACTIVE',
         } },
       ],
     }],
