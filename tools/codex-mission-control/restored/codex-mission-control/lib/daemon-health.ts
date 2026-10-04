@@ -1,3 +1,5 @@
+import type { FleetSupervisorLoopStatus } from "./fleet-supervisor-loop";
+
 interface HealthStore {
   latestSequence(): number;
   verifyChain(): unknown;
@@ -18,7 +20,7 @@ export function daemonLiveness() {
   };
 }
 
-export async function daemonReadiness(store: HealthStore, submissionAuthority: SubmissionAuthorityHealth) {
+export async function daemonReadiness(store: HealthStore, submissionAuthority: SubmissionAuthorityHealth, fleetSupervisorLoop?: FleetSupervisorLoopStatus) {
   const authorityHealth = await submissionAuthority.health();
   return {
     status: "ok" as const,
@@ -28,5 +30,6 @@ export async function daemonReadiness(store: HealthStore, submissionAuthority: S
     submissionAuthorityConfigured: authorityHealth.configured,
     submissionAuthoritySchedulerState: authorityHealth.schedulerState,
     submissionAuthorityLedger: authorityHealth.ledger,
+    fleetSupervisorLoop: fleetSupervisorLoop ?? null,
   };
 }
