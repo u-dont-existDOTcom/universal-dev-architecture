@@ -116,6 +116,9 @@ export function workerTransportSnapshotFromEvents(
 }
 
 export function isRelayTransportEvent(event: ReturnType<EventStore["allEvents"]>[number]) {
-  if (["worker_message_recorded", "github_decision_receipt_ingested", "reasoning_message_recorded"].includes(event.data.type)) return true;
+  if ([
+    "worker_message_recorded", "github_decision_receipt_ingested", "reasoning_message_recorded",
+    "execution_directive_recorded", "execution_receipt_recorded",
+  ].includes(event.data.type)) return true;
   return event.data.type === "evidence_receipt_recorded" && relayTransportEvidenceSummaries.has(event.data.summary);
 }

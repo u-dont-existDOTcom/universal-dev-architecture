@@ -58,6 +58,9 @@ test("production snapshots suppress fixture-only workers and admit authenticated
 });
 
 test("relay transport projection preserves route evidence and omits unrelated worker history", () => {
+  assert.equal(isRelayTransportEvent({ data: { type: "execution_directive_recorded" } } as never), true);
+  assert.equal(isRelayTransportEvent({ data: { type: "execution_receipt_recorded" } } as never), true);
+  assert.equal(isRelayTransportEvent({ data: { type: "task_progress_reported" } } as never), false);
   const store = new EventStore(":memory:");
   try {
     seedIssue47Store(store);
