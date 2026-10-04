@@ -79,6 +79,14 @@ test('valid source-bound mayExecute and persisted preflight make the Codex backe
   assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
 });
 
+test('a campaign deadline beyond one attempt keeps the child bounded by the configured attempt timeout', async () => {
+  const fixture = await candidateFixture('future-campaign-deadline');
+  fixture.config.maxTimeoutMs = 6_500;
+  const result = await fixture.dispatch(fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' }, { deadlineMs: 60_000 }));
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.route, CODEX_EXECUTION_ROUTES.LOCAL);
+});
+
 test('source digest, revision, or profile mismatch fails closed before Mission Control or Codex launch', async () => {
   for (const kind of ['digest', 'revision', 'profile']) {
     const fixture = await candidateFixture(`mismatch-${kind}`);

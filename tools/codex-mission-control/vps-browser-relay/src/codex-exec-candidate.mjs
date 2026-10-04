@@ -925,7 +925,6 @@ async function validateDirective(directive, config, route, clock, authority) {
   if (!workspaceStat?.isDirectory()) throw new Error('workspace must identify an existing directory.');
   const deadlineMs = Date.parse(directive.deadline);
   if (!Number.isFinite(deadlineMs) || deadlineMs <= clock().getTime()) throw new Error('deadline must be a future ISO timestamp.');
-  if (deadlineMs - clock().getTime() > config.maxTimeoutMs) throw new Error('deadline exceeds the configured maximum attempt timeout.');
   if (route === CODEX_EXECUTION_ROUTES.RESTRICTED_BROWSER) {
     if (!config.restrictedBrowserAdapterPath || !config.restrictedBrowserAdapterSha256) {
       throw new Error('Restricted browser route requires an adapter path and exact SHA-256.');
