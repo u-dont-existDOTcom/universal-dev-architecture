@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
+  appMentionSelectionState,
   appSelectionState,
   consumerControlSelectionState,
   exactModelSelectionState,
@@ -264,4 +265,23 @@ test('app selection fails closed on missing or ambiguous exact controls', () => 
   assert.throws(() => appSelectionState({ ...base, toolsControlCount: 0 }, 'Mission Control'), /unavailable/);
   assert.throws(() => appSelectionState({ ...base, appMatchCount: 2 }, 'Mission Control'), /ambiguous/);
   assert.throws(() => appSelectionState({ ...base, chipMatchCount: 2 }, 'Mission Control'), /chip.*ambiguous/);
+});
+
+test('GitHub app-mention selection is deterministic and fails closed on wrong or contaminated bindings', () => {
+  const empty = {
+    composerFound: true, composerAmbiguous: false, composerEmpty: true, queryExact: false,
+    mentionCount: 0, exactMentionCount: 0, mentionExactBodyEmpty: false, optionCount: 0, optionRect: null,
+  };
+  assert.deepEqual(appMentionSelectionState(empty, { required: true }), { type: 'INSERT_QUERY' });
+  assert.deepEqual(appMentionSelectionState(empty, { required: false }), { type: 'NO_MENTION' });
+  assert.deepEqual(appMentionSelectionState({ ...empty, composerEmpty: false, queryExact: true, optionCount: 0 }, { required: true }),
+    { type: 'WAIT_OPTION' });
+  assert.deepEqual(appMentionSelectionState({ ...empty, composerEmpty: false, queryExact: true, optionCount: 1,
+    optionRect: { x: 1, y: 2, width: 3, height: 4 } }, { required: true }), { type: 'CLICK_OPTION' });
+  const bound = { ...empty, composerEmpty: false, mentionCount: 1, exactMentionCount: 1, mentionExactBodyEmpty: true };
+  assert.deepEqual(appMentionSelectionState(bound, { required: true }), { type: 'MENTION_BOUND' });
+  assert.throws(() => appMentionSelectionState(bound, { required: false }), /unexpected GitHub/);
+  assert.throws(() => appMentionSelectionState({ ...bound, mentionExactBodyEmpty: false }, { required: true }), /not isolated/);
+  assert.throws(() => appMentionSelectionState({ ...empty, mentionCount: 1, exactMentionCount: 0 }, { required: true }), /wrong app mention/);
+  assert.throws(() => appMentionSelectionState({ ...empty, composerEmpty: false, queryExact: true, optionCount: 2 }, { required: true }), /ambiguous/);
 });

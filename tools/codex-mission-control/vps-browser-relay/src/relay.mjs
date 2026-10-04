@@ -217,7 +217,7 @@ export class RelayRuntime {
         },
         submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
           const messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'CAPABILITY'));
-          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), onBeforeSubmissionBoundary, onSubmissionBoundary });
+          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), composerMentions: messageApps.composerMentions ?? [], onBeforeSubmissionBoundary, onSubmissionBoundary });
           return { ...start, messageApps };
         },
       });
@@ -329,7 +329,7 @@ export class RelayRuntime {
         },
         submit: async (onSubmissionBoundary, _admission, onBeforeSubmissionBoundary) => {
           const messageApps = await this.browser.selectAppsForMessage(target, appSelectionForMessage(chat, 'MCP_PREFLIGHT'));
-          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), onBeforeSubmissionBoundary, onSubmissionBoundary });
+          const start = await this.browser.submitExactMessage(target, { expectedUrl: chat.bootstrapCapability.url, body: prompt, bodySha256: sha256(prompt), composerMentions: messageApps.composerMentions ?? [], onBeforeSubmissionBoundary, onSubmissionBoundary });
           return { ...start, messageApps };
         },
       });
@@ -979,7 +979,7 @@ export class RelayRuntime {
             error.relayStage = 'PREPARING';
             throw error;
           }
-          const start = await this.browser.submitExactMessage(target, { expectedUrl, body: prompt, bodySha256: promptSha256, onBeforeSubmissionBoundary, onSubmissionBoundary });
+          const start = await this.browser.submitExactMessage(target, { expectedUrl, body: prompt, bodySha256: promptSha256, composerMentions: messageApps.composerMentions ?? [], onBeforeSubmissionBoundary, onSubmissionBoundary });
           return { ...start, messageApps };
         },
       });

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import vm from 'node:vm';
 
-import { composerTextState, hasConnectionInterruptedNudgeCue, hasSystemsThinkingNudgeCue, PREPARE_COMPOSER_FN, VERIFY_COMPOSER_FN } from '../src/cdp.mjs';
+import { composerTextState, GITHUB_APP_MENTION, hasConnectionInterruptedNudgeCue, hasSystemsThinkingNudgeCue, PREPARE_COMPOSER_FN, VERIFY_COMPOSER_FN } from '../src/cdp.mjs';
 
 const text = (nodeValue) => ({ nodeType: 3, nodeValue });
 const element = (tagName, childNodes = [], attributes = {}) => ({
@@ -20,7 +20,7 @@ const fromLines = (body) => composer(...body.split('\n').map((line) => paragraph
 const publicUrl = 'https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5562255699';
 const autolinkAttributes = { href: publicUrl, 'data-rich-text-autolink': '', 'data-rich-text-generated-autolink': '' };
 
-function run(source, composers, expectedBody) {
+function run(source, composers, expectedBody, expectedMentions = undefined) {
   const context = vm.createContext({
     document: { querySelectorAll(selector) {
       assert.equal(selector, 'form[data-chatgpt-composer] [contenteditable="true"][role="textbox"], #prompt-textarea, [data-testid="prompt-textarea"], textarea[aria-label="Chat with ChatGPT"]');
@@ -28,8 +28,9 @@ function run(source, composers, expectedBody) {
     } },
     getComputedStyle: () => ({ visibility: 'visible' }),
     expectedBody,
+    expectedMentions,
   });
-  return JSON.parse(JSON.stringify(vm.runInContext(`(${source})(expectedBody)`, context)));
+  return JSON.parse(JSON.stringify(vm.runInContext(`(${source})(expectedBody, expectedMentions)`, context)));
 }
 
 test('systems-thinking nudge cue keys on the stable faster-model phrase in English or French', () => {
@@ -74,6 +75,37 @@ test('textarea value and all whitespace are compared without trimming or normali
   assert.equal(run(PREPARE_COMPOSER_FN, [input], body.trim()).reason, 'COMPOSER_CONTAMINATED');
   assert.equal(run(VERIFY_COMPOSER_FN, [input], body.replace('\u00a0', ' ')).exact, false);
   assert.equal(composerTextState(fromLines(body), body).exact, true);
+});
+
+test('the exact GitHub app mention is control metadata while the following prompt remains byte-exact', () => {
+  const mentionAttributes = {
+    'app-mention-name': GITHUB_APP_MENTION.name,
+    'app-mention-display-name': GITHUB_APP_MENTION.display,
+    'app-mention-path': GITHUB_APP_MENTION.path,
+    'data-prompt-link-href': GITHUB_APP_MENTION.href,
+    'data-prompt-link-label': GITHUB_APP_MENTION.promptLinkLabel,
+    'data-appearance': 'inline-mention',
+    'data-layout': 'inline-flow',
+    contenteditable: 'false',
+  };
+  const withMention = (body, overrides = {}) => {
+    const lines = body.split('\n');
+    const mention = element('SPAN', [element('SPAN', [text('GitHub')])], { ...mentionAttributes, ...overrides });
+    return composer(
+      paragraph(mention, text(` ${lines[0]}`)),
+      ...lines.slice(1).map((line) => paragraph(...(line ? [text(line)] : [br(true)]))),
+    );
+  };
+  const body = 'exact request bytes\nsecond line';
+  const exact = withMention(body);
+  assert.deepEqual(run(PREPARE_COMPOSER_FN, [exact], body, [GITHUB_APP_MENTION]),
+    { ok: true, alreadyExact: true, verifiedMentionCount: 1 });
+  assert.deepEqual(run(VERIFY_COMPOSER_FN, [exact], body, [GITHUB_APP_MENTION]),
+    { exact: true, length: body.length, verifiedMentionCount: 1 });
+  assert.equal(run(VERIFY_COMPOSER_FN, [exact], `${body}!`, [GITHUB_APP_MENTION]).exact, false);
+  assert.equal(run(VERIFY_COMPOSER_FN, [exact], body, []).reason, 'COMPOSER_MARKUP_UNSUPPORTED');
+  assert.equal(run(VERIFY_COMPOSER_FN, [withMention(body, { 'app-mention-path': 'app://wrong' })], body, [GITHUB_APP_MENTION]).reason,
+    'COMPOSER_MARKUP_UNSUPPORTED');
 });
 
 test('the editor-generated plaintext autolink preserves the observed 5221-character paragraph shape', () => {

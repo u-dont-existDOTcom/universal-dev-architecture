@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  APP_MENTION_STATE_FN,
   APP_SELECTION_STATE_FN,
   CLICK_SEND_FN,
   CURRENT_MODEL_FN,
+  GITHUB_APP_MENTION,
   GENERATION_STATE_FN,
   JOURNAL_WRITE_CONFIRMATION_FN,
   APPROVE_JOURNAL_WRITE_CONFIRMATION_FN,
@@ -205,6 +207,35 @@ test('app selection scrolls the September 2026 list, picks one exact entry and v
   assert.deepEqual(appSelectionState(scroll, 'GitHub', { listRewound: false }), { type: 'SCROLL_LIST' });
   // Clearing earlier pills ignores an open list, so a list left open never aborts that step.
   assert.deepEqual(appSelectionState(end, 'GitHub', { considerList: false }), { type: 'OPEN_TOOLS' });
+});
+
+test('GitHub autocomplete resolves to the exact connected app mention identity', () => {
+  const form = composerForm();
+  const textbox = form.querySelector('[contenteditable="true"][role="textbox"]');
+  const paragraph = textbox.children[0];
+  paragraph.children = [];
+  const mention = h('span', {
+    'app-mention-name': GITHUB_APP_MENTION.name,
+    'app-mention-display-name': GITHUB_APP_MENTION.display,
+    'app-mention-path': GITHUB_APP_MENTION.path,
+    'data-prompt-link-href': GITHUB_APP_MENTION.href,
+    'data-prompt-link-label': GITHUB_APP_MENTION.promptLinkLabel,
+    'data-appearance': 'inline-mention',
+    'data-layout': 'inline-flow',
+    contenteditable: 'false',
+  }, [h('span', {}, [], { text: 'GitHub' })]);
+  paragraph.append(mention);
+  Object.defineProperty(paragraph, 'childNodes', { get: () => [mention, { nodeType: 3, nodeValue: ' ' }] });
+  const result = runInPage(APP_MENTION_STATE_FN, page([form]), [GITHUB_APP_MENTION]);
+  assert.equal(result.mentionCount, 1);
+  assert.equal(result.exactMentionCount, 1);
+  assert.equal(result.mentionExactBodyEmpty, true);
+
+  mention.setAttribute('app-mention-path', 'app://wrong');
+  const wrong = runInPage(APP_MENTION_STATE_FN, page([form]), [GITHUB_APP_MENTION]);
+  assert.equal(wrong.mentionCount, 1);
+  assert.equal(wrong.exactMentionCount, 0);
+  assert.equal(wrong.mentionExactBodyEmpty, false);
 });
 
 test('send and stop use the September 2026 composer controls', () => {
