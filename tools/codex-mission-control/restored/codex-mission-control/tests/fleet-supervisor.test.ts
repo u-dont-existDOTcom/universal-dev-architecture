@@ -11,6 +11,8 @@ import {
   FleetSupervisorRuntime,
   routeFleetSupervisorReasoning,
 } from "../lib/fleet-supervisor";
+import { pendingDecisionRequests } from "../lib/github-decision-receipts";
+import { inBandRequestRoutePrefix } from "../lib/in-band-request-binding";
 import { seedIssue47Store, seedStore } from "../lib/seed";
 import type { MissionControlEventV2, StoredEvent } from "../lib/schema";
 import { EventStore, type FleetSupervisorWatchRecord } from "../lib/store";
@@ -138,12 +140,14 @@ test("stalled strategy routes to reasoning without fleet-authored replacement", 
   } finally { store.close(); }
 });
 
-test("fleet reasoning routes append against the complete durable ledger", () => {
+test("fleet reasoning routes one idempotent in-band request against the complete durable ledger", () => {
   const store = new EventStore(":memory:");
   const previous = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+  const previousPolicy = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
   try {
     seedStore(store);
     process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = JSON.stringify([configuredProjectManager()]);
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify(configuredReceiptPolicy());
     const watch = store.ensureFleetSupervisorWatch("project:auth", "task:auth", "auth", t0);
     const workerEvents = store.workerEvents(watch.worker);
     assert.ok(store.allEvents().length > workerEvents.length);
@@ -156,12 +160,39 @@ test("fleet reasoning routes append against the complete durable ledger", () => 
       notifyOwner: false,
       notificationReason: null,
     }, workerEvents);
+    assert.ok(routed);
+    if (!routed) return;
     assert.equal(routed.data.type, "worker_message_recorded");
     assert.equal(routed.worker, watch.worker);
+    assert.match(routed.eventId, /^supervision-request-v6:/);
+    if (routed.data.type !== "worker_message_recorded") return;
+    assert.equal(routed.data.body.startsWith(inBandRequestRoutePrefix), true);
+    const body = JSON.parse(routed.data.body.slice(inBandRequestRoutePrefix.length));
+    assert.equal(body.schemaVersion, 6);
+    assert.equal(body.requestId.startsWith("fleet-review:"), true);
+    assert.equal(body.factualPacket.supervisoryCycle.bindingProtocol, "IN_BAND_REQUEST_BINDING_V1");
+    assert.equal(body.githubReceipt.repository, configuredReceiptPolicy().repository);
+    assert.equal(body.evidenceCapsule.sha256.length, 64);
+    assert.equal(pendingDecisionRequests(store.workerEvents(watch.worker)).length, 1);
+
+    const count = store.count();
+    const replay = routeFleetSupervisorReasoning(store, watch, {
+      trigger: "REASONING_REVIEW_OVERDUE",
+      result: "Current evidence was routed to the existing reasoning lane.",
+      state: "ACTIVE",
+      reasoningRequired: true,
+      mechanicalRecoveryEligible: false,
+      notifyOwner: false,
+      notificationReason: null,
+    }, store.workerEvents(watch.worker));
+    assert.equal(replay?.eventId, routed.eventId);
+    assert.equal(store.count(), count);
     assert.equal(store.latestSequence(), store.allEvents().length);
   } finally {
     if (previous === undefined) delete process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
     else process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = previous;
+    if (previousPolicy === undefined) delete process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+    else process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = previousPolicy;
     store.close();
   }
 });
@@ -300,5 +331,17 @@ function configuredProjectManager() {
       url: "https://chatgpt.com/c/test-project-manager",
       challengeId: "challenge:pm",
     },
+  };
+}
+
+function configuredReceiptPolicy() {
+  return {
+    repository: "owner/private-receipts",
+    decisionIssueNumber: 4,
+    capabilityIssueNumber: 4,
+    stageIssueNumber: 4,
+    authorizedWriterLogins: ["owner"],
+    capabilityChallenges: [],
+    requestBound: { enabled: true, relayProducerIds: ["collector:relay"] },
   };
 }

@@ -19,6 +19,27 @@ admission, or active/passive host fencing.
 
 Persistent browser profiles should persist **authentication and intentional application state**, not uncontrolled tab/session history.
 
+### Native file-dialog prohibition
+
+Agent-driven automation must not open an operating-system-native **Open**, **Save**,
+**Save As**, or file-picker dialog. These dialogs are outside the reliable browser
+control surface and can leave the task blocked behind an unclickable modal.
+
+- For uploads, set the page's file input directly from an authorized filesystem
+  path or use the application's supported API/connector.
+- For downloads, use the browser download event, a direct authenticated download,
+  or an authorized filesystem/API transfer.
+- A website-rendered HTML file input is allowed when automation can bind the exact
+  file without opening a native dialog.
+- If the only available path genuinely requires a native dialog, fail closed
+  **before opening it** and report that exact human-only boundary. Do not leave an
+  orphaned dialog for the owner to discover or ask the owner to finish an agent-
+  initiated Save flow.
+
+This prohibition applies across browser and desktop automation, not only Mission
+Control. It does not authorize a different machine, clipboard, public relay, or
+weaker privacy boundary as a workaround.
+
 For headed browser automation that uses a persistent Chromium-family profile:
 
 1. start ordinary automation runs from a bounded working-tab set, normally one tab;
@@ -145,6 +166,11 @@ Extended 2026-09-08 from Mission Control browser-routing failures observed under
 - the repair therefore requires exact persistent window + target ownership and fail-closed replacement rather than adoption;
 - the same incident class established bounded system-UI recovery for the exact ChatGPT request-rate dialog without widening assistant-output inspection.
 
+Extended 2026-10-05 by direct owner correction after an agent opened a native file
+picker that its available control surface could not complete. The transferable
+finding is limited to agent-driven native file dialogs: deterministic DOM,
+filesystem, API, connector, and browser-download transports remain allowed.
+
 Project-local exact evidence remains in:
 
 - `state/PANGRAM-LOCAL-TAB-REPORT-INCIDENT-2026-08-18.md`
@@ -162,6 +188,8 @@ on the Pangram local-Playwright task branch, with Mission Control implementation
 ## Compact rules moved from root `AGENTS.md`
 
 Before browser/GUI action, perform a **browser-surface preflight**: discover current-turn browser/computer-control surfaces and distinguish them from shell/process access. A remote shell is not the user's graphical browser session unless verified. Failure of shell launch helpers (`xdg-open`, `open`, `start`) is not evidence that browser control is unavailable; never substitute a shell URL-launch attempt for current-turn browser-control discovery. Before asking the owner to open a URL, copy a code, or click, use authorized control for automatable steps. For genuine human-only authentication/consent/passkey/CAPTCHA, pre-position the exact page when possible; the owner performs only the irreducible gesture, then resume automatically after the gate clears.
+
+Never open an OS-native Open/Save/Save As/file-picker dialog for agent-driven transfer. Bind uploads through the DOM or an authorized filesystem/API path; capture downloads through browser download events or an authorized direct transfer. If a native dialog is genuinely unavoidable, fail closed before opening it.
 
 Default browser automation to **headless mode**. Use headed/visible only for browser/OS interaction, headed-only behavior, extensions/native dialogs, window/focus, WebAuthn/passkeys, visual debugging, or capability unavailable headlessly; record the reason when a task record exists.
 

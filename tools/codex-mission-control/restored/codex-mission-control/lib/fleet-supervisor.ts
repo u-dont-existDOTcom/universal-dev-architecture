@@ -1,5 +1,6 @@
-import { sha256 } from "./canonical";
+import { canonicalJson, sha256 } from "./canonical";
 import { CANONICAL_PROJECT_MANAGER_ID, loadConfiguredSupervisorChats } from "./configured-supervisor-chats";
+import { parseGitHubReceiptPolicy, pendingDecisionRequests } from "./github-decision-receipts";
 import { evaluateSupervisionAdmission } from "./supervision-admission-runtime";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import { projectWorker } from "./projection";
@@ -130,12 +131,53 @@ export class FleetSupervisorRuntime {
 }
 
 export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSupervisorWatchRecord,
-  decision: FleetSupervisorDecision, events: readonly StoredEvent[]) {
+  decision: FleetSupervisorDecision, _events: readonly StoredEvent[]) {
+  const history = store.workerEvents(watch.worker);
+  const pending = pendingDecisionRequests(history).at(-1);
+  if (pending) return routeEvent(history, pending.requestId);
+
   const directory = loadConfiguredSupervisorChats();
   const manager = directory.entries.find((entry) => entry.scope === "PROJECT_MANAGER"
     && entry.supervisorId === CANONICAL_PROJECT_MANAGER_ID);
   if (!manager) throw new Error("Fleet supervision requires the configured Mission Control project-manager route.");
-  const requestId = `fleet-watch:${sha256(`${watch.projectId}\n${watch.nextTickAt}`).slice(0, 32)}`;
+  const policy = parseGitHubReceiptPolicy();
+  if (!policy?.requestBound?.enabled) {
+    throw new Error("Fleet supervision reasoning requires the configured trusted in-band request-bound receipt policy.");
+  }
+  const ownerOutcome = history.findLast((event) => event.data.type === "owner_outcome_recorded")?.data;
+  if (!ownerOutcome || ownerOutcome.type !== "owner_outcome_recorded") {
+    throw new Error("Fleet supervision reasoning requires the current owner-outcome identity.");
+  }
+  const boundary = reasoningBoundary(history);
+  if (!boundary) throw new Error("Fleet supervision reasoning requires a durable decision boundary.");
+  const requestId = `fleet-review:${sha256(`${watch.projectId}\n${boundary.eventId}`).slice(0, 32)}`;
+  const factualState = canonicalJson(fleetReasoningFacts(decision, history, boundary));
+  const evidenceSha256 = sha256(factualState);
+  const queuedAt = watch.nextTickAt ?? new Date().toISOString();
+  const expiresAt = new Date(Date.parse(queuedAt) + 24 * 60 * 60 * 1000).toISOString();
+  const priorDecision = history.findLast((event) => event.data.type === "github_decision_receipt_ingested")?.data;
+  const reasoningLane = priorDecision?.type === "github_decision_receipt_ingested"
+    ? priorDecision.reasoning_lane
+    : "EXTRA_HIGH_DIRECT";
+  const evidenceCapsule = { id: `fleet-state:${evidenceSha256.slice(0, 32)}`, sha256: evidenceSha256 };
+  const cycle = {
+    bindingProtocol: "IN_BAND_REQUEST_BINDING_V1" as const,
+    executionContext: { task_id: watch.taskId },
+    nonce: `fleet-review-nonce:${sha256(`${requestId}\n${ownerOutcome.owner_outcome_sha256}`).slice(0, 32)}`,
+    evidenceCapsule,
+    ownerOutcome: {
+      id: ownerOutcome.owner_outcome_id,
+      epoch: ownerOutcome.epoch,
+      sha256: ownerOutcome.owner_outcome_sha256,
+    },
+    reasoningLane,
+    githubReceipt: {
+      repository: policy.repository,
+      issueNumber: policy.decisionIssueNumber,
+      stageIssueNumber: policy.stageIssueNumber,
+    },
+    expiresAt,
+  };
   const producer: AuthenticatedProducer = {
     id: `worker:${watch.worker}`, kind: "WORKER", workerScopes: [watch.worker], taskScopes: [watch.taskId],
   };
@@ -152,24 +194,123 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
     },
     factualPacket: {
       packetId: `packet:${requestId}`, taskId: watch.taskId,
-      exactFactualState: `${decision.trigger}: ${decision.result}`,
-      evidenceRefs: events.slice(-8).map((event) => event.eventId),
-      decisionRequested: "Review the current evidence and author any decision-changing strategy or directive. Preserve all project hard gates.",
-      supervisoryCycle: null,
+      exactFactualState: factualState,
+      evidenceRefs: [],
+      decisionRequested: "Review the exact current worker state and latest execution receipt. Decide whether the owner outcome is satisfied, whether bounded execution may resume under a new source-bound directive, or whether to stop. Do not replay completed work or weaken frozen experiment gates.",
+      supervisoryCycle: cycle,
     },
-  }, watch.nextTickAt ?? new Date().toISOString());
+  }, queuedAt, undefined, null, "IN_BAND_REQUEST_BINDING_V1");
   if (!result.routeEnvelope) throw new Error(result.statement);
   const envelope = structuredClone(result.routeEnvelope);
-  envelope.event_id = `fleet-route:${sha256(requestId).slice(0, 32)}`;
   if (envelope.data.type === "worker_message_recorded") {
-    envelope.data.message_id = `message:${envelope.event_id}`;
     envelope.data.thread_id = `thread:fleet-supervision:${watch.worker}`;
   }
-  // `events` is intentionally scoped to this worker for classification and
-  // route construction. It is not a complete durable ledger, so it cannot be
-  // supplied as the store's append-validation history when other workers are
-  // present. Let EventStore load the authoritative current history itself.
+  // The runtime hook argument is intentionally worker-scoped and therefore is
+  // never append-validation history. The route above rereads current worker
+  // state, while EventStore validates the append against the complete ledger.
   return store.append(envelope, undefined, producer);
+}
+
+function routeEvent(events: readonly StoredEvent[], requestId: string): StoredEvent | null {
+  return events.findLast((event) => {
+    if (event.data.type !== "worker_message_recorded") return false;
+    const split = event.data.body.indexOf("\n");
+    if (split < 0) return false;
+    try {
+      const body = JSON.parse(event.data.body.slice(split + 1)) as { requestId?: unknown };
+      return body.requestId === requestId;
+    } catch { return false; }
+  }) ?? null;
+}
+
+function reasoningBoundary(events: readonly StoredEvent[]): StoredEvent | null {
+  const boundaryTypes = new Set([
+    "execution_receipt_recorded", "chatgpt_work_cloud_execution_receipt_recorded",
+    "outcome_progress_recorded", "worker_checkpoint_recorded", "execution_directive_recorded",
+    "structured_blocker_recorded", "work_queue_published",
+  ]);
+  return events.findLast((event) => boundaryTypes.has(event.data.type)) ?? null;
+}
+
+function fleetReasoningFacts(
+  decision: FleetSupervisorDecision,
+  events: readonly StoredEvent[],
+  boundary: StoredEvent,
+) {
+  const worker = projectWorker([...events]);
+  const queue = events.findLast((event) => event.data.type === "work_queue_published")?.data;
+  const outcome = events.findLast((event) => event.data.type === "owner_outcome_recorded")?.data;
+  const receipt = events.findLast((event) => event.data.type === "execution_receipt_recorded")?.data;
+  const directivePaths = events.flatMap((event) => event.data.type === "execution_directive_recorded"
+    ? event.data.allowed_paths
+    : []);
+  return {
+    trigger: decision.trigger,
+    trigger_result: decision.result,
+    decision_boundary: {
+      event_id: boundary.eventId,
+      event_type: boundary.data.type,
+      occurred_at: boundary.occurredAt,
+    },
+    task_contract: {
+      goal: worker.objective.goal,
+      effective_finish_line: worker.objective.effectiveFinishLine,
+      source: {
+        sha256: worker.objective.taskContractSha256,
+        acceptance_criteria: worker.objective.acceptance_criteria,
+        allowed_scope: worker.objective.allowed_scope,
+        forbidden_scope: worker.objective.forbidden_scope,
+      },
+    },
+    owner_outcome: {
+      id: worker.ownerOutcome.id,
+      epoch: worker.ownerOutcome.epoch,
+      gap_status: outcome?.type === "owner_outcome_recorded" ? outcome.gap_status : "OPEN",
+      current_gap: worker.ownerOutcome.currentGap,
+      required_outcomes: worker.ownerOutcome.requiredOutcomes,
+    },
+    queue: queue?.type === "work_queue_published" ? queue.items.map((item) => ({
+      item_id: item.item_id,
+      title: item.title,
+      status: item.status,
+      priority: item.priority,
+      depends_on: item.depends_on,
+    })) : [],
+    execution: {
+      active_directive_id: worker.executionSupervision.activeDirectiveId,
+      codex_execution_state: worker.executionSupervision.codexExecutionState,
+      latest_receipt_id: worker.executionSupervision.latestReceiptId,
+      receipt_claim: worker.executionSupervision.receiptClaim,
+      pending_reasoning_review: worker.executionSupervision.pendingReasoningReview,
+      latest_receipt: receipt?.type === "execution_receipt_recorded" ? {
+        receipt_id: receipt.receipt_id,
+        directive_id: receipt.directive_id,
+        stop_trigger_reached: receipt.stop_trigger_reached,
+        checks_run: receipt.checks_run,
+        measurements: receipt.measurements,
+        artifacts_produced: receipt.artifacts_produced,
+        deviations: receipt.deviations,
+        blockers: receipt.blockers,
+        next_reasoning_review_required: receipt.next_reasoning_review_required,
+      } : null,
+      current_step: worker.currentStep,
+      completed_steps: worker.completedSteps,
+      next_steps: worker.nextSteps,
+      blocker: worker.blocker,
+      tests: worker.tests,
+      prior_directive_paths: [...new Set(directivePaths)],
+    },
+    progress: {
+      outcome_advancement: worker.progress.outcomeAdvancement,
+      strategy_id: worker.progress.strategyId,
+      strategy_efficacy: worker.progress.strategyEfficacy,
+      latest_evidence: worker.progress.latestEvidence,
+      best_evidence: worker.progress.bestEvidence,
+      next_decision_trigger: worker.progress.nextDecisionTrigger,
+      required_intervention: worker.progress.requiredIntervention,
+      same_strategy_continuation_allowed: worker.progress.sameStrategyContinuationAllowed,
+    },
+  };
 }
 
 export function classifyFleetSupervisorTick(
