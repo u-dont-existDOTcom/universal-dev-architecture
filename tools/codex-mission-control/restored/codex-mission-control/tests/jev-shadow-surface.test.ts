@@ -56,5 +56,5 @@ test("live recording is isolated from the tick while preserving observation and 
   assert.match(daemon, /try \{\s*store\.recordJevShadowObservation\(\{ source: "LIVE", projectId: item\.projectId, observation: item\.jevShadow \}\);\s*\} catch \{[^]*?event: "jev_shadow_record_failed"/);
   assert.match(daemon, /type: "fleet_supervisor_tick", results/);
   assert.match(daemon, /event: "fleet_supervisor_tick_failed", error: error instanceof Error \? error\.message : "Unknown fleet supervisor failure"/);
-  assert.match(daemon, /observeJevShadow: boundedJevShadowHook\(/);
+  assert.match(daemon, /observeJevShadow: sampleJevShadowOnStateChange\(boundedJevShadowHook\(/);
 });

@@ -30,7 +30,7 @@ import { GitHubReconciliationCoordinator } from "../lib/github-reconciliation-co
 import { FleetSupervisorRuntime, routeFleetSupervisorReasoning } from "../lib/fleet-supervisor";
 import { enrollFleetSupervisorWatch, parseFleetWatchEnrollment } from "../lib/fleet-watch-enrollment";
 import { observeFleetSupervisorWithJev } from "../lib/jev-shadow";
-import { boundedJevShadowHook } from "../lib/jev-shadow-hook";
+import { boundedJevShadowHook, sampleJevShadowOnStateChange } from "../lib/jev-shadow-hook";
 import { FleetSupervisorLoop, fleetSupervisorSlowTickMs, fleetSupervisorStallMs } from "../lib/fleet-supervisor-loop";
 import { jevShadowSummaryForProducer, jevShadowSummaryTool } from "../lib/jev-shadow-surface";
 
@@ -569,8 +569,8 @@ function startFleetSupervisor() {
   const slowTickMs = fleetSupervisorSlowTickMs(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_SLOW_TICK_MS);
   const runtime = new FleetSupervisorRuntime(store, {
     routeReasoning: (watch, decision, events) => routeFleetSupervisorReasoning(store, watch, decision, events),
-    observeJevShadow: boundedJevShadowHook((_watch, decision, events, chain, signal) =>
-      observeFleetSupervisorWithJev(decision.trigger, events, chain, { signal })),
+    observeJevShadow: sampleJevShadowOnStateChange(boundedJevShadowHook((_watch, decision, events, chain, signal) =>
+      observeFleetSupervisorWithJev(decision.trigger, events, chain, { signal }))),
     notifyOwner: (watch, decision) => notifications.emit("event", {
       type: "fleet_supervisor_owner_notification", projectId: watch.projectId, taskId: watch.taskId,
       trigger: decision.trigger, reason: decision.notificationReason,
