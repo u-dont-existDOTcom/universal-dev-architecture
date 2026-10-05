@@ -1316,8 +1316,9 @@ function isStructuredCompletionResult(result) {
 
 function isStructuredReasoningReviewStop(result) {
   return isPlainObject(result)
-    && ['STOPPED', 'STOPPED_FOR_REASONING_REVIEW', 'BLOCKED', 'FAILED', 'PARTIAL'].includes(result.status)
     && result.next_reasoning_review_required === true
+    && (result.status === undefined
+      || ['STOPPED', 'STOPPED_FOR_REASONING_REVIEW', 'BLOCKED', 'FAILED', 'PARTIAL'].includes(result.status))
     && structuredReasoningReviewStopTrigger(result) !== null;
 }
 

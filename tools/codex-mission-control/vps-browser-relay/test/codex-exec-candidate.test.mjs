@@ -336,6 +336,20 @@ test('a structured STOPPED result accepts the source-bound stop_trigger alias', 
   assert.deepEqual(receipt.data.blockers, ['immutable attempt readback unavailable']);
 });
 
+test('a source-bound schema without status may request reasoning review with its explicit stop gate', async () => {
+  const fixture = await candidateFixture('structured-stop-without-status');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = structuredStopWithoutStatusOutputSchema();
+  const result = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-stop-without-status' } });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.protocol.resultReportsSuccess, false);
+  assert.equal(result.protocol.resultRequestsReasoningReviewStop, true);
+  assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
+  const receipt = fixture.missionControl.events.find((event) => event.data.type === 'execution_receipt_recorded');
+  assert.equal(receipt.data.stop_trigger_reached, 'no material headroom remains');
+  assert.deepEqual(receipt.data.blockers, ['no material headroom remains']);
+});
+
 test('a structured COMPLETED result closes the directive without requiring a success boolean', async () => {
   const fixture = await candidateFixture('structured-completed');
   const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
@@ -784,6 +798,13 @@ else if (mode === 'structured-stop-alias') {
   }));
   process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
 }
+else if (mode === 'structured-stop-without-status') {
+  writeFileSync(resultPath, JSON.stringify({
+    next_reasoning_review_required: true,
+    stop_trigger_reached: 'no material headroom remains',
+  }));
+  process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
+}
 else if (mode === 'structured-completed') {
   writeFileSync(resultPath, JSON.stringify({ status: 'COMPLETED', gate_verdict: 'PASS' }));
   process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
@@ -825,6 +846,18 @@ function structuredStopAliasOutputSchema() {
       next_reasoning_review_required: { type: 'boolean' },
       stop_trigger: { type: 'string' },
       deviations: { type: 'array', items: { type: 'string' } },
+    },
+  };
+}
+
+function structuredStopWithoutStatusOutputSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['next_reasoning_review_required', 'stop_trigger_reached'],
+    properties: {
+      next_reasoning_review_required: { type: 'boolean' },
+      stop_trigger_reached: { type: 'string' },
     },
   };
 }
