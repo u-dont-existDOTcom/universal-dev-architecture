@@ -226,6 +226,41 @@ test('a provider-schema failure whose receipt write was interrupted is reconcile
   assert.equal(fixture.spawnCalls.length, 0);
 });
 
+test('exact pre-execution model capacity closes for reasoning review without claiming task execution', async () => {
+  const fixture = await candidateFixture('provider-capacity');
+  const result = await fixture.dispatch(fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' }), {
+    environment: { FAKE_CODEX_MODE: 'provider-capacity' },
+  });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.FAILED);
+  assert.equal(result.protocol.providerError.code, 'model_at_capacity');
+  assert.equal(result.protocol.commandExecutionCount, 0);
+  assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  const receipt = fixture.missionControl.events.find((event) => event.data.type === 'execution_receipt_recorded');
+  assert.deepEqual(receipt.data.blockers, ['CODEX_MODEL_CAPACITY_PREEXECUTION']);
+  assert.equal(receipt.data.files_changed.length, 0);
+  assert.equal(receipt.data.next_reasoning_review_required, true);
+});
+
+test('an interrupted pre-execution capacity receipt is reconciled without a duplicate Codex launch', async () => {
+  const fixture = await candidateFixture('provider-capacity-reconcile');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  fixture.missionControl.failNextReceipt = true;
+  await assert.rejects(
+    fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'provider-capacity' } }),
+    /injected receipt interruption/,
+  );
+  const firstSpawnCount = fixture.spawnCalls.length;
+  assert.ok(firstSpawnCount > 0);
+
+  const recovered = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'provider-capacity' } });
+  assert.equal(recovered.recoveredTerminalAttempt, true);
+  assert.equal(recovered.missionControlLifecycle.executionStartRecovered, true);
+  assert.equal(recovered.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  assert.equal(fixture.spawnCalls.length, firstSpawnCount);
+});
+
 test('a structured STOPPED result closes the directive and requests independent reasoning review', async () => {
   const fixture = await candidateFixture('structured-stop');
   const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
@@ -714,6 +749,11 @@ const mode = process.env.FAKE_CODEX_MODE || 'success';
 process.stdout.write(JSON.stringify({ type: 'turn.started' }) + '\\n');
 if (mode === 'timeout') setInterval(() => {}, 1000);
 else if (mode === 'process-failure') process.exit(7);
+else if (mode === 'provider-capacity') {
+  process.stdout.write(JSON.stringify({ type: 'error', message: 'Selected model is at capacity. Please try a different model.' }) + '\\n');
+  process.stdout.write(JSON.stringify({ type: 'turn.failed', error: { message: 'Selected model is at capacity. Please try a different model.' } }) + '\\n');
+  process.exit(1);
+}
 else if (mode === 'malformed-result') { writeFileSync(resultPath, '{not json'); process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n'); }
 else if (mode === 'missing-terminal') writeFileSync(resultPath, JSON.stringify({ success: true, value: 'ok' }));
 else if (mode === 'structured-stop') {

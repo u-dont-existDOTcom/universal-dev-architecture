@@ -574,12 +574,15 @@ function buildExecutionReceiptEnvelope({ worker, summary, authority, route, star
   const schemaIssues = Array.isArray(summary.outputSchemaCompatibilityIssues)
     ? summary.outputSchemaCompatibilityIssues
     : [];
-  if (!completed && !structuredStop && schemaIssues.length === 0) {
-    throw new Error('Only completed attempts, structured reasoning-review stops, or deterministic provider-schema rejections may close a directive.');
+  const capacityFailure = isPreExecutionProviderCapacityFailure(summary);
+  if (!completed && !structuredStop && schemaIssues.length === 0 && !capacityFailure) {
+    throw new Error('Only completed attempts, structured reasoning-review stops, deterministic provider-schema rejections, or exact pre-execution provider-capacity failures may close a directive.');
   }
-  const providerFailure = summary.protocol?.providerError?.code === 'invalid_json_schema'
-    ? 'Provider rejected the exact source-bound output schema with invalid_json_schema before admitting a structured result.'
-    : 'The exact source-bound output schema failed deterministic provider-compatibility validation before model execution.';
+  const providerFailure = capacityFailure
+    ? 'The authorized Codex model reported capacity before any command, tool call, or structured result was admitted.'
+    : summary.protocol?.providerError?.code === 'invalid_json_schema'
+      ? 'Provider rejected the exact source-bound output schema with invalid_json_schema before admitting a structured result.'
+      : 'The exact source-bound output schema failed deterministic provider-compatibility validation before model execution.';
   return {
     schema_version: 2,
     event_id: `codex-execution-receipt:${summary.attemptId}`,
@@ -611,23 +614,30 @@ function buildExecutionReceiptEnvelope({ worker, summary, authority, route, star
               { command: 'codex exec structured protocol validation', result: 'PASS', summary: 'Process, terminal event, route contract, and structured STOPPED result passed.' },
               { command: 'bounded directive stop gate', result: 'FAIL', summary: structuredStopTrigger },
             ]
-        : [{ command: 'source-bound output schema provider-compatibility validation', result: 'FAIL', summary: schemaIssues.join('; ') }],
+        : capacityFailure
+          ? [{ command: 'codex provider pre-execution admission', result: 'FAIL', summary: 'The selected authorized model reported capacity before bounded execution began.' }]
+          : [{ command: 'source-bound output schema provider-compatibility validation', result: 'FAIL', summary: schemaIssues.join('; ') }],
       measurements: [],
       evidence_refs: [`attempt:${summary.attemptId}`, `directive-artifact:${authority.directiveArtifactSha256}`],
       deviations: structuredStop && Array.isArray(summary.protocol.result.deviations)
         ? summary.protocol.result.deviations.filter((value) => typeof value === 'string' && value.trim() !== '')
         : [],
-      blockers: completed ? [] : structuredStop ? [structuredStopTrigger] : schemaIssues,
+      blockers: completed ? [] : structuredStop ? [structuredStopTrigger]
+        : capacityFailure ? ['CODEX_MODEL_CAPACITY_PREEXECUTION'] : schemaIssues,
       stop_trigger_reached: completed
         ? 'The bounded mechanical candidate attempt reached its admitted terminal result.'
         : structuredStop
           ? structuredStopTrigger
-        : 'The source-bound output schema is provider-incompatible; retrying unchanged would repeat the same pre-execution failure, so a new independent reasoning review is required.',
+        : capacityFailure
+          ? 'The authorized Codex model reported capacity before bounded execution; any retry requires a new source-bound directive bound to this immutable failed attempt.'
+          : 'The source-bound output schema is provider-incompatible; retrying unchanged would repeat the same pre-execution failure, so a new independent reasoning review is required.',
       execution_claim: completed
         ? 'Bounded execution completed; all semantic, progress, and supervisory judgments remain with Chat/Mission Control.'
         : structuredStop
           ? 'Bounded execution stopped at its mandated integrity gate; all semantic, progress, and supervisory judgments remain with Chat/Mission Control.'
-        : 'No structured execution result was admitted; the immutable failed attempt is closed for independent reasoning review without altering the source schema.',
+        : capacityFailure
+          ? 'No command, tool call, or structured execution result was admitted; the immutable capacity-failed attempt is closed for independent reasoning review.'
+          : 'No structured execution result was admitted; the immutable failed attempt is closed for independent reasoning review without altering the source schema.',
       strategy_change: null,
       progress_classification: null,
       supervisory_verdict: null,
@@ -1247,7 +1257,9 @@ async function recoverProviderSchemaRejectedAttempt({ normalized, summaries, job
       join(candidateAttemptDir, 'result.json'),
       route,
     );
+    const recoveredSummary = { ...candidate, protocol: { ...candidate.protocol, ...candidateProtocol } };
     if (outputSchemaCompatibilityIssues.length > 0
+      || isPreExecutionProviderCapacityFailure(recoveredSummary)
       || isStructuredReasoningReviewStop(candidateProtocol.result)
       || isStructuredCompletionResult(candidateProtocol.result)) {
       summary = candidate;
@@ -1281,8 +1293,21 @@ function shouldRecordTerminalReceipt(summary) {
   return summary.status === CODEX_ATTEMPT_STATUSES.COMPLETED
     || isStructuredCompletionResult(summary.protocol?.result)
     || isStructuredReasoningReviewStop(summary.protocol?.result)
+    || isPreExecutionProviderCapacityFailure(summary)
     || Array.isArray(summary.outputSchemaCompatibilityIssues)
       && summary.outputSchemaCompatibilityIssues.length > 0;
+}
+
+function isPreExecutionProviderCapacityFailure(summary) {
+  const protocol = summary?.protocol;
+  return summary?.status === CODEX_ATTEMPT_STATUSES.FAILED
+    && summary?.processExitState?.started === true
+    && protocol?.providerError?.code === 'model_at_capacity'
+    && protocol?.terminalTurnCompletedCount === 0
+    && protocol?.terminalMcpToolCallCount === 0
+    && protocol?.commandExecutionCount === 0
+    && protocol?.approvalEventCount === 0
+    && protocol?.structuredResultParsed === false;
 }
 
 function isStructuredCompletionResult(result) {
@@ -1335,6 +1360,9 @@ export function providerSchemaCompatibilityIssues(schema) {
 }
 
 function normalizedProviderError(event) {
+  if (event?.message === 'Selected model is at capacity. Please try a different model.') {
+    return { type: 'provider_capacity', code: 'model_at_capacity', status: null };
+  }
   let root = event;
   if (typeof event?.message === 'string') {
     try { root = JSON.parse(event.message); }
