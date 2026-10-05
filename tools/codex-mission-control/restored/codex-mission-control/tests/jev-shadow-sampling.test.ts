@@ -23,7 +23,7 @@ test("unchanged Jev state is sampled at most once per resample window", async ()
         model: "typesafe/jev-1.13",
         deterministic_trigger: observedDecision.trigger,
       };
-    }, { now: () => current, resampleMs: 3_600_000 });
+    }, { env: { MISSION_CONTROL_JEV_SHADOW_ENABLED: "1" }, now: () => current, resampleMs: 3_600_000 });
 
     assert.equal((await hook(watch, decision, events, chain))?.status, "OK");
     assert.equal(calls, 1);
@@ -43,6 +43,17 @@ test("unchanged Jev state is sampled at most once per resample window", async ()
   } finally {
     store.close();
   }
+});
+
+test("disabled Jev shadow bypasses state sampling and preserves disabled semantics", async () => {
+  let calls = 0;
+  const hook = sampleJevShadowOnStateChange(async () => {
+    calls += 1;
+    return { status: "DISABLED", authoritative: false, model: "typesafe/jev-1.13", deterministic_trigger: "HEALTHY_ADVANCING" };
+  }, { env: { MISSION_CONTROL_JEV_SHADOW_ENABLED: "0" } });
+  const result = await hook({ projectId: "project:disabled" } as never, { trigger: "HEALTHY_ADVANCING" } as never, [] as never, { valid: true, errors: [] });
+  assert.equal(result?.status, "DISABLED");
+  assert.equal(calls, 1);
 });
 
 test("bounded Jev hook preserves an intentional skipped sample", async () => {
