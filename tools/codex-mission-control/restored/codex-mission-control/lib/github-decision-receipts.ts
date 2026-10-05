@@ -36,6 +36,7 @@ export const providerSessionModelSummary = "MISSION_CONTROL_PROVIDER_SESSION_MOD
 export const providerSessionMcpSummary = "MISSION_CONTROL_PROVIDER_SESSION_MCP_READ_V1";
 export const bindingCapsuleSummary = "MISSION_CONTROL_BINDING_CAPSULE_V1";
 export const bindingEnvelopeSummary = "MISSION_CONTROL_BINDING_ENVELOPE_V1";
+export const supervisoryRequestRetiredUnsentSummary = "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1";
 
 export const githubDecisionProducer: AuthenticatedProducer = { id: "system:github-decision-receipts", kind: "SYSTEM", workerScopes: ["*"], taskScopes: ["*"] };
 export const githubReceiptCollector: AuthenticatedProducer = { id: "collector:github-supervision-receipts", kind: "COLLECTOR", workerScopes: ["*"], taskScopes: ["*"] };
@@ -590,6 +591,21 @@ export function buildWorkCloudExecutionReceiptAndReturnRoute(
 
 export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionRequest[] {
   const completed = new Set(events.flatMap((e) => e.data.type === "github_decision_receipt_ingested" ? [e.data.request_id] : []));
+  const retiredUnsent = new Set(events.flatMap((event) => {
+    const data = event.data;
+    if (data.type !== "evidence_receipt_recorded"
+      || data.summary !== supervisoryRequestRetiredUnsentSummary
+      || data.verified !== true
+      || data.producer_id !== "verifier:fleet-supervisor-request-retirement"
+      || data.producer_role !== "VERIFIER"
+      || !data.refs.includes("lifecycle_status:RETIRED_UNSENT")
+      || !data.refs.includes("provider_send_boundary:NOT_CROSSED")
+      || !data.refs.includes("submission_authority_queue_records:0")
+      || !data.refs.includes("submission_authority_admission_records:0")
+      || !data.refs.includes("provider_transport_evidence_records:0")) return [];
+    const requestId = exactRefValue(data.refs, "request:");
+    return requestId && /^fleet-review:[a-f0-9]{32}$/.test(requestId) ? [requestId] : [];
+  }));
   const parsed = events.flatMap((event) => {
     if (event.data.type !== "worker_message_recorded"
       || (!event.data.body.startsWith(inBandRequestRoutePrefix)
@@ -610,7 +626,9 @@ export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionR
     }
     admitted.push(request);
   }
-  return admitted.filter((request) => !completed.has(request.requestId) && !superseded.has(request.requestId));
+  return admitted.filter((request) => !completed.has(request.requestId)
+    && !retiredUnsent.has(request.requestId)
+    && !superseded.has(request.requestId));
 }
 
 function validRequestReplacement(prior: PendingDecisionRequest, replacement: PendingDecisionRequest) {

@@ -27,7 +27,12 @@ import { SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/sub
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
 import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
 import { GitHubReconciliationCoordinator } from "../lib/github-reconciliation-coordinator";
-import { FleetSupervisorRuntime, replaceFleetSupervisorReasoningRequest, routeFleetSupervisorReasoning } from "../lib/fleet-supervisor";
+import {
+  FleetSupervisorRuntime,
+  replaceFleetSupervisorReasoningRequest,
+  retireUnsentFleetSupervisorReasoningRequest,
+  routeFleetSupervisorReasoning,
+} from "../lib/fleet-supervisor";
 import { enrollFleetSupervisorWatch, parseFleetWatchEnrollment } from "../lib/fleet-watch-enrollment";
 import { observeFleetSupervisorWithJev } from "../lib/jev-shadow";
 import { boundedJevShadowHook } from "../lib/jev-shadow-hook";
@@ -143,6 +148,55 @@ const server = http.createServer(async (request, response) => {
         });
       } catch (error) {
         return json(response, 409, { error: error instanceof Error ? error.message : "Reasoning replacement was rejected." });
+      }
+    }
+    const fleetReasoningRetirementMatch = url.pathname.match(/^\/fleet-supervisor\/([^/]+)\/reasoning-retire-unsent$/);
+    if (request.method === "POST" && fleetReasoningRetirementMatch) {
+      const producer = authorizeMutation(request);
+      if (!["OWNER_AUTHORITY", "UI"].includes(producer.kind)) return json(response, 403, { error: "Only an authenticated owner surface may retire a proven-unsent reasoning request." });
+      const projectId = decodeURIComponent(fleetReasoningRetirementMatch[1]);
+      const watch = store.fleetSupervisorWatch(projectId);
+      if (!watch) return json(response, 404, { error: "Fleet watch not found." });
+      if (watch.state !== "PAUSED") return json(response, 409, { error: "Unsent reasoning retirement requires the exact fleet watch to be paused." });
+      const body = await readJson(request) as Record<string, unknown>;
+      const requestId = typeof body.request_id === "string" ? body.request_id : "";
+      const evidenceEventId = typeof body.evidence_event_id === "string" ? body.evidence_event_id : "";
+      try {
+        const proof = await submissionAuthority.proveRequestUnsent(requestId);
+        if (!proof.provenUnsent) {
+          return json(response, 409, {
+            error: "Submission authority did not prove the exact request unsent.",
+            requestId,
+            proof: {
+              ledgerValid: proof.ledgerValid,
+              matchingStateSections: proof.matchingStateSections,
+              queueRecordCount: proof.queueRecordCount,
+              admissionRecordCount: proof.admissionRecordCount,
+              proofSha256: proof.proofSha256,
+            },
+          });
+        }
+        const result = retireUnsentFleetSupervisorReasoningRequest(store, watch, {
+          requestId,
+          evidenceEventId,
+        }, proof);
+        notifications.emit("event", result.retirementEvent);
+        notifications.emit("event", result.reviewEvent);
+        return json(response, result.duplicate ? 200 : 201, {
+          status: "REASONING_REQUEST_RETIRED_UNSENT_AND_REQUEUED",
+          projectId,
+          worker: watch.worker,
+          retiredRequestId: result.retiredRequestId,
+          retirementEventId: result.retirementEvent.eventId,
+          reviewRequestId: result.reviewRequestId,
+          reviewEventId: result.reviewEvent.eventId,
+          evidenceEventId,
+          duplicate: result.duplicate,
+          watchState: watch.state,
+          providerSendBoundaryCrossed: false,
+        });
+      } catch (error) {
+        return json(response, 409, { error: error instanceof Error ? error.message : "Unsent reasoning retirement was rejected." });
       }
     }
     const fleetWatchMatch = url.pathname.match(/^\/fleet-supervisor\/([^/]+)$/);

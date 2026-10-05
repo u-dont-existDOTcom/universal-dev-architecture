@@ -10,9 +10,10 @@ import {
   DEFAULT_FLEET_SUPERVISOR_CADENCE_MS,
   FleetSupervisorRuntime,
   replaceFleetSupervisorReasoningRequest,
+  retireUnsentFleetSupervisorReasoningRequest,
   routeFleetSupervisorReasoning,
 } from "../lib/fleet-supervisor";
-import { pendingDecisionRequests } from "../lib/github-decision-receipts";
+import { pendingDecisionRequests, supervisoryRequestRetiredUnsentSummary } from "../lib/github-decision-receipts";
 import { inBandRequestRoutePrefix } from "../lib/in-band-request-binding";
 import { seedIssue47Store, seedStore } from "../lib/seed";
 import type { MissionControlEventV2, StoredEvent } from "../lib/schema";
@@ -297,6 +298,157 @@ test("one sealed empty completion is replaced exactly once without changing scie
       requestId: oldRoot.requestId,
       failureReceiptSha256: "e".repeat(64),
     }, new Date(Date.parse(replacementAt) + 2_000).toISOString()), /different failure receipt/);
+  } finally {
+    if (previous === undefined) delete process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+    else process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = previous;
+    if (previousPolicy === undefined) delete process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+    else process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = previousPolicy;
+    store.close();
+  }
+});
+
+test("one proven-unsent stale request is retired append-only and exactly one current evidence review is queued", () => {
+  const store = new EventStore(":memory:");
+  const previous = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+  const previousPolicy = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+  try {
+    seedStore(store);
+    process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = JSON.stringify([configuredProjectManager()]);
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify(configuredReceiptPolicy());
+    const watch = store.ensureFleetSupervisorWatch("project:auth", "task:auth", "auth", t0);
+    store.configureFleetSupervisorWatch(watch.projectId, { state: "PAUSED" }, t0);
+    const stale = routeFleetSupervisorReasoning(store, watch, {
+      trigger: "REASONING_REVIEW_OVERDUE",
+      result: "Current evidence was routed to the existing reasoning lane.",
+      state: "PAUSED",
+      reasoningRequired: true,
+      mechanicalRecoveryEligible: false,
+      notifyOwner: false,
+      notificationReason: null,
+    }, store.workerEvents(watch.worker));
+    assert.ok(stale && stale.data.type === "worker_message_recorded");
+    if (!stale || stale.data.type !== "worker_message_recorded") return;
+    const staleRoot = JSON.parse(stale.data.body.slice(inBandRequestRoutePrefix.length));
+    const evidenceEvent = store.append({
+      schema_version: 2,
+      event_id: "sealed-current-execution-evidence",
+      mission_id: "mission-control-live",
+      occurred_at: "2026-09-19T02:00:00.000Z",
+      data: {
+        type: "evidence_receipt_recorded",
+        worker: watch.worker,
+        receipt_id: "sealed-current-execution-evidence",
+        producer_id: "collector:test",
+        producer_role: "COLLECTOR",
+        evidence_class: "ARTIFACT",
+        independence: "SAME_PROVENANCE",
+        freshness: "CURRENT",
+        exact_candidate_sha256: "a".repeat(64),
+        summary: "SEALED_TEST_EXECUTION_RESULT_V1",
+        refs: ["status:STAGE_COMPLETE", "next_reasoning_review_required:true", "material_miss:false"],
+        verified: true,
+        changed_path_manifest: null,
+      },
+    });
+    const proof = {
+      schemaVersion: 1 as const,
+      requestId: staleRoot.requestId,
+      pacingDomain: "provider-account:test",
+      ledgerValid: true,
+      matchingStateSections: [],
+      queueRecordCount: 0,
+      admissionRecordCount: 0,
+      provenUnsent: true,
+      proofSha256: "b".repeat(64),
+    };
+    const before = store.count();
+    const result = retireUnsentFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: staleRoot.requestId,
+      evidenceEventId: evidenceEvent.eventId,
+    }, proof, "2026-09-19T02:00:01.000Z");
+    assert.equal(result.duplicate, false);
+    assert.equal(store.count(), before + 2);
+    assert.equal(result.retirementEvent.data.type, "evidence_receipt_recorded");
+    if (result.retirementEvent.data.type !== "evidence_receipt_recorded") return;
+    assert.equal(result.retirementEvent.data.summary, supervisoryRequestRetiredUnsentSummary);
+    assert.ok(result.retirementEvent.data.refs.includes(`request:${staleRoot.requestId}`));
+    assert.ok(result.retirementEvent.data.refs.includes("lifecycle_status:RETIRED_UNSENT"));
+    assert.deepEqual(pendingDecisionRequests(store.workerEvents(watch.worker)).map((item) => item.requestId),
+      [result.reviewRequestId]);
+    assert.notEqual(result.reviewRequestId, staleRoot.requestId);
+    assert.equal(store.fleetSupervisorWatch(watch.projectId)?.state, "PAUSED");
+    assert.equal(result.reviewEvent.data.type, "worker_message_recorded");
+    if (result.reviewEvent.data.type !== "worker_message_recorded") return;
+    const currentRoot = JSON.parse(result.reviewEvent.data.body.slice(inBandRequestRoutePrefix.length));
+    const facts = JSON.parse(currentRoot.factualPacket.exactFactualState);
+    assert.equal(facts.decision_boundary.event_id, evidenceEvent.eventId);
+    assert.equal(facts.execution.latest_verified_sealed_evidence.event_id, evidenceEvent.eventId);
+    assert.equal(facts.execution.latest_verified_sealed_evidence.exact_candidate_sha256, "a".repeat(64));
+
+    const replayCount = store.count();
+    const replay = retireUnsentFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: staleRoot.requestId,
+      evidenceEventId: evidenceEvent.eventId,
+    }, proof, "2026-09-19T02:00:02.000Z");
+    assert.equal(replay.duplicate, true);
+    assert.equal(replay.reviewRequestId, result.reviewRequestId);
+    assert.equal(store.count(), replayCount);
+  } finally {
+    if (previous === undefined) delete process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+    else process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = previous;
+    if (previousPolicy === undefined) delete process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+    else process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = previousPolicy;
+    store.close();
+  }
+});
+
+test("unsent retirement fails closed on any durable request-bound provider evidence", () => {
+  const store = new EventStore(":memory:");
+  const previous = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+  const previousPolicy = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+  try {
+    seedStore(store);
+    process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = JSON.stringify([configuredProjectManager()]);
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify(configuredReceiptPolicy());
+    const watch = store.ensureFleetSupervisorWatch("project:auth", "task:auth", "auth", t0);
+    store.configureFleetSupervisorWatch(watch.projectId, { state: "PAUSED" }, t0);
+    const stale = routeFleetSupervisorReasoning(store, watch, {
+      trigger: "REASONING_REVIEW_OVERDUE", result: "Review required.", state: "PAUSED",
+      reasoningRequired: true, mechanicalRecoveryEligible: false, notifyOwner: false, notificationReason: null,
+    }, store.workerEvents(watch.worker));
+    assert.ok(stale && stale.data.type === "worker_message_recorded");
+    if (!stale || stale.data.type !== "worker_message_recorded") return;
+    const staleRoot = JSON.parse(stale.data.body.slice(inBandRequestRoutePrefix.length));
+    const evidenceEvent = store.append({
+      schema_version: 2, event_id: "sealed-current-evidence-with-send", mission_id: "mission-control-live",
+      occurred_at: "2026-09-19T02:00:00.000Z",
+      data: {
+        type: "evidence_receipt_recorded", worker: watch.worker, receipt_id: "sealed-current-evidence-with-send",
+        producer_id: "collector:test", producer_role: "COLLECTOR", evidence_class: "ARTIFACT",
+        independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: "c".repeat(64),
+        summary: "SEALED_TEST_EXECUTION_RESULT_V1",
+        refs: ["status:STAGE_COMPLETE", "next_reasoning_review_required:true"], verified: true, changed_path_manifest: null,
+      },
+    });
+    store.append({
+      schema_version: 2, event_id: "provider-send-evidence", mission_id: "mission-control-live",
+      occurred_at: "2026-09-19T02:00:00.500Z",
+      data: {
+        type: "evidence_receipt_recorded", worker: watch.worker, receipt_id: "provider-send-evidence",
+        producer_id: "collector:test", producer_role: "COLLECTOR", evidence_class: "ARTIFACT",
+        independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: null,
+        summary: "MISSION_CONTROL_RELAY_STAGE_V1",
+        refs: [`request:${staleRoot.requestId}`, "generation_state:STARTED"], verified: true, changed_path_manifest: null,
+      },
+    });
+    assert.throws(() => retireUnsentFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: staleRoot.requestId,
+      evidenceEventId: evidenceEvent.eventId,
+    }, {
+      schemaVersion: 1, requestId: staleRoot.requestId, pacingDomain: "provider-account:test", ledgerValid: true,
+      matchingStateSections: [], queueRecordCount: 0, admissionRecordCount: 0, provenUnsent: true,
+      proofSha256: "d".repeat(64),
+    }, "2026-09-19T02:00:01.000Z"), /durable send, delivery, response, decision, or ambiguous lifecycle evidence/);
   } finally {
     if (previous === undefined) delete process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
     else process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = previous;

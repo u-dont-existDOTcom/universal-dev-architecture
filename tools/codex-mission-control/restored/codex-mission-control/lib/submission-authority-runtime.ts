@@ -270,6 +270,41 @@ export class SubmissionAuthorityRuntime {
     };
   }
 
+  async proveRequestUnsent(requestId: string) {
+    if (!/^fleet-review:[a-f0-9]{32}$/.test(requestId)) {
+      throw new Error("Unsent-request proof requires one exact fleet-review request ID.");
+    }
+    await this.requireScheduler();
+    if (!this.stateStore || !this.pacingDomain) {
+      throw new SubmissionAuthorityDisabledError("Mission Control submission authority is unavailable.");
+    }
+    const state = await this.stateStore.read();
+    const ledger = this.store.verifySubmissionAuthorityLedger(this.pacingDomain);
+    const matchingStateSections = Object.entries(state)
+      .filter(([, value]) => containsExactString(value, requestId))
+      .map(([key]) => key)
+      .sort();
+    const queueRecords = (state.queueItems ?? []).filter((item: SchedulerState) => containsExactString(item, requestId));
+    const admissionRecords = (state.admissions ?? []).filter((item: SchedulerState) => containsExactString(item, requestId));
+    const proof = {
+      schemaVersion: 1 as const,
+      requestId,
+      pacingDomain: this.pacingDomain,
+      ledgerValid: ledger.valid === true,
+      matchingStateSections,
+      queueRecordCount: queueRecords.length,
+      admissionRecordCount: admissionRecords.length,
+    };
+    return {
+      ...proof,
+      provenUnsent: proof.ledgerValid
+        && matchingStateSections.length === 0
+        && queueRecords.length === 0
+        && admissionRecords.length === 0,
+      proofSha256: createHash("sha256").update(JSON.stringify(proof)).digest("hex"),
+    };
+  }
+
   async ledger(producer: AuthenticatedProducer, limit = 200) {
     const scheduler = await this.requireScheduler();
     const relayBinding = await this.relayBindingFor(producer, scheduler);
@@ -809,6 +844,13 @@ function findChangedRelayBinding(
     }
   }
   return null;
+}
+
+function containsExactString(value: unknown, expected: string): boolean {
+  if (value === expected) return true;
+  if (Array.isArray(value)) return value.some((item) => containsExactString(item, expected));
+  if (!value || typeof value !== "object") return false;
+  return Object.values(value as Record<string, unknown>).some((item) => containsExactString(item, expected));
 }
 
 export function pacingDiagnostics(records: Array<Record<string, unknown>>, minimumIntervalMs: number) {

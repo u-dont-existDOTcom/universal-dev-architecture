@@ -461,6 +461,38 @@ test('a valid V6 empty-completion replacement fences only its exact old route', 
     .map((route) => route.requestId), ['fresh-request']);
 });
 
+test('a verifier-bound RETIRED_UNSENT receipt removes only its exact stale route', () => {
+  const chat = parseChatDirectory([chatFixture()])[0];
+  const stale = inBandSupervisoryPacket('fleet-review:' + '5'.repeat(32), 'stale-nonce', '2026-09-02T12:00:00.000Z');
+  const current = {
+    ...structuredClone(stale),
+    requestId: 'fleet-review:' + '6'.repeat(32),
+    nonce: 'current-nonce',
+    queuedAt: '2026-09-02T12:02:00.000Z',
+    factualPacket: {
+      ...structuredClone(stale.factualPacket),
+      packetId: 'packet:current',
+      exactFactualState: 'current sealed evidence',
+    },
+  };
+  const snapshot = { workers: [{ id: 'worker-a', name: 'Worker A', timeline: [
+    { eventId: 'stale-route', sequence: 1, occurredAt: stale.queuedAt, data: { type: 'worker_message_recorded', message_id: 'stale-message', body: IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(stale) } },
+    { eventId: 'retired-unsent', sequence: 2, occurredAt: '2026-09-02T12:01:00.000Z', data: {
+      type: 'evidence_receipt_recorded', summary: 'MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1', verified: true,
+      producer_id: 'verifier:fleet-supervisor-request-retirement', producer_role: 'VERIFIER',
+      refs: [`request:${stale.requestId}`, 'lifecycle_status:RETIRED_UNSENT', 'provider_send_boundary:NOT_CROSSED',
+        'submission_authority_queue_records:0', 'submission_authority_admission_records:0', 'provider_transport_evidence_records:0'],
+    } },
+    { eventId: 'current-route', sequence: 3, occurredAt: current.queuedAt, data: { type: 'worker_message_recorded', message_id: 'current-message', body: IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(current) } },
+  ] }] };
+  assert.deepEqual(extractQueuedRoutes(snapshot, [chat], defaultState()).map((route) => route.requestId), [current.requestId]);
+
+  const tampered = structuredClone(snapshot);
+  tampered.workers[0].timeline[1].data.producer_role = 'COLLECTOR';
+  assert.deepEqual(extractQueuedRoutes(tampered, [chat], defaultState()).map((route) => route.requestId),
+    [stale.requestId, current.requestId]);
+});
+
 test('a tampered V6 replacement cannot fence the old route or become generation-eligible', () => {
   const chat = parseChatDirectory([chatFixture()])[0];
   const prior = inBandSupervisoryPacket('old-request', 'old-nonce', '2026-09-02T12:00:00.000Z');

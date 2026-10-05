@@ -1,6 +1,10 @@
 import { canonicalJson, sha256 } from "./canonical";
 import { CANONICAL_PROJECT_MANAGER_ID, loadConfiguredSupervisorChats } from "./configured-supervisor-chats";
-import { parseGitHubReceiptPolicy, pendingDecisionRequests } from "./github-decision-receipts";
+import {
+  parseGitHubReceiptPolicy,
+  pendingDecisionRequests,
+  supervisoryRequestRetiredUnsentSummary,
+} from "./github-decision-receipts";
 import { inBandRequestRoutePrefix } from "./in-band-request-binding";
 import { evaluateSupervisionAdmission } from "./supervision-admission-runtime";
 import type { AuthenticatedProducer } from "./ingestion-auth";
@@ -53,6 +57,26 @@ export interface FleetReasoningReplacementResult {
   event: StoredEvent;
   supersededRequestId: string;
   replacementRequestId: string;
+  duplicate: boolean;
+}
+
+export interface ProvenUnsentSubmissionState {
+  schemaVersion: 1;
+  requestId: string;
+  pacingDomain: string;
+  ledgerValid: boolean;
+  matchingStateSections: string[];
+  queueRecordCount: number;
+  admissionRecordCount: number;
+  provenUnsent: boolean;
+  proofSha256: string;
+}
+
+export interface FleetReasoningUnsentRetirementResult {
+  retirementEvent: StoredEvent;
+  reviewEvent: StoredEvent;
+  retiredRequestId: string;
+  reviewRequestId: string;
   duplicate: boolean;
 }
 
@@ -319,6 +343,145 @@ export function replaceFleetSupervisorReasoningRequest(
   return { event, supersededRequestId: input.requestId, replacementRequestId, duplicate: false };
 }
 
+export function retireUnsentFleetSupervisorReasoningRequest(
+  store: EventStore,
+  watch: FleetSupervisorWatchRecord,
+  input: { requestId: string; evidenceEventId: string },
+  submissionProof: ProvenUnsentSubmissionState,
+  now = new Date().toISOString(),
+): FleetReasoningUnsentRetirementResult {
+  if (!/^fleet-review:[a-f0-9]{32}$/.test(input.requestId)) {
+    throw new Error("Unsent retirement requires one exact fleet-review request ID.");
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,179}$/.test(input.evidenceEventId)) {
+    throw new Error("Unsent retirement requires one exact evidence event ID.");
+  }
+  if (!Number.isFinite(Date.parse(now))) throw new Error("Unsent retirement time must be an offset-aware timestamp.");
+  if (watch.state !== "PAUSED") throw new Error("Unsent retirement requires the exact fleet watch to remain paused.");
+  if (submissionProof.schemaVersion !== 1
+    || submissionProof.requestId !== input.requestId
+    || submissionProof.provenUnsent !== true
+    || submissionProof.ledgerValid !== true
+    || submissionProof.matchingStateSections.length !== 0
+    || submissionProof.queueRecordCount !== 0
+    || submissionProof.admissionRecordCount !== 0
+    || !/^[a-f0-9]{64}$/.test(submissionProof.proofSha256)) {
+    throw new Error("Submission authority did not prove the exact request unsent.");
+  }
+
+  const history = store.workerEvents(watch.worker);
+  const sourceEvent = routeEvent(history, input.requestId);
+  if (!sourceEvent || sourceEvent.data.type !== "worker_message_recorded") {
+    throw new Error("The exact stale request route is missing.");
+  }
+  const sourceRoot = inBandRouteRoot(sourceEvent);
+  if (!sourceRoot || sourceRoot.schemaVersion !== 6 || sourceRoot.requestId !== input.requestId) {
+    throw new Error("Only one exact V6 fleet reasoning request may be retired unsent.");
+  }
+  const evidenceEvent = store.eventByEventId(input.evidenceEventId);
+  if (!evidenceEvent || evidenceEvent.worker !== watch.worker || evidenceEvent.sequence <= sourceEvent.sequence
+    || evidenceEvent.data.type !== "evidence_receipt_recorded" || evidenceEvent.data.verified !== true
+    || !evidenceEvent.data.refs.includes("status:STAGE_COMPLETE")
+    || !evidenceEvent.data.refs.includes("next_reasoning_review_required:true")
+    || !evidenceEvent.data.exact_candidate_sha256
+    || !/^[a-f0-9]{64}$/.test(evidenceEvent.data.exact_candidate_sha256)) {
+    throw new Error("The requested current evidence boundary is not a later verified completed stage requiring reasoning review.");
+  }
+  const currentBoundary = reasoningBoundary(history);
+  if (!currentBoundary || currentBoundary.eventId !== evidenceEvent.eventId) {
+    throw new Error("The requested evidence event is not the exact current reasoning boundary.");
+  }
+
+  const existingRetirement = history.findLast((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === supervisoryRequestRetiredUnsentSummary
+    && event.data.producer_id === "verifier:fleet-supervisor-request-retirement"
+    && event.data.producer_role === "VERIFIER"
+    && event.data.refs.includes(`request:${input.requestId}`));
+  const otherRequestEvidence = history.filter((event) => event.eventId !== sourceEvent.eventId
+    && event.eventId !== existingRetirement?.eventId
+    && containsRequestReference(event.data, input.requestId));
+  if (otherRequestEvidence.length > 0) {
+    throw new Error("The request has durable send, delivery, response, decision, or ambiguous lifecycle evidence and cannot be retired unsent.");
+  }
+
+  const retirementHash = sha256(`${input.requestId}\n${input.evidenceEventId}\n${submissionProof.proofSha256}`);
+  const retirementEvent = existingRetirement ?? store.append({
+    schema_version: 2,
+    event_id: `supervisory-request-retired-unsent:${retirementHash.slice(0, 32)}`,
+    mission_id: "mission-control-live",
+    occurred_at: now,
+    data: {
+      type: "evidence_receipt_recorded",
+      worker: watch.worker,
+      receipt_id: `supervisory-request-retired-unsent:${retirementHash.slice(0, 32)}`,
+      producer_id: "verifier:fleet-supervisor-request-retirement",
+      producer_role: "VERIFIER",
+      evidence_class: "ARTIFACT",
+      independence: "INDEPENDENT",
+      freshness: "CURRENT",
+      exact_candidate_sha256: submissionProof.proofSha256,
+      summary: supervisoryRequestRetiredUnsentSummary,
+      refs: [
+        `request:${input.requestId}`,
+        `source_route_event:${sourceEvent.eventId}`,
+        `evidence_boundary_event:${evidenceEvent.eventId}`,
+        `evidence_boundary_sequence:${evidenceEvent.sequence}`,
+        `submission_authority_proof_sha256:${submissionProof.proofSha256}`,
+        `submission_authority_pacing_domain:${submissionProof.pacingDomain}`,
+        "lifecycle_status:RETIRED_UNSENT",
+        "provider_send_boundary:NOT_CROSSED",
+        "submission_authority_queue_records:0",
+        "submission_authority_admission_records:0",
+        "provider_transport_evidence_records:0",
+        "historical_request_preserved:true",
+      ],
+      verified: true,
+      changed_path_manifest: null,
+    },
+  }, undefined, {
+    id: "verifier:fleet-supervisor-request-retirement",
+    kind: "VERIFIER",
+    workerScopes: [watch.worker],
+    taskScopes: [watch.taskId],
+  });
+
+  const pendingAfterRetirement = pendingDecisionRequests(store.workerEvents(watch.worker));
+  const unrelatedPending = pendingAfterRetirement.filter((request) => request.requestId !== input.requestId);
+  if (pendingAfterRetirement.some((request) => request.requestId === input.requestId) || unrelatedPending.length > 1) {
+    throw new Error("Unsent retirement did not leave one unambiguous reasoning queue position.");
+  }
+  const reviewEvent = unrelatedPending.length === 1
+    ? routeEvent(store.workerEvents(watch.worker), unrelatedPending[0]!.requestId)
+    : routeFleetSupervisorReasoning(store, watch, {
+      trigger: "REASONING_REVIEW_OVERDUE",
+      result: "Current sealed execution evidence was routed to the existing reasoning lane after proven-unsent retirement.",
+      state: "PAUSED",
+      reasoningRequired: true,
+      mechanicalRecoveryEligible: false,
+      notifyOwner: false,
+      notificationReason: null,
+    }, store.workerEvents(watch.worker));
+  if (!reviewEvent || reviewEvent.data.type !== "worker_message_recorded") {
+    throw new Error("Unsent retirement did not produce one current reasoning review route.");
+  }
+  const reviewRoot = inBandRouteRoot(reviewEvent);
+  const expectedReviewRequestId = `fleet-review:${sha256(`${watch.projectId}\n${evidenceEvent.eventId}`).slice(0, 32)}`;
+  if (!reviewRoot || reviewRoot.requestId !== expectedReviewRequestId) {
+    throw new Error("The new reasoning review is not bound to the exact current evidence boundary.");
+  }
+  const active = pendingDecisionRequests(store.workerEvents(watch.worker));
+  if (active.length !== 1 || active[0]!.requestId !== expectedReviewRequestId) {
+    throw new Error("Unsent retirement did not leave exactly one current reasoning review.");
+  }
+  return {
+    retirementEvent,
+    reviewEvent,
+    retiredRequestId: input.requestId,
+    reviewRequestId: expectedReviewRequestId,
+    duplicate: Boolean(existingRetirement),
+  };
+}
+
 function inBandRouteRoot(event: StoredEvent): Record<string, unknown> | null {
   return event.data.type === "worker_message_recorded" ? inBandRouteRootFromBody(event.data.body) : null;
 }
@@ -334,6 +497,20 @@ function inBandRouteRootFromBody(body: string): Record<string, unknown> | null {
 function routeRecord(value: unknown, field: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${field} must be an object.`);
   return value as Record<string, unknown>;
+}
+
+function containsExactString(value: unknown, expected: string): boolean {
+  if (value === expected) return true;
+  if (Array.isArray(value)) return value.some((item) => containsExactString(item, expected));
+  if (!value || typeof value !== "object") return false;
+  return Object.values(value as Record<string, unknown>).some((item) => containsExactString(item, expected));
+}
+
+function containsRequestReference(value: unknown, requestId: string): boolean {
+  if (containsExactString(value, requestId)) return true;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const refs = (value as Record<string, unknown>).refs;
+  return Array.isArray(refs) && refs.includes(`request:${requestId}`);
 }
 
 function routeEvent(events: readonly StoredEvent[], requestId: string): StoredEvent | null {
@@ -354,7 +531,15 @@ function reasoningBoundary(events: readonly StoredEvent[]): StoredEvent | null {
     "outcome_progress_recorded", "worker_checkpoint_recorded", "execution_directive_recorded",
     "structured_blocker_recorded", "work_queue_published",
   ]);
-  return events.findLast((event) => boundaryTypes.has(event.data.type)) ?? null;
+  return events.findLast((event) => boundaryTypes.has(event.data.type) || isReviewBoundaryEvidence(event)) ?? null;
+}
+
+function isReviewBoundaryEvidence(event: StoredEvent) {
+  return event.data.type === "evidence_receipt_recorded"
+    && event.data.verified === true
+    && Boolean(event.data.exact_candidate_sha256)
+    && event.data.refs.includes("status:STAGE_COMPLETE")
+    && event.data.refs.includes("next_reasoning_review_required:true");
 }
 
 function fleetReasoningFacts(
@@ -366,6 +551,7 @@ function fleetReasoningFacts(
   const queue = events.findLast((event) => event.data.type === "work_queue_published")?.data;
   const outcome = events.findLast((event) => event.data.type === "owner_outcome_recorded")?.data;
   const receipt = events.findLast((event) => event.data.type === "execution_receipt_recorded")?.data;
+  const sealedExecutionEvidence = events.findLast((event) => isReviewBoundaryEvidence(event));
   const directivePaths = events.flatMap((event) => event.data.type === "execution_directive_recorded"
     ? event.data.allowed_paths
     : []);
@@ -417,6 +603,14 @@ function fleetReasoningFacts(
         deviations: receipt.deviations,
         blockers: receipt.blockers,
         next_reasoning_review_required: receipt.next_reasoning_review_required,
+      } : null,
+      latest_verified_sealed_evidence: sealedExecutionEvidence?.data.type === "evidence_receipt_recorded" ? {
+        event_id: sealedExecutionEvidence.eventId,
+        sequence: sealedExecutionEvidence.sequence,
+        receipt_id: sealedExecutionEvidence.data.receipt_id,
+        summary: sealedExecutionEvidence.data.summary,
+        exact_candidate_sha256: sealedExecutionEvidence.data.exact_candidate_sha256,
+        refs: sealedExecutionEvidence.data.refs,
       } : null,
       current_step: worker.currentStep,
       completed_steps: worker.completedSteps,

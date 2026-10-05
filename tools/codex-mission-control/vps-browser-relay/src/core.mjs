@@ -15,6 +15,7 @@ export const PROVIDER_SESSION_MODEL_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_
 export const PROVIDER_SESSION_MCP_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_MCP_READ_V1';
 export const BINDING_CAPSULE_SUMMARY = 'MISSION_CONTROL_BINDING_CAPSULE_V1';
 export const BINDING_ENVELOPE_SUMMARY = 'MISSION_CONTROL_BINDING_ENVELOPE_V1';
+export const SUPERVISORY_REQUEST_RETIRED_UNSENT_SUMMARY = 'MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1';
 export const MCP_BINDING_PRELOAD_STEP = 'MCP_BINDING_PRELOAD';
 export const REQUEST_BOUND_STEP = 'REQUEST_BOUND_DECISION';
 export const REQUEST_BOUND_CYCLE_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n';
@@ -425,6 +426,7 @@ export function extractQueuedRoutes(snapshot, chats, state) {
   const receiptByWorkerRequest = new Map();
   const livenessByWorkerRequest = new Map();
   const mcpByWorkerRequest = new Map();
+  const retiredUnsentRequests = new Set();
   for (const worker of snapshot.workers) {
     if (!isRecord(worker) || !Array.isArray(worker.timeline)) continue;
     const workerId = typeof worker.id === 'string' ? worker.id : 'unknown-worker';
@@ -432,6 +434,21 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       if (!isRecord(event?.data)) continue;
       if (event.data.type === 'github_decision_receipt_ingested' && typeof event.data.request_id === 'string') {
         receiptByWorkerRequest.set(`${workerId}:${event.data.request_id}`, event.data);
+        continue;
+      }
+      if (event.data.type === 'evidence_receipt_recorded'
+        && event.data.summary === SUPERVISORY_REQUEST_RETIRED_UNSENT_SUMMARY
+        && event.data.verified === true
+        && event.data.producer_id === 'verifier:fleet-supervisor-request-retirement'
+        && event.data.producer_role === 'VERIFIER'
+        && Array.isArray(event.data.refs)
+        && event.data.refs.includes('lifecycle_status:RETIRED_UNSENT')
+        && event.data.refs.includes('provider_send_boundary:NOT_CROSSED')
+        && event.data.refs.includes('submission_authority_queue_records:0')
+        && event.data.refs.includes('submission_authority_admission_records:0')
+        && event.data.refs.includes('provider_transport_evidence_records:0')) {
+        const requestId = refValue(event.data.refs, 'request:');
+        if (requestId) retiredUnsentRequests.add(`${workerId}:${requestId}`);
         continue;
       }
       if (event.data.type === 'evidence_receipt_recorded' && event.data.summary === PROVIDER_SESSION_MCP_SUMMARY
@@ -464,6 +481,7 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       if (!isRecord(event) || !isRecord(event.data) || event.data.type !== 'worker_message_recorded') continue;
       const packet = parseSupervisoryCycleRouteBody(event.data.body) ?? parseInternalSupervisorRouteBody(event.data.body);
       if (!packet) continue;
+      if (retiredUnsentRequests.has(`${workerId}:${packet.requestId}`)) continue;
       const chat = chatById.get(packet.destinationSupervisorId);
       if (!chat || (chat.scope !== 'PROJECT_MANAGER' && chat.workerId !== workerId)) continue;
       if (packet.routeSchemaVersion !== 3 && packet.routeSchemaVersion !== 4 && packet.routeSchemaVersion !== 5 && packet.routeSchemaVersion !== 6) continue;
