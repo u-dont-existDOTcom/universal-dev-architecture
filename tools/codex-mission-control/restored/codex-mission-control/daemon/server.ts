@@ -33,6 +33,7 @@ import { observeFleetSupervisorWithJev } from "../lib/jev-shadow";
 import { boundedJevShadowHook } from "../lib/jev-shadow-hook";
 import { FleetSupervisorLoop, fleetSupervisorSlowTickMs, fleetSupervisorStallMs } from "../lib/fleet-supervisor-loop";
 import { jevShadowSummaryForProducer, jevShadowSummaryTool } from "../lib/jev-shadow-surface";
+import { githubReconciliationTokenProviderFromEnv } from "../lib/github-app-auth";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
 const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
@@ -60,11 +61,14 @@ const githubChallengeEvents = ensureConfiguredCapabilityChallenges(
 const githubReconciliationEventCache = githubPolicy && githubReconciliationStartupEvents
   ? GitHubReconciliationEventCache.fromEvents(store, [...githubReconciliationStartupEvents, ...githubChallengeEvents])
   : null;
+const githubReconciliationTokenProvider = githubPolicy
+  ? githubReconciliationTokenProviderFromEnv({ repository: githubPolicy.repository })
+  : null;
 const eventHistory = () => githubReconciliationEventCache?.eventsForRead(store) ?? store.allEvents();
 const githubReconciliationCoordinator = githubPolicy && githubReconciliationEventCache
   ? new GitHubReconciliationCoordinator({
     execute: () => reconcileGitHubDecisionReceipts(store, {
-      token: process.env.MISSION_CONTROL_GITHUB_RECONCILIATION_TOKEN,
+      tokenProvider: githubReconciliationTokenProvider ?? undefined,
       policy: githubPolicy,
       eventCache: githubReconciliationEventCache,
     }),

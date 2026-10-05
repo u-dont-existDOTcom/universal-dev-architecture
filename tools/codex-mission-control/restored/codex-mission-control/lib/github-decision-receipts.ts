@@ -16,6 +16,7 @@ import { validateOwnerResponseContinuation } from "./owner-response-continuation
 import { buildExecutionDirectiveFromGitHubDecision } from "./github-execution-directive";
 import { WORK_CLOUD_EXECUTION_RECEIPT_PREFIX } from "./chatgpt-work-cloud-autodispatch";
 import { buildPostWorkReasoningRouteEnvelope, POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID } from "./post-work-reasoning-route";
+import type { GitHubReconciliationTokenProvider } from "./github-app-auth";
 
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
 export const stagedSupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
@@ -887,7 +888,8 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "unknown cache failure";
 }
 
-export async function reconcileGitHubDecisionReceipts(store: EventStore, options: { token?: string; policy: GitHubReceiptPolicy; fetchImpl?: typeof fetch; now?: string; eventCache?: GitHubReconciliationEventCache }): Promise<StoredEvent[]> {
+export async function reconcileGitHubDecisionReceipts(store: EventStore, options: { token?: string; tokenProvider?: GitHubReconciliationTokenProvider; policy: GitHubReceiptPolicy; fetchImpl?: typeof fetch; now?: string; eventCache?: GitHubReconciliationEventCache }): Promise<StoredEvent[]> {
+  if (options.token?.trim() && options.tokenProvider) throw new Error("GitHub reconciliation cannot use static and provider tokens together.");
   const fetchImpl = options.fetchImpl ?? fetch, appended: StoredEvent[] = [];
   const batchEvents = options.eventCache ? options.eventCache.eventsForCycle(store) : [...store.allEvents()];
   const accepted = reconstructGitHubReconciliationState(batchEvents, options.policy, options.now);
@@ -896,7 +898,8 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
     "x-github-api-version": "2022-11-28",
     "user-agent": "mission-control-supervision-reconciler",
   };
-  if (options.token?.trim()) headers.authorization = `Bearer ${options.token}`;
+  const token = options.tokenProvider ? await options.tokenProvider() : options.token;
+  if (token?.trim()) headers.authorization = `Bearer ${token}`;
   for (const issueNumber of [...new Set([options.policy.decisionIssueNumber, options.policy.capabilityIssueNumber, options.policy.stageIssueNumber])]) {
     let page = 1;
     for (;;) {
