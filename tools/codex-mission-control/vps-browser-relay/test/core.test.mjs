@@ -6,6 +6,7 @@ import {
   CONTINUE_NUDGE_DELAY_MS,
   MANAGED_CHATGPT_HARD_CEILING_TABS,
   IN_BAND_REQUEST_STEP,
+  IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX,
   MCP_BINDING_PRELOAD_STEP,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
@@ -425,6 +426,62 @@ test('new schema v4 parses and extracts without changing staged schema v3 compat
   assert.equal(routes[0].packet.routeSchemaVersion, 4);
 });
 
+test('a valid V6 empty-completion replacement fences only its exact old route', () => {
+  const chat = parseChatDirectory([chatFixture()])[0];
+  const prior = inBandSupervisoryPacket('old-request', 'old-nonce', '2026-09-02T12:00:00.000Z');
+  const replacement = {
+    ...structuredClone(prior),
+    requestId: 'fresh-request',
+    nonce: 'fresh-nonce',
+    queuedAt: '2026-09-02T12:01:00.000Z',
+    expiresAt: '2026-09-03T12:01:00.000Z',
+    factualPacket: { ...structuredClone(prior.factualPacket), packetId: 'packet:fresh-request' },
+    supersedesRequestId: prior.requestId,
+    supersession: {
+      schemaVersion: 1,
+      reasonCode: 'PROVIDER_EMPTY_COMPLETION',
+      failureReceiptSha256: 'f'.repeat(64),
+      authorization: 'OWNER_EXPLICIT_ONE_REPLACEMENT',
+      replacementOrdinal: 1,
+    },
+  };
+  const routes = extractQueuedRoutes(v6ReplacementSnapshot(prior, replacement), [chat], defaultState());
+  assert.deepEqual(routes.map((route) => route.requestId), ['fresh-request']);
+  assert.equal(parseSupervisoryCycleRouteBody(IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(replacement)).supersedesRequestId, 'old-request');
+  const secondReplacement = {
+    ...structuredClone(replacement), requestId: 'second-fresh-request', nonce: 'second-fresh-nonce',
+    queuedAt: '2026-09-02T12:02:00.000Z', expiresAt: '2026-09-03T12:02:00.000Z',
+    factualPacket: { ...structuredClone(replacement.factualPacket), packetId: 'packet:second-fresh-request' },
+  };
+  assert.deepEqual(extractQueuedRoutes(v6ReplacementSnapshot(prior, replacement, secondReplacement), [chat], defaultState())
+    .map((route) => route.requestId), ['fresh-request']);
+});
+
+test('a tampered V6 replacement cannot fence the old route or become generation-eligible', () => {
+  const chat = parseChatDirectory([chatFixture()])[0];
+  const prior = inBandSupervisoryPacket('old-request', 'old-nonce', '2026-09-02T12:00:00.000Z');
+  const tampered = {
+    ...structuredClone(prior),
+    requestId: 'fresh-request',
+    nonce: 'fresh-nonce',
+    queuedAt: '2026-09-02T12:01:00.000Z',
+    expiresAt: '2026-09-03T12:01:00.000Z',
+    factualPacket: { ...structuredClone(prior.factualPacket), packetId: 'packet:fresh-request', decisionRequested: 'different decision' },
+    supersedesRequestId: prior.requestId,
+    supersession: {
+      schemaVersion: 1,
+      reasonCode: 'PROVIDER_EMPTY_COMPLETION',
+      failureReceiptSha256: 'f'.repeat(64),
+      authorization: 'OWNER_EXPLICIT_ONE_REPLACEMENT',
+      replacementOrdinal: 1,
+    },
+  };
+  assert.deepEqual(extractQueuedRoutes(v6ReplacementSnapshot(prior, tampered), [chat], defaultState())
+    .map((route) => route.requestId), ['old-request']);
+  const malformed = { ...tampered, supersession: { ...tampered.supersession, replacementOrdinal: 2 } };
+  assert.equal(parseSupervisoryCycleRouteBody(IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(malformed)), null);
+});
+
 test('ambiguous routes never receive automatic recovery', () => {
   assert.equal(nextSupervisoryCycleAction(escalatedRoute(), { status: 'AMBIGUOUS_AFTER_RESTART' }), null);
 });
@@ -568,4 +625,39 @@ function directSupervisoryBody(lane) {
     githubReceipt: { repository: 'o/r', issueNumber: 1, stageIssueNumber: 2 }, factualPacket: { packetId: 'p1', taskId: 't1', exactFactualState: 'x', evidenceRefs: [], decisionRequested: 'decide' },
     queuedAt: '2026-09-02T00:00:00.000Z', expiresAt: '2026-09-03T00:00:00.000Z',
   });
+}
+
+function inBandSupervisoryPacket(requestId, nonce, queuedAt) {
+  return {
+    schemaVersion: 6,
+    packetKind: 'PROVIDER_SESSION_SUPERVISORY_CYCLE',
+    requestId,
+    nonce,
+    reasoningLane: 'EXTRA_HIGH_DIRECT',
+    destination: 'SPECIALIST_SUPERVISOR_CHAT',
+    destinationSupervisorId: 'spec',
+    providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
+    evidenceCapsule: { id: 'cap1', sha256: 'a'.repeat(64) },
+    ownerOutcome: { id: 'out1', epoch: 1, sha256: 'b'.repeat(64) },
+    githubReceipt: { repository: 'o/r', issueNumber: 1, stageIssueNumber: 2 },
+    factualPacket: {
+      packetId: `packet:${requestId}`,
+      taskId: 'task-1',
+      exactFactualState: 'same frozen state',
+      evidenceRefs: ['https://github.com/o/r/issues/3'],
+      decisionRequested: 'same decision',
+    },
+    queuedAt,
+    expiresAt: '2026-09-03T12:00:00.000Z',
+  };
+}
+
+function v6ReplacementSnapshot(prior, ...replacements) {
+  return { workers: [{ id: 'worker-a', name: 'Worker A', timeline: [
+    { eventId: 'old-route', sequence: 1, occurredAt: prior.queuedAt, data: { type: 'worker_message_recorded', message_id: 'old-message', body: IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(prior) } },
+    ...replacements.map((replacement, index) => ({
+      eventId: `fresh-route-${index + 1}`, sequence: index + 2, occurredAt: replacement.queuedAt,
+      data: { type: 'worker_message_recorded', message_id: `fresh-message-${index + 1}`, body: IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(replacement) },
+    })),
+  ] }] };
 }

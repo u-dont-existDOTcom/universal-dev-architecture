@@ -27,7 +27,7 @@ import { SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/sub
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
 import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
 import { GitHubReconciliationCoordinator } from "../lib/github-reconciliation-coordinator";
-import { FleetSupervisorRuntime, routeFleetSupervisorReasoning } from "../lib/fleet-supervisor";
+import { FleetSupervisorRuntime, replaceFleetSupervisorReasoningRequest, routeFleetSupervisorReasoning } from "../lib/fleet-supervisor";
 import { enrollFleetSupervisorWatch, parseFleetWatchEnrollment } from "../lib/fleet-watch-enrollment";
 import { observeFleetSupervisorWithJev } from "../lib/jev-shadow";
 import { boundedJevShadowHook } from "../lib/jev-shadow-hook";
@@ -115,6 +115,35 @@ const server = http.createServer(async (request, response) => {
       const result = enrollFleetSupervisorWatch(store, decodeURIComponent(fleetEnrollMatch[1]), enrollment);
       notifications.emit("event", { type: "fleet_supervisor_watch_configured", projectId: result.watch.projectId });
       return json(response, result.created ? 201 : 200, result);
+    }
+    const fleetReasoningReplacementMatch = url.pathname.match(/^\/fleet-supervisor\/([^/]+)\/reasoning-replace$/);
+    if (request.method === "POST" && fleetReasoningReplacementMatch) {
+      const producer = authorizeMutation(request);
+      if (!["OWNER_AUTHORITY", "UI"].includes(producer.kind)) return json(response, 403, { error: "Only an authenticated owner surface may replace a reasoning request." });
+      const projectId = decodeURIComponent(fleetReasoningReplacementMatch[1]);
+      const watch = store.fleetSupervisorWatch(projectId);
+      if (!watch) return json(response, 404, { error: "Fleet watch not found." });
+      if (watch.state !== "PAUSED") return json(response, 409, { error: "Reasoning replacement requires the exact fleet watch to be paused." });
+      const body = await readJson(request) as Record<string, unknown>;
+      try {
+        const result = replaceFleetSupervisorReasoningRequest(store, watch, {
+          requestId: typeof body.request_id === "string" ? body.request_id : "",
+          failureReceiptSha256: typeof body.failure_receipt_sha256 === "string" ? body.failure_receipt_sha256 : "",
+        });
+        notifications.emit("event", result.event);
+        return json(response, result.duplicate ? 200 : 201, {
+          status: "REASONING_REQUEST_REPLACED",
+          projectId,
+          worker: watch.worker,
+          supersededRequestId: result.supersededRequestId,
+          replacementRequestId: result.replacementRequestId,
+          eventId: result.event.eventId,
+          duplicate: result.duplicate,
+          oldRequestLateReceiptsAdmissible: false,
+        });
+      } catch (error) {
+        return json(response, 409, { error: error instanceof Error ? error.message : "Reasoning replacement was rejected." });
+      }
     }
     const fleetWatchMatch = url.pathname.match(/^\/fleet-supervisor\/([^/]+)$/);
     if (request.method === "POST" && fleetWatchMatch) {

@@ -78,11 +78,14 @@ export interface PublicCapabilityChallenge {
 export interface PendingDecisionRequest {
   continuation?: OwnerResponseContinuation;
   executionContext?: RequestExecutionContext;
+  supersedesRequestId?: string;
+  replacementFailureReceiptSha256?: string;
   worker: string; taskId: string; requestId: string; supervisorId: string; routeSchemaVersion: 2 | 3 | 4 | 5 | 6; nonce: string;
   evidenceCapsule: { id: string; sha256: string };
   ownerOutcome: { id: string; epoch: number; sha256: string };
   reasoningLane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED";
   repository: string; issueNumber: number; stageIssueNumber: number; queuedAt: string; expiresAt: string;
+  factualStateSha256: string; evidenceRefsSha256: string; decisionRequestedSha256: string;
 }
 export interface GitHubDecisionCandidate {
   repository: string; issueNumber: number; commentId: number; immutableUrl: string; createdAt: string;
@@ -587,7 +590,7 @@ export function buildWorkCloudExecutionReceiptAndReturnRoute(
 
 export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionRequest[] {
   const completed = new Set(events.flatMap((e) => e.data.type === "github_decision_receipt_ingested" ? [e.data.request_id] : []));
-  return events.flatMap((event) => {
+  const parsed = events.flatMap((event) => {
     if (event.data.type !== "worker_message_recorded"
       || (!event.data.body.startsWith(inBandRequestRoutePrefix)
         && !event.data.body.startsWith(requestBoundRoutePrefix)
@@ -595,8 +598,40 @@ export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionR
         && !event.data.body.startsWith(stagedSupervisoryCycleRoutePrefix)
         && !event.data.body.startsWith(legacySupervisoryCycleRoutePrefix))) return [];
     const request = parseCycleRequest(event.data.body, event.data.worker);
-    return request && !completed.has(request.requestId) ? [request] : [];
+    return request ? [request] : [];
   });
+  const admitted: PendingDecisionRequest[] = [];
+  const superseded = new Set<string>();
+  for (const request of parsed) {
+    if (request.supersedesRequestId) {
+      const prior = admitted.findLast((candidate) => candidate.requestId === request.supersedesRequestId);
+      if (!prior || superseded.has(prior.requestId) || !validRequestReplacement(prior, request)) continue;
+      superseded.add(prior.requestId);
+    }
+    admitted.push(request);
+  }
+  return admitted.filter((request) => !completed.has(request.requestId) && !superseded.has(request.requestId));
+}
+
+function validRequestReplacement(prior: PendingDecisionRequest, replacement: PendingDecisionRequest) {
+  return prior.routeSchemaVersion === 6 && replacement.routeSchemaVersion === 6
+    && replacement.requestId !== prior.requestId
+    && replacement.worker === prior.worker
+    && replacement.taskId === prior.taskId
+    && replacement.supervisorId === prior.supervisorId
+    && replacement.reasoningLane === prior.reasoningLane
+    && replacement.repository === prior.repository
+    && replacement.issueNumber === prior.issueNumber
+    && replacement.stageIssueNumber === prior.stageIssueNumber
+    && canonicalJson(replacement.evidenceCapsule) === canonicalJson(prior.evidenceCapsule)
+    && canonicalJson(replacement.ownerOutcome) === canonicalJson(prior.ownerOutcome)
+    && canonicalJson(replacement.executionContext) === canonicalJson(prior.executionContext)
+    && canonicalJson(replacement.continuation) === canonicalJson(prior.continuation)
+    && replacement.factualStateSha256 === prior.factualStateSha256
+    && replacement.evidenceRefsSha256 === prior.evidenceRefsSha256
+    && replacement.decisionRequestedSha256 === prior.decisionRequestedSha256
+    && Date.parse(replacement.queuedAt) > Date.parse(prior.queuedAt)
+    && Boolean(replacement.replacementFailureReceiptSha256);
 }
 
 export function buildGitHubDecisionReceiptEnvelope(
@@ -1452,14 +1487,35 @@ function parseCycleRequest(body: string, worker: string): PendingDecisionRequest
     const supervisorId = requiredString(version >= 3 ? root.destinationSupervisorId : root.destinationChatId, version >= 3 ? "destinationSupervisorId" : "destinationChatId");
     const continuation = parseRouteContinuation(root);
     if (continuation && (continuation.binding.worker !== worker || root.worker !== worker)) return null;
+    let supersedesRequestId: string | undefined;
+    let replacementFailureReceiptSha256: string | undefined;
+    if (root.supersedesRequestId !== undefined || root.supersession !== undefined) {
+      if (version !== 6) return null;
+      supersedesRequestId = requiredString(root.supersedesRequestId, "supersedesRequestId");
+      const supersession = record(root.supersession, "supersession");
+      if (supersession.schemaVersion !== 1
+        || supersession.reasonCode !== "PROVIDER_EMPTY_COMPLETION"
+        || supersession.authorization !== "OWNER_EXPLICIT_ONE_REPLACEMENT"
+        || supersession.replacementOrdinal !== 1) return null;
+      replacementFailureReceiptSha256 = digest(supersession.failureReceiptSha256, "supersession.failureReceiptSha256");
+      if (supersedesRequestId === root.requestId) return null;
+    }
+    if (supersedesRequestId && (typeof factual.exactFactualState !== "string"
+      || typeof factual.decisionRequested !== "string"
+      || !Array.isArray(factual.evidenceRefs)
+      || factual.evidenceRefs.some((item) => typeof item !== "string"))) return null;
     return {
       ...(continuation ? { continuation } : {}),
       ...(version >= 5 ? { executionContext: requestExecutionContext(root.executionContext, requiredString(factual.taskId, "factualPacket.taskId")) } : {}),
+      ...(supersedesRequestId ? { supersedesRequestId, replacementFailureReceiptSha256 } : {}),
       worker, taskId: requiredString(factual.taskId, "factualPacket.taskId"), requestId: requiredString(root.requestId, "requestId"), supervisorId, routeSchemaVersion: version, nonce: requiredString(root.nonce, "nonce"),
       evidenceCapsule: { id: requiredString(evidence.id, "evidenceCapsule.id"), sha256: digest(evidence.sha256, "evidenceCapsule.sha256") },
       ownerOutcome: { id: requiredString(outcome.id, "ownerOutcome.id"), epoch: positiveInteger(outcome.epoch, "ownerOutcome.epoch"), sha256: digest(outcome.sha256, "ownerOutcome.sha256") },
       reasoningLane: root.reasoningLane, repository: repositoryName(github.repository, "githubReceipt.repository"), issueNumber: positiveInteger(github.issueNumber, "githubReceipt.issueNumber"), stageIssueNumber: positiveInteger(github.stageIssueNumber, "githubReceipt.stageIssueNumber"),
       queuedAt: timestamp(root.queuedAt, "queuedAt"), expiresAt: timestamp(root.expiresAt, "expiresAt"),
+      factualStateSha256: sha256(canonicalJson({ value: factual.exactFactualState ?? null })),
+      evidenceRefsSha256: sha256(canonicalJson({ value: factual.evidenceRefs ?? null })),
+      decisionRequestedSha256: sha256(canonicalJson({ value: factual.decisionRequested ?? null })),
     };
   } catch { return null; }
 }

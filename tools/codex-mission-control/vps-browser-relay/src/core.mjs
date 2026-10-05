@@ -353,6 +353,16 @@ export function parseSupervisoryCycleRouteBody(body) {
       || value.githubReceipt.issueNumber < 1
       || !Number.isInteger(value.githubReceipt.stageIssueNumber)
       || value.githubReceipt.stageIssueNumber < 1) return null;
+    const hasSupersession = Object.hasOwn(value, 'supersedesRequestId') || Object.hasOwn(value, 'supersession');
+    if (hasSupersession && (version !== 6
+      || typeof value.supersedesRequestId !== 'string'
+      || value.supersedesRequestId === value.requestId
+      || !isRecord(value.supersession)
+      || value.supersession.schemaVersion !== 1
+      || value.supersession.reasonCode !== 'PROVIDER_EMPTY_COMPLETION'
+      || value.supersession.authorization !== 'OWNER_EXPLICIT_ONE_REPLACEMENT'
+      || value.supersession.replacementOrdinal !== 1
+      || !isSha256(value.supersession.failureReceiptSha256))) return null;
     validateOwnerResponseContinuation(value, version);
     return { ...value, routeSchemaVersion: version, destinationSupervisorId: version >= 3 ? value.destinationSupervisorId : value.destinationChatId };
   } catch {
@@ -491,7 +501,52 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       });
     }
   }
-  return routes.sort((left, right) => left.queuedAt.localeCompare(right.queuedAt) || left.routeKey.localeCompare(right.routeKey));
+  return routesAfterValidSupersession(routes)
+    .sort((left, right) => left.queuedAt.localeCompare(right.queuedAt) || left.routeKey.localeCompare(right.routeKey));
+}
+
+function routesAfterValidSupersession(routes) {
+  const superseded = new Set();
+  const admitted = [];
+  for (const replacement of routes) {
+    const priorId = replacement.packet?.supersedesRequestId;
+    if (typeof priorId !== 'string') {
+      admitted.push(replacement);
+      continue;
+    }
+    const prior = admitted.find((candidate) => candidate.requestId === priorId);
+    if (!prior || superseded.has(priorId) || !validRouteReplacement(prior, replacement)) continue;
+    superseded.add(priorId);
+    admitted.push(replacement);
+  }
+  return admitted.filter((route) => !superseded.has(route.requestId));
+}
+
+function validRouteReplacement(prior, replacement) {
+  const priorPacket = prior.packet;
+  const nextPacket = replacement.packet;
+  return priorPacket?.routeSchemaVersion === 6
+    && nextPacket?.routeSchemaVersion === 6
+    && prior.requestId !== replacement.requestId
+    && prior.workerId === replacement.workerId
+    && prior.taskId === replacement.taskId
+    && prior.supervisorId === replacement.supervisorId
+    && priorPacket.reasoningLane === nextPacket.reasoningLane
+    && canonicalJson(priorPacket.evidenceCapsule) === canonicalJson(nextPacket.evidenceCapsule)
+    && canonicalJson(priorPacket.ownerOutcome) === canonicalJson(nextPacket.ownerOutcome)
+    && canonicalJson(priorPacket.githubReceipt) === canonicalJson(nextPacket.githubReceipt)
+    && canonicalJson(priorPacket.executionContext) === canonicalJson(nextPacket.executionContext)
+    && canonicalJson(priorPacket.continuationBinding) === canonicalJson(nextPacket.continuationBinding)
+    && priorPacket.continuationBindingSha256 === nextPacket.continuationBindingSha256
+    && priorPacket.continuationOwnerResponseExactText === nextPacket.continuationOwnerResponseExactText
+    && priorPacket.factualPacket?.exactFactualState === nextPacket.factualPacket?.exactFactualState
+    && canonicalJson(priorPacket.factualPacket?.evidenceRefs) === canonicalJson(nextPacket.factualPacket?.evidenceRefs)
+    && priorPacket.factualPacket?.decisionRequested === nextPacket.factualPacket?.decisionRequested
+    && Date.parse(replacement.queuedAt) > Date.parse(prior.queuedAt)
+    && nextPacket.supersession?.reasonCode === 'PROVIDER_EMPTY_COMPLETION'
+    && nextPacket.supersession?.authorization === 'OWNER_EXPLICIT_ONE_REPLACEMENT'
+    && nextPacket.supersession?.replacementOrdinal === 1
+    && isSha256(nextPacket.supersession?.failureReceiptSha256);
 }
 
 function parseStageLivenessEvidence(event) {

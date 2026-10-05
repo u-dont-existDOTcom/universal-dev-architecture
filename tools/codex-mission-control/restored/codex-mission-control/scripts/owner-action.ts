@@ -19,6 +19,8 @@ const USAGE = `Usage: owner-action <action> [options]
   watch-enroll --project P --worker W --task T [--cadence-ms N]
                                                       enroll an existing worker/task under project P
   watch-set --project P [--state S] [--cadence-ms N]  change an existing watch (S: ACTIVE|PAUSED|TERMINAL|DISABLED)
+  reasoning-replace --project P --request R --failure-receipt-sha H
+                                                      atomically supersede one empty-completion request and create one replacement
   reconcile-github                                    run one GitHub decision-receipt reconciliation pass`;
 
 // Deliberately absent: any action that forwards caller-supplied semantic content (such as a source-review
@@ -100,6 +102,19 @@ export async function runOwnerAction(argv: string[]): Promise<{ status: number; 
       if (typeof update === "string") throw new UsageError(update);
       return jsonResult(await daemonFetch(`/fleet-supervisor/${encodeURIComponent(project)}`, {
         method: "POST", headers: daemonMutationHeaders(owner(), { "content-type": "application/json" }), body: JSON.stringify(update),
+      }));
+    }
+    case "reasoning-replace": {
+      const opts = options(rest, ["project", "request", "failure-receipt-sha"]);
+      const project = required(opts, "project");
+      if (!FLEET_PROJECT_ID.test(project)) throw new UsageError("--project is not a valid project id.");
+      const requestId = required(opts, "request");
+      if (!/^fleet-review:[a-f0-9]{32}$/.test(requestId)) throw new UsageError("--request must be one exact fleet-review request ID.");
+      const failureReceiptSha256 = required(opts, "failure-receipt-sha");
+      if (!/^[a-f0-9]{64}$/.test(failureReceiptSha256)) throw new UsageError("--failure-receipt-sha must be a lowercase SHA-256 digest.");
+      return jsonResult(await daemonFetch(`/fleet-supervisor/${encodeURIComponent(project)}/reasoning-replace`, {
+        method: "POST", headers: daemonMutationHeaders(owner(), { "content-type": "application/json" }),
+        body: JSON.stringify({ request_id: requestId, failure_receipt_sha256: failureReceiptSha256 }),
       }));
     }
     case "reconcile-github": {

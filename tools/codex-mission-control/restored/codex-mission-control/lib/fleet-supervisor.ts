@@ -1,6 +1,7 @@
 import { canonicalJson, sha256 } from "./canonical";
 import { CANONICAL_PROJECT_MANAGER_ID, loadConfiguredSupervisorChats } from "./configured-supervisor-chats";
 import { parseGitHubReceiptPolicy, pendingDecisionRequests } from "./github-decision-receipts";
+import { inBandRequestRoutePrefix } from "./in-band-request-binding";
 import { evaluateSupervisionAdmission } from "./supervision-admission-runtime";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import { projectWorker } from "./projection";
@@ -46,6 +47,13 @@ export interface FleetSupervisorTickResult {
   committed: boolean;
   notificationDisposition: string;
   jevShadow: JevShadowObservation | null;
+}
+
+export interface FleetReasoningReplacementResult {
+  event: StoredEvent;
+  supersededRequestId: string;
+  replacementRequestId: string;
+  duplicate: boolean;
 }
 
 export class FleetSupervisorRuntime {
@@ -209,6 +217,123 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
   // never append-validation history. The route above rereads current worker
   // state, while EventStore validates the append against the complete ledger.
   return store.append(envelope, undefined, producer);
+}
+
+export function replaceFleetSupervisorReasoningRequest(
+  store: EventStore,
+  watch: FleetSupervisorWatchRecord,
+  input: { requestId: string; failureReceiptSha256: string },
+  now = new Date().toISOString(),
+): FleetReasoningReplacementResult {
+  if (!/^fleet-review:[a-f0-9]{32}$/.test(input.requestId)) throw new Error("Replacement requires one exact fleet-review request ID.");
+  if (!/^[a-f0-9]{64}$/.test(input.failureReceiptSha256)) throw new Error("Replacement requires the sealed failure-receipt SHA-256.");
+  if (!Number.isFinite(Date.parse(now))) throw new Error("Replacement time must be an offset-aware timestamp.");
+  const history = store.workerEvents(watch.worker);
+  const pending = pendingDecisionRequests(history);
+  const admittedReplacement = pending.findLast((request) => request.supersedesRequestId === input.requestId);
+  if (admittedReplacement) {
+    if (admittedReplacement.replacementFailureReceiptSha256 !== input.failureReceiptSha256) {
+      throw new Error("The exact request already has a replacement bound to a different failure receipt.");
+    }
+    const priorReplacement = history.findLast((event) => inBandRouteRoot(event)?.requestId === admittedReplacement.requestId);
+    if (!priorReplacement) throw new Error("The admitted replacement lacks its exact durable route event.");
+    return {
+      event: priorReplacement,
+      supersededRequestId: input.requestId,
+      replacementRequestId: admittedReplacement.requestId,
+      duplicate: true,
+    };
+  }
+  const matches = pending.filter((request) => request.requestId === input.requestId);
+  if (matches.length !== 1) throw new Error(`Expected one pending request ${input.requestId}; found ${matches.length}.`);
+  const prior = matches[0]!;
+  if (prior.routeSchemaVersion !== 6) throw new Error("Only a V6 in-band request may use empty-completion replacement.");
+  if (Date.parse(now) <= Date.parse(prior.queuedAt)) throw new Error("Replacement must be queued after the superseded request.");
+  const sourceEvent = history.findLast((event) => inBandRouteRoot(event)?.requestId === input.requestId);
+  if (!sourceEvent || sourceEvent.data.type !== "worker_message_recorded") throw new Error("The pending request lacks its exact durable route event.");
+  const source = inBandRouteRoot(sourceEvent)!;
+  const factualPacket = structuredClone(routeRecord(source.factualPacket, "factualPacket"));
+  const cycle = routeRecord(factualPacket.supervisoryCycle, "factualPacket.supervisoryCycle");
+  const currentOutcome = history.findLast((event) => event.data.type === "owner_outcome_recorded")?.data;
+  if (!currentOutcome || currentOutcome.type !== "owner_outcome_recorded"
+    || currentOutcome.owner_outcome_id !== prior.ownerOutcome.id
+    || currentOutcome.epoch !== prior.ownerOutcome.epoch
+    || currentOutcome.owner_outcome_sha256 !== prior.ownerOutcome.sha256) {
+    throw new Error("The superseded request no longer matches the current owner outcome.");
+  }
+  const directory = loadConfiguredSupervisorChats();
+  const manager = directory.entries.find((entry) => entry.scope === "PROJECT_MANAGER"
+    && entry.supervisorId === prior.supervisorId);
+  if (!manager) throw new Error("The superseded request no longer has its configured project-manager route.");
+  const policy = parseGitHubReceiptPolicy();
+  if (!policy?.requestBound?.enabled
+    || policy.repository !== prior.repository
+    || policy.decisionIssueNumber !== prior.issueNumber
+    || policy.stageIssueNumber !== prior.stageIssueNumber) {
+    throw new Error("The superseded request no longer matches the configured receipt policy.");
+  }
+  const replacementRequestId = `fleet-review:${sha256(`${input.requestId}\n${input.failureReceiptSha256}\nOWNER_EXPLICIT_ONE_REPLACEMENT`).slice(0, 32)}`;
+  const nonce = `fleet-review-nonce:${sha256(`${replacementRequestId}\n${prior.ownerOutcome.sha256}`).slice(0, 32)}`;
+  const expiresAt = new Date(Date.parse(now) + 24 * 60 * 60 * 1000).toISOString();
+  factualPacket.packetId = `packet:${replacementRequestId}`;
+  cycle.nonce = nonce;
+  cycle.expiresAt = expiresAt;
+  const producer: AuthenticatedProducer = {
+    id: `worker:${watch.worker}`, kind: "WORKER", workerScopes: [watch.worker], taskScopes: [watch.taskId],
+  };
+  const result = evaluateSupervisionAdmission(watch.worker, producer, {
+    request: {
+      requestId: replacementRequestId, action: "ROUTE_INTERNAL_SUPERVISOR", actor: "WORK", sourceReceipt: null,
+      boundedExecution: true, taskRequiresExecutionOutsideChat: true, executionScope: "SUPERVISORY_REASONING",
+      spend: null,
+      internalRoute: {
+        destination: "PROJECT_MANAGER_CHAT", destinationChatId: prior.supervisorId,
+        standingOwnerAuthorization: true, ownerRelayRequested: false, actionTimeConfirmationRequested: false,
+      },
+      ownerPolicy: { paidModelInferenceAllowed: false, activeZeroSpendDecisionId: null },
+    },
+    factualPacket,
+  }, now, undefined, null, "IN_BAND_REQUEST_BINDING_V1");
+  if (!result.routeEnvelope || result.routeEnvelope.data.type !== "worker_message_recorded") throw new Error(result.statement);
+  const envelope = structuredClone(result.routeEnvelope);
+  if (envelope.data.type !== "worker_message_recorded") throw new Error("Replacement admission did not produce a worker message.");
+  const replacement = inBandRouteRootFromBody(envelope.data.body);
+  if (!replacement) throw new Error("Replacement admission did not produce a V6 in-band route.");
+  replacement.supersedesRequestId = input.requestId;
+  replacement.supersession = {
+    schemaVersion: 1,
+    reasonCode: "PROVIDER_EMPTY_COMPLETION",
+    failureReceiptSha256: input.failureReceiptSha256,
+    authorization: "OWNER_EXPLICIT_ONE_REPLACEMENT",
+    replacementOrdinal: 1,
+  };
+  envelope.data.body = `${inBandRequestRoutePrefix}${JSON.stringify(replacement)}`;
+  if (envelope.data.body.length > 20_000) throw new Error("The replacement route exceeds the durable message limit.");
+  envelope.data.thread_id = `thread:fleet-supervision:${watch.worker}`;
+  const event = store.append(envelope, undefined, producer);
+  const active = pendingDecisionRequests(store.workerEvents(watch.worker));
+  if (active.some((request) => request.requestId === input.requestId)
+    || active.filter((request) => request.requestId === replacementRequestId).length !== 1) {
+    throw new Error("Replacement append did not atomically fence the old request and admit the new request.");
+  }
+  return { event, supersededRequestId: input.requestId, replacementRequestId, duplicate: false };
+}
+
+function inBandRouteRoot(event: StoredEvent): Record<string, unknown> | null {
+  return event.data.type === "worker_message_recorded" ? inBandRouteRootFromBody(event.data.body) : null;
+}
+
+function inBandRouteRootFromBody(body: string): Record<string, unknown> | null {
+  if (!body.startsWith(inBandRequestRoutePrefix)) return null;
+  try {
+    const value: unknown = JSON.parse(body.slice(inBandRequestRoutePrefix.length));
+    return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  } catch { return null; }
+}
+
+function routeRecord(value: unknown, field: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${field} must be an object.`);
+  return value as Record<string, unknown>;
 }
 
 function routeEvent(events: readonly StoredEvent[], requestId: string): StoredEvent | null {
