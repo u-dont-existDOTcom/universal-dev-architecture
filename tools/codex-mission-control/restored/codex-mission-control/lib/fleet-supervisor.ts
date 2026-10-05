@@ -28,7 +28,7 @@ export interface FleetSupervisorHooks {
   continueMechanical?: (watch: FleetSupervisorWatchRecord, decision: FleetSupervisorDecision, events: readonly StoredEvent[]) => unknown | Promise<unknown>;
   notifyOwner?: (watch: FleetSupervisorWatchRecord, decision: FleetSupervisorDecision) => unknown | Promise<unknown>;
   observeJevShadow?: (watch: FleetSupervisorWatchRecord, decision: FleetSupervisorDecision,
-    events: readonly StoredEvent[], chain: { valid: boolean; errors: string[] }, signal?: AbortSignal) => JevShadowObservation | Promise<JevShadowObservation>;
+    events: readonly StoredEvent[], chain: { valid: boolean; errors: string[] }, signal?: AbortSignal) => JevShadowObservation | null | Promise<JevShadowObservation | null>;
 }
 
 export interface FleetSupervisorWatchTiming {
