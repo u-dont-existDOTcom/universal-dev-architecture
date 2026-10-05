@@ -357,7 +357,7 @@ export class RelayRuntime {
     }
   }
 
-  async cycle({ skipCodexExecution = false, exactLegacyBinding: requestedLegacyBinding = null } = {}) {
+  async cycle({ skipCodexExecution = false, exactLegacyBinding: requestedLegacyBinding = null, exactRequest = null } = {}) {
     const startedAt = new Date().toISOString();
     let state = await this.stateStore.read();
     state = await this.#markInterruptedIntents(state);
@@ -455,22 +455,38 @@ export class RelayRuntime {
           });
         }
       }
-      const routes = exactLegacyBinding
+      const legacyScopedRoutes = exactLegacyBinding
         ? allRoutes.filter((route) => route.workerId === exactLegacyBinding.worker
           && route.taskId === exactLegacyBinding.taskId
           && route.requestId === exactLegacyBinding.decisionRequestId)
           .map((route) => ({ ...route, missionControlLegacyBinding: exactLegacyBinding }))
         : allRoutes;
-      if (exactLegacyBinding && routes.length !== 1) {
+      if (exactLegacyBinding && legacyScopedRoutes.length !== 1) {
         state.health.lastError = null;
-        state.health.pausedReason = routes.length === 0
+        state.health.pausedReason = legacyScopedRoutes.length === 0
           ? `No exact legacy route is queued for ${exactLegacyBinding.taskId}.`
           : `More than one exact legacy route is queued for ${exactLegacyBinding.taskId}.`;
         state = await this.stateStore.write(state);
         return this.#writeStandaloneStatus(
-          routes.length === 0 ? 'EXACT_LEGACY_ROUTE_UNAVAILABLE' : 'EXACT_LEGACY_ROUTE_AMBIGUOUS',
+          legacyScopedRoutes.length === 0 ? 'EXACT_LEGACY_ROUTE_UNAVAILABLE' : 'EXACT_LEGACY_ROUTE_AMBIGUOUS',
           state,
-          { missionControlLegacyBinding: exactLegacyBinding, unrelatedRouteCount: allRoutes.length - routes.length },
+          { missionControlLegacyBinding: exactLegacyBinding, unrelatedRouteCount: allRoutes.length - legacyScopedRoutes.length },
+        );
+      }
+      const routes = exactRequest
+        ? legacyScopedRoutes.filter((route) => route.workerId === exactRequest.workerId
+          && route.requestId === exactRequest.requestId)
+        : legacyScopedRoutes;
+      if (exactRequest && routes.length !== 1) {
+        state.health.lastError = null;
+        state.health.pausedReason = routes.length === 0
+          ? `No exact request route is queued for ${exactRequest.requestId}.`
+          : `More than one exact route is queued for ${exactRequest.requestId}.`;
+        state = await this.stateStore.write(state);
+        return this.#writeStandaloneStatus(
+          routes.length === 0 ? 'EXACT_REQUEST_ROUTE_UNAVAILABLE' : 'EXACT_REQUEST_ROUTE_AMBIGUOUS',
+          state,
+          { exactRequest, unrelatedRouteCount: allRoutes.length - routes.length },
         );
       }
       const withReceipt = routes.find((route) => route.routeKind === 'SUPERVISORY_CYCLE' && route.decisionReceipt);

@@ -130,6 +130,40 @@ test('exact legacy fallback selects the source-bound task and cannot consume an 
   assert.equal(browser.submitCalls, 0);
 });
 
+test('exact request one-shot selects only the named worker request and cannot consume an older route', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({
+    evidence: capabilityEvidence(),
+    routes: [
+      routeEvent('fleet-review:11111111111111111111111111111111', 'older-route', 'EXTRA_HIGH_DIRECT', 'task-older'),
+      routeEvent('fleet-review:22222222222222222222222222222222', 'authorized-route', 'EXTRA_HIGH_DIRECT', 'task-current'),
+    ],
+  });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false });
+  const result = await runtime.cycle({
+    skipCodexExecution: true,
+    exactRequest: { workerId: 'worker-a', requestId: 'fleet-review:22222222222222222222222222222222' },
+  });
+  assert.equal(result.status, 'DRY_RUN_ROUTE_READY');
+  assert.equal(result.route.requestId, 'fleet-review:22222222222222222222222222222222');
+  assert.equal(result.route.taskId, 'task-current');
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('exact request one-shot fails closed when the named request is unavailable', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence(), routes: [routeEvent()] });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+  const result = await runtime.cycle({
+    skipCodexExecution: true,
+    exactRequest: { workerId: 'worker-a', requestId: 'fleet-review:22222222222222222222222222222222' },
+  });
+  assert.equal(result.status, 'EXACT_REQUEST_ROUTE_UNAVAILABLE');
+  assert.equal(browser.submitCalls, 0);
+});
+
 test('escalated route uses distinct fresh first-message Mission Control, reader, and Pro sessions', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({ evidence: capabilityEvidence() });
