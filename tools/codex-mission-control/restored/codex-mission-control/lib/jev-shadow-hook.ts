@@ -53,7 +53,7 @@ export function sampleJevShadowOnStateChange(hook: Hook, options: {
   if (!Number.isInteger(resampleMs) || resampleMs < 60_000 || resampleMs > 86_400_000) {
     throw new Error("Jev same-state resample interval must be an integer between 60000 and 86400000 ms.");
   }
-  const model = options.model ?? env.MISSION_CONTROL_JEV_SHADOW_MODEL?.trim() || DEFAULT_JEV_SHADOW_MODEL;
+  const model = options.model ?? (env.MISSION_CONTROL_JEV_SHADOW_MODEL?.trim() || DEFAULT_JEV_SHADOW_MODEL);
   const sampledAt = new Map<string, number>();
   return async (...args) => {
     if (env.MISSION_CONTROL_JEV_SHADOW_ENABLED !== "1") return hook(...args);
