@@ -136,6 +136,41 @@ test('expired-route cancellation cannot erase crossed submission history', async
   );
 });
 
+test('exact replacement cancels only the same-producer proven pre-click retry', async () => {
+  const now = { value: origin };
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease(primaryLease());
+  const first = await scheduler.admit(request({ requestId: 'superseded-route', queueKey: 'queue:superseded-route' }), 'collector:relay');
+  await scheduler.abortBeforeBoundary({ admissionId: first.admissionId, relayStage: 'COMPOSER_FILLED' }, 'collector:relay');
+  const binding = {
+    queueItemId: first.queueItemId,
+    requestId: 'superseded-route',
+    replacementRequestId: 'replacement-route',
+    failureReceiptSha256: 'e'.repeat(64),
+  };
+  await assert.rejects(
+    scheduler.cancelSupersededPreclickRetry({ ...binding, requestId: 'wrong' }, 'collector:relay'),
+    hasCode('SUBMISSION_QUEUE_REQUEST_MISMATCH'),
+  );
+  await assert.rejects(
+    scheduler.cancelSupersededPreclickRetry(binding, 'collector:standby'),
+    hasCode('SUBMISSION_ADMISSION_PRODUCER_MISMATCH'),
+  );
+  const cancelled = await scheduler.cancelSupersededPreclickRetry(binding, 'collector:relay');
+  assert.equal(cancelled.cancelled, true);
+  assert.equal(cancelled.duplicate, false);
+  assert.equal(store.state.queueItems[0].status, 'CANCELLED_SUPERSEDED_ROUTE');
+  assert.equal(store.state.queueItems[0].supersededByRequestId, 'replacement-route');
+  assert.equal(store.state.queueItems[0].supersessionFailureReceiptSha256, 'e'.repeat(64));
+  assert.equal((await scheduler.status()).queueDepth, 0);
+  assert.equal((await scheduler.cancelSupersededPreclickRetry(binding, 'collector:relay')).duplicate, true);
+  await assert.rejects(
+    scheduler.cancelSupersededPreclickRetry({ ...binding, replacementRequestId: 'other-replacement' }, 'collector:relay'),
+    hasCode('SUBMISSION_QUEUE_REPLACEMENT_MISMATCH'),
+  );
+});
+
 test('concurrent host requests share one serialization point and only one receives an admission', async () => {
   const now = { value: origin };
   const scheduler = makeScheduler(new MemoryStore(), now);

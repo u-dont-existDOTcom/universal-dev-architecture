@@ -38,7 +38,7 @@ import {
 } from './core.mjs';
 import { readMemoryMetrics } from './memory.mjs';
 import { isTerminalControllerCycle } from './controller-mediated-pm.mjs';
-import { isGlobalSubmissionCooldown, publicCooldown } from './submission-pacing.mjs';
+import { isCentralSubmissionQueued, isGlobalSubmissionCooldown, publicCooldown } from './submission-pacing.mjs';
 import { submissionSchedulerContext } from './submission-context.mjs';
 
 const MCP_BINDING_PRELOAD_RECEIPT_GRACE_MS = 30_000;
@@ -425,6 +425,20 @@ export class RelayRuntime {
       }
 
       const allRoutes = extractQueuedRoutes(snapshot, this.config.runtime.chats, state);
+      const replacements = allRoutes.filter((route) => typeof route.packet?.supersedesRequestId === 'string');
+      if (replacements.length > 0) {
+        const central = await this.submissionPacer.remoteStatus();
+        const head = central.queueHead;
+        const replacement = replacements.find((route) => route.packet.supersedesRequestId === head?.requestId);
+        if (replacement && head?.status === 'PRECLICK_RETRY_PENDING' && typeof head.queueItemId === 'string') {
+          await this.submissionPacer.cancelSupersededPreclickRetry({
+            queueItemId: head.queueItemId,
+            requestId: head.requestId,
+            replacementRequestId: replacement.requestId,
+            failureReceiptSha256: replacement.packet.supersession.failureReceiptSha256,
+          });
+        }
+      }
       const expiredDiscardedRoutes = allRoutes.filter((route) => {
         const prior = state.deliveries[route.routeKey];
         return prior?.status === 'DISCARDED'
@@ -536,6 +550,13 @@ export class RelayRuntime {
 
       return await this.#processSupervisoryCycle(candidate, routes, state, memory);
     } catch (error) {
+      if (isCentralSubmissionQueued(error)) {
+        state = await this.stateStore.read();
+        state.health.lastError = redactError(error);
+        state.health.pausedReason = 'The exact provider send is durably queued before the browser boundary.';
+        state = await this.stateStore.write(state);
+        return this.#writeStandaloneStatus('CENTRAL_SUBMISSION_QUEUED', state, { queueItemId: error.queueItemId ?? null, position: error.position ?? null });
+      }
       if (isGlobalSubmissionCooldown(error)) return this.#cooldownStatus(state, {}, error);
       state.health.lastError = redactError(error);
       state.health.pausedReason = null;
@@ -1009,6 +1030,13 @@ export class RelayRuntime {
       await this.#recordRelayStage(route, action.step, model.modelVisibleLabel, promptSha256, 'STARTED', start.startedAtObserved, start.startSignal, start.messageApps ?? null);
       return this.#writeStandaloneStatus(startedCycleStepStatus(action.step), state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), generationStart: start });
     } catch (error) {
+      if (isCentralSubmissionQueued(error)) {
+        state = await this.stateStore.read();
+        state.health.lastError = redactError(error);
+        state.health.pausedReason = 'The exact provider send is durably queued before the browser boundary.';
+        state = await this.stateStore.write(state);
+        return this.#writeStandaloneStatus('CENTRAL_SUBMISSION_QUEUED', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), queueItemId: error.queueItemId ?? null, position: error.position ?? null });
+      }
       if (isGlobalSubmissionCooldown(error)) {
         state = await this.stateStore.read();
         session = state.providerSessions[route.providerSessionId] ?? session;

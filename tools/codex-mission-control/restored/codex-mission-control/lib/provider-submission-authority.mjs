@@ -28,6 +28,7 @@ const QUEUE_STATUSES = new Set([
   'RATE_LIMIT_RETRY_EXHAUSTED',
   'CANCELLED_AT_TAKEOVER',
   'CANCELLED_EXPIRED_ROUTE',
+  'CANCELLED_SUPERSEDED_ROUTE',
 ]);
 const ADMISSION_STATUSES = new Set([
   PRECOMPOSITION_RECOVERED,
@@ -664,6 +665,52 @@ export class CentralSubmissionScheduler {
     });
   }
 
+  async cancelSupersededPreclickRetry(raw, producerId) {
+    return this.#serialized(async () => {
+      const root = requiredRecord(raw, 'Superseded pre-click retry cancellation');
+      const queueItemId = boundedString(root.queueItemId, 'queueItemId', 300);
+      const requestId = boundedString(root.requestId, 'requestId', 300);
+      const replacementRequestId = boundedString(root.replacementRequestId, 'replacementRequestId', 300);
+      const failureReceiptSha256 = sha(root.failureReceiptSha256, 'failureReceiptSha256');
+      if (replacementRequestId === requestId) {
+        throw new SubmissionSchedulerError('SUBMISSION_QUEUE_REPLACEMENT_INVALID', 'A replacement request must differ from the superseded request.', 400);
+      }
+      const state = await this.stateStore.read();
+      const queueItem = state.queueItems.find((item) => item.queueItemId === queueItemId);
+      if (!queueItem) throw new SubmissionSchedulerError('SUBMISSION_QUEUE_ITEM_UNKNOWN', 'The cancellation names no durable queue item.', 404);
+      if (queueItem.request.requestId !== requestId) {
+        throw new SubmissionSchedulerError('SUBMISSION_QUEUE_REQUEST_MISMATCH', 'The queue item does not match the exact superseded request.', 409);
+      }
+      if (queueItem.status === 'CANCELLED_SUPERSEDED_ROUTE') {
+        if (queueItem.supersededByRequestId !== replacementRequestId
+          || queueItem.supersessionFailureReceiptSha256 !== failureReceiptSha256) {
+          throw new SubmissionSchedulerError('SUBMISSION_QUEUE_REPLACEMENT_MISMATCH', 'The queue item was cancelled for a different exact replacement.', 409);
+        }
+        return { cancelled: true, duplicate: true, queueItemId, requestId, replacementRequestId, failureReceiptSha256 };
+      }
+      if (queueItem.status !== 'PRECLICK_RETRY_PENDING') {
+        throw new SubmissionSchedulerError('SUBMISSION_QUEUE_CANCEL_STAGE_INVALID', `Queue item is ${queueItem.status}; only a proven pre-click retry may be superseded.`, 409);
+      }
+      const linked = queueItem.admissionIds.map((admissionId) => state.admissions.find((item) => item.admissionId === admissionId));
+      if (linked.length === 0 || linked.some((item) => !item)) {
+        throw new SubmissionSchedulerError('SUBMISSION_QUEUE_BINDING_INVALID', 'The queue item lacks complete durable admission history.');
+      }
+      if (linked.some((item) => item.producerId !== producerId)) {
+        throw new SubmissionSchedulerError('SUBMISSION_ADMISSION_PRODUCER_MISMATCH', 'Only the producer that owns every linked safe admission may cancel the superseded retry.', 403);
+      }
+      const safe = new Set(['ABORTED_BEFORE_BOUNDARY', 'EXPIRED_BEFORE_BOUNDARY', PRECOMPOSITION_RECOVERED]);
+      if (linked.some((item) => !safe.has(item.status) || item.boundaryAt !== null)) {
+        throw new SubmissionSchedulerError('SUBMISSION_QUEUE_CANCEL_BOUNDARY_UNPROVEN', 'Supersession is forbidden because linked history is crossed or ambiguous.', 409);
+      }
+      queueItem.status = 'CANCELLED_SUPERSEDED_ROUTE';
+      queueItem.terminalAt = new Date(this.now()).toISOString();
+      queueItem.supersededByRequestId = replacementRequestId;
+      queueItem.supersessionFailureReceiptSha256 = failureReceiptSha256;
+      await this.stateStore.write(state);
+      return { cancelled: true, duplicate: false, queueItemId, requestId, replacementRequestId, failureReceiptSha256, cancelledAt: queueItem.terminalAt };
+    });
+  }
+
   async recordOutcome(raw, producerId) {
     return this.#serialized(async () => {
       const root = requiredRecord(raw, 'Submission outcome');
@@ -1084,6 +1131,8 @@ function normalizeQueueItem(value, index) {
     admittedAt: optionalTimestamp(root.admittedAt, `queueItems.${index}.admittedAt`),
     lastPreclickAbortAt: optionalTimestamp(root.lastPreclickAbortAt, `queueItems.${index}.lastPreclickAbortAt`),
     cancelledByLeaseId: root.cancelledByLeaseId == null ? null : boundedString(root.cancelledByLeaseId, `queueItems.${index}.cancelledByLeaseId`, 300),
+    supersededByRequestId: root.supersededByRequestId == null ? null : boundedString(root.supersededByRequestId, `queueItems.${index}.supersededByRequestId`, 300),
+    supersessionFailureReceiptSha256: root.supersessionFailureReceiptSha256 == null ? null : sha(root.supersessionFailureReceiptSha256, `queueItems.${index}.supersessionFailureReceiptSha256`),
     takeoverRebindings: normalizeTakeoverRebindings(root.takeoverRebindings, index),
   };
   if (item.queueKey !== request.queueKey || item.retryRootKey !== request.retryRootKey
@@ -1203,9 +1252,13 @@ function validateQueueAdmissionCorrespondence(item, linked) {
     && (!['BOUNDARY_RECORDED', 'ABORTED_BEFORE_BOUNDARY'].includes(latest?.status) || !latest.providerRateLimitObservedAt)) {
     throw new Error(`Submission scheduler queue item ${item.queueItemId} exhausted status lacks its rate-limit abort.`);
   }
-  if (['CANCELLED_AT_TAKEOVER', 'CANCELLED_EXPIRED_ROUTE'].includes(item.status)
+  if (['CANCELLED_AT_TAKEOVER', 'CANCELLED_EXPIRED_ROUTE', 'CANCELLED_SUPERSEDED_ROUTE'].includes(item.status)
     && (linked.length === 0 || linked.some((entry) => !['ABORTED_BEFORE_BOUNDARY', 'EXPIRED_BEFORE_BOUNDARY', PRECOMPOSITION_RECOVERED].includes(entry.status) || entry.boundaryAt !== null))) {
     throw new Error(`Submission scheduler queue item ${item.queueItemId} cannot cancel crossed, ambiguous, or missing admission history.`);
+  }
+  if (item.status === 'CANCELLED_SUPERSEDED_ROUTE'
+    && (!item.supersededByRequestId || !item.supersessionFailureReceiptSha256)) {
+    throw new Error(`Submission scheduler queue item ${item.queueItemId} lacks its exact supersession binding.`);
   }
 }
 

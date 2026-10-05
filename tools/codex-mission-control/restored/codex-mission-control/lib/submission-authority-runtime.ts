@@ -16,6 +16,7 @@ import type {
 } from "./operator-status-contract";
 import type { EventStore } from "./store";
 import type { StoredEvent } from "./schema";
+import { pendingDecisionRequests } from "./github-decision-receipts";
 
 // This ESM module is the runtime-neutral authority algorithm shared with its
 // deterministic relay contract tests. Mission Control is its only deployable
@@ -386,6 +387,19 @@ export class SubmissionAuthorityRuntime {
     if (operation === "provider-rate-limits") return scheduler.recordRateLimit(body, producer.id);
     if (operation === "aborts") return scheduler.abortBeforeBoundary(body, producer.id);
     if (operation === "expired-preclick-retries/cancel") return scheduler.cancelExpiredPreclickRetry(body, producer.id);
+    if (operation === "superseded-preclick-retries/cancel") {
+      const cancellation = parseSupersededRetryCancellation(body);
+      const active = pendingDecisionRequests(this.store.allEvents());
+      const matches = active.filter((request) => request.requestId === cancellation.replacementRequestId
+        && request.supersedesRequestId === cancellation.requestId
+        && request.replacementFailureReceiptSha256 === cancellation.failureReceiptSha256);
+      if (matches.length !== 1 || active.some((request) => request.requestId === cancellation.requestId)) {
+        const error = new Error("The scheduler cancellation does not match one exact active Mission Control replacement.");
+        Object.assign(error, { statusCode: 409, code: "SUBMISSION_QUEUE_REPLACEMENT_NOT_ACTIVE" });
+        throw error;
+      }
+      return scheduler.cancelSupersededPreclickRetry(cancellation, producer.id);
+    }
     if (operation === "outcomes") return scheduler.recordOutcome(body, producer.id);
     const error = new Error("Submission-authority operation was not found.");
     Object.assign(error, { statusCode: 404, code: "SUBMISSION_AUTHORITY_OPERATION_UNKNOWN" });
@@ -556,6 +570,29 @@ export class SubmissionAuthorityRuntime {
     }
     return scheduler.producerBinding(producer.id);
   }
+}
+
+function parseSupersededRetryCancellation(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw invalidSupersessionCancellation();
+  const root = value as Record<string, unknown>;
+  const queueItemId = root.queueItemId;
+  const requestId = root.requestId;
+  const replacementRequestId = root.replacementRequestId;
+  const failureReceiptSha256 = root.failureReceiptSha256;
+  if (typeof queueItemId !== "string" || queueItemId.length < 1 || queueItemId.length > 300
+    || typeof requestId !== "string" || requestId.length < 1 || requestId.length > 300
+    || typeof replacementRequestId !== "string" || replacementRequestId.length < 1 || replacementRequestId.length > 300
+    || requestId === replacementRequestId
+    || typeof failureReceiptSha256 !== "string" || !/^[a-f0-9]{64}$/.test(failureReceiptSha256)) {
+    throw invalidSupersessionCancellation();
+  }
+  return { queueItemId, requestId, replacementRequestId, failureReceiptSha256 };
+}
+
+function invalidSupersessionCancellation() {
+  const error = new Error("Superseded retry cancellation requires exact queue, old request, replacement request, and failure-receipt identities.");
+  Object.assign(error, { statusCode: 400, code: "SUBMISSION_QUEUE_REPLACEMENT_INPUT_INVALID" });
+  return error;
 }
 
 export { SubmissionSchedulerError };

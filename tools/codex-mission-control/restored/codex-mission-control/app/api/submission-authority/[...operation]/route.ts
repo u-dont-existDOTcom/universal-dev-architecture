@@ -15,6 +15,7 @@ const allowedPostOperations = new Set([
   "provider-rate-limits",
   "aborts",
   "expired-preclick-retries/cancel",
+  "superseded-preclick-retries/cancel",
   "outcomes",
   "relay-health",
 ]);

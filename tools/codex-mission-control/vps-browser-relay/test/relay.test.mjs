@@ -987,6 +987,68 @@ test('expired historical supervisory route cannot starve a later valid route', a
   assert.equal(browser.submitCalls, 0);
 });
 
+test('active replacement cancels the exact superseded safe queue head before becoming eligible', async () => {
+  const old = directRouteEvent('superseded-request', 'old-v6-route', 'EXTRA_HIGH_DIRECT');
+  const oldPacket = JSON.parse(old.data.body.slice(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX.length));
+  oldPacket.schemaVersion = 6;
+  oldPacket.executionContext = { task_id: 'task-1' };
+  oldPacket.queuedAt = '2026-09-02T00:00:00.000Z';
+  old.data.body = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n' + JSON.stringify(oldPacket);
+  const replacementPacket = structuredClone(oldPacket);
+  replacementPacket.requestId = 'replacement-request';
+  replacementPacket.nonce = 'replacement-nonce';
+  replacementPacket.factualPacket.packetId = 'packet:replacement-request';
+  replacementPacket.queuedAt = '2026-09-02T00:01:00.000Z';
+  replacementPacket.supersedesRequestId = 'superseded-request';
+  replacementPacket.supersession = {
+    schemaVersion: 1,
+    reasonCode: 'PROVIDER_EMPTY_COMPLETION',
+    failureReceiptSha256: 'e'.repeat(64),
+    authorization: 'OWNER_EXPLICIT_ONE_REPLACEMENT',
+    replacementOrdinal: 1,
+  };
+  const replacement = {
+    eventId: 'replacement-v6-route', sequence: 2, occurredAt: replacementPacket.queuedAt,
+    data: { type: 'worker_message_recorded', message_id: 'replacement-message', body: 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n' + JSON.stringify(replacementPacket) },
+  };
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: [], routes: [replacement, old], autoFirstTurnMcp: false });
+  const browser = new FakeBrowser();
+  const cancellations = [];
+  const pacer = {
+    status: () => ({ ready: false, queueHead: { queueItemId: 'queue-item:old', requestId: 'superseded-request', status: 'PRECLICK_RETRY_PENDING' } }),
+    cancelSupersededPreclickRetry: async (input) => { cancellations.push(input); return { cancelled: true }; },
+  };
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false, submissionPacer: pacer });
+  runtime.config.runtime.requestBoundEnabled = true;
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'DRY_RUN_ROUTE_READY', JSON.stringify(result));
+  assert.equal(result.route.requestId, 'replacement-request');
+  assert.deepEqual(cancellations, [{
+    queueItemId: 'queue-item:old',
+    requestId: 'superseded-request',
+    replacementRequestId: 'replacement-request',
+    failureReceiptSha256: 'e'.repeat(64),
+  }]);
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('central queue wait remains pre-send and never becomes local ambiguity', async () => {
+  const { store, runtime } = inBandRequestFixture();
+  runtime.submissionPacer.submit = async () => {
+    const error = new Error('SUBMISSION_QUEUED: Queue item is waiting at position 2.');
+    error.code = 'SUBMISSION_QUEUED';
+    error.queueItemId = 'queue-item:fresh';
+    error.position = 2;
+    throw error;
+  };
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'CENTRAL_SUBMISSION_QUEUED', JSON.stringify(result));
+  assert.equal(result.position, 2);
+  assert.equal(store.state.deliveries['request:r-1'].status, 'UNSEEN');
+  assert.equal(result.unresolvedAmbiguities.length, 0);
+});
+
 test('V6 operator submitted-attestation preserves generation reconciliation without replay', async () => {
   const { store, browser, runtime } = inBandRequestFixture();
 
