@@ -447,6 +447,10 @@ test('a valid V6 empty-completion replacement fences only its exact old route', 
   };
   const routes = extractQueuedRoutes(v6ReplacementSnapshot(prior, replacement), [chat], defaultState());
   assert.deepEqual(routes.map((route) => route.requestId), ['fresh-request']);
+  const newestFirst = v6ReplacementSnapshot(prior, replacement);
+  newestFirst.workers[0].timeline.reverse();
+  assert.deepEqual(extractQueuedRoutes(newestFirst, [chat], defaultState())
+    .map((route) => route.requestId), ['fresh-request']);
   assert.equal(parseSupervisoryCycleRouteBody(IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(replacement)).supersedesRequestId, 'old-request');
   const secondReplacement = {
     ...structuredClone(replacement), requestId: 'second-fresh-request', nonce: 'second-fresh-nonce',

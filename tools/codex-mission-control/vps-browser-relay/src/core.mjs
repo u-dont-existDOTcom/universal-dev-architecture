@@ -508,7 +508,13 @@ export function extractQueuedRoutes(snapshot, chats, state) {
 function routesAfterValidSupersession(routes) {
   const superseded = new Set();
   const admitted = [];
-  for (const replacement of routes) {
+  // Mission Control transport snapshots are newest-first, while validating a
+  // replacement requires its exact predecessor to be admitted first. Normalize
+  // to durable queue order here so projection order cannot resurrect the
+  // superseded request or hide the authorized replacement.
+  const durableQueueOrder = [...routes].sort((left, right) => left.queuedAt.localeCompare(right.queuedAt)
+    || left.routeKey.localeCompare(right.routeKey));
+  for (const replacement of durableQueueOrder) {
     const priorId = replacement.packet?.supersedesRequestId;
     if (typeof priorId !== 'string') {
       admitted.push(replacement);
