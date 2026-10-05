@@ -165,7 +165,11 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
     envelope.data.message_id = `message:${envelope.event_id}`;
     envelope.data.thread_id = `thread:fleet-supervision:${watch.worker}`;
   }
-  return store.append(envelope, undefined, producer, events);
+  // `events` is intentionally scoped to this worker for classification and
+  // route construction. It is not a complete durable ledger, so it cannot be
+  // supplied as the store's append-validation history when other workers are
+  // present. Let EventStore load the authoritative current history itself.
+  return store.append(envelope, undefined, producer);
 }
 
 export function classifyFleetSupervisorTick(

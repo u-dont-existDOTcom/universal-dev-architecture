@@ -5,7 +5,12 @@ import path from "node:path";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { snapshotFromStore } from "../lib/dashboard-data";
-import { classifyFleetSupervisorTick, DEFAULT_FLEET_SUPERVISOR_CADENCE_MS, FleetSupervisorRuntime } from "../lib/fleet-supervisor";
+import {
+  classifyFleetSupervisorTick,
+  DEFAULT_FLEET_SUPERVISOR_CADENCE_MS,
+  FleetSupervisorRuntime,
+  routeFleetSupervisorReasoning,
+} from "../lib/fleet-supervisor";
 import { seedIssue47Store, seedStore } from "../lib/seed";
 import type { MissionControlEventV2, StoredEvent } from "../lib/schema";
 import { EventStore, type FleetSupervisorWatchRecord } from "../lib/store";
@@ -133,6 +138,34 @@ test("stalled strategy routes to reasoning without fleet-authored replacement", 
   } finally { store.close(); }
 });
 
+test("fleet reasoning routes append against the complete durable ledger", () => {
+  const store = new EventStore(":memory:");
+  const previous = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+  try {
+    seedStore(store);
+    process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = JSON.stringify([configuredProjectManager()]);
+    const watch = store.ensureFleetSupervisorWatch("project:auth", "task:auth", "auth", t0);
+    const workerEvents = store.workerEvents(watch.worker);
+    assert.ok(store.allEvents().length > workerEvents.length);
+    const routed = routeFleetSupervisorReasoning(store, watch, {
+      trigger: "REASONING_REVIEW_OVERDUE",
+      result: "Current evidence was routed to the existing reasoning lane.",
+      state: "ACTIVE",
+      reasoningRequired: true,
+      mechanicalRecoveryEligible: false,
+      notifyOwner: false,
+      notificationReason: null,
+    }, workerEvents);
+    assert.equal(routed.data.type, "worker_message_recorded");
+    assert.equal(routed.worker, watch.worker);
+    assert.equal(store.latestSequence(), store.allEvents().length);
+  } finally {
+    if (previous === undefined) delete process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+    else process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = previous;
+    store.close();
+  }
+});
+
 test("overdue reasoning review and directive continuity gaps are decision-changing reasoning triggers", () => {
   const store = new EventStore(":memory:");
   try {
@@ -233,4 +266,39 @@ function appendSystem(store: EventStore, worker: string, id: string, data: Missi
 function appendWorker(store: EventStore, watch: FleetSupervisorWatchRecord, id: string, data: MissionControlEventV2) {
   store.append({ schema_version: 2, event_id: `fleet-test:${id}`, mission_id: "mission-control-live", occurred_at: t0, data }, undefined,
     { id: `worker:${watch.worker}`, kind: "WORKER", workerScopes: [watch.worker], taskScopes: [watch.taskId] });
+}
+
+function configuredProjectManager() {
+  return {
+    scope: "PROJECT_MANAGER",
+    supervisorId: "mc-project-manager",
+    label: "MC project manager",
+    workerId: null,
+    requiredApp: "Mission Control",
+    registrationId: "registration:test:mc-project-manager",
+    ownership: "MISSION_CONTROL_ONLY",
+    purpose: "Dedicated Mission Control reasoning supervisor",
+    accountAlias: "owner-account",
+    workspaceAlias: "personal",
+    privateLocatorRef: "owner-config:test:mc-project-manager",
+    registrationProvenance: {
+      registeredBy: "OWNER",
+      registeredAt: "2026-09-20T00:00:00.000Z",
+      sourceRef: "owner:test",
+    },
+    consumerControls: {
+      modelSelectionPolicy: "TOP_VISIBLE_SELECTABLE_MODEL",
+      thinkingControlLabel: "Thinking effort",
+      thinkingVisibleLabel: "Extra High",
+      thinkingOrdinal: "4 of 5",
+      accountPlanLabel: "Pro",
+      accountPlanRole: "PROVENANCE_METADATA_ONLY",
+      accountPlanIsReasoningMode: false,
+    },
+    bootstrapCapability: {
+      chatId: "bootstrap:pm",
+      url: "https://chatgpt.com/c/test-project-manager",
+      challengeId: "challenge:pm",
+    },
+  };
 }
