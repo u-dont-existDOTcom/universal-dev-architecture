@@ -12,6 +12,9 @@ import {
 import {
   inBandAppReadbackProducerId,
   inBandAppReadbackSummary,
+  inBandBrowserDomReadbackMethod,
+  inBandBrowserDomReadbackProducerId,
+  inBandBrowserDomReadbackSummary,
   inBandDigestRepairOperation,
   inBandMachineTransformSummary,
   inBandPreSendSummary,
@@ -363,6 +366,50 @@ test("V6 app-owned final-message readback may replace only missing web completio
     }
     assert.throws(() => buildGitHubDecisionReceiptEnvelope(bad, candidate, policy, time("32.000"), { submissionAuthorityState: f.authority }), /completion evidence missing|machine-block transformation/);
     assert.throws(() => buildGitHubDecisionReceiptEnvelope(f.events, candidate, policy, time("32.000"), { submissionAuthorityState: f.authority }), /post-expiry transport copy requires/);
+  } finally { f.store.close(); }
+});
+
+test("V6 admits one exact post-completion browser-DOM recovery readback and rejects false provenance", () => {
+  const f = fixture();
+  try {
+    const candidate = { ...f.candidate, commentId: 5744000098, createdAt: time("06.000"),
+      immutableUrl: `https://github.com/${policy.repository}/issues/53#issuecomment-5744000098` };
+    const readback = evidence(f.store, "browser-dom-readback", inBandBrowserDomReadbackSummary, [
+      "status:COMPLETE", `machine_block_sha256:${sha256(candidate.body)}`, `provider_prompt_sha256:${promptSha256}`,
+      `conversation_url:${conversation}`, "thread_surface:chatgpt", "browser_target_id_sha256:" + "7".repeat(64),
+      "source_reader_app:GitHub", "source_reader_mode:READ_ONLY",
+      "browser_capture_surface:EXISTING_BOUND_CONVERSATION_DOM",
+      "assistant_message_selection:UNIQUE_CANONICAL_BLOCK", "semantic_authority:false",
+      `readback_method:${inBandBrowserDomReadbackMethod}`,
+    ], time("07.000"), inBandBrowserDomReadbackProducerId);
+    const events = [...f.events, readback];
+    assert.equal(buildGitHubDecisionReceiptEnvelope(events, candidate, policy, time("08.000"), { submissionAuthorityState: f.authority }).data.type,
+      "github_decision_receipt_ingested");
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(f.events, candidate, policy, time("08.000"), { submissionAuthorityState: f.authority }),
+      /timing is invalid or stale/);
+
+    const wrongDigest = structuredClone(events);
+    const digestReceipt = wrongDigest.find((event) => event.eventId === readback.eventId)!;
+    if (digestReceipt.data.type === "evidence_receipt_recorded") {
+      digestReceipt.data.refs = digestReceipt.data.refs.map((ref) => ref.startsWith("machine_block_sha256:")
+        ? `machine_block_sha256:${"8".repeat(64)}` : ref);
+    }
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(wrongDigest, candidate, policy, time("08.000"), { submissionAuthorityState: f.authority }),
+      /browser-DOM provider machine block digest/);
+
+    const wrongProducer = structuredClone(events);
+    const producerReceipt = wrongProducer.find((event) => event.eventId === readback.eventId)!;
+    producerReceipt.producerId = inBandAppReadbackProducerId;
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(wrongProducer, candidate, policy, time("08.000"), { submissionAuthorityState: f.authority }),
+      /timing is invalid or stale/);
+
+    const afterExpiryCandidate = { ...candidate, commentId: 5744000097, createdAt: time("31.000"),
+      immutableUrl: `https://github.com/${policy.repository}/issues/53#issuecomment-5744000097` };
+    const afterExpiry = structuredClone(events);
+    const lateReadback = afterExpiry.find((event) => event.eventId === readback.eventId)!;
+    lateReadback.occurredAt = time("32.000");
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(afterExpiry, afterExpiryCandidate, policy, time("33.000"), { submissionAuthorityState: f.authority }),
+      /post-expiry transport copy requires current app-owned completion evidence/);
   } finally { f.store.close(); }
 });
 
