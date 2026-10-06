@@ -39,7 +39,7 @@ import { boundedJevShadowHook } from "../lib/jev-shadow-hook";
 import { FleetSupervisorLoop, fleetSupervisorSlowTickMs, fleetSupervisorStallMs } from "../lib/fleet-supervisor-loop";
 import { jevShadowSummaryForProducer, jevShadowSummaryTool } from "../lib/jev-shadow-surface";
 import { githubReconciliationTokenProviderFromEnv } from "../lib/github-app-auth";
-import { ProviderDecisionCopier } from "../lib/provider-decision-copier";
+import { ProviderDecisionCopier, ProviderDecisionValidationError } from "../lib/provider-decision-copier";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
 const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
@@ -146,11 +146,19 @@ const server = http.createServer(async (request, response) => {
       if (!watch) return json(response, 404, { error: "Fleet watch not found." });
       if (watch.state !== "PAUSED") return json(response, 409, { error: "Reasoning replacement requires the exact fleet watch to be paused." });
       const body = await readJson(request) as Record<string, unknown>;
+      const reasonCode = body.reason_code;
+      if (reasonCode !== undefined
+        && reasonCode !== "PROVIDER_EMPTY_COMPLETION"
+        && reasonCode !== "PROVIDER_INVALID_CANONICAL_DECISION") {
+        return json(response, 400, { error: "Reasoning replacement reason_code is invalid." });
+      }
       try {
-        const result = replaceFleetSupervisorReasoningRequest(store, watch, {
+        const replacementInput = {
           requestId: typeof body.request_id === "string" ? body.request_id : "",
           failureReceiptSha256: typeof body.failure_receipt_sha256 === "string" ? body.failure_receipt_sha256 : "",
-        });
+          ...(reasonCode ? { reasonCode } : {}),
+        };
+        const result = replaceFleetSupervisorReasoningRequest(store, watch, replacementInput);
         notifications.emit("event", result.event);
         return json(response, result.duplicate ? 200 : 201, {
           status: "REASONING_REQUEST_REPLACED",
@@ -343,6 +351,22 @@ const server = http.createServer(async (request, response) => {
         return json(response, 200, await providerDecisionCopier.copy(await readJson(request), producer));
       } catch (error) {
         return json(response, 409, { error: error instanceof Error ? error.message : "Provider decision copy was rejected." });
+      }
+    }
+    if (request.method === "POST" && url.pathname === "/github/decision-receipts/validate") {
+      const producer = authorizeMutation(request);
+      if (!providerDecisionCopier) {
+        return json(response, 503, { error: "Provider decision validation is not configured." });
+      }
+      try {
+        return json(response, 200, providerDecisionCopier.validate(await readJson(request), producer));
+      } catch (error) {
+        return json(response, 409, {
+          error: error instanceof Error ? error.message : "Provider decision validation was rejected.",
+          code: error instanceof ProviderDecisionValidationError
+            ? error.code
+            : "CANONICAL_SCHEMA_VALIDATION_UNAVAILABLE",
+        });
       }
     }
     if (request.method === "POST" && url.pathname === "/github/decision-receipts") {

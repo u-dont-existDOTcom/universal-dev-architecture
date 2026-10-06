@@ -52,6 +52,19 @@ export interface ProviderDecisionCopyResult {
   githubReceipt: { repository: string; issueNumber: number; commentId: number; immutableUrl: string };
 }
 
+export interface ProviderDecisionValidationResult {
+  status: 'VALIDATED';
+  validationScope: 'CANONICAL_SCHEMA_AND_REQUEST_IDENTITY';
+  requestId: string;
+  providerSessionId: string;
+  canonicalBodySha256: string;
+  ingestionAuthorized: false;
+}
+
+export class ProviderDecisionValidationError extends Error {
+  readonly code = 'CANONICAL_SCHEMA_OR_IDENTITY_INVALID';
+}
+
 export class ProviderDecisionCopier {
   private tail: Promise<void> = Promise.resolve();
 
@@ -74,19 +87,20 @@ export class ProviderDecisionCopier {
     return run;
   }
 
+  validate(rawInput: unknown, caller: AuthenticatedProducer): ProviderDecisionValidationResult {
+    const input = this.validateInput(rawInput, caller);
+    return {
+      status: 'VALIDATED',
+      validationScope: 'CANONICAL_SCHEMA_AND_REQUEST_IDENTITY',
+      requestId: input.requestId,
+      providerSessionId: input.providerSessionId,
+      canonicalBodySha256: input.canonicalBodySha256,
+      ingestionAuthorized: false,
+    };
+  }
+
   private async copySerialized(rawInput: unknown, caller: AuthenticatedProducer): Promise<ProviderDecisionCopyResult> {
-    const input = parseInput(rawInput);
-    if (!this.options.policy.requestBound?.enabled
-      || !this.options.policy.requestBound.relayProducerIds.includes(caller.id)) {
-      throw new Error('Provider decision copy requires an explicitly trusted request-bound relay producer.');
-    }
-    const decision = parseCanonicalDecisionComment(input.canonicalBody);
-    if (decision.schema_version !== 5
-      || decision.request_id !== input.requestId
-      || decision.supervisor_id !== input.supervisorId
-      || decision.provider_session_id !== input.providerSessionId) {
-      throw new Error('Provider decision copy identity does not match the canonical decision.');
-    }
+    const input = this.validateInput(rawInput, caller);
     const events = this.options.eventHistory();
     const pending = (this.options.pendingRequests ?? pendingDecisionRequests)(events).filter((request) => request.requestId === input.requestId);
     const already = events.find((event) => event.data.type === 'github_decision_receipt_ingested'
@@ -125,6 +139,26 @@ export class ProviderDecisionCopier {
         commentId: candidate.commentId, immutableUrl: candidate.immutableUrl,
       },
     };
+  }
+
+  private validateInput(rawInput: unknown, caller: AuthenticatedProducer): ProviderDecisionCopyInput {
+    if (!this.options.policy.requestBound?.enabled
+      || !this.options.policy.requestBound.relayProducerIds.includes(caller.id)) {
+      throw new Error('Provider decision copy requires an explicitly trusted request-bound relay producer.');
+    }
+    try {
+      const input = parseInput(rawInput);
+      const decision = parseCanonicalDecisionComment(input.canonicalBody);
+      if (decision.schema_version !== 5
+        || decision.request_id !== input.requestId
+        || decision.supervisor_id !== input.supervisorId
+        || decision.provider_session_id !== input.providerSessionId) {
+        throw new Error('Provider decision copy identity does not match the canonical decision.');
+      }
+      return input;
+    } catch (error) {
+      throw new ProviderDecisionValidationError(error instanceof Error ? error.message : 'Canonical decision validation failed.');
+    }
   }
 
   private ensureReadbackEvidence(input: ProviderDecisionCopyInput, occurredAt: string) {

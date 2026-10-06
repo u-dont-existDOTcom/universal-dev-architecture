@@ -878,12 +878,15 @@ class MemoryStateStore {
 }
 
 class FakeMissionControl {
-  constructor({ evidence = [], routes = [routeEvent()], autoFirstTurnMcp = true, projectionLagReads = 0, authoritativePendingRequestIds = null } = {}) {
+  constructor({ evidence = [], routes = [routeEvent()], autoFirstTurnMcp = true, projectionLagReads = 0, authoritativePendingRequestIds = null, validationError = null } = {}) {
     this.evidence = [...evidence]; this.routes = [...routes]; this.recordedEvidence = []; this.sequence = 50;
     this.producerId = 'collector:fixture-relay';
     this.autoFirstTurnMcp = autoFirstTurnMcp; this.projectionLagReads = projectionLagReads; this.fetchFleetCalls = 0;
     this.authoritativePendingRequestIds = authoritativePendingRequestIds;
+    this.validationError = validationError;
+    this.validationCalls = [];
     this.copyCalls = [];
+    this.decisionOperations = [];
   }
   async fetchFleet() {
     this.fetchFleetCalls += 1;
@@ -919,6 +922,7 @@ class FakeMissionControl {
     return { eventId: `stored-${input.receiptId}` };
   }
   async copyProviderDecision(input) {
+    this.decisionOperations.push('copy');
     this.copyCalls.push(structuredClone(input));
     const commentId = 6000000000 + this.copyCalls.length;
     const immutableUrl = `https://github.com/o/r/issues/1#issuecomment-${commentId}`;
@@ -933,6 +937,16 @@ class FakeMissionControl {
       canonicalBodySha256: input.canonicalBodySha256, ingestedEventId: eventId,
       ingestedAt: '2026-09-02T00:00:20.000Z', duplicate: false,
       githubReceipt: { repository: 'o/r', issueNumber: 1, commentId, immutableUrl },
+    };
+  }
+  async validateProviderDecision(input) {
+    this.decisionOperations.push('validate');
+    this.validationCalls.push(structuredClone(input));
+    if (this.validationError) throw this.validationError;
+    return {
+      status: 'VALIDATED', validationScope: 'CANONICAL_SCHEMA_AND_REQUEST_IDENTITY',
+      requestId: input.requestId, providerSessionId: input.providerSessionId,
+      canonicalBodySha256: input.canonicalBodySha256, ingestionAuthorized: false,
     };
   }
 }
@@ -1422,11 +1436,33 @@ test('V6 records one trusted binding/body/admission receipt before one GitHub-on
   assert.equal(store.state.providerSessions[store.state.deliveries['request:r-1'].providerSessionId].sessionRole, 'IN_BAND_REQUEST_DECISION_SESSION');
   assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
   assert.equal((await runtime.cycle()).status, 'DECISION_RECEIPT_INGESTED');
+  assert.equal(mc.validationCalls.length, 1);
   assert.equal(mc.copyCalls.length, 1);
+  assert.deepEqual(mc.decisionOperations, ['validate', 'copy']);
+  assert.equal(mc.validationCalls[0].canonicalBody, mc.copyCalls[0].canonicalBody);
+  assert.equal(mc.validationCalls[0].canonicalBodySha256, mc.copyCalls[0].canonicalBodySha256);
   assert.equal(browser.recoveryCalls, 1);
   assert.equal((await runtime.cycle()).status, 'DECISION_RECEIPT_INGESTED');
   assert.equal(mc.copyCalls.length, 1);
   assert.equal(browser.submitCalls, 1);
+});
+
+test('V6 authoritative schema rejection blocks before copy with typed invalid-response classification', async () => {
+  const { store, mc, browser, runtime } = inBandRequestFixture();
+  const error = new Error('bounded_execution.work_execution_profile effort does not match routing tier');
+  error.classification = 'ASSISTANT_RESPONSE_PRESENT_BUT_INVALID';
+  mc.validationError = error;
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  const blocked = await runtime.cycle();
+  assert.equal(blocked.status, 'IN_BAND_REQUEST_DECISION_RECOVERY_BLOCKED');
+  assert.equal(blocked.recoveryClassification, 'ASSISTANT_RESPONSE_PRESENT_BUT_INVALID');
+  assert.equal(mc.validationCalls.length, 1);
+  assert.equal(mc.copyCalls.length, 0);
+  assert.deepEqual(mc.decisionOperations, ['validate']);
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(store.state.deliveries['request:r-1'].canonicalBodySha256, undefined);
+  assert.equal(store.state.deliveries['request:r-1'].decisionIngestedEventId, undefined);
 });
 
 test('V6 invalid or empty exact-turn recovery blocks without another provider send', async () => {

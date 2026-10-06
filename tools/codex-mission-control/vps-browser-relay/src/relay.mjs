@@ -971,7 +971,7 @@ export class RelayRuntime {
           reasoningLane: route.packet.reasoningLane,
           turnBinding,
         });
-        const copied = await this.missionControl.copyProviderDecision({
+        const copyInput = {
           requestId: route.requestId,
           supervisorId: route.supervisorId,
           providerSessionId: session.providerSessionId,
@@ -984,7 +984,9 @@ export class RelayRuntime {
           userTurnKeySha256: recovered.userTurnKeySha256,
           assistantTurnKeySha256: recovered.assistantTurnKeySha256,
           sourceReaderApp: 'GitHub',
-        });
+        };
+        await this.missionControl.validateProviderDecision(copyInput);
+        const copied = await this.missionControl.copyProviderDecision(copyInput);
         state = await this.stateStore.read();
         state.deliveries[route.routeKey] = {
           ...state.deliveries[route.routeKey],

@@ -56,7 +56,7 @@ function fixture({ readbackBody = canonicalBody, conflictBody = null as string |
   const store = new FakeStore();
   const comments: Array<Record<string, unknown>> = [];
   if (conflictBody) comments.push(comment(7001, conflictBody));
-  let posts = 0, gets = 0;
+  let posts = 0, gets = 0, tokenCalls = 0;
   const fetchImpl = async (value: string | URL | Request, init?: RequestInit) => {
     const url = String(value);
     if (url.endsWith('/comments?per_page=100&page=1')) return response(comments);
@@ -72,7 +72,7 @@ function fixture({ readbackBody = canonicalBody, conflictBody = null as string |
     throw new Error(`Unexpected URL ${url}`);
   };
   const copier = new ProviderDecisionCopier({
-    store: store as unknown as EventStore, policy, tokenProvider: async () => 'installation-token',
+    store: store as unknown as EventStore, policy, tokenProvider: async () => { tokenCalls += 1; return 'installation-token'; },
     eventHistory: () => [...store.events], fetchImpl: fetchImpl as typeof fetch,
     now: () => '2026-10-06T00:10:00.000Z', pendingRequests: () => pending ? [request] : [],
     ingestCandidate: ((eventStore: EventStore, candidate: any, _policy: any, at: string) => {
@@ -88,7 +88,7 @@ function fixture({ readbackBody = canonicalBody, conflictBody = null as string |
       return [(eventStore as unknown as FakeStore).append(envelope, at)];
     }) as any,
   });
-  return { store, copier, comments, counts: () => ({ posts, gets }) };
+  return { store, copier, comments, counts: () => ({ posts, gets }), sideEffects: () => ({ events: store.events.length, tokenCalls, posts, gets }) };
 }
 
 test('exact recovery publishes once, performs immutable readback, ingests, and is idempotent', async () => {
@@ -137,6 +137,72 @@ test('wrong request/session/body digest and untrusted relay fail before GitHub t
   await assert.rejects(() => f.copier.copy(input, { ...relay, id: 'collector:untrusted' }), /trusted request-bound relay/);
   assert.deepEqual(f.counts(), { posts: 0, gets: 0 });
 });
+
+test('authoritative canonical-schema validation is side-effect free and rejects an invalid nested execution profile', () => {
+  const validBody = withBoundedExecution('HIGH');
+  const validInput = { ...input, canonicalBody: validBody, canonicalBodySha256: sha256(validBody) };
+  const valid = fixture();
+  assert.deepEqual(valid.copier.validate(validInput, relay), {
+    status: 'VALIDATED', validationScope: 'CANONICAL_SCHEMA_AND_REQUEST_IDENTITY',
+    requestId: input.requestId, providerSessionId: input.providerSessionId,
+    canonicalBodySha256: sha256(validBody), ingestionAuthorized: false,
+  });
+  assert.deepEqual(valid.sideEffects(), { events: 0, tokenCalls: 0, posts: 0, gets: 0 });
+
+  const invalidBody = withBoundedExecution('XHIGH');
+  const invalidInput = { ...input, canonicalBody: invalidBody, canonicalBodySha256: sha256(invalidBody) };
+  const invalid = fixture();
+  assert.throws(() => invalid.copier.validate(invalidInput, relay));
+  assert.deepEqual(invalid.sideEffects(), { events: 0, tokenCalls: 0, posts: 0, gets: 0 });
+});
+
+test('copy reuses authoritative validation before evidence, token, or publication side effects', async () => {
+  const invalidBody = withBoundedExecution('XHIGH');
+  const invalidInput = { ...input, canonicalBody: invalidBody, canonicalBodySha256: sha256(invalidBody) };
+  const f = fixture();
+  await assert.rejects(() => f.copier.copy(invalidInput, relay));
+  assert.deepEqual(f.sideEffects(), { events: 0, tokenCalls: 0, posts: 0, gets: 0 });
+});
+
+test('accepted nonidentical canonical bytes are published and read back without rewriting', async () => {
+  const parsed = JSON.parse(canonicalBody.slice(canonicalDecisionCommentPrefix.length));
+  const exactBody = canonicalDecisionCommentPrefix + JSON.stringify(parsed, null, 2);
+  assert.notEqual(exactBody, canonicalBody);
+  const exactInput = { ...input, canonicalBody: exactBody, canonicalBodySha256: sha256(exactBody) };
+  const f = fixture({ readbackBody: exactBody });
+  await f.copier.copy(exactInput, relay);
+  assert.equal(f.comments[0]?.body, exactBody);
+});
+
+function withBoundedExecution(effort: 'HIGH' | 'XHIGH') {
+  const parsed = JSON.parse(canonicalBody.slice(canonicalDecisionCommentPrefix.length));
+  parsed.bounded_execution = {
+    schema_version: 1, task_id: request.taskId, job_id: 'job-schema-guard',
+    execution_objective: 'Execute the exact bounded directive.',
+    reasoning_summary: 'The accepted reasoning selected this bounded residue.',
+    strategy_id: 'strategy:schema-guard',
+    strategy_causal_hypothesis: 'The bounded action advances the current outcome.',
+    predicted_outcome_change: 'The named bounded evidence becomes available.',
+    success_threshold: 'The named evidence passes.', failure_threshold: 'The named evidence fails.',
+    next_decision_changing_evidence: 'The bounded execution result.',
+    reviewed_evidence_boundary: 'The current frozen evidence boundary.',
+    inputs: [{ type: 'ARTIFACT', ref: 'fixture:schema-guard', sha256: null }],
+    allowed_actions: ['Run the bounded action.'], allowed_paths: ['/tmp/schema-guard'],
+    allowed_commands: ['true'], forbidden_actions: ['Do not publish.'], forbidden_paths: [],
+    forbidden_decisions: ['Do not change strategy.'], required_evidence: ['A deterministic receipt.'],
+    required_tests_or_checks: ['Validate the receipt.'], stop_and_return_triggers: ['Any validation failure.'],
+    maximum_execution_cycles: 1, execution_capability: { type: 'LOCAL_FILESYSTEM_COMMAND' },
+    workspace: '/tmp/schema-guard', output_schema: { type: 'object' },
+    prompt: 'Return the exact bounded result.', deadline: '2026-10-07T00:00:00.000Z',
+    work_execution_profile: {
+      model: 'GPT_5_6_SOL', effort, routingTier: 'SOL_HIGH_EXCEPTION', routingTriggers: ['OWNER_AUTHORIZED_BLOCKER'],
+      fastModeRequest: 'DO_NOT_ENABLE_FAST', assuranceRequirement: 'SET_REQUEST_SUFFICIENT',
+      policyRef: 'patterns/work-model-and-effort-routing.md',
+      routingPolicyBaseCommit: 'fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb', contractVersion: 'TRUSTED_SETTER_V1',
+    },
+  };
+  return canonicalDecisionCommentPrefix + JSON.stringify(parsed);
+}
 
 function comment(id: number, body: string) {
   return { id, body, html_url: `https://github.com/${policy.repository}/issues/4#issuecomment-${id}`,
