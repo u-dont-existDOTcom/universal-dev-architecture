@@ -27,7 +27,7 @@ class EnforcementCoverageTests(unittest.TestCase):
                  "LESSON-INDEX.md", ".github/codex-repository.json", "docs/uda-enforcement-coverage.md",
                  "scripts/uda_rule_graph_task_time.py", "scripts/instruction-layering-profile.json",
                  "examples/rule-graph/work-handoff.json", WORK_CONTRACT}
-        paths.update(p.relative_to(ROOT).as_posix() for p in (ROOT / "patterns").glob("*.md"))
+        paths.update(p.relative_to(ROOT).as_posix() for p in (ROOT / "patterns").rglob("*.md"))
         paths.update(e["path"] for entry in inventory["entries"] for e in entry["evidence"])
         for path in paths:
             target = self.root / path
@@ -75,6 +75,16 @@ class EnforcementCoverageTests(unittest.TestCase):
     def test_new_pattern_file_without_disposition_fails(self):
         (self.root / "patterns/new-rule.md").write_text("# New live rule\nWhen acting, check the result.\n")
         self.rejected("missing disposition: patterns/new-rule.md")
+
+    def test_nested_pattern_without_disposition_fails_validator_and_audit(self):
+        for relative in ("patterns/domain/new-rule.md", "patterns/domain/deeper/new-rule.md"):
+            with self.subTest(path=relative):
+                path = self.root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("# New live rule\nWhen acting, check the result.\n")
+                self.rejected("missing disposition: " + relative)
+                self.artifact_rejected_by_audit("missing disposition: " + relative)
+                path.unlink()
 
     def test_new_kernel_section_without_disposition_fails(self):
         with (self.root / "AGENTS.md").open("a") as handle:
@@ -407,6 +417,31 @@ class EnforcementCoverageTests(unittest.TestCase):
                               if f["code"] == "uda.enforcement.coverage" and f["severity"] == "error"]
                     self.assertTrue(errors)
                     self.assertEqual(coverage.validate(self.root), [f["message"] for f in errors])
+
+    def test_kernel_marker_edits_cannot_disable_missing_or_corrupt_inventory_gate(self):
+        profile_path = ".github/codex-repository.json"
+        original = self.read(profile_path)
+        inventory = self.root / coverage.COVERAGE
+        for marker in ("missing", False, None, 0, 1, "true", {}, []):
+            profile = dict(original)
+            if marker == "missing":
+                profile.pop("uda_kernel")
+            else:
+                profile["uda_kernel"] = marker
+            self.write(profile_path, profile)
+            for content in (None, "{not-json}\n"):
+                with self.subTest(marker=marker, inventory=content):
+                    if content is None:
+                        inventory.unlink(missing_ok=True)
+                    else:
+                        inventory.write_text(content, encoding="utf-8")
+                    findings = audit_repository(self.root)
+                    errors = [f for f in findings
+                              if f["code"] == "uda.enforcement.coverage" and f["severity"] == "error"]
+                    self.assertTrue(errors)
+                    self.assertEqual(coverage.validate(self.root), [f["message"] for f in errors])
+                    self.assertTrue(any(f["code"] == "repo.profile.uda-kernel"
+                                        and f["severity"] == "error" for f in findings))
 
     def test_cli_report_and_invalid_exit_status(self):
         script = str(ROOT / "scripts/uda_enforcement_coverage.py")

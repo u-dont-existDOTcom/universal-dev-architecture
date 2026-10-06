@@ -51,7 +51,7 @@ def slug(heading: str) -> str:
 
 def universe(root: Path) -> dict[str, dict[str, Any]]:
     result = {p.relative_to(root).as_posix(): {"kind": "pattern", "source": p.read_text(encoding="utf-8")}
-              for p in sorted((root / "patterns").glob("*.md"))}
+              for p in sorted((root / "patterns").rglob("*.md"))}
     body = (root / "AGENTS.md").read_text(encoding="utf-8")
     matches = list(re.finditer(r"^## (.+)$", body, re.M))
     for i, match in enumerate(matches):

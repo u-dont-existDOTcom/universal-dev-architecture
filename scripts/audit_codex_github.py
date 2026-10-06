@@ -35,6 +35,7 @@ REPOSITORY_KINDS = {
     "content",
     "artifact",
     "policy",
+    "uda-kernel",
     "archive",
 }
 VISIBILITIES = {"public", "private", "internal"}
@@ -242,6 +243,19 @@ def _load_profile(
                 "error",
                 "repo.profile.kind",
                 f"`repository_kind` must be one of: {', '.join(sorted(REPOSITORY_KINDS))}.",
+                profile_relative,
+            )
+        )
+
+    kernel_marker = profile.get("uda_kernel")
+    if (kind == "uda-kernel" and kernel_marker is not True) or (
+        "uda_kernel" in profile and not isinstance(kernel_marker, bool)
+    ):
+        findings.append(
+            finding(
+                "error",
+                "repo.profile.uda-kernel",
+                "`uda_kernel` must be a boolean and must be true for `repository_kind: uda-kernel`.",
                 profile_relative,
             )
         )
@@ -1562,7 +1576,7 @@ def _audit_software(
 def _audit_policy(
     profile: dict[str, Any], findings: list[dict[str, object]]
 ) -> None:
-    if profile.get("repository_kind") != "policy" or not profile.get("active"):
+    if profile.get("repository_kind") not in {"policy", "uda-kernel"} or not profile.get("active"):
         return
 
     commands = profile.get("commands")
@@ -1841,8 +1855,11 @@ def audit_repository(
     workflows = _workflow_files(root_path)
     _audit_workflows(root_path, workflows, findings)
 
-    # Kernel identity comes from the profile, independent of prose and inventory.
-    if profile is not None and profile.get("uda_kernel") is True:
+    # The required kind preserves kernel identity even if its marker is damaged.
+    # Keep explicit marker activation compatible with existing kernel profiles.
+    if profile is not None and (
+        profile.get("repository_kind") == "uda-kernel" or profile.get("uda_kernel") is True
+    ):
         for error in validate_enforcement_coverage(root_path):
             findings.append(finding(
                 "error", "uda.enforcement.coverage", error,

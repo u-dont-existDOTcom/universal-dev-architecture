@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "repository_kind": "policy",
+  "repository_kind": "uda-kernel",
   "uda_kernel": true,
   "active": true,
   "long_running": true,
