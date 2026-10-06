@@ -3,7 +3,9 @@ import { CANONICAL_PROJECT_MANAGER_ID, loadConfiguredSupervisorChats } from "./c
 import {
   parseGitHubReceiptPolicy,
   pendingDecisionRequests,
+  providerInvalidCanonicalDecisionSummary,
   supervisoryRequestRetiredUnsentSummary,
+  type ReasoningReplacementReasonCode,
 } from "./github-decision-receipts";
 import { inBandRequestRoutePrefix } from "./in-band-request-binding";
 import { evaluateSupervisionAdmission } from "./supervision-admission-runtime";
@@ -246,18 +248,27 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
 export function replaceFleetSupervisorReasoningRequest(
   store: EventStore,
   watch: FleetSupervisorWatchRecord,
-  input: { requestId: string; failureReceiptSha256: string },
+  input: { requestId: string; failureReceiptSha256: string; reasonCode?: ReasoningReplacementReasonCode },
   now = new Date().toISOString(),
 ): FleetReasoningReplacementResult {
   if (!/^fleet-review:[a-f0-9]{32}$/.test(input.requestId)) throw new Error("Replacement requires one exact fleet-review request ID.");
   if (!/^[a-f0-9]{64}$/.test(input.failureReceiptSha256)) throw new Error("Replacement requires the sealed failure-receipt SHA-256.");
+  const reasonCode = input.reasonCode ?? "PROVIDER_EMPTY_COMPLETION";
+  if (reasonCode !== "PROVIDER_EMPTY_COMPLETION" && reasonCode !== "PROVIDER_INVALID_CANONICAL_DECISION") {
+    throw new Error("Replacement reason is not authorized.");
+  }
   if (!Number.isFinite(Date.parse(now))) throw new Error("Replacement time must be an offset-aware timestamp.");
+  const currentWatch = store.fleetSupervisorWatch(watch.projectId);
+  if (!currentWatch || currentWatch.worker !== watch.worker || currentWatch.taskId !== watch.taskId || currentWatch.state !== "PAUSED") {
+    throw new Error("Reasoning replacement requires the exact current fleet watch to remain paused.");
+  }
   const history = store.workerEvents(watch.worker);
   const pending = pendingDecisionRequests(history);
   const admittedReplacement = pending.findLast((request) => request.supersedesRequestId === input.requestId);
   if (admittedReplacement) {
-    if (admittedReplacement.replacementFailureReceiptSha256 !== input.failureReceiptSha256) {
-      throw new Error("The exact request already has a replacement bound to a different failure receipt.");
+    if (admittedReplacement.replacementFailureReceiptSha256 !== input.failureReceiptSha256
+      || admittedReplacement.replacementReasonCode !== reasonCode) {
+      throw new Error("The exact request already has a replacement bound to a different failure receipt or reason.");
     }
     const priorReplacement = history.findLast((event) => inBandRouteRoot(event)?.requestId === admittedReplacement.requestId);
     if (!priorReplacement) throw new Error("The admitted replacement lacks its exact durable route event.");
@@ -296,7 +307,13 @@ export function replaceFleetSupervisorReasoningRequest(
     || policy.stageIssueNumber !== prior.stageIssueNumber) {
     throw new Error("The superseded request no longer matches the configured receipt policy.");
   }
-  const replacementRequestId = `fleet-review:${sha256(`${input.requestId}\n${input.failureReceiptSha256}\nOWNER_EXPLICIT_ONE_REPLACEMENT`).slice(0, 32)}`;
+  const invalidFailure = reasonCode === "PROVIDER_INVALID_CANONICAL_DECISION"
+    ? invalidCanonicalDecisionFailureSession(history, prior, policy, input.failureReceiptSha256)
+    : undefined;
+  const replacementSeed = reasonCode === "PROVIDER_EMPTY_COMPLETION"
+    ? `${input.requestId}\n${input.failureReceiptSha256}\nOWNER_EXPLICIT_ONE_REPLACEMENT`
+    : `${input.requestId}\n${input.failureReceiptSha256}\n${reasonCode}\nOWNER_EXPLICIT_ONE_REPLACEMENT`;
+  const replacementRequestId = `fleet-review:${sha256(replacementSeed).slice(0, 32)}`;
   const nonce = `fleet-review-nonce:${sha256(`${replacementRequestId}\n${prior.ownerOutcome.sha256}`).slice(0, 32)}`;
   const expiresAt = new Date(Date.parse(now) + 24 * 60 * 60 * 1000).toISOString();
   factualPacket.packetId = `packet:${replacementRequestId}`;
@@ -326,8 +343,10 @@ export function replaceFleetSupervisorReasoningRequest(
   replacement.supersedesRequestId = input.requestId;
   replacement.supersession = {
     schemaVersion: 1,
-    reasonCode: "PROVIDER_EMPTY_COMPLETION",
+    reasonCode,
     failureReceiptSha256: input.failureReceiptSha256,
+    ...(invalidFailure ? { failureProviderSessionId: invalidFailure.providerSessionId,
+      failureCanonicalBodySha256: invalidFailure.canonicalBodySha256 } : {}),
     authorization: "OWNER_EXPLICIT_ONE_REPLACEMENT",
     replacementOrdinal: 1,
   };
@@ -341,6 +360,57 @@ export function replaceFleetSupervisorReasoningRequest(
     throw new Error("Replacement append did not atomically fence the old request and admit the new request.");
   }
   return { event, supersededRequestId: input.requestId, replacementRequestId, duplicate: false };
+}
+
+function invalidCanonicalDecisionFailureSession(
+  history: StoredEvent[], prior: ReturnType<typeof pendingDecisionRequests>[number],
+  policy: NonNullable<ReturnType<typeof parseGitHubReceiptPolicy>>, failureReceiptSha256: string,
+): { providerSessionId: string; canonicalBodySha256: string } {
+  const relayIds = policy.requestBound?.enabled ? policy.requestBound.relayProducerIds : [];
+  const trusted = (event: StoredEvent) => event.data.type === "evidence_receipt_recorded"
+    && event.data.verified === true && event.data.producer_role === "COLLECTOR"
+    && relayIds.includes(event.data.producer_id) && event.data.freshness === "CURRENT"
+    && Date.parse(event.occurredAt) >= Date.parse(prior.queuedAt);
+  const eventRef = (event: StoredEvent, prefix: string) => {
+    const values = event.data.type === "evidence_receipt_recorded"
+      ? event.data.refs.filter((ref) => ref.startsWith(prefix)).map((ref) => ref.slice(prefix.length)) : [];
+    return values.length === 1 ? values[0]! : null;
+  };
+  const failures = history.filter((event) => trusted(event)
+    && event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === providerInvalidCanonicalDecisionSummary
+    && eventRef(event, "request:") === prior.requestId
+    && eventRef(event, "supervisor:") === prior.supervisorId
+    && eventRef(event, "failure_receipt_sha256:") === failureReceiptSha256
+    && /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,299}$/.test(eventRef(event, "provider_session:") ?? "")
+    && /^[a-f0-9]{64}$/.test(eventRef(event, "canonical_body_sha256:") ?? "")
+    && event.data.refs.includes("classification:PROVIDER_INVALID_CANONICAL_DECISION")
+    && event.data.refs.includes("canonical_decision_admitted:false"));
+  if (failures.length !== 1 || failures[0]!.data.type !== "evidence_receipt_recorded") {
+    throw new Error("Invalid-canonical replacement requires one exact trusted sealed failure receipt.");
+  }
+  const failureProducerId = failures[0]!.data.producer_id;
+  const sessionId = eventRef(failures[0]!, "provider_session:");
+  const canonicalBodySha256 = eventRef(failures[0]!, "canonical_body_sha256:");
+  if (!sessionId || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,299}$/.test(sessionId)) {
+    throw new Error("Invalid-canonical failure evidence lacks one exact provider session.");
+  }
+  if (!canonicalBodySha256 || !/^[a-f0-9]{64}$/.test(canonicalBodySha256)) {
+    throw new Error("Invalid-canonical failure evidence lacks one sealed canonical-body SHA-256.");
+  }
+  if (history.some((event) => event.data.type === "github_decision_receipt_ingested" && event.data.request_id === prior.requestId)) {
+    throw new Error("The superseded request already has an admitted canonical decision.");
+  }
+  const complete = history.some((event) => trusted(event)
+    && event.data.type === "evidence_receipt_recorded"
+    && event.data.producer_id === failureProducerId
+    && event.data.summary === "MISSION_CONTROL_PROVIDER_SESSION_V1"
+    && eventRef(event, "request:") === prior.requestId
+    && eventRef(event, "supervisor:") === prior.supervisorId
+    && eventRef(event, "provider_session:") === sessionId
+    && event.data.refs.includes("lifecycle_status:COMPLETE"));
+  if (!complete) throw new Error("Invalid-canonical replacement requires a trusted COMPLETE provider session for the exact request.");
+  return { providerSessionId: sessionId, canonicalBodySha256 };
 }
 
 export function retireUnsentFleetSupervisorReasoningRequest(

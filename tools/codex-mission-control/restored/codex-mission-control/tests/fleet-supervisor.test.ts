@@ -13,7 +13,7 @@ import {
   retireUnsentFleetSupervisorReasoningRequest,
   routeFleetSupervisorReasoning,
 } from "../lib/fleet-supervisor";
-import { pendingDecisionRequests, supervisoryRequestRetiredUnsentSummary } from "../lib/github-decision-receipts";
+import { pendingDecisionRequests, providerInvalidCanonicalDecisionSummary, supervisoryRequestRetiredUnsentSummary } from "../lib/github-decision-receipts";
 import { inBandRequestRoutePrefix } from "../lib/in-band-request-binding";
 import { seedIssue47Store, seedStore } from "../lib/seed";
 import type { MissionControlEventV2, StoredEvent } from "../lib/schema";
@@ -298,6 +298,95 @@ test("one sealed empty completion is replaced exactly once without changing scie
       requestId: oldRoot.requestId,
       failureReceiptSha256: "e".repeat(64),
     }, new Date(Date.parse(replacementAt) + 2_000).toISOString()), /different failure receipt/);
+  } finally {
+    if (previous === undefined) delete process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+    else process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = previous;
+    if (previousPolicy === undefined) delete process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+    else process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = previousPolicy;
+    store.close();
+  }
+});
+
+test("one trusted COMPLETE invalid-canonical failure authorizes one append-only replacement", () => {
+  const store = new EventStore(":memory:");
+  const previous = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+  const previousPolicy = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+  try {
+    seedStore(store);
+    process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = JSON.stringify([configuredProjectManager()]);
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify(configuredReceiptPolicy());
+    const watch = store.ensureFleetSupervisorWatch("project:auth", "task:auth", "auth", t0);
+    store.configureFleetSupervisorWatch(watch.projectId, { state: "PAUSED" }, t0);
+    const oldEvent = routeFleetSupervisorReasoning(store, watch, {
+      trigger: "REASONING_REVIEW_OVERDUE", result: "Review required.", state: "PAUSED",
+      reasoningRequired: true, mechanicalRecoveryEligible: false, notifyOwner: false, notificationReason: null,
+    }, store.workerEvents(watch.worker));
+    assert.ok(oldEvent && oldEvent.data.type === "worker_message_recorded");
+    if (!oldEvent || oldEvent.data.type !== "worker_message_recorded") return;
+    const oldRoot = JSON.parse(oldEvent.data.body.slice(inBandRequestRoutePrefix.length));
+    const failureReceiptSha256 = "8".repeat(64);
+    const canonicalBodySha256 = "7".repeat(64);
+    const providerSessionId = "provider-session:invalid-canonical-test";
+    const replaceAt = new Date(Date.parse(oldRoot.queuedAt) + 3_000).toISOString();
+    assert.throws(() => replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, replaceAt), /trusted sealed failure receipt/);
+    const evidenceAt = new Date(Date.parse(oldRoot.queuedAt) + 1_000).toISOString();
+    appendInvalidFailureEvidence(store, watch.worker, oldRoot.requestId, oldRoot.destinationSupervisorId,
+      providerSessionId, failureReceiptSha256, canonicalBodySha256, evidenceAt, "collector:untrusted");
+    assert.throws(() => replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, replaceAt), /trusted sealed failure receipt/);
+    appendInvalidFailureEvidence(store, watch.worker, oldRoot.requestId, oldRoot.destinationSupervisorId,
+      providerSessionId, failureReceiptSha256, canonicalBodySha256, evidenceAt, "collector:relay",
+      ["provider_session:ambiguous-duplicate"], "duplicate-ref");
+    assert.throws(() => replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, replaceAt), /trusted sealed failure receipt/);
+    appendInvalidFailureEvidence(store, watch.worker, oldRoot.requestId, oldRoot.destinationSupervisorId,
+      providerSessionId, failureReceiptSha256, canonicalBodySha256, evidenceAt);
+    assert.throws(() => replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256: "6".repeat(64), reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, replaceAt), /trusted sealed failure receipt/);
+    assert.throws(() => replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, replaceAt), /trusted COMPLETE provider session/);
+    appendCompleteProviderSession(store, watch.worker, oldRoot.requestId, oldRoot.destinationSupervisorId,
+      providerSessionId, evidenceAt, "collector:untrusted");
+    assert.throws(() => replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, replaceAt), /trusted COMPLETE provider session/);
+    appendCompleteProviderSession(store, watch.worker, oldRoot.requestId, oldRoot.destinationSupervisorId,
+      providerSessionId, evidenceAt);
+    const before = store.count();
+    const replacement = replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, replaceAt);
+    assert.equal(replacement.duplicate, false);
+    assert.equal(store.count(), before + 1);
+    assert.equal(replacement.event.data.type, "worker_message_recorded");
+    if (replacement.event.data.type !== "worker_message_recorded") return;
+    const freshRoot = JSON.parse(replacement.event.data.body.slice(inBandRequestRoutePrefix.length));
+    assert.deepEqual(freshRoot.supersession, {
+      schemaVersion: 1,
+      reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+      failureReceiptSha256,
+      failureProviderSessionId: providerSessionId,
+      failureCanonicalBodySha256: canonicalBodySha256,
+      authorization: "OWNER_EXPLICIT_ONE_REPLACEMENT",
+      replacementOrdinal: 1,
+    });
+    assert.deepEqual(pendingDecisionRequests(store.workerEvents(watch.worker)).map((item) => item.requestId),
+      [replacement.replacementRequestId], "a late old-request decision is no longer eligible for admission");
+    const replay = replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, new Date(Date.parse(replaceAt) + 1_000).toISOString());
+    assert.equal(replay.duplicate, true);
+    assert.equal(replay.replacementRequestId, replacement.replacementRequestId);
+    assert.equal(store.count(), before + 1);
+    assert.throws(() => replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_EMPTY_COMPLETION",
+    }, new Date(Date.parse(replaceAt) + 2_000).toISOString()), /different failure receipt or reason/);
   } finally {
     if (previous === undefined) delete process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
     else process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = previous;
@@ -605,4 +694,44 @@ function configuredReceiptPolicy() {
     capabilityChallenges: [],
     requestBound: { enabled: true, relayProducerIds: ["collector:relay"] },
   };
+}
+
+function appendInvalidFailureEvidence(
+  store: EventStore, worker: string, requestId: string, supervisorId: string,
+  providerSessionId: string, failureReceiptSha256: string, canonicalBodySha256: string, occurredAt: string,
+  producerId = "collector:relay", extraRefs: string[] = [], tag?: string,
+) {
+  const common = {
+    schema_version: 2 as const, mission_id: "mission-control-live", occurred_at: occurredAt,
+  };
+  const data = (receiptId: string, summary: string, refs: string[]) => ({
+    type: "evidence_receipt_recorded" as const, worker, receipt_id: receiptId,
+    producer_id: producerId, producer_role: "COLLECTOR" as const, evidence_class: "ARTIFACT" as const,
+    independence: "SAME_PROVENANCE" as const, freshness: "CURRENT" as const, exact_candidate_sha256: null,
+    summary, refs, verified: true, changed_path_manifest: null,
+  });
+  const suffix = tag ?? (producerId === "collector:relay" ? "trusted" : "untrusted");
+  store.append({ ...common, event_id: `invalid-canonical-failure-test-${suffix}`, data: data(`invalid-canonical-failure-test-${suffix}`,
+    providerInvalidCanonicalDecisionSummary, [`request:${requestId}`, `supervisor:${supervisorId}`,
+      `provider_session:${providerSessionId}`, `failure_receipt_sha256:${failureReceiptSha256}`,
+      `canonical_body_sha256:${canonicalBodySha256}`,
+      "classification:PROVIDER_INVALID_CANONICAL_DECISION", "canonical_decision_admitted:false", ...extraRefs]) });
+}
+
+function appendCompleteProviderSession(
+  store: EventStore, worker: string, requestId: string, supervisorId: string,
+  providerSessionId: string, occurredAt: string, producerId = "collector:relay",
+) {
+  const suffix = producerId === "collector:relay" ? "trusted" : "untrusted";
+  store.append({
+    schema_version: 2, event_id: `provider-session-invalid-canonical-test-${suffix}`,
+    mission_id: "mission-control-live", occurred_at: occurredAt,
+    data: {
+      type: "evidence_receipt_recorded", worker, receipt_id: `provider-session-invalid-canonical-test-${suffix}`,
+      producer_id: producerId, producer_role: "COLLECTOR", evidence_class: "ARTIFACT",
+      independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: null,
+      summary: "MISSION_CONTROL_PROVIDER_SESSION_V1", refs: [`request:${requestId}`, `supervisor:${supervisorId}`,
+        `provider_session:${providerSessionId}`, "lifecycle_status:COMPLETE"], verified: true, changed_path_manifest: null,
+    },
+  });
 }

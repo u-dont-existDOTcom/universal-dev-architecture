@@ -474,6 +474,45 @@ test('a valid V6 empty-completion replacement fences only its exact old route', 
     .map((route) => route.requestId), ['fresh-request']);
 });
 
+test('a sent COMPLETE invalid-canonical replacement requires its exact sealed trusted failure evidence', () => {
+  const chat = parseChatDirectory([chatFixture()])[0];
+  const prior = inBandSupervisoryPacket('old-invalid-request', 'old-invalid-nonce', '2026-09-02T12:00:00.000Z');
+  const sessionId = 'provider-session:invalid-canonical';
+  const failureSha = '8'.repeat(64);
+  const canonicalBodySha = '7'.repeat(64);
+  const replacement = {
+    ...structuredClone(prior), requestId: 'fresh-invalid-request', nonce: 'fresh-invalid-nonce',
+    queuedAt: '2026-09-02T12:01:00.000Z', expiresAt: '2026-09-03T12:01:00.000Z',
+    factualPacket: { ...structuredClone(prior.factualPacket), packetId: 'packet:fresh-invalid-request' },
+    supersedesRequestId: prior.requestId,
+    supersession: {
+      schemaVersion: 1, reasonCode: 'PROVIDER_INVALID_CANONICAL_DECISION', failureReceiptSha256: failureSha,
+      failureProviderSessionId: sessionId, failureCanonicalBodySha256: canonicalBodySha,
+      authorization: 'OWNER_EXPLICIT_ONE_REPLACEMENT', replacementOrdinal: 1,
+    },
+  };
+  const snapshot = v6ReplacementSnapshot(prior, replacement);
+  snapshot.workers[0].timeline.splice(1, 0,
+    trustedFailureEvent(2, 'complete-session', 'MISSION_CONTROL_PROVIDER_SESSION_V1', prior, sessionId,
+      ['lifecycle_status:COMPLETE']),
+    trustedFailureEvent(3, 'invalid-disposition', 'MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1', prior, sessionId,
+      [`failure_receipt_sha256:${failureSha}`, `canonical_body_sha256:${canonicalBodySha}`,
+        'classification:PROVIDER_INVALID_CANONICAL_DECISION', 'canonical_decision_admitted:false']));
+  snapshot.workers[0].timeline.at(-1).sequence = 4;
+  const state = defaultState();
+  state.deliveries[`request:${prior.requestId}`] = { status: 'SUBMITTED_CONFIRMED' };
+  assert.deepEqual(extractQueuedRoutes(snapshot, [chat], state).map((route) => route.requestId), [replacement.requestId]);
+  const missingFailure = structuredClone(snapshot);
+  missingFailure.workers[0].timeline = missingFailure.workers[0].timeline.filter((event) => event.eventId !== 'invalid-disposition');
+  assert.deepEqual(extractQueuedRoutes(missingFailure, [chat], state).map((route) => route.requestId), []);
+  const duplicateSessionRef = structuredClone(snapshot);
+  duplicateSessionRef.workers[0].timeline.find((event) => event.eventId === 'invalid-disposition').data.refs.push('provider_session:ambiguous');
+  assert.deepEqual(extractQueuedRoutes(duplicateSessionRef, [chat], state).map((route) => route.requestId), []);
+  const malformed = structuredClone(replacement);
+  malformed.supersession.failureProviderSessionId = '';
+  assert.equal(parseSupervisoryCycleRouteBody(IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(malformed)), null);
+});
+
 test('a verifier-bound RETIRED_UNSENT receipt removes only its exact stale route', () => {
   const chat = parseChatDirectory([chatFixture()])[0];
   const stale = inBandSupervisoryPacket('fleet-review:' + '5'.repeat(32), 'stale-nonce', '2026-09-02T12:00:00.000Z');
@@ -709,4 +748,15 @@ function v6ReplacementSnapshot(prior, ...replacements) {
       data: { type: 'worker_message_recorded', message_id: `fresh-message-${index + 1}`, body: IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(replacement) },
     })),
   ] }] };
+}
+
+function trustedFailureEvent(sequence, eventId, summary, prior, providerSessionId, refs) {
+  return {
+    eventId, sequence, occurredAt: '2026-09-02T12:00:30.000Z', data: {
+      type: 'evidence_receipt_recorded', receipt_id: eventId, producer_id: 'collector:fixture-relay', producer_role: 'COLLECTOR',
+      evidence_class: 'ARTIFACT', independence: 'SAME_PROVENANCE', freshness: 'CURRENT', exact_candidate_sha256: null,
+      summary, refs: [`request:${prior.requestId}`, `supervisor:${prior.destinationSupervisorId}`,
+        `provider_session:${providerSessionId}`, ...refs], verified: true, changed_path_manifest: null,
+    },
+  };
 }

@@ -1291,6 +1291,61 @@ test('active replacement cancels the exact superseded safe queue head before bec
   assert.equal(browser.submitCalls, 0);
 });
 
+test('sent COMPLETE invalid-canonical replacement performs zero old-request provider actions', async () => {
+  const old = directRouteEvent('sent-invalid-request', 'old-invalid-v6-route', 'EXTRA_HIGH_DIRECT');
+  const oldPacket = JSON.parse(old.data.body.slice(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX.length));
+  oldPacket.schemaVersion = 6;
+  oldPacket.executionContext = { task_id: 'task-1' };
+  oldPacket.queuedAt = '2026-09-02T00:00:00.000Z';
+  old.data.body = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n' + JSON.stringify(oldPacket);
+  const sessionId = 'provider-session:sent-invalid';
+  const failureSha = '8'.repeat(64), canonicalBodySha = '7'.repeat(64);
+  const replacementPacket = structuredClone(oldPacket);
+  Object.assign(replacementPacket, {
+    requestId: 'replacement-invalid-request', nonce: 'replacement-invalid-nonce',
+    queuedAt: '2026-09-02T00:01:00.000Z', supersedesRequestId: oldPacket.requestId,
+  });
+  replacementPacket.factualPacket.packetId = 'packet:replacement-invalid-request';
+  replacementPacket.supersession = {
+    schemaVersion: 1, reasonCode: 'PROVIDER_INVALID_CANONICAL_DECISION', failureReceiptSha256: failureSha,
+    failureProviderSessionId: sessionId, failureCanonicalBodySha256: canonicalBodySha,
+    authorization: 'OWNER_EXPLICIT_ONE_REPLACEMENT', replacementOrdinal: 1,
+  };
+  const evidence = (eventId, summary, refs) => ({
+    eventId, sequence: eventId === 'complete-session' ? 2 : 3, occurredAt: '2026-09-02T00:00:30.000Z', data: {
+      type: 'evidence_receipt_recorded', receipt_id: eventId, producer_id: 'collector:fixture-relay', producer_role: 'COLLECTOR',
+      evidence_class: 'ARTIFACT', independence: 'SAME_PROVENANCE', freshness: 'CURRENT', exact_candidate_sha256: null,
+      summary, refs: [`request:${oldPacket.requestId}`, `supervisor:${oldPacket.destinationSupervisorId}`,
+        `provider_session:${sessionId}`, ...refs], verified: true, changed_path_manifest: null,
+    },
+  });
+  const replacement = { eventId: 'replacement-invalid-v6-route', sequence: 4, occurredAt: replacementPacket.queuedAt,
+    data: { type: 'worker_message_recorded', message_id: 'replacement-invalid-message',
+      body: 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n' + JSON.stringify(replacementPacket) } };
+  const state = defaultState();
+  state.deliveries[`request:${oldPacket.requestId}`] = { status: 'SUBMITTED_CONFIRMED' };
+  const store = new MemoryStateStore(state);
+  const mc = new FakeMissionControl({ routes: [replacement,
+    evidence('invalid-disposition', 'MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1',
+      [`failure_receipt_sha256:${failureSha}`, `canonical_body_sha256:${canonicalBodySha}`,
+        'classification:PROVIDER_INVALID_CANONICAL_DECISION', 'canonical_decision_admitted:false']),
+    evidence('complete-session', 'MISSION_CONTROL_PROVIDER_SESSION_V1', ['lifecycle_status:COMPLETE']), old],
+    autoFirstTurnMcp: false, authoritativePendingRequestIds: ['replacement-invalid-request'] });
+  const cancellations = [];
+  const pacer = {
+    status: () => ({ ready: true, queueHead: { queueItemId: 'old-terminal', requestId: oldPacket.requestId, status: 'BOUNDARY_RECORDED' } }),
+    cancelSupersededPreclickRetry: async (input) => { cancellations.push(input); return { cancelled: true }; },
+  };
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false, submissionPacer: pacer });
+  runtime.config.runtime.requestBoundEnabled = true;
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'DRY_RUN_ROUTE_READY', JSON.stringify(result));
+  assert.equal(result.route.requestId, replacementPacket.requestId);
+  assert.deepEqual(cancellations, []);
+  assert.equal(browser.submitCalls, 0);
+});
+
 test('central queue wait remains pre-send and never becomes local ambiguity', async () => {
   const { store, runtime } = inBandRequestFixture();
   runtime.submissionPacer.submit = async () => {

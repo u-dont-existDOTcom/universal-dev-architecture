@@ -37,6 +37,8 @@ export const providerSessionMcpSummary = "MISSION_CONTROL_PROVIDER_SESSION_MCP_R
 export const bindingCapsuleSummary = "MISSION_CONTROL_BINDING_CAPSULE_V1";
 export const bindingEnvelopeSummary = "MISSION_CONTROL_BINDING_ENVELOPE_V1";
 export const supervisoryRequestRetiredUnsentSummary = "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1";
+export const providerInvalidCanonicalDecisionSummary = "MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1";
+export type ReasoningReplacementReasonCode = "PROVIDER_EMPTY_COMPLETION" | "PROVIDER_INVALID_CANONICAL_DECISION";
 
 export const githubDecisionProducer: AuthenticatedProducer = { id: "system:github-decision-receipts", kind: "SYSTEM", workerScopes: ["*"], taskScopes: ["*"] };
 export const githubReceiptCollector: AuthenticatedProducer = { id: "collector:github-supervision-receipts", kind: "COLLECTOR", workerScopes: ["*"], taskScopes: ["*"] };
@@ -81,6 +83,9 @@ export interface PendingDecisionRequest {
   executionContext?: RequestExecutionContext;
   supersedesRequestId?: string;
   replacementFailureReceiptSha256?: string;
+  replacementReasonCode?: ReasoningReplacementReasonCode;
+  replacementFailureProviderSessionId?: string;
+  replacementFailureCanonicalBodySha256?: string;
   worker: string; taskId: string; requestId: string; supervisorId: string; routeSchemaVersion: 2 | 3 | 4 | 5 | 6; nonce: string;
   evidenceCapsule: { id: string; sha256: string };
   ownerOutcome: { id: string; epoch: number; sha256: string };
@@ -621,7 +626,7 @@ export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionR
   for (const request of parsed) {
     if (request.supersedesRequestId) {
       const prior = admitted.findLast((candidate) => candidate.requestId === request.supersedesRequestId);
-      if (!prior || superseded.has(prior.requestId) || !validRequestReplacement(prior, request)) continue;
+      if (!prior || superseded.has(prior.requestId) || !validRequestReplacement(events, prior, request)) continue;
       superseded.add(prior.requestId);
     }
     admitted.push(request);
@@ -631,7 +636,7 @@ export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionR
     && !superseded.has(request.requestId));
 }
 
-function validRequestReplacement(prior: PendingDecisionRequest, replacement: PendingDecisionRequest) {
+function validRequestReplacement(events: StoredEvent[], prior: PendingDecisionRequest, replacement: PendingDecisionRequest) {
   return prior.routeSchemaVersion === 6 && replacement.routeSchemaVersion === 6
     && replacement.requestId !== prior.requestId
     && replacement.worker === prior.worker
@@ -649,7 +654,48 @@ function validRequestReplacement(prior: PendingDecisionRequest, replacement: Pen
     && replacement.evidenceRefsSha256 === prior.evidenceRefsSha256
     && replacement.decisionRequestedSha256 === prior.decisionRequestedSha256
     && Date.parse(replacement.queuedAt) > Date.parse(prior.queuedAt)
-    && Boolean(replacement.replacementFailureReceiptSha256);
+    && Boolean(replacement.replacementFailureReceiptSha256)
+    && (replacement.replacementReasonCode === "PROVIDER_EMPTY_COMPLETION"
+      || (replacement.replacementReasonCode === "PROVIDER_INVALID_CANONICAL_DECISION"
+        && hasTrustedInvalidCanonicalDecisionFailure(events, prior, replacement)));
+}
+
+function hasTrustedInvalidCanonicalDecisionFailure(
+  events: StoredEvent[], prior: PendingDecisionRequest, replacement: PendingDecisionRequest,
+): boolean {
+  const policy = parseGitHubReceiptPolicy();
+  const relayIds = policy?.requestBound?.enabled ? policy.requestBound.relayProducerIds : [];
+  const sessionId = replacement.replacementFailureProviderSessionId;
+  const failureSha = replacement.replacementFailureReceiptSha256;
+  const canonicalBodySha = replacement.replacementFailureCanonicalBodySha256;
+  if (!sessionId || !failureSha || !canonicalBodySha || relayIds.length === 0) return false;
+  const trusted = (event: StoredEvent) => event.data.type === "evidence_receipt_recorded"
+    && event.data.verified === true
+    && event.data.producer_role === "COLLECTOR"
+    && relayIds.includes(event.data.producer_id)
+    && event.data.freshness === "CURRENT"
+    && Date.parse(event.occurredAt) >= Date.parse(prior.queuedAt);
+  const complete = events.filter((event) => trusted(event)
+    && event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === providerSessionSummary
+    && exactRefValue(event.data.refs, "request:") === prior.requestId
+    && exactRefValue(event.data.refs, "supervisor:") === prior.supervisorId
+    && exactRefValue(event.data.refs, "provider_session:") === sessionId
+    && event.data.refs.includes("lifecycle_status:COMPLETE"));
+  const failures = events.filter((event) => trusted(event)
+    && event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === providerInvalidCanonicalDecisionSummary
+    && exactRefValue(event.data.refs, "request:") === prior.requestId
+    && exactRefValue(event.data.refs, "supervisor:") === prior.supervisorId
+    && exactRefValue(event.data.refs, "provider_session:") === sessionId
+    && exactRefValue(event.data.refs, "failure_receipt_sha256:") === failureSha
+    && exactRefValue(event.data.refs, "canonical_body_sha256:") === canonicalBodySha
+    && event.data.refs.includes("classification:PROVIDER_INVALID_CANONICAL_DECISION")
+    && event.data.refs.includes("canonical_decision_admitted:false"));
+  return complete.length >= 1 && failures.length === 1
+    && complete.some((session) => session.data.type === "evidence_receipt_recorded"
+      && failures[0]!.data.type === "evidence_receipt_recorded"
+      && session.data.producer_id === failures[0]!.data.producer_id);
 }
 
 export function buildGitHubDecisionReceiptEnvelope(
@@ -1507,15 +1553,24 @@ function parseCycleRequest(body: string, worker: string): PendingDecisionRequest
     if (continuation && (continuation.binding.worker !== worker || root.worker !== worker)) return null;
     let supersedesRequestId: string | undefined;
     let replacementFailureReceiptSha256: string | undefined;
+    let replacementReasonCode: ReasoningReplacementReasonCode | undefined;
+    let replacementFailureProviderSessionId: string | undefined;
+    let replacementFailureCanonicalBodySha256: string | undefined;
     if (root.supersedesRequestId !== undefined || root.supersession !== undefined) {
       if (version !== 6) return null;
       supersedesRequestId = requiredString(root.supersedesRequestId, "supersedesRequestId");
       const supersession = record(root.supersession, "supersession");
       if (supersession.schemaVersion !== 1
-        || supersession.reasonCode !== "PROVIDER_EMPTY_COMPLETION"
+        || (supersession.reasonCode !== "PROVIDER_EMPTY_COMPLETION" && supersession.reasonCode !== "PROVIDER_INVALID_CANONICAL_DECISION")
         || supersession.authorization !== "OWNER_EXPLICIT_ONE_REPLACEMENT"
         || supersession.replacementOrdinal !== 1) return null;
+      replacementReasonCode = supersession.reasonCode;
       replacementFailureReceiptSha256 = digest(supersession.failureReceiptSha256, "supersession.failureReceiptSha256");
+      if (replacementReasonCode === "PROVIDER_INVALID_CANONICAL_DECISION") {
+        replacementFailureProviderSessionId = requiredString(supersession.failureProviderSessionId, "supersession.failureProviderSessionId");
+        if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,299}$/.test(replacementFailureProviderSessionId)) return null;
+        replacementFailureCanonicalBodySha256 = digest(supersession.failureCanonicalBodySha256, "supersession.failureCanonicalBodySha256");
+      } else if (supersession.failureProviderSessionId !== undefined || supersession.failureCanonicalBodySha256 !== undefined) return null;
       if (supersedesRequestId === root.requestId) return null;
     }
     if (supersedesRequestId && (typeof factual.exactFactualState !== "string"
@@ -1525,7 +1580,9 @@ function parseCycleRequest(body: string, worker: string): PendingDecisionRequest
     return {
       ...(continuation ? { continuation } : {}),
       ...(version >= 5 ? { executionContext: requestExecutionContext(root.executionContext, requiredString(factual.taskId, "factualPacket.taskId")) } : {}),
-      ...(supersedesRequestId ? { supersedesRequestId, replacementFailureReceiptSha256 } : {}),
+      ...(supersedesRequestId ? { supersedesRequestId, replacementFailureReceiptSha256,
+        replacementReasonCode, ...(replacementFailureProviderSessionId ? { replacementFailureProviderSessionId,
+          replacementFailureCanonicalBodySha256 } : {}) } : {}),
       worker, taskId: requiredString(factual.taskId, "factualPacket.taskId"), requestId: requiredString(root.requestId, "requestId"), supervisorId, routeSchemaVersion: version, nonce: requiredString(root.nonce, "nonce"),
       evidenceCapsule: { id: requiredString(evidence.id, "evidenceCapsule.id"), sha256: digest(evidence.sha256, "evidenceCapsule.sha256") },
       ownerOutcome: { id: requiredString(outcome.id, "ownerOutcome.id"), epoch: positiveInteger(outcome.epoch, "ownerOutcome.epoch"), sha256: digest(outcome.sha256, "ownerOutcome.sha256") },

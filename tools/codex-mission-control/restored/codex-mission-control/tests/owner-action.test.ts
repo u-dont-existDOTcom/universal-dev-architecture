@@ -77,9 +77,30 @@ test("reasoning replacement posts only the exact bounded identity and sealed fai
     assert.equal(seen.length, 1);
     assert.equal(seen[0].method, "POST");
     assert.equal(seen[0].url, "/fleet-supervisor/project%3Ahrp-discern-eval/reasoning-replace");
-    assert.deepEqual(JSON.parse(seen[0].body), { request_id: requestId, failure_receipt_sha256: failureReceiptSha256 });
+    assert.deepEqual(JSON.parse(seen[0].body), {
+      request_id: requestId, failure_receipt_sha256: failureReceiptSha256, reason_code: "PROVIDER_EMPTY_COMPLETION",
+    });
     assert.equal(seen[0].headers["x-mission-control-producer-kind"], "OWNER_AUTHORITY");
     assert.ok(!result.stdout.includes(INTERNAL_TOKEN) && !result.stdout.includes(OWNER_TOKEN));
+  });
+});
+
+test("reasoning replacement accepts only the explicit invalid-canonical reason enum", async () => {
+  await withServer(async (base, seen) => {
+    const requestId = `fleet-review:${"c".repeat(32)}`;
+    const failureReceiptSha256 = "d".repeat(64);
+    const result = await run(["reasoning-replace", "--project", "project:askrigor", "--request", requestId,
+      "--failure-receipt-sha", failureReceiptSha256, "--reason-code", "PROVIDER_INVALID_CANONICAL_DECISION"], env(base));
+    assert.equal(result.code, 0, result.stderr);
+    assert.deepEqual(JSON.parse(seen[0].body), {
+      request_id: requestId, failure_receipt_sha256: failureReceiptSha256,
+      reason_code: "PROVIDER_INVALID_CANONICAL_DECISION",
+    });
+    const rejected = await run(["reasoning-replace", "--project", "project:askrigor", "--request", requestId,
+      "--failure-receipt-sha", failureReceiptSha256, "--reason-code", "RETIRED_UNSENT"], env(base));
+    assert.equal(rejected.code, 2);
+    assert.match(rejected.stderr, /--reason-code must be/);
+    assert.equal(seen.length, 1);
   });
 });
 

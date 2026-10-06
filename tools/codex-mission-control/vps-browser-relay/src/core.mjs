@@ -16,6 +16,7 @@ export const PROVIDER_SESSION_MCP_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_MC
 export const BINDING_CAPSULE_SUMMARY = 'MISSION_CONTROL_BINDING_CAPSULE_V1';
 export const BINDING_ENVELOPE_SUMMARY = 'MISSION_CONTROL_BINDING_ENVELOPE_V1';
 export const SUPERVISORY_REQUEST_RETIRED_UNSENT_SUMMARY = 'MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1';
+export const PROVIDER_INVALID_CANONICAL_DECISION_SUMMARY = 'MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1';
 export const MCP_BINDING_PRELOAD_STEP = 'MCP_BINDING_PRELOAD';
 export const REQUEST_BOUND_STEP = 'REQUEST_BOUND_DECISION';
 export const REQUEST_BOUND_CYCLE_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n';
@@ -364,10 +365,16 @@ export function parseSupervisoryCycleRouteBody(body) {
       || value.supersedesRequestId === value.requestId
       || !isRecord(value.supersession)
       || value.supersession.schemaVersion !== 1
-      || value.supersession.reasonCode !== 'PROVIDER_EMPTY_COMPLETION'
+      || !['PROVIDER_EMPTY_COMPLETION', 'PROVIDER_INVALID_CANONICAL_DECISION'].includes(value.supersession.reasonCode)
       || value.supersession.authorization !== 'OWNER_EXPLICIT_ONE_REPLACEMENT'
       || value.supersession.replacementOrdinal !== 1
-      || !isSha256(value.supersession.failureReceiptSha256))) return null;
+      || !isSha256(value.supersession.failureReceiptSha256)
+      || (value.supersession.reasonCode === 'PROVIDER_INVALID_CANONICAL_DECISION'
+        ? (typeof value.supersession.failureProviderSessionId !== 'string'
+          || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,299}$/.test(value.supersession.failureProviderSessionId)
+          || !isSha256(value.supersession.failureCanonicalBodySha256))
+        : (Object.hasOwn(value.supersession, 'failureProviderSessionId')
+          || Object.hasOwn(value.supersession, 'failureCanonicalBodySha256'))))) return null;
     validateOwnerResponseContinuation(value, version);
     return { ...value, routeSchemaVersion: version, destinationSupervisorId: version >= 3 ? value.destinationSupervisorId : value.destinationChatId };
   } catch {
@@ -431,6 +438,8 @@ export function extractQueuedRoutes(snapshot, chats, state) {
   const livenessByWorkerRequest = new Map();
   const mcpByWorkerRequest = new Map();
   const retiredUnsentRequests = new Set();
+  const invalidCanonicalFailures = new Set();
+  const completeProviderSessions = new Set();
   for (const worker of snapshot.workers) {
     if (!isRecord(worker) || !Array.isArray(worker.timeline)) continue;
     const workerId = typeof worker.id === 'string' ? worker.id : 'unknown-worker';
@@ -454,6 +463,26 @@ export function extractQueuedRoutes(snapshot, chats, state) {
         const requestId = refValue(event.data.refs, 'request:');
         if (requestId) retiredUnsentRequests.add(`${workerId}:${requestId}`);
         continue;
+      }
+      if (event.data.type === 'evidence_receipt_recorded' && event.data.verified === true
+        && event.data.producer_role === 'COLLECTOR' && event.data.freshness === 'CURRENT'
+        && Array.isArray(event.data.refs)) {
+        const requestId = exactRef(event.data.refs, 'request:');
+        const supervisorId = exactRef(event.data.refs, 'supervisor:');
+        const providerSessionId = exactRef(event.data.refs, 'provider_session:');
+        if (requestId && supervisorId && providerSessionId && event.data.summary === PROVIDER_SESSION_SUMMARY
+          && event.data.refs.includes('lifecycle_status:COMPLETE')) {
+          completeProviderSessions.add(`${workerId}:${requestId}:${supervisorId}:${providerSessionId}:${event.data.producer_id}`);
+        }
+        const failureSha256 = exactRef(event.data.refs, 'failure_receipt_sha256:');
+        const canonicalBodySha256 = exactRef(event.data.refs, 'canonical_body_sha256:');
+        if (requestId && supervisorId && providerSessionId && failureSha256 && canonicalBodySha256
+          && isSha256(failureSha256) && isSha256(canonicalBodySha256)
+          && event.data.summary === PROVIDER_INVALID_CANONICAL_DECISION_SUMMARY
+          && event.data.refs.includes('classification:PROVIDER_INVALID_CANONICAL_DECISION')
+          && event.data.refs.includes('canonical_decision_admitted:false')) {
+          invalidCanonicalFailures.add(`${workerId}:${requestId}:${supervisorId}:${providerSessionId}:${failureSha256}:${canonicalBodySha256}:${event.data.producer_id}`);
+        }
       }
       if (event.data.type === 'evidence_receipt_recorded' && event.data.summary === PROVIDER_SESSION_MCP_SUMMARY
         && event.data.verified === true && Array.isArray(event.data.refs)) {
@@ -492,7 +521,6 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       try { validateOwnerResponseContinuation(packet, packet.routeSchemaVersion, workerId); } catch { continue; }
       const routeKey = `request:${packet.requestId}`;
       const prior = state.deliveries?.[routeKey];
-      if (prior && ['SUBMITTED_CONFIRMED', 'DECISION_RECEIPT_INGESTED'].includes(prior.status)) continue;
       const providerSessionId = prior?.providerSessionId ?? null;
       const bindingProviderSessionId = prior?.bindingProviderSessionId ?? (prior?.cycleStep === MCP_BINDING_PRELOAD_STEP ? providerSessionId : null);
       const workerRequestKey = `${workerId}:${packet.requestId}`;
@@ -523,11 +551,12 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       });
     }
   }
-  return routesAfterValidSupersession(routes)
+  return routesAfterValidSupersession(routes, invalidCanonicalFailures, completeProviderSessions)
+    .filter((route) => !route.prior || !['SUBMITTED_CONFIRMED', 'DECISION_RECEIPT_INGESTED'].includes(route.prior.status))
     .sort((left, right) => left.queuedAt.localeCompare(right.queuedAt) || left.routeKey.localeCompare(right.routeKey));
 }
 
-function routesAfterValidSupersession(routes) {
+function routesAfterValidSupersession(routes, invalidCanonicalFailures, completeProviderSessions) {
   const superseded = new Set();
   const admitted = [];
   // Mission Control transport snapshots are newest-first, while validating a
@@ -543,14 +572,15 @@ function routesAfterValidSupersession(routes) {
       continue;
     }
     const prior = admitted.find((candidate) => candidate.requestId === priorId);
-    if (!prior || superseded.has(priorId) || !validRouteReplacement(prior, replacement)) continue;
+    if (!prior || superseded.has(priorId)
+      || !validRouteReplacement(prior, replacement, invalidCanonicalFailures, completeProviderSessions)) continue;
     superseded.add(priorId);
     admitted.push(replacement);
   }
   return admitted.filter((route) => !superseded.has(route.requestId));
 }
 
-function validRouteReplacement(prior, replacement) {
+function validRouteReplacement(prior, replacement, invalidCanonicalFailures, completeProviderSessions) {
   const priorPacket = prior.packet;
   const nextPacket = replacement.packet;
   return priorPacket?.routeSchemaVersion === 6
@@ -571,10 +601,17 @@ function validRouteReplacement(prior, replacement) {
     && canonicalJson(priorPacket.factualPacket?.evidenceRefs) === canonicalJson(nextPacket.factualPacket?.evidenceRefs)
     && priorPacket.factualPacket?.decisionRequested === nextPacket.factualPacket?.decisionRequested
     && Date.parse(replacement.queuedAt) > Date.parse(prior.queuedAt)
-    && nextPacket.supersession?.reasonCode === 'PROVIDER_EMPTY_COMPLETION'
+    && ['PROVIDER_EMPTY_COMPLETION', 'PROVIDER_INVALID_CANONICAL_DECISION'].includes(nextPacket.supersession?.reasonCode)
     && nextPacket.supersession?.authorization === 'OWNER_EXPLICIT_ONE_REPLACEMENT'
     && nextPacket.supersession?.replacementOrdinal === 1
-    && isSha256(nextPacket.supersession?.failureReceiptSha256);
+    && isSha256(nextPacket.supersession?.failureReceiptSha256)
+    && (nextPacket.supersession.reasonCode === 'PROVIDER_EMPTY_COMPLETION'
+      || [...invalidCanonicalFailures].some((key) => {
+        const prefix = `${prior.workerId}:${prior.requestId}:${prior.supervisorId}:${nextPacket.supersession.failureProviderSessionId}:${nextPacket.supersession.failureReceiptSha256}:${nextPacket.supersession.failureCanonicalBodySha256}:`;
+        if (!key.startsWith(prefix)) return false;
+        const producerId = key.slice(prefix.length);
+        return completeProviderSessions.has(`${prior.workerId}:${prior.requestId}:${prior.supervisorId}:${nextPacket.supersession.failureProviderSessionId}:${producerId}`);
+      }));
 }
 
 function parseStageLivenessEvidence(event) {
@@ -602,6 +639,12 @@ function parseStageLivenessEvidence(event) {
 function refValue(refs, prefix) {
   const ref = refs.find((value) => typeof value === 'string' && value.startsWith(prefix));
   return ref ? ref.slice(prefix.length) : null;
+}
+
+function exactRef(refs, prefix) {
+  const values = refs.filter((value) => typeof value === 'string' && value.startsWith(prefix))
+    .map((value) => value.slice(prefix.length));
+  return values.length === 1 ? values[0] : null;
 }
 
 export function chatCapabilityState(snapshot, chat, now = new Date().toISOString()) {
