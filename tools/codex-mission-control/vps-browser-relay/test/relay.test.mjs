@@ -1331,7 +1331,7 @@ test('sent COMPLETE invalid-canonical replacement performs zero old-request prov
     },
   });
   const proof = { eventId: proofEventId, sequence: 4, occurredAt: '2026-09-02T00:00:45.000Z', data: {
-    type: 'evidence_receipt_recorded', receipt_id: proofEventId,
+    type: 'evidence_receipt_recorded', worker: 'worker-a', receipt_id: proofEventId,
     producer_id: 'verifier:fleet-supervisor-reasoning-replacement', producer_role: 'VERIFIER',
     evidence_class: 'ARTIFACT', independence: 'INDEPENDENT', freshness: 'CURRENT', exact_candidate_sha256: proofSha,
     summary: 'MISSION_CONTROL_REASONING_REPLACEMENT_PROOF_V1',

@@ -474,11 +474,12 @@ export function extractQueuedRoutes(snapshot, chats, state) {
         && event.data.producer_role === 'VERIFIER'
         && event.data.producer_id === REASONING_REPLACEMENT_PROOF_PRODUCER_ID
         && event.data.summary === REASONING_REPLACEMENT_PROOF_SUMMARY
+        && event.data.worker === workerId
         && Array.isArray(event.data.refs)
         && typeof event.eventId === 'string'
         && event.data.receipt_id === event.eventId) {
         const proof = reasoningReplacementProof(event);
-        if (proof) reasoningReplacementProofs.set(event.eventId, proof);
+        if (proof) reasoningReplacementProofs.set(`${workerId}:${event.eventId}`, proof);
       }
       if (event.data.type === 'evidence_receipt_recorded' && event.data.summary === PROVIDER_SESSION_MCP_SUMMARY
         && event.data.verified === true && Array.isArray(event.data.refs)) {
@@ -635,7 +636,8 @@ function reasoningReplacementProof(event) {
 
 function validReasoningReplacementProof(prior, replacement, proofs) {
   const supersession = replacement.packet.supersession;
-  const proof = proofs.get(supersession.proofEventId);
+  if (prior.workerId !== replacement.workerId || prior.supervisorId !== replacement.supervisorId) return false;
+  const proof = proofs.get(`${replacement.workerId}:${supersession.proofEventId}`);
   if (!proof || proof.proofSha256 !== supersession.proofSha256
     || !Number.isInteger(proof.eventSequence) || !Number.isInteger(replacement.eventSequence)
     || proof.eventSequence >= replacement.eventSequence) return false;

@@ -515,6 +515,12 @@ test('a sent COMPLETE invalid-canonical replacement requires its exact sealed tr
     'raw collector evidence cannot authorize a replacement');
   snapshot.workers[0].timeline.splice(3, 0, replacementProofEvent(4, proofEventId, proofPayload, proofSha));
   assert.deepEqual(extractQueuedRoutes(snapshot, [chat], state).map((route) => route.requestId), [replacement.requestId]);
+  const crossWorkerProof = structuredClone(snapshot);
+  const misplacedProof = crossWorkerProof.workers[0].timeline.splice(3, 1)[0];
+  misplacedProof.data.worker = 'worker-b';
+  crossWorkerProof.workers.push({ id: 'worker-b', name: 'Worker B', timeline: [misplacedProof] });
+  assert.deepEqual(extractQueuedRoutes(crossWorkerProof, [chat], state).map((route) => route.requestId), [],
+    'a proof from another worker timeline cannot authorize this worker replacement');
   const untrustedProof = structuredClone(snapshot);
   untrustedProof.workers[0].timeline.find((event) => event.eventId === proofEventId).data.producer_id = 'collector:fixture-relay';
   untrustedProof.workers[0].timeline.find((event) => event.eventId === proofEventId).data.producer_role = 'COLLECTOR';
@@ -778,7 +784,7 @@ function trustedFailureEvent(sequence, eventId, summary, prior, providerSessionI
 function replacementProofEvent(sequence, eventId, payload, proofSha) {
   return {
     eventId, sequence, occurredAt: '2026-09-02T12:00:45.000Z', data: {
-      type: 'evidence_receipt_recorded', receipt_id: eventId,
+      type: 'evidence_receipt_recorded', worker: 'worker-a', receipt_id: eventId,
       producer_id: 'verifier:fleet-supervisor-reasoning-replacement', producer_role: 'VERIFIER',
       evidence_class: 'ARTIFACT', independence: 'INDEPENDENT', freshness: 'CURRENT',
       exact_candidate_sha256: proofSha, summary: 'MISSION_CONTROL_REASONING_REPLACEMENT_PROOF_V1',
