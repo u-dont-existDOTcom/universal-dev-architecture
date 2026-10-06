@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { isRelayTransportEvent, snapshotFromStore, workerSnapshotFromStore, workerTransportSnapshotFromStore } from "../lib/dashboard-data";
+import { pendingDecisionRequests } from "../lib/github-decision-receipts";
 import { seedIssue47Store } from "../lib/seed";
 import { EventStore } from "../lib/store";
 
@@ -93,6 +94,14 @@ test("relay transport projection preserves route evidence and omits unrelated wo
     assert.equal(transport.worker.id, "mission-control-live-slice");
     assert.equal(transport.worker.timeline.every(isRelayTransportEvent), true);
     assert.equal(transport.worker.timeline.some((event) => event.eventId === transportEvidence.eventId), true);
+    assert.deepEqual(
+      transport.worker.authoritativePendingRequestIds,
+      pendingDecisionRequests(all)
+        .filter((request) => request.worker === "mission-control-live-slice"
+          && Number.isFinite(Date.parse(request.expiresAt))
+          && Date.parse(request.expiresAt) > Date.now())
+        .map((request) => request.requestId),
+    );
     assert.ok(transport.worker.timeline.length < all.length);
     assert.equal(JSON.stringify(transport).length < JSON.stringify(workerSnapshotFromStore(store, "mission-control-live-slice")).length, true);
   } finally {

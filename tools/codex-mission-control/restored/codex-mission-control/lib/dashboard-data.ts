@@ -1,6 +1,7 @@
 import { projectWorkers, summarizeChanges } from "./projection";
 import { EventStore } from "./store";
 import type { StoredEvent } from "./schema";
+import { pendingDecisionRequests } from "./github-decision-receipts";
 
 const relayTransportEvidenceSummaries = new Set([
   "MISSION_CONTROL_CHAT_CAPABILITY_CHALLENGE_V1",
@@ -110,6 +111,11 @@ export function workerTransportSnapshotFromEvents(
       id: selected.id,
       name: selected.name,
       timeline: workerEvents.filter(isRelayTransportEvent).reverse(),
+      authoritativePendingRequestIds: pendingDecisionRequests(workerEvents)
+        .filter((request) => request.worker === worker
+          && Number.isFinite(Date.parse(request.expiresAt))
+          && Date.parse(request.expiresAt) > Date.now())
+        .map((request) => request.requestId),
     },
     generatedAt: new Date().toISOString(),
   };

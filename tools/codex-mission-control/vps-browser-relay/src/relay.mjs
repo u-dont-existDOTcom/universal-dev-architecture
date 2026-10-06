@@ -410,24 +410,6 @@ export class RelayRuntime {
         }
       }
 
-      let metrics = await this.memoryReader(this.config.browser.profileDir);
-      let memory = this.#memoryState(metrics);
-      const targets = await this.browser.listTargets();
-      this.#forgetMissingTargets(state, targets);
-      const closedTargets = await this.#applyTabBudget(targets, state, memory.pressure, null);
-      if (closedTargets.length > 0) {
-        metrics = await this.memoryReader(this.config.browser.profileDir);
-        memory = this.#memoryState(metrics);
-      }
-      state.health.metrics = metrics;
-      state.health.pressure = memory.pressure;
-      state.health.pausedReason = memory.pressure === 'HARD' ? memory.reasons.join('; ') : null;
-      if (memory.pressure === 'HARD') {
-        state.health.lastError = null;
-        state = await this.stateStore.write(state);
-        return this.#writeStandaloneStatus('PAUSED_MEMORY_HARD', state, { memory, closedTargets, queue: null });
-      }
-
       const allRoutes = extractQueuedRoutes(snapshot, this.config.runtime.chats, state);
       const replacements = allRoutes.filter((route) => typeof route.packet?.supersedesRequestId === 'string');
       if (replacements.length > 0) {
@@ -477,78 +459,101 @@ export class RelayRuntime {
           { missionControlLegacyBinding: exactLegacyBinding, unrelatedRouteCount: allRoutes.length - legacyScopedRoutes.length },
         );
       }
-      const routes = exactRequest
+      const scopedRoutes = exactRequest
         ? legacyScopedRoutes.filter((route) => route.workerId === exactRequest.workerId
           && route.requestId === exactRequest.requestId)
         : legacyScopedRoutes;
-      if (exactRequest && routes.length !== 1) {
-        state.health.lastError = null;
-        state.health.pausedReason = routes.length === 0
-          ? `No exact request route is queued for ${exactRequest.requestId}.`
-          : `More than one exact route is queued for ${exactRequest.requestId}.`;
-        state = await this.stateStore.write(state);
-        return this.#writeStandaloneStatus(
-          routes.length === 0 ? 'EXACT_REQUEST_ROUTE_UNAVAILABLE' : 'EXACT_REQUEST_ROUTE_AMBIGUOUS',
-          state,
-          { exactRequest, unrelatedRouteCount: allRoutes.length - routes.length },
-        );
-      }
-      const withReceipt = routes.find((route) => route.routeKind === 'SUPERVISORY_CYCLE' && route.decisionReceipt);
-      if (withReceipt) {
-        const providerSessionId = withReceipt.decisionReceipt.provider_session_id
-          ?? withReceipt.decisionReceipt.decision_provider_session_id
-          ?? withReceipt.decisionReceipt.stage_provider_session_id;
-        const session = providerSessionId ? state.providerSessions[providerSessionId] : null;
-        if (!session && ((withReceipt.packet.routeSchemaVersion === 5 && withReceipt.decisionReceipt.execution_provenance === 'REQUEST_BOUND_MCP_GITHUB_OBSERVED')
-          || (withReceipt.packet.routeSchemaVersion === 6 && withReceipt.decisionReceipt.execution_provenance === 'IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED'))) {
-          // The daemon already admitted the exact execution evidence. Recover a lost local acknowledgement without a new browser transaction.
-          state.deliveries[withReceipt.routeKey] = { status: 'DECISION_RECEIPT_INGESTED', requestId: withReceipt.requestId, workerId: withReceipt.workerId, supervisorId: withReceipt.supervisorId, providerSessionId, receiptId: withReceipt.decisionReceipt.receipt_id, recoveredFrom: 'DURABLE_GITHUB_ADMISSION', receivedAt: new Date().toISOString() };
-          state = await this.stateStore.write(state);
-          return this.#writeStandaloneStatus('DECISION_RECEIPT_INGESTED', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(withReceipt) });
+      const receiptReconciliationRoutes = scopedRoutes.filter((route) => route.routeKind === 'SUPERVISORY_CYCLE'
+        && route.decisionReceipt
+        && state.deliveries[route.routeKey]?.status !== 'DECISION_RECEIPT_INGESTED');
+      if (receiptReconciliationRoutes.length > 0) {
+        const reconciled = [];
+        for (const route of receiptReconciliationRoutes.sort((left, right) => left.routeKey.localeCompare(right.routeKey))) {
+          const providerSessionId = route.decisionReceipt.provider_session_id
+            ?? route.decisionReceipt.decision_provider_session_id
+            ?? route.decisionReceipt.stage_provider_session_id;
+          const session = providerSessionId ? state.providerSessions[providerSessionId] : null;
+          if (!session && ((route.packet.routeSchemaVersion === 5 && route.decisionReceipt.execution_provenance === 'REQUEST_BOUND_MCP_GITHUB_OBSERVED')
+            || (route.packet.routeSchemaVersion === 6 && route.decisionReceipt.execution_provenance === 'IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED'))) {
+            state.deliveries[route.routeKey] = { status: 'DECISION_RECEIPT_INGESTED', requestId: route.requestId, workerId: route.workerId, supervisorId: route.supervisorId, providerSessionId, receiptId: route.decisionReceipt.receipt_id, recoveredFrom: 'DURABLE_GITHUB_ADMISSION', receivedAt: new Date().toISOString() };
+          } else {
+            if (!session || session.requestId !== route.requestId || session.supervisorId !== route.supervisorId) {
+              throw new Error(`Canonical receipt for ${route.requestId} is not bound to its active provider session.`);
+            }
+            session.status = 'COMPLETE';
+            session.completedAt = new Date().toISOString();
+            state.providerSessions[providerSessionId] = session;
+            await this.#recordProviderSession({ ...route, providerSessionId, providerSession: session }, session, 'EXACT');
+            if (session.targetId) this.#rememberReusableTarget(state, session.targetId, session.conversationUrl);
+            state.deliveries[route.routeKey] = {
+              ...(state.deliveries[route.routeKey] ?? {}),
+              status: 'DECISION_RECEIPT_INGESTED',
+              receiptId: route.decisionReceipt.receipt_id,
+              receivedAt: new Date().toISOString(),
+            };
+          }
+          reconciled.push({ route: publicRoute(route), receipt: publicDecisionReceipt(route.decisionReceipt) });
         }
-        if (!session || session.requestId !== withReceipt.requestId || session.supervisorId !== withReceipt.supervisorId) {
-          throw new Error(`Canonical receipt for ${withReceipt.requestId} is not bound to its active provider session.`);
-        }
-        session.status = 'COMPLETE';
-        session.completedAt = new Date().toISOString();
-        state.providerSessions[providerSessionId] = session;
-        await this.#recordProviderSession({ ...withReceipt, providerSessionId, providerSession: session }, session, 'EXACT');
-        if (session.targetId) this.#rememberReusableTarget(state, session.targetId, session.conversationUrl);
-        state.deliveries[withReceipt.routeKey] = {
-          ...(state.deliveries[withReceipt.routeKey] ?? {}),
-          status: 'DECISION_RECEIPT_INGESTED',
-          receiptId: withReceipt.decisionReceipt.receipt_id,
-          receivedAt: new Date().toISOString(),
-        };
         state.health.lastError = null;
         state.health.pausedReason = null;
         state = await this.stateStore.write(state);
-        return this.#writeStandaloneStatus('DECISION_RECEIPT_INGESTED', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(withReceipt), receipt: publicDecisionReceipt(withReceipt.decisionReceipt) });
+        return this.#writeStandaloneStatus(reconciled.length === 1 ? 'DECISION_RECEIPT_INGESTED' : 'DECISION_RECEIPTS_RECONCILED', state, {
+          receiptReconciliationCount: reconciled.length,
+          reconciled,
+          queue: summarizeRoutes(scopedRoutes, state),
+        }, { inspectBrowser: false });
       }
 
-      const ambiguous = routes.find((route) => state.deliveries[route.routeKey]?.status === 'AMBIGUOUS_AFTER_RESTART');
+      const selectionExactRequest = exactRequest ?? (exactLegacyBinding ? {
+        workerId: exactLegacyBinding.worker,
+        requestId: exactLegacyBinding.decisionRequestId,
+      } : null);
+      const selection = selectAuthoritativePendingRoute({ snapshot, routes: scopedRoutes, state, exactRequest: selectionExactRequest });
+      if (selection.status !== 'SELECTED') {
+        state.health.lastError = null;
+        state.health.pausedReason = selection.reason;
+        state = await this.stateStore.write(state);
+        return this.#writeStandaloneStatus(selection.status, state, {
+          exactRequest,
+          authoritativePending: selection.authoritativePending,
+          eligible: selection.eligible,
+          unrelatedRouteCount: allRoutes.length - scopedRoutes.length,
+        }, { inspectBrowser: false });
+      }
+      const routes = [selection.route];
+      const candidate = selection.route;
+
+      const ambiguous = state.deliveries[candidate.routeKey]?.status === 'AMBIGUOUS_AFTER_RESTART' ? candidate : null;
       if (ambiguous) {
         state.health.lastError = null;
         state.health.pausedReason = `Route ${ambiguous.routeKey} is ambiguous after a possible browser click; automatic replay is prohibited.`;
         state = await this.stateStore.write(state);
-        return this.#writeStandaloneStatus('AMBIGUITY_REQUIRES_OPERATOR', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(ambiguous) });
+        return this.#writeStandaloneStatus('AMBIGUITY_REQUIRES_OPERATOR', state, { queue: summarizeRoutes(routes, state), route: publicRoute(ambiguous) }, { inspectBrowser: false });
       }
 
-      const nowMs = Date.now();
-      const candidate = routes.find((route) => route.routeKind === 'SUPERVISORY_CYCLE'
-        ? shouldProcessSupervisoryCycle(route, state.deliveries[route.routeKey], nowMs, this.config.runtime.retryDelayMs)
-        : shouldAttemptRoute(state.deliveries[route.routeKey], nowMs, this.config.runtime.retryDelayMs));
-      if (!candidate) {
+      if (!shouldProcessSupervisoryCycle(candidate, state.deliveries[candidate.routeKey], Date.now(), this.config.runtime.retryDelayMs)) {
         state.health.lastError = null;
-        state.health.pausedReason = null;
+        state.health.pausedReason = `The exact current pending route ${candidate.requestId} is not locally processable.`;
         state = await this.stateStore.write(state);
-        return this.#writeStandaloneStatus('IDLE', state, { memory, queue: summarizeRoutes(routes, state), closedTargets });
+        return this.#writeStandaloneStatus('CURRENT_PENDING_ROUTE_NOT_PROCESSABLE', state, { queue: summarizeRoutes(routes, state), route: publicRoute(candidate) }, { inspectBrowser: false });
       }
 
-      if (candidate.routeKind !== 'SUPERVISORY_CYCLE') {
-        state.health.pausedReason = 'Legacy factual-packet browser automation is disabled; migrate this route to the provider-session supervisory-cycle protocol.';
+      let metrics = await this.memoryReader(this.config.browser.profileDir);
+      let memory = this.#memoryState(metrics);
+      const targets = await this.browser.listTargets();
+      this.#forgetMissingTargets(state, targets);
+      const closedTargets = await this.#applyTabBudget(targets, state, memory.pressure, null);
+      if (closedTargets.length > 0) {
+        metrics = await this.memoryReader(this.config.browser.profileDir);
+        memory = this.#memoryState(metrics);
+      }
+      state.health.metrics = metrics;
+      state.health.pressure = memory.pressure;
+      state.health.pausedReason = memory.pressure === 'HARD' ? memory.reasons.join('; ') : null;
+      if (memory.pressure === 'HARD') {
+        state.health.lastError = null;
         state = await this.stateStore.write(state);
-        return this.#writeStandaloneStatus('LEGACY_ROUTE_NOT_AUTOMATED', state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(candidate) });
+        return this.#writeStandaloneStatus('PAUSED_MEMORY_HARD', state, { memory, closedTargets, queue: summarizeRoutes(routes, state) });
       }
 
       if ((candidate.packet.routeSchemaVersion === 5 || candidate.packet.routeSchemaVersion === 6) && this.config.runtime.requestBoundEnabled !== true) {
@@ -1409,6 +1414,83 @@ function unresolvedAmbiguities(state) {
   return Object.entries(state.deliveries)
     .filter(([, delivery]) => delivery?.status === 'AMBIGUOUS_AFTER_RESTART')
     .map(([routeKey, delivery]) => ({ routeKey, supervisorId: delivery.supervisorId ?? null, providerSessionId: delivery.providerSessionId ?? null, bodySha256: delivery.bodySha256, lastAttemptAt: delivery.lastAttemptAt ?? null, status: delivery.status }));
+}
+
+function selectAuthoritativePendingRoute({ snapshot, routes, state, exactRequest = null }) {
+  const authoritativePending = [];
+  for (const worker of snapshot?.workers ?? []) {
+    if (!Array.isArray(worker?.authoritativePendingRequestIds)) {
+      return routeSelectionFailure(
+        'AUTHORITATIVE_PENDING_PROJECTION_UNAVAILABLE',
+        `Mission Control did not provide an authoritative pending-request projection for worker ${worker?.id ?? 'unknown'}.`,
+        authoritativePending,
+        [],
+      );
+    }
+    for (const requestId of worker.authoritativePendingRequestIds) {
+      if (typeof requestId !== 'string' || requestId.length === 0) {
+        return routeSelectionFailure(
+          'AUTHORITATIVE_PENDING_PROJECTION_INVALID',
+          `Mission Control returned an invalid pending request identifier for worker ${worker?.id ?? 'unknown'}.`,
+          authoritativePending,
+          [],
+        );
+      }
+      authoritativePending.push({ workerId: worker.id, requestId });
+    }
+  }
+
+  const scopedAuthoritative = exactRequest
+    ? authoritativePending.filter((request) => request.workerId === exactRequest.workerId
+      && request.requestId === exactRequest.requestId)
+    : authoritativePending;
+  const uniqueAuthoritativeKeys = new Set(scopedAuthoritative.map((request) => `${request.workerId}:${request.requestId}`));
+  const eligible = routes.filter((route) => route.routeKind === 'SUPERVISORY_CYCLE'
+    && uniqueAuthoritativeKeys.has(`${route.workerId}:${route.requestId}`)
+    && !route.decisionReceipt
+    && !['DECISION_RECEIPT_INGESTED', 'SUBMITTED_CONFIRMED', 'DISCARDED']
+      .includes(state.deliveries[route.routeKey]?.status)
+    && (!Number.isFinite(Date.parse(route.packet?.expiresAt)) || Date.parse(route.packet.expiresAt) > Date.now()));
+  const publicAuthoritative = scopedAuthoritative.map((request) => ({ ...request }));
+  const publicEligible = eligible.map(publicRoute);
+
+  if (scopedAuthoritative.length !== 1 || uniqueAuthoritativeKeys.size !== 1) {
+    const status = exactRequest
+      ? (scopedAuthoritative.length === 0 ? 'EXACT_REQUEST_ROUTE_UNAVAILABLE' : 'EXACT_REQUEST_ROUTE_AMBIGUOUS')
+      : (scopedAuthoritative.length === 0 ? 'AUTHORITATIVE_PENDING_ROUTE_UNAVAILABLE' : 'AUTHORITATIVE_PENDING_ROUTE_AMBIGUOUS');
+    return routeSelectionFailure(
+      status,
+      `Mission Control authoritative pending-request cardinality is ${scopedAuthoritative.length}; exactly one is required.`,
+      publicAuthoritative,
+      publicEligible,
+    );
+  }
+  if (eligible.length !== 1) {
+    const status = exactRequest
+      ? (eligible.length === 0 ? 'EXACT_REQUEST_ROUTE_UNAVAILABLE' : 'EXACT_REQUEST_ROUTE_AMBIGUOUS')
+      : (eligible.length === 0 ? 'AUTHORITATIVE_PENDING_ROUTE_UNAVAILABLE' : 'AUTHORITATIVE_PENDING_ROUTE_AMBIGUOUS');
+    return routeSelectionFailure(
+      status,
+      `Locally eligible current-route cardinality is ${eligible.length}; exactly one is required.`,
+      publicAuthoritative,
+      publicEligible,
+    );
+  }
+  return {
+    status: 'SELECTED',
+    route: eligible[0],
+    authoritativePending: { count: publicAuthoritative.length, requests: publicAuthoritative },
+    eligible: { count: publicEligible.length, routes: publicEligible },
+  };
+}
+
+function routeSelectionFailure(status, reason, authoritativePending, eligible) {
+  return {
+    status,
+    reason,
+    authoritativePending: { count: authoritativePending.length, requests: authoritativePending },
+    eligible: { count: eligible.length, routes: eligible },
+  };
 }
 
 function summarizeRoutes(routes, state) {
