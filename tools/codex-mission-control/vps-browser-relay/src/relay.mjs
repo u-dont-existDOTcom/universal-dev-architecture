@@ -1522,14 +1522,21 @@ function providerTurnBindingForRecovery({ route, prior, session, target, promptS
     || session.providerSessionId !== prior.providerSessionId || session.messageOrdinal !== 1) fail('provider session identity or lifecycle mismatch');
   const mismatches = [];
   if (session.conversationUrl !== prior.conversationUrl) mismatches.push('delivery_conversation');
-  if (session.conversationUrl !== target.url) mismatches.push('live_target_conversation');
   if (session.targetId !== target.id) mismatches.push('session_target');
   if (prior.targetId !== target.id) mismatches.push('delivery_target');
   if (prior.promptSha256 !== promptSha256) mismatches.push('prompt_digest');
   if (prior.generationStarted !== true) mismatches.push('generation_started');
   if (prior.generationStart?.bodySha256 !== promptSha256) mismatches.push('generation_start_digest');
   if (prior.generationStart?.targetId !== target.id) mismatches.push('generation_start_target');
-  if (prior.generationStart?.conversationUrl !== session.conversationUrl) mismatches.push('generation_start_conversation');
+  const generationStartConversationMatches = prior.generationStart?.conversationUrl === session.conversationUrl
+    || (prior.generationCompletion?.conversationUrlCanonicalized === true
+      && prior.generationCompletion?.conversationUrl === session.conversationUrl
+      && /^https:\/\/chatgpt\.com\/c\/WEB:[A-Za-z0-9_-]+$/.test(prior.generationStart?.conversationUrl ?? '')
+      && /^https:\/\/chatgpt\.com\/c\/[A-Za-z0-9_-]+$/.test(session.conversationUrl ?? ''));
+  const liveTargetConversationMatches = target.url === session.conversationUrl
+    || (generationStartConversationMatches && target.url === prior.generationStart?.conversationUrl);
+  if (!liveTargetConversationMatches) mismatches.push('live_target_conversation');
+  if (!generationStartConversationMatches) mismatches.push('generation_start_conversation');
   if (mismatches.length > 0) fail(`preserved send-bound identity mismatch (${mismatches.join(',')})`);
   const common = {
     requestId: route.requestId,

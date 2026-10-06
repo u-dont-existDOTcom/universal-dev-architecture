@@ -1007,7 +1007,11 @@ class FakeBrowser {
   }
   async waitForGenerationComplete(target) {
     this.waitCalls += 1;
-    if (this.completionConversationUrl) target.url = this.completionConversationUrl;
+    if (this.completionConversationUrl) {
+      target.url = this.completionConversationUrl;
+      const liveTarget = this.targets.find((candidate) => candidate.id === target.id);
+      if (liveTarget) liveTarget.url = this.completionConversationUrl;
+    }
     return {
       status: 'GENERATION_COMPLETE',
       generationStarted: true,
@@ -1455,7 +1459,8 @@ test('V6 exact-turn recovery remains available with provider submission disabled
   assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
   runtime.config.runtime.submitEnabled = false;
   const recovered = await runtime.cycle();
-  assert.equal(recovered.status, 'DECISION_RECEIPT_INGESTED', JSON.stringify(recovered));
+  assert.equal(recovered.status, 'DECISION_RECEIPT_INGESTED',
+    store.state.deliveries['request:r-1']?.recoveryError ?? JSON.stringify(recovered));
   assert.equal(browser.submitCalls, 1);
   assert.equal(browser.recoveryCalls, 1);
   assert.equal(mc.copyCalls.length, 1);
@@ -1475,6 +1480,28 @@ test('V6 pre-anchor completed request uses one bounded compound recovery and nev
   runtime.config.runtime.submitEnabled = false;
   const recovered = await runtime.cycle();
   assert.equal(recovered.status, 'DECISION_RECEIPT_INGESTED', JSON.stringify(recovered));
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(browser.recoveryCalls, 1);
+  assert.equal(mc.copyCalls.length, 1);
+  assert.equal(store.state.deliveries['request:r-1'].turnBindingMode, 'BOUND_SINGLE_TURN_COMPOUND_ANCHOR');
+});
+
+test('V6 pre-anchor compound recovery preserves an attested WEB-to-stable conversation transition', async () => {
+  const { store, mc, browser, runtime } = inBandRequestFixture();
+  browser.provisionalWebUrl = true;
+  browser.completionConversationUrl = 'https://chatgpt.com/c/stable-v6-review';
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+  const delivery = store.state.deliveries['request:r-1'];
+  const session = store.state.providerSessions[delivery.providerSessionId];
+  delete delivery.submittedUserTurnAnchor;
+  delete delivery.generationStart.submittedUserTurnAnchor;
+  delete session.submittedUserTurnAnchor;
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  assert.equal(store.state.deliveries['request:r-1'].generationCompletion.conversationUrlCanonicalized, true);
+  runtime.config.runtime.submitEnabled = false;
+  const recovered = await runtime.cycle();
+  assert.equal(recovered.status, 'DECISION_RECEIPT_INGESTED',
+    store.state.deliveries['request:r-1']?.recoveryError ?? JSON.stringify(recovered));
   assert.equal(browser.submitCalls, 1);
   assert.equal(browser.recoveryCalls, 1);
   assert.equal(mc.copyCalls.length, 1);
