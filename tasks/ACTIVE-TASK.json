@@ -1,64 +1,44 @@
 {
   "schemaVersion": 1,
-  "taskId": "mission-control-issue178-native-work-closed-loop-20260921",
-  "title": "Finish Mission Control native Work closed loop and issue #178 acceptance",
-  "status": "completed",
-  "exclusive": false,
+  "taskId": "uda-universal-enforcement-coverage-20261006",
+  "title": "Make UDA rule enforcement complete and observable",
+  "status": "active",
+  "exclusive": true,
   "repository": "u-dont-existDOTcom/universal-dev-architecture",
-  "requiredBranch": "chat/mc-unified-integrator-20260921",
-  "requiredRef": "refs/heads/chat/mc-unified-integrator-20260921",
+  "requiredBranch": "fix/universal-enforcement-coverage-20261006",
+  "requiredRef": "refs/heads/fix/universal-enforcement-coverage-20261006",
   "integrationBranch": "main",
-  "integrationBaseSha": "971b74cddd04e4e5217c1d2aeea213ef3b05da5b",
   "ownerAuthorized": true,
   "ownerSource": {
-    "directive": "CURRENT_OWNER_CHAT_20260921_FIX_MISSION_CONTROL_ISSUE178",
-    "authorityClarification": "issue-178-comment-5754276613 plus current owner instruction to continue until fixed",
-    "capturedAt": "2026-09-21T13:45:00Z"
+    "directive": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/317",
+    "capturedAt": "2026-10-06T04:02:54Z",
+    "authority": "current owner request to make this the next UDA worker task"
   },
   "ownerOutcome": {
-    "status": "SATISFIED",
-    "normalizedResult": "Mission Control automatically routes source-bound Chat reasoning to native ChatGPT Work, receives a privacy-safe machine execution receipt without owner clipboard transport, and automatically returns that exact receipt to the original stable reasoning supervisor for the next consequential decision or terminal closure.",
+    "status": "OPEN",
+    "normalizedResult": "UDA has complete, explicit, testable enforcement coverage so applicable rules reliably reach their task-time enforcement boundary; unstructured legacy coverage is visible rather than implied, semantic obligations have exact-bound admission evidence, and unactivated turns are never claimed as protected.",
     "requiredAcceptance": [
-      "one fresh non-expired mission-control-development V6 reasoning request reaches the registered source-bound supervisor",
-      "the supervisor returns one canonical bound decision without performing a control-plane GitHub write",
-      "a deterministic non-semantic copier publishes those exact machine bytes to the configured GitHub decision channel",
-      "Mission Control admits exactly one native Work directive and creates exactly one directly verified native Work task",
-      "Work returns a privacy-safe machine receipt without performing the control-plane GitHub receipt write",
-      "the deterministic copier publishes those exact Work receipt bytes to the configured stage channel",
-      "Mission Control ingests the Work receipt and queues exactly one fresh V6 reasoning return to the original stable supervisor/current owner outcome",
-      "the supervisor reviews the returned receipt and records terminal closure or the next exact source-bound directive without owner relay"
-    ],
-    "noOwnerClipboardRelay": true,
-    "productionDeploymentAuthorized": false,
-    "paidApiInferenceAuthorized": false
+      "every active indexed UDA rule has exactly one explicit enforcement disposition",
+      "wildcard or prose presence does not count as enforcement proof",
+      "new unclassified or legacy-unstructured rules fail audit",
+      "semantic obligations have exact-bound admission evidence with mechanical binding checks",
+      "the dominated-operational-alternative regression rejects the old behavior",
+      "UDA distinguishes activated/enforced from outside-UDA/not-activated",
+      "the external simple-turn bootstrap exemption is truthfully surfaced",
+      "focused and integration-bound repository checks pass",
+      "task closes only after durable integration and readback"
+    ]
   },
-  "taskLocalCheckpoint": "docs/exec-plans/active/2026-09-21-mc-native-work-autodispatch-issue178.md",
-  "supersedesTaskId": "mc-fresh-worker-epoch5-compatibility-same-fixture-v4-20260918",
-  "supersessionReason": "The prior issue-53 task's writer lease is released and its explicit no-deploy/no-send boundary is superseded by later owner authorization and the canonical issue-178 unified integration lease. Keeping it active created a false authority conflict with the current integrator.",
-  "currentAuthority": {
-    "source": "current owner chat + issue #178 unified integration ownership",
-    "capturedAt": "2026-09-21T13:45:00Z",
-    "integrationOwner": "state/MISSION-CONTROL-INTEGRATION-OWNER.json",
-    "writerLease": "docs/exec-plans/active/2026-09-21-mc-unified-integrator.writer-lease.json"
-  },
-  "writerLease": "docs/exec-plans/active/2026-09-21-mc-unified-integrator.writer-lease.json",
+  "directiveIssue": 317,
+  "taskLocalCheckpoint": "issue:317 until the branch-local checkpoint is created by the implementing worker",
   "suspendedTaskSources": [
-    "released issue-53 V6 task and writer lease",
-    "expired/discarded issue178 canary v1/v2 provider requests",
-    "old Mission Control runtime branches and rollback releases",
-    "unrelated repository roadmap and pull requests"
+    "the previously completed tasks/ACTIVE-TASK.json task",
+    "unrelated Mission Control issues and pull requests",
+    "unrelated repository roadmaps and old handoffs",
+    "unrelated dependency update pull requests"
   ],
-  "completedAt": "2026-09-21T19:46:25.780Z",
-  "terminalEvidence": {
-    "decision": "OWNER_OUTCOME_SATISFIED",
-    "workReceipt": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/61#issuecomment-5765485180",
-    "workReceiptSequence": 18252,
-    "freshPostWorkReviewRequest": "post-work-review:f252dfb4a04ede776876b0bb1c9445cf",
-    "freshPostWorkReviewRouteSequence": 18263,
-    "closureDecision": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/59#issuecomment-5766458125",
-    "closureDecisionSequence": 18271,
-    "closureAttestationSequence": 18272,
-    "duplicateWorkExecutionObserved": false,
-    "ownerClipboardRelayRequired": false
+  "currentAuthority": {
+    "source": "current owner chat + issue #317",
+    "capturedAt": "2026-10-06T04:02:54Z"
   }
 }
