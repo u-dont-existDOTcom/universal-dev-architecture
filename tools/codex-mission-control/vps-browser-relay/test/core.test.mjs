@@ -233,7 +233,11 @@ test('V6 carries exact request authority in-band and selects GitHub without any 
   });
   assert.equal(nextSupervisoryCycleAction(route, { status: completedCycleStepStatus(IN_BAND_REQUEST_STEP) }).type, 'RECOVER_AND_PUBLISH');
   assert.equal(nextSupervisoryCycleAction(route, { status: IN_BAND_COPY_CONFIRMED_STATUS }).type, 'WAIT_GITHUB_RECEIPT');
-  assert.equal(nextSupervisoryCycleAction(route, { status: IN_BAND_RECOVERY_BLOCKED_STATUS }).recovery, 'PROVIDER_DECISION_RECOVERY_BLOCKED_NO_RESEND');
+  assert.equal(nextSupervisoryCycleAction(route, { status: IN_BAND_RECOVERY_BLOCKED_STATUS }).type, 'RECOVER_AND_PUBLISH');
+  assert.equal(nextSupervisoryCycleAction(route, {
+    status: IN_BAND_RECOVERY_BLOCKED_STATUS,
+    recoveryVersion: 'STRUCTURAL_TURN_BINDING_V1',
+  }).recovery, 'STRUCTURAL_READBACK_RECOVERY_EXHAUSTED_NO_RESEND');
 });
 
 test('canonical project manager is fleet-wide while specialist routing remains worker-bound', () => {

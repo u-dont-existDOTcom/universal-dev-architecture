@@ -88,3 +88,91 @@ test('decision identity uses exact structured equality, not display-equivalent o
   assert.notEqual(canonicalJson(changed), canonicalJson(expected.evidenceCapsule));
   assert.throws(() => validateRecoveredDecisionObservation(observation(body({ evidence_capsule: changed })), expected), /evidence capsule mismatch/);
 });
+
+const conversationUrl = 'https://chatgpt.com/c/exact-bound-conversation';
+const targetId = 'target-exact-bound';
+const structuralExpected = {
+  ...expected,
+  turnBinding: {
+    mode: 'CAPTURED_STABLE_USER_TURN_KEY',
+    requestId: expected.requestId,
+    providerSessionId: expected.providerSessionId,
+    providerPromptSha256: expected.promptSha256,
+    conversationUrl,
+    targetId,
+    messageOrdinal: 1,
+    userTurnKey: 'stable-user-turn',
+    userTurnKeySource: 'data-turn-key',
+  },
+};
+
+function structuralObservation({ userKey = 'stable-user-turn', currentUrl = conversationUrl, boundTargetId = targetId, extraTurns = [] } = {}) {
+  return {
+    urlMismatch: false,
+    structureAmbiguous: false,
+    structureKind: 'CHATGPT_DATA_TURN_KEY_V1',
+    currentUrl,
+    boundTargetId,
+    turns: [
+      {
+        key: userKey, keySource: 'data-turn-key', role: 'user',
+        text: `GitHub\nrendered markdown differs from ${expected.prompt}`,
+        mentionBinding: { count: 1, exactCount: 1, exact: true }, contentRootCount: 1,
+      },
+      ...extraTurns,
+      {
+        key: 'stable-assistant-turn', keySource: 'data-content-search-unit-key', role: 'assistant',
+        text: body(), mentionBinding: null, contentRootCount: 1,
+      },
+    ],
+  };
+}
+
+test('captured structural user-turn identity survives connected-app and rendered-text transformation', () => {
+  const result = validateRecoveredDecisionObservation(structuralObservation(), structuralExpected);
+  assert.equal(result.classification, 'VALID_DECISION_PRESENT_COPIER_FAILED');
+  assert.equal(result.turnBindingMode, 'CAPTURED_STABLE_USER_TURN_KEY');
+  assert.equal(result.renderedUserTextMatchesSource, false);
+  assert.equal(result.canonicalBody, body());
+});
+
+test('captured structural recovery rejects wrong conversation, target, user turn, and assistant content cardinality', () => {
+  assert.throws(() => validateRecoveredDecisionObservation(structuralObservation({ currentUrl: 'https://chatgpt.com/c/wrong' }), structuralExpected),
+    (error) => error.classification === 'READBACK_UNRESOLVED');
+  assert.throws(() => validateRecoveredDecisionObservation(structuralObservation({ boundTargetId: 'wrong-target' }), structuralExpected),
+    (error) => error.classification === 'READBACK_UNRESOLVED');
+  assert.throws(() => validateRecoveredDecisionObservation(structuralObservation({ userKey: 'decoy-user' }), structuralExpected),
+    (error) => error.classification === 'READBACK_UNRESOLVED');
+  const wrongAssistant = structuralObservation();
+  wrongAssistant.turns[1].contentRootCount = 2;
+  assert.throws(() => validateRecoveredDecisionObservation(wrongAssistant, structuralExpected),
+    (error) => error.classification === 'READBACK_UNRESOLVED');
+});
+
+test('pre-anchor compound recovery is unique, ordered, exact-bound, and restart-stable', () => {
+  const fallback = {
+    ...structuralExpected,
+    turnBinding: {
+      ...structuralExpected.turnBinding,
+      mode: 'BOUND_SINGLE_TURN_COMPOUND_ANCHOR',
+      generationStartedAt: '2026-10-05T00:00:00.000Z',
+      userTurnKey: undefined,
+      userTurnKeySource: undefined,
+    },
+  };
+  const first = validateRecoveredDecisionObservation(structuralObservation(), fallback);
+  const afterRestart = validateRecoveredDecisionObservation(structuralObservation(), fallback);
+  assert.equal(first.canonicalBodySha256, afterRestart.canonicalBodySha256);
+  assert.equal(first.turnBindingMode, 'BOUND_SINGLE_TURN_COMPOUND_ANCHOR');
+
+  const duplicateUser = structuralObservation({ extraTurns: [{
+    key: 'decoy-user', keySource: 'data-turn-key', role: 'user', text: expected.prompt,
+    mentionBinding: { count: 1, exactCount: 1, exact: true }, contentRootCount: 1,
+  }] });
+  assert.throws(() => validateRecoveredDecisionObservation(duplicateUser, fallback),
+    (error) => error.classification === 'READBACK_UNRESOLVED');
+  const missingUser = structuralObservation();
+  missingUser.turns.shift();
+  assert.throws(() => validateRecoveredDecisionObservation(missingUser, fallback),
+    (error) => error.classification === 'READBACK_UNRESOLVED');
+});

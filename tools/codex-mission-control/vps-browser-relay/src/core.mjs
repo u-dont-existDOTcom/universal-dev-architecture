@@ -26,6 +26,7 @@ export const IN_BAND_PRE_SEND_SUMMARY = 'MISSION_CONTROL_IN_BAND_REQUEST_BINDING
 export const IN_BAND_COPY_PENDING_STATUS = `${IN_BAND_REQUEST_STEP}_COMPLETE_PENDING_COPY`;
 export const IN_BAND_COPY_CONFIRMED_STATUS = `${IN_BAND_REQUEST_STEP}_COPY_CONFIRMED`;
 export const IN_BAND_RECOVERY_BLOCKED_STATUS = `${IN_BAND_REQUEST_STEP}_RECOVERY_BLOCKED`;
+export const IN_BAND_STRUCTURAL_RECOVERY_VERSION = 'STRUCTURAL_TURN_BINDING_V1';
 export const MANAGED_CHATGPT_STEADY_STATE_TABS = 1;
 export const MANAGED_CHATGPT_TRANSITION_MAX_TABS = 2;
 export const MANAGED_CHATGPT_HARD_CEILING_TABS = 3;
@@ -804,7 +805,11 @@ export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), con
       return { type: 'RECOVER_AND_PUBLISH', step: IN_BAND_REQUEST_STEP };
     }
     if (status === IN_BAND_COPY_CONFIRMED_STATUS) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'COPIER_CONFIRMED_AWAITING_PROJECTION' };
-    if (status === IN_BAND_RECOVERY_BLOCKED_STATUS) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'PROVIDER_DECISION_RECOVERY_BLOCKED_NO_RESEND' };
+    if (status === IN_BAND_RECOVERY_BLOCKED_STATUS) {
+      return prior?.recoveryVersion === IN_BAND_STRUCTURAL_RECOVERY_VERSION
+        ? { type: 'WAIT_GITHUB_RECEIPT', recovery: 'STRUCTURAL_READBACK_RECOVERY_EXHAUSTED_NO_RESEND' }
+        : { type: 'RECOVER_AND_PUBLISH', step: IN_BAND_REQUEST_STEP, recovery: 'EXACT_BOUND_STRUCTURAL_READBACK_ONLY_NO_RESEND' };
+    }
     if (!Number.isFinite(Date.parse(route.packet.expiresAt)) || nowMs >= Date.parse(route.packet.expiresAt)) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'REQUEST_EXPIRED_NO_NEW_SEND' };
     if (status === 'UNSEEN' || status === 'RETRY_AUTHORIZED') return { type: 'SEND_CONTROL', step: IN_BAND_REQUEST_STEP, model: 'EXTRA_HIGH' };
     return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'V6_ONE_SEND_EXHAUSTED_NO_REPLAY' };

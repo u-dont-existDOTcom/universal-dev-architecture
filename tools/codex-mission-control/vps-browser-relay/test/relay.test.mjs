@@ -995,7 +995,15 @@ class FakeBrowser {
         ? `https://chatgpt.com/c/WEB:fresh-${this.freshChatCalls}`
         : `https://chatgpt.com/c/fresh-${this.freshChatCalls}`;
     }
-    return { status: 'GENERATION_STARTED', generationStarted: true, startSignal: 'STOP_CONTROL_VISIBLE', startedAtObserved: `2026-09-02T00:00:0${this.submitCalls}.000Z`, bodySha256: input.bodySha256, conversationUrl: target.url };
+    return {
+      status: 'GENERATION_STARTED', generationStarted: true, startSignal: 'STOP_CONTROL_VISIBLE',
+      startedAtObserved: `2026-09-02T00:00:0${this.submitCalls}.000Z`, bodySha256: input.bodySha256,
+      conversationUrl: target.url, targetId: target.id,
+      submittedUserTurnAnchor: {
+        key: 'user-turn', keySource: 'data-turn-key', structureKind: 'CHATGPT_DATA_TURN_KEY_V1',
+        role: 'user', messageOrdinal: 1, mentionBindingVerified: true,
+      },
+    };
   }
   async waitForGenerationComplete(target) {
     this.waitCalls += 1;
@@ -1009,7 +1017,7 @@ class FakeBrowser {
       inspectedAssistantOutput: false,
     };
   }
-  async recoverBoundConversationTurns() {
+  async recoverBoundConversationTurns(target) {
     this.recoveryCalls += 1;
     if (this.recoveryObservation) return structuredClone(this.recoveryObservation);
     const marker = 'copy it without alteration: ';
@@ -1027,9 +1035,9 @@ class FakeBrowser {
       pro_decision_block: { used: false, model_mode: null, exact_text: null, sha256: null },
       writer_contract: { mode: 'EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY', reinterpretation_allowed: false },
     };
-    return { urlMismatch: false, turns: [
-      { key: 'user-turn', role: 'user', text: this.lastSubmittedBody },
-      { key: 'assistant-turn', role: 'assistant', text: `MISSION_CONTROL_CANONICAL_DECISION_V1\n${JSON.stringify(decision)}` },
+    return { urlMismatch: false, structureAmbiguous: false, structureKind: 'CHATGPT_DATA_TURN_KEY_V1', currentUrl: target.url, turns: [
+      { key: 'user-turn', keySource: 'data-turn-key', role: 'user', text: `GitHub\n${this.lastSubmittedBody}`, mentionBinding: { count: 1, exactCount: 1, exact: true }, contentRootCount: 1 },
+      { key: 'assistant-turn', keySource: 'data-content-search-unit-key', role: 'assistant', text: `MISSION_CONTROL_CANONICAL_DECISION_V1\n${JSON.stringify(decision)}`, contentRootCount: 1 },
     ] };
   }
 }
@@ -1421,7 +1429,15 @@ test('V6 invalid or empty exact-turn recovery blocks without another provider se
   const { store, mc, browser, runtime } = inBandRequestFixture();
   assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
   assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
-  browser.recoveryObservation = { urlMismatch: false, turns: [{ key: 'user-turn', role: 'user', text: browser.lastSubmittedBody }] };
+  const delivery = store.state.deliveries['request:r-1'];
+  browser.recoveryObservation = {
+    urlMismatch: false, structureAmbiguous: false, structureKind: 'CHATGPT_DATA_TURN_KEY_V1',
+    currentUrl: delivery.conversationUrl,
+    turns: [{
+      key: 'user-turn', keySource: 'data-turn-key', role: 'user', text: `GitHub\n${browser.lastSubmittedBody}`,
+      mentionBinding: { count: 1, exactCount: 1, exact: true }, contentRootCount: 1,
+    }],
+  };
   const blocked = await runtime.cycle();
   assert.equal(blocked.status, 'IN_BAND_REQUEST_DECISION_RECOVERY_BLOCKED');
   assert.equal(blocked.recoveryClassification, 'EMPTY_PROVIDER_COMPLETION');
@@ -1429,7 +1445,40 @@ test('V6 invalid or empty exact-turn recovery blocks without another provider se
   assert.equal(mc.copyCalls.length, 0);
   assert.equal(store.state.deliveries['request:r-1'].status, 'IN_BAND_REQUEST_DECISION_RECOVERY_BLOCKED');
   assert.equal((await runtime.cycle()).status, 'AWAITING_GITHUB_RECEIPT');
+  assert.equal(browser.recoveryCalls, 1);
   assert.equal(browser.submitCalls, 1);
+});
+
+test('V6 exact-turn recovery remains available with provider submission disabled', async () => {
+  const { store, mc, browser, runtime } = inBandRequestFixture();
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  runtime.config.runtime.submitEnabled = false;
+  const recovered = await runtime.cycle();
+  assert.equal(recovered.status, 'DECISION_RECEIPT_INGESTED', JSON.stringify(recovered));
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(browser.recoveryCalls, 1);
+  assert.equal(mc.copyCalls.length, 1);
+  assert.equal(store.state.deliveries['request:r-1'].turnBindingMode, 'CAPTURED_STABLE_USER_TURN_KEY');
+  assert.equal(store.state.deliveries['request:r-1'].renderedUserTextMatchesSource, false);
+});
+
+test('V6 pre-anchor completed request uses one bounded compound recovery and never resends', async () => {
+  const { store, mc, browser, runtime } = inBandRequestFixture();
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+  const delivery = store.state.deliveries['request:r-1'];
+  const session = store.state.providerSessions[delivery.providerSessionId];
+  delete delivery.submittedUserTurnAnchor;
+  delete delivery.generationStart.submittedUserTurnAnchor;
+  delete session.submittedUserTurnAnchor;
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  runtime.config.runtime.submitEnabled = false;
+  const recovered = await runtime.cycle();
+  assert.equal(recovered.status, 'DECISION_RECEIPT_INGESTED', JSON.stringify(recovered));
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(browser.recoveryCalls, 1);
+  assert.equal(mc.copyCalls.length, 1);
+  assert.equal(store.state.deliveries['request:r-1'].turnBindingMode, 'BOUND_SINGLE_TURN_COMPOUND_ANCHOR');
 });
 
 test('V5 actual relay cycle sends one real request with MC and GitHub, never a preload', async () => {

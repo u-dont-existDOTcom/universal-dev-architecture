@@ -8,6 +8,7 @@ import {
   IN_BAND_COPY_CONFIRMED_STATUS,
   IN_BAND_COPY_PENDING_STATUS,
   IN_BAND_RECOVERY_BLOCKED_STATUS,
+  IN_BAND_STRUCTURAL_RECOVERY_VERSION,
   IN_BAND_REQUEST_PROTOCOL,
   LEGACY_FIXED_CONSUMER_CONTROLS,
   IN_BAND_REQUEST_STEP,
@@ -560,7 +561,9 @@ export class RelayRuntime {
         return this.#writeStandaloneStatus('REQUEST_BOUND_PROTOCOL_DISABLED', state, { memory, route: publicRoute(candidate) });
       }
       const capability = chatCapabilityState(snapshot, candidate.chat);
-      if (!this.config.runtime.submitEnabled) {
+      const submitDisabledAction = nextSupervisoryCycleAction(candidate, state.deliveries[candidate.routeKey]);
+      const noSendRecoveryAllowed = submitDisabledAction?.type === 'RECOVER_AND_PUBLISH';
+      if (!this.config.runtime.submitEnabled && !noSendRecoveryAllowed) {
         state.health.lastError = null;
         state.health.pausedReason = 'MC_RELAY_SUBMIT_ENABLED is not 1; no supervisory browser write was attempted.';
         state = await this.stateStore.write(state);
@@ -952,7 +955,9 @@ export class RelayRuntime {
       const prompt = cycleControlPrompt(route, action.step);
       const binding = deriveInBandRequestBinding(route, session.providerSessionId);
       try {
-        const observation = await this.browser.recoverBoundConversationTurns(target, { expectedUrl });
+        const turnBinding = providerTurnBindingForRecovery({ route, prior, session, target, promptSha256: prior.promptSha256 });
+        const readback = await this.browser.recoverBoundConversationTurns(target, { expectedUrl });
+        const observation = { ...readback, boundTargetId: target.id };
         const recovered = validateRecoveredDecisionObservation(observation, {
           prompt,
           promptSha256: prior.promptSha256,
@@ -964,6 +969,7 @@ export class RelayRuntime {
           evidenceCapsule: route.packet.evidenceCapsule,
           ownerOutcome: route.packet.ownerOutcome,
           reasoningLane: route.packet.reasoningLane,
+          turnBinding,
         });
         const copied = await this.missionControl.copyProviderDecision({
           requestId: route.requestId,
@@ -988,6 +994,10 @@ export class RelayRuntime {
           githubReceipt: copied.githubReceipt,
           decisionIngestedEventId: copied.ingestedEventId,
           copyConfirmedAt: copied.ingestedAt,
+          turnBindingMode: recovered.turnBindingMode,
+          renderedUserTextSha256: recovered.renderedUserTextSha256,
+          renderedUserTextMatchesSource: recovered.renderedUserTextMatchesSource,
+          recoveryVersion: IN_BAND_STRUCTURAL_RECOVERY_VERSION,
         };
         state.health.lastError = null;
         state.health.pausedReason = null;
@@ -996,6 +1006,7 @@ export class RelayRuntime {
           memory, queue: summarizeRoutes(routes, state), route: publicRoute(route),
           recoveryClassification: recovered.classification,
           canonicalBodySha256: recovered.canonicalBodySha256,
+          turnBindingMode: recovered.turnBindingMode,
           githubReceipt: copied.githubReceipt,
         });
       } catch (error) {
@@ -1007,6 +1018,7 @@ export class RelayRuntime {
           recoveryClassification: classification,
           recoveryError: redactError(error),
           recoveryBlockedAt: new Date().toISOString(),
+          recoveryVersion: IN_BAND_STRUCTURAL_RECOVERY_VERSION,
         };
         state.health.pausedReason = `Provider decision recovery blocked for ${route.requestId}; no resend is permitted.`;
         state = await this.stateStore.write(state);
@@ -1072,6 +1084,12 @@ export class RelayRuntime {
             bodySha256: promptSha256,
             bodyLength: prompt.length,
             targetId: target.id,
+            ...(admission ? {
+              submissionAdmissionId: admission.admissionId,
+              submissionQueueItemId: admission.queueItemId ?? null,
+              submissionAdmittedAt: admission.admittedAt,
+              submissionAdmissionExpiresAt: admission.expiresAt,
+            } : {}),
             attempt: (current?.attempt ?? 0) + 1,
             intentRecordedAt: intentAt,
             lastAttemptAt: intentAt,
@@ -1103,6 +1121,8 @@ export class RelayRuntime {
       state = await this.stateStore.read();
       session = state.providerSessions[session.providerSessionId];
       if (!session) throw new Error(`Provider session ${route.providerSessionId} disappeared after submission.`);
+      session = { ...session, submittedUserTurnAnchor: start.submittedUserTurnAnchor };
+      state.providerSessions[session.providerSessionId] = session;
       if (!session.conversationUrl) {
         session = { ...session, conversationUrl: start.conversationUrl, targetId: target.id, urlBoundAt: start.startedAtObserved };
         state.providerSessions[session.providerSessionId] = session;
@@ -1119,6 +1139,7 @@ export class RelayRuntime {
         generationStarted: true,
         generationStartedAt: start.startedAtObserved,
         generationStart: start,
+        submittedUserTurnAnchor: start.submittedUserTurnAnchor,
         conversationUrl: session.conversationUrl,
       };
       state = await this.stateStore.write(state);
@@ -1490,6 +1511,58 @@ function routeSelectionFailure(status, reason, authoritativePending, eligible) {
     reason,
     authoritativePending: { count: authoritativePending.length, requests: authoritativePending },
     eligible: { count: eligible.length, routes: eligible },
+  };
+}
+
+function providerTurnBindingForRecovery({ route, prior, session, target, promptSha256 }) {
+  const fail = (message) => { throw new Error(`Exact provider turn binding is unavailable: ${message}`); };
+  if (route.packet.routeSchemaVersion !== 6) fail('only the frozen in-band request protocol is structurally recoverable');
+  if (![IN_BAND_COPY_PENDING_STATUS, IN_BAND_RECOVERY_BLOCKED_STATUS].includes(prior?.status)) fail('delivery is not at the no-resend copy boundary');
+  if (session?.status !== 'COMPLETE' || session.requestId !== route.requestId
+    || session.providerSessionId !== prior.providerSessionId || session.messageOrdinal !== 1) fail('provider session identity or lifecycle mismatch');
+  const mismatches = [];
+  if (session.conversationUrl !== prior.conversationUrl) mismatches.push('delivery_conversation');
+  if (session.conversationUrl !== target.url) mismatches.push('live_target_conversation');
+  if (session.targetId !== target.id) mismatches.push('session_target');
+  if (prior.targetId !== target.id) mismatches.push('delivery_target');
+  if (prior.promptSha256 !== promptSha256) mismatches.push('prompt_digest');
+  if (prior.generationStarted !== true) mismatches.push('generation_started');
+  if (prior.generationStart?.bodySha256 !== promptSha256) mismatches.push('generation_start_digest');
+  if (prior.generationStart?.targetId !== target.id) mismatches.push('generation_start_target');
+  if (prior.generationStart?.conversationUrl !== session.conversationUrl) mismatches.push('generation_start_conversation');
+  if (mismatches.length > 0) fail(`preserved send-bound identity mismatch (${mismatches.join(',')})`);
+  const common = {
+    requestId: route.requestId,
+    providerSessionId: session.providerSessionId,
+    providerPromptSha256: promptSha256,
+    conversationUrl: session.conversationUrl,
+    targetId: target.id,
+    messageOrdinal: session.messageOrdinal,
+  };
+  const captured = prior.submittedUserTurnAnchor ?? prior.generationStart?.submittedUserTurnAnchor
+    ?? session.submittedUserTurnAnchor ?? null;
+  if (captured) {
+    if (typeof captured.key !== 'string' || !captured.key
+      || typeof captured.keySource !== 'string' || !captured.keySource
+      || captured.role !== 'user' || captured.messageOrdinal !== 1
+      || captured.mentionBindingVerified !== true) fail('captured stable user-turn anchor is incomplete');
+    return {
+      ...common,
+      mode: 'CAPTURED_STABLE_USER_TURN_KEY',
+      userTurnKey: captured.key,
+      userTurnKeySource: captured.keySource,
+      structureKind: captured.structureKind,
+      submissionAdmissionId: prior.submissionAdmissionId ?? null,
+    };
+  }
+  if (typeof prior.generationStartedAt !== 'string' || !Number.isFinite(Date.parse(prior.generationStartedAt))) {
+    fail('pre-anchor request lacks a durable generation-start observation');
+  }
+  return {
+    ...common,
+    mode: 'BOUND_SINGLE_TURN_COMPOUND_ANCHOR',
+    generationStartedAt: prior.generationStartedAt,
+    submissionAdmissionId: prior.submissionAdmissionId ?? null,
   };
 }
 

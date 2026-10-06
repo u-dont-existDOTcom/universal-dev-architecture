@@ -28,14 +28,11 @@ export function extractCanonicalDecisionBlock(assistantText) {
 
 export function validateRecoveredDecisionObservation(observation, expected) {
   if (!observation || observation.urlMismatch) throw recoveryError('READBACK_UNRESOLVED', 'Bound provider conversation URL is not available.');
+  if (observation.structureAmbiguous) throw recoveryError('READBACK_UNRESOLVED', 'Provider turn structure is ambiguous across supported DOM schemas.');
   if (!Array.isArray(observation.turns)) throw recoveryError('READBACK_UNRESOLVED', 'Provider turn structure is unavailable.');
   const prompt = normalizeProviderText(expected.prompt);
   if (sha256(prompt) !== expected.promptSha256) throw new Error('Locally reconstructed provider prompt hash does not match the frozen pre-send hash.');
-  const candidates = observation.turns.filter((turn) => turn.role === 'user'
-    && typeof turn.text === 'string' && sha256(normalizeProviderText(turn.text)) === expected.promptSha256);
-  if (candidates.length !== 1) {
-    throw recoveryError('READBACK_UNRESOLVED', `Expected exactly one exact submitted user turn; found ${candidates.length}.`);
-  }
+  const { candidates, mode } = selectBoundUserTurn(observation, expected);
   const userIndex = observation.turns.indexOf(candidates[0]);
   const following = [];
   for (let index = userIndex + 1; index < observation.turns.length; index += 1) {
@@ -46,6 +43,9 @@ export function validateRecoveredDecisionObservation(observation, expected) {
   if (following.length === 0) throw recoveryError('EMPTY_PROVIDER_COMPLETION', 'The exact submitted request has no assistant turn.');
   if (following.length !== 1) throw recoveryError('READBACK_UNRESOLVED', `The exact submitted request has ${following.length} candidate assistant turns.`);
   const assistant = following[0];
+  if (assistant.contentRootCount !== undefined && assistant.contentRootCount !== 1) {
+    throw recoveryError('READBACK_UNRESOLVED', `The exact assistant turn has ${assistant.contentRootCount} canonical content roots.`);
+  }
   if (typeof assistant.text !== 'string' || normalizeProviderText(assistant.text).trim() === '') {
     throw recoveryError('EMPTY_PROVIDER_COMPLETION', 'The exact assistant turn is empty.');
   }
@@ -55,9 +55,57 @@ export function validateRecoveredDecisionObservation(observation, expected) {
     classification: 'VALID_DECISION_PRESENT_COPIER_FAILED',
     canonicalBody: canonical.body,
     canonicalBodySha256: canonical.bodySha256,
+    turnBindingMode: mode,
+    renderedUserTextSha256: typeof candidates[0].text === 'string' ? sha256(normalizeProviderText(candidates[0].text)) : null,
+    renderedUserTextMatchesSource: typeof candidates[0].text === 'string'
+      && sha256(normalizeProviderText(candidates[0].text)) === expected.promptSha256,
     userTurnKeySha256: sha256(String(candidates[0].key ?? '')),
     assistantTurnKeySha256: sha256(String(assistant.key ?? '')),
   };
+}
+
+function selectBoundUserTurn(observation, expected) {
+  const binding = expected.turnBinding;
+  if (!binding) {
+    const candidates = observation.turns.filter((turn) => turn.role === 'user'
+      && typeof turn.text === 'string' && sha256(normalizeProviderText(turn.text)) === expected.promptSha256);
+    if (candidates.length !== 1) {
+      throw recoveryError('READBACK_UNRESOLVED', `Expected exactly one exact submitted user turn; found ${candidates.length}.`);
+    }
+    return { candidates, mode: 'LEGACY_RENDERED_TEXT_SHA256' };
+  }
+  if (binding.requestId !== expected.requestId || binding.providerSessionId !== expected.providerSessionId
+    || binding.providerPromptSha256 !== expected.promptSha256 || binding.messageOrdinal !== 1
+    || typeof binding.conversationUrl !== 'string' || !binding.conversationUrl
+    || observation.currentUrl !== binding.conversationUrl
+    || typeof binding.targetId !== 'string' || !binding.targetId
+    || observation.boundTargetId !== binding.targetId) {
+    throw recoveryError('READBACK_UNRESOLVED', 'Provider turn binding does not match the exact request/session/target/conversation identity.');
+  }
+  const users = observation.turns.filter((turn) => turn.role === 'user');
+  if (binding.mode === 'CAPTURED_STABLE_USER_TURN_KEY') {
+    const candidates = users.filter((turn) => turn.key === binding.userTurnKey
+      && turn.keySource === binding.userTurnKeySource
+      && turn.mentionBinding?.exact === true);
+    if (candidates.length !== 1 || users.indexOf(candidates[0]) !== binding.messageOrdinal - 1) {
+      throw recoveryError('READBACK_UNRESOLVED', `Captured stable user-turn key matched ${candidates.length} exact turns.`);
+    }
+    return { candidates, mode: binding.mode };
+  }
+  if (binding.mode !== 'BOUND_SINGLE_TURN_COMPOUND_ANCHOR'
+    || typeof binding.generationStartedAt !== 'string' || !Number.isFinite(Date.parse(binding.generationStartedAt))) {
+    throw recoveryError('READBACK_UNRESOLVED', 'Provider turn binding mode is unsupported or incomplete.');
+  }
+  const assistants = observation.turns.filter((turn) => turn.role === 'assistant');
+  const shapeMatches = observation.turns.length === 2 && users.length === 1 && assistants.length === 1
+    && observation.turns[0] === users[0] && observation.turns[1] === assistants[0]
+    && typeof users[0].key === 'string' && users[0].key.length > 0
+    && typeof assistants[0].key === 'string' && assistants[0].key.length > 0
+    && users[0].mentionBinding?.exact === true;
+  if (!shapeMatches) {
+    throw recoveryError('READBACK_UNRESOLVED', 'The pre-anchor request does not have one uniquely ordered, structurally bound user/assistant turn pair.');
+  }
+  return { candidates: users, mode: binding.mode };
 }
 
 function validateDecision(value, expected) {

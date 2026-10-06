@@ -1064,7 +1064,7 @@ const CONTINUE_TURN_STRUCTURE_FN = `function(expectedUrl) {
   return { urlMismatch: false, turns, assistantContentObserved: false };
 }`;
 
-export const BOUND_TURN_READBACK_FN = `function(expectedUrl) {
+export const BOUND_TURN_READBACK_FN = `function(expectedUrl, expectedMention) {
   const normalizeUrl = (value) => {
     try {
       const url = new URL(value);
@@ -1073,27 +1073,109 @@ export const BOUND_TURN_READBACK_FN = `function(expectedUrl) {
     } catch { return null; }
   };
   if (normalizeUrl(location.href) !== expectedUrl) return { urlMismatch: true, currentUrl: location.href, turns: [] };
-  const roleNodes = [...document.querySelectorAll('[data-message-author-role="user"], [data-message-author-role="assistant"]')];
-  const seenContainers = new Set();
+  const textOf = (element) => (typeof element?.innerText === 'string' ? element.innerText : element?.textContent || '').replace(/\\r\\n?/g, '\\n');
+  const mentionState = (root) => {
+    const mentions = [...root.querySelectorAll('[app-mention-name], [data-prompt-link-href^="app://"]')];
+    const exact = mentions.filter((node) => {
+      const fullComposerIdentity = node.getAttribute('app-mention-name') === expectedMention.name
+        && node.getAttribute('app-mention-display-name') === expectedMention.display
+        && node.getAttribute('app-mention-path') === expectedMention.path
+        && node.getAttribute('data-prompt-link-href') === expectedMention.href
+        && node.getAttribute('data-prompt-link-label') === expectedMention.promptLinkLabel
+        && textOf(node) === expectedMention.display;
+      const renderedPromptLinkIdentity = node.getAttribute('data-prompt-link-href') === expectedMention.href
+        && node.getAttribute('data-prompt-link-label') === expectedMention.promptLinkLabel
+        && textOf(node) === expectedMention.display;
+      return fullComposerIdentity || renderedPromptLinkIdentity;
+    });
+    return { count: mentions.length, exactCount: exact.length, exact: mentions.length === 1 && exact.length === 1 };
+  };
+  const legacyRoleNodes = [...document.querySelectorAll('[data-message-author-role="user"], [data-message-author-role="assistant"]')];
+  const modernRoots = [...document.querySelectorAll('[data-turn-key], [data-chatgpt-search-unit-key][data-content-search-unit-key]')]
+    .filter((root) => root.hasAttribute('data-turn-key')
+      ? Boolean(root.querySelector('[data-user-message-bubble]'))
+      : (root.querySelector('[data-conversation-role]')?.getAttribute('data-conversation-role') || textOf(root.querySelector('[data-conversation-role]'))) === 'assistant');
+  if (legacyRoleNodes.length > 0 && modernRoots.length > 0) {
+    return { urlMismatch: false, structureAmbiguous: true, currentUrl: location.href, turns: [] };
+  }
   const turns = [];
-  for (const roleNode of roleNodes) {
+  if (modernRoots.length > 0) {
+    for (const root of modernRoots) {
+      if (root.hasAttribute('data-turn-key')) {
+        const content = root.querySelector('[data-user-message-bubble] [data-markdown-text-tone]')
+          || root.querySelector('[data-user-message-bubble]') || root;
+        turns.push({
+          key: root.getAttribute('data-turn-key'), keySource: 'data-turn-key', role: 'user',
+          text: textOf(content), mentionBinding: mentionState(content), contentRootCount: 1,
+        });
+      } else {
+        const contentRoots = [...root.querySelectorAll('[data-markdown-text-style]')];
+        const key = root.getAttribute('data-content-search-unit-key')
+          || root.getAttribute('data-chatgpt-search-unit-key')
+          || root.querySelector('[data-chatgpt-selection-message-id]')?.getAttribute('data-chatgpt-selection-message-id')
+          || null;
+        turns.push({
+          key, keySource: root.hasAttribute('data-content-search-unit-key') ? 'data-content-search-unit-key' : 'data-chatgpt-search-unit-key',
+          role: 'assistant', text: contentRoots.length === 1 ? textOf(contentRoots[0]) : null,
+          mentionBinding: null, contentRootCount: contentRoots.length,
+        });
+      }
+    }
+    return { urlMismatch: false, structureAmbiguous: false, structureKind: 'CHATGPT_DATA_TURN_KEY_V1', currentUrl: location.href, turns };
+  }
+  const seenContainers = new Set();
+  for (const roleNode of legacyRoleNodes) {
     const container = roleNode.closest('article[data-testid^="conversation-turn-"], article[data-turn-id], [data-testid^="conversation-turn-"]') || roleNode;
     if (seenContainers.has(container)) continue;
     seenContainers.add(container);
     const role = roleNode.getAttribute('data-message-author-role');
     const key = roleNode.getAttribute('data-message-id')
-      || container.getAttribute('data-turn-id')
-      || container.getAttribute('data-testid')
-      || container.id
-      || null;
-    const contentRoots = role === 'assistant'
-      ? [...roleNode.querySelectorAll('.markdown, [class*="markdown"], [class*="prose"]')]
-      : [];
+      || container.getAttribute('data-turn-id') || container.getAttribute('data-testid') || container.id || null;
+    const contentRoots = role === 'assistant' ? [...roleNode.querySelectorAll('.markdown, [class*="markdown"], [class*="prose"]')] : [];
     const roots = contentRoots.length === 1 ? contentRoots : [roleNode];
-    const text = roots.map((root) => typeof root.innerText === 'string' ? root.innerText : root.textContent || '').join('');
-    turns.push({ key, role, text: text.replace(/\\r\\n?/g, '\\n') });
+    turns.push({ key, keySource: 'legacy-message-or-turn-id', role,
+      text: roots.map(textOf).join(''), mentionBinding: role === 'user' ? mentionState(roleNode) : null,
+      contentRootCount: role === 'assistant' ? contentRoots.length : 1 });
   }
-  return { urlMismatch: false, currentUrl: location.href, turns };
+  return { urlMismatch: false, structureAmbiguous: false, structureKind: 'CHATGPT_LEGACY_AUTHOR_ROLE_V1', currentUrl: location.href, turns };
+}`;
+
+export const SUBMITTED_USER_TURN_ANCHOR_FN = `function(expectedUrl, expectedMention) {
+  const normalizeUrl = (value) => {
+    try {
+      const url = new URL(value);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
+      return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
+    } catch { return null; }
+  };
+  if (normalizeUrl(location.href) !== expectedUrl) return { urlMismatch: true, currentUrl: location.href };
+  const textOf = (element) => (typeof element?.innerText === 'string' ? element.innerText : element?.textContent || '').replace(/\\r\\n?/g, '\\n');
+  const exactMention = (root) => {
+    const mentions = [...root.querySelectorAll('[app-mention-name], [data-prompt-link-href^="app://"]')];
+    if (expectedMention === null) return mentions.length === 0;
+    const exact = mentions.filter((node) => (node.getAttribute('data-prompt-link-href') === expectedMention.href
+      && node.getAttribute('data-prompt-link-label') === expectedMention.promptLinkLabel
+      && textOf(node) === expectedMention.display));
+    return mentions.length === 1 && exact.length === 1;
+  };
+  const modern = [...document.querySelectorAll('[data-turn-key]')].filter((root) => root.querySelector('[data-user-message-bubble]'));
+  const legacy = [...document.querySelectorAll('[data-message-author-role="user"]')].map((roleNode) => roleNode.closest('article[data-testid^="conversation-turn-"], article[data-turn-id], [data-testid^="conversation-turn-"]') || roleNode);
+  if (modern.length > 0 && legacy.length > 0) return { urlMismatch: false, structureAmbiguous: true, candidateCount: modern.length + legacy.length };
+  const candidates = modern.length > 0 ? modern : [...new Set(legacy)];
+  if (candidates.length !== 1) return { urlMismatch: false, structureAmbiguous: false, candidateCount: candidates.length };
+  const root = candidates[0];
+  const modernContent = root.querySelector('[data-user-message-bubble] [data-markdown-text-tone]') || root.querySelector('[data-user-message-bubble]');
+  const key = modern.length > 0 ? root.getAttribute('data-turn-key')
+    : (root.querySelector('[data-message-author-role="user"]')?.getAttribute('data-message-id')
+      || root.getAttribute('data-turn-id') || root.getAttribute('data-testid') || root.id || null);
+  const content = modernContent || root;
+  return {
+    urlMismatch: false, structureAmbiguous: false, candidateCount: 1, key,
+    keySource: modern.length > 0 ? 'data-turn-key' : 'legacy-message-or-turn-id',
+    structureKind: modern.length > 0 ? 'CHATGPT_DATA_TURN_KEY_V1' : 'CHATGPT_LEGACY_AUTHOR_ROLE_V1',
+    role: 'user', messageOrdinal: 1, mentionBindingVerified: exactMention(content),
+    assistantContentObserved: false,
+  };
 }`;
 
 const CLICK_FAILED_CONTINUE_RETRY_FN = `function(expectedUrl, binding) {
@@ -1360,7 +1442,7 @@ export class ChromeDevtoolsBrowser {
 
   async recoverBoundConversationTurns(target, { expectedUrl }) {
     const normalized = normalizeConversationUrl(expectedUrl);
-    return this.#withPageClient(target, (client) => client.callFunction(BOUND_TURN_READBACK_FN, [normalized]));
+    return this.#withPageClient(target, (client) => client.callFunction(BOUND_TURN_READBACK_FN, [normalized, GITHUB_APP_MENTION]));
   }
 
   async approveJournalWriteConfirmation(target, { expectedUrl, appName, toolName, button }) {
@@ -1672,16 +1754,32 @@ export class ChromeDevtoolsBrowser {
         }
 
         relayStage = 'GENERATION_STARTED';
+        const boundConversationUrl = normalized === 'https://chatgpt.com/' ? started.conversationUrl : normalized;
+        const submittedUserTurnAnchor = await waitFor(async () => {
+          const anchor = await client.callFunction(SUBMITTED_USER_TURN_ANCHOR_FN, [boundConversationUrl, composerMentions[0] ?? null]);
+          if (anchor?.urlMismatch || anchor?.structureAmbiguous || anchor?.candidateCount !== 1
+            || typeof anchor?.key !== 'string' || !anchor.key || anchor.role !== 'user'
+            || anchor.messageOrdinal !== 1 || anchor.mentionBindingVerified !== true) return false;
+          return anchor;
+        }, this.pageReadyTimeoutMs, 200, 'Submitted user-turn structural anchor was not recoverable after generation start.');
         return {
           status: 'GENERATION_STARTED',
           targetId: target.id,
-          conversationUrl: normalized === 'https://chatgpt.com/' ? started.conversationUrl : normalized,
+          conversationUrl: boundConversationUrl,
           bodySha256,
           bodyLength: body.length,
           clickedAtObserved,
           generationStarted: true,
           startSignal: started.startSignal,
           startedAtObserved: new Date().toISOString(),
+          submittedUserTurnAnchor: {
+            key: submittedUserTurnAnchor.key,
+            keySource: submittedUserTurnAnchor.keySource,
+            structureKind: submittedUserTurnAnchor.structureKind,
+            role: submittedUserTurnAnchor.role,
+            messageOrdinal: submittedUserTurnAnchor.messageOrdinal,
+            mentionBindingVerified: submittedUserTurnAnchor.mentionBindingVerified,
+          },
           providerSourceTime: null,
           inspectedAssistantOutput: false,
           limitations: [
