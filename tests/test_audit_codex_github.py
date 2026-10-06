@@ -84,6 +84,32 @@ class RepositoryAuditTests(unittest.TestCase):
         errors = [item for item in findings if item["severity"] == "error"]
         self.assertEqual([], errors)
 
+    def test_partial_uda_consumers_do_not_require_kernel_inventory(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile()
+        for artifact in (
+            "rules/UDA-RULE-GRAPH.json",
+            "rules/rule-graph/task-time-metadata.v1.json",
+            "rules/rule-graph/enforcement-coverage.v1.json",
+            "rules/rule-graph/enforcement-legacy-baseline.v1.json",
+            "docs/requirements/2026-10-06-universal-enforcement-coverage.owner-requirement.json",
+        ):
+            with self.subTest(artifact=artifact):
+                path = self.write(artifact, "{}\n")
+                try:
+                    errors = [item for item in audit_repository(self.root) if item["severity"] == "error"]
+                    self.assertEqual([], errors)
+                finally:
+                    path.unlink()
+
+    def test_uda_kernel_requires_coverage_even_when_artifacts_are_missing(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile()
+        self.write("AGENTS.md", "# Universal development architecture\n")
+        findings = audit_repository(self.root)
+        self.assertIn("uda.enforcement.coverage", self.codes(findings))
+        self.assertEqual({"error"}, self.severities(findings, "uda.enforcement.coverage"))
+
     def test_large_root_agents_file_is_reported(self) -> None:
         """Catch root instructions that consume most of the discovery budget."""
         self.add_minimal_repository_files()

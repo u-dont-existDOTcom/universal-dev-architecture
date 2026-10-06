@@ -506,13 +506,11 @@ def read_receipts(path: str | None) -> Any:
 
 
 def semantic_result(contract: dict[str, Any], rule: dict[str, Any], ob: dict[str, Any],
-                    phase: str, payload: bytes, receipts: Any, destination: str | None) -> dict[str, Any]:
+                    phase: str, payload: bytes, receipts: Any) -> dict[str, Any]:
     base = {"rule_id": rule["rule_id"], "obligation_id": ob["obligation_id"], "status": "UNKNOWN"}
     binding = {"contract_sha256": contract.get("content_sha256"), "rule_id": rule["rule_id"],
                "obligation_id": ob["obligation_id"], "phase": phase,
                "destination": ob["destination"], "payload_sha256": sha256(payload)}
-    if destination is not None and destination != ob["destination"]:
-        return {**base, "reason": "check destination differs from obligation"}
     items = receipts.get("receipts") if isinstance(receipts, dict) else receipts
     if not isinstance(items, list):
         return {**base, "reason": "missing or malformed semantic receipts"}
@@ -566,8 +564,12 @@ def check_contract(contract: dict[str, Any] | None, phase: str, payload: str | b
         for ob in rule.get("obligations", []):
             if ob.get("due_phase") != phase:
                 continue
+            if destination is not None and destination != ob["destination"]:
+                results.append({"rule_id": rule["rule_id"], "obligation_id": ob["obligation_id"],
+                                "status": "UNKNOWN", "reason": "check destination differs from obligation"})
+                continue
             if ob.get("enforcement") == "semantic":
-                results.append(semantic_result(contract, rule, ob, phase, payload_bytes, receipts, destination))
+                results.append(semantic_result(contract, rule, ob, phase, payload_bytes, receipts))
                 continue
             if ob.get("enforcement") != "mechanical":
                 results.append({"rule_id": rule["rule_id"], "obligation_id": ob["obligation_id"], "status": "UNKNOWN", "reason": f"{ob.get('enforcement')} is not mechanically certifiable"})

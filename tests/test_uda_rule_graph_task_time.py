@@ -125,6 +125,26 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
             checked = task_time.check_contract(contract, "final-delivery", changed_payload, **changed_readings)
             self.assertEqual(checked["admission"], "BLOCKED")
 
+    def test_mechanical_final_delivery_rejects_wrong_destination(self):
+        payload = "2026-09-30 09:42 UTC\nElapsed time: 2 minutes"
+        readings = {"clock_start": "2026-09-30T09:40:00+00:00", "clock_end": "2026-09-30T09:42:00+00:00"}
+        for mode in ("graph", "flat"):
+            with self.subTest(mode=mode):
+                contract = task_time.compile_contract(self.catalog, self.profile, self.instruction, mode)
+                for destination in (None, "owner-visible-final"):
+                    good = task_time.check_contract(
+                        contract, "final-delivery", payload, destination=destination, **readings,
+                    )
+                    self.assertEqual(good["admission"], "ADMITTED")
+                    self.assertTrue(good["results"])
+                    self.assertTrue(all(result["status"] == "PASS" for result in good["results"]))
+                wrong = task_time.check_contract(
+                    contract, "final-delivery", payload, destination="another-surface", **readings,
+                )
+                self.assertEqual(wrong["admission"], "BLOCKED")
+                self.assertTrue(all(result["status"] == "UNKNOWN" for result in wrong["results"]))
+                self.assertTrue(all("destination" in result["reason"] for result in wrong["results"]))
+
     def test_final_delivery_accepts_fractional_readings_at_reported_precision(self):
         contract = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
         start = "2026-09-30T09:40:00.000+00:00"
