@@ -174,7 +174,7 @@ class EnforcementCoverageTests(unittest.TestCase):
         def mutate(entries):
             e = self.workflow(entries)
             e.update(disposition="LEGACY_UNSTRUCTURED", behavioral=True,
-                     migration={"priority": "P2", "next_step": "Carry this newly behavioral rule into an exact task-time contract."})
+                     migration={"priority": "P2", "trigger_frequency": "CONDITIONAL", "next_step": "Carry this newly behavioral rule into an exact task-time contract."})
             e.pop("exception_reason")
         self.change(mutate)
         self.rejected("unauthorized backlog growth")
@@ -192,7 +192,7 @@ class EnforcementCoverageTests(unittest.TestCase):
         target = self.workflow(self.read(coverage.COVERAGE)["entries"])["id"]
         self.change(lambda entries: self.workflow(entries).update(
             disposition="LEGACY_UNSTRUCTURED", behavioral=True,
-            migration={"priority": "P2", "next_step": "Carry these newly behavioral obligations into exact records and admission fixtures."}))
+            migration={"priority": "P2", "trigger_frequency": "CONDITIONAL", "next_step": "Carry these newly behavioral obligations into exact records and admission fixtures."}))
         baseline = self.read(coverage.BASELINE)
         baseline["backlog_ids"].append(target)
         self.write(coverage.BASELINE, baseline)
@@ -203,7 +203,7 @@ class EnforcementCoverageTests(unittest.TestCase):
         target = self.workflow(entries)["id"]
         self.change(lambda items: self.workflow(items).update(
             disposition="LEGACY_UNSTRUCTURED", behavioral=True,
-            migration={"priority": "P2", "next_step": "Carry the newly authorized behavioral obligations into exact records and admission fixtures."}))
+            migration={"priority": "P2", "trigger_frequency": "CONDITIONAL", "next_step": "Carry the newly authorized behavioral obligations into exact records and admission fixtures."}))
         baseline = self.read(coverage.BASELINE)
         for quote in ("I authorize this exact existing workflow entry to enter the migration backlog for this test.",
                       "Approved for migration."):
@@ -254,9 +254,52 @@ class EnforcementCoverageTests(unittest.TestCase):
         self.change(lambda entries: self.structured(entries).pop("legacy_remainder"))
         self.rejected("partial disposition needs operative legacy_remainder")
 
-    def test_semantic_unknown_cannot_be_relabelled_fully_enforced(self):
+    def test_unobserved_obligation_cannot_be_relabelled_fully_enforced(self):
+        catalog = self.read(coverage.METADATA)
+        entry = self.structured(self.read(coverage.COVERAGE)["entries"])
+        record = next(r for r in catalog["records"] if r["rule_id"] in entry["task_time_records"])
+        record["obligations"][0].update(enforcement="unobserved", mechanical_check=None)
+        self.write(coverage.METADATA, catalog)
         self.change(lambda entries: self.structured(entries).update(disposition="STRUCTURED_ENFORCED", legacy_remainder=""))
         self.rejected("obligation has no evaluable admission path")
+
+    def test_nonbehavioral_entry_cannot_be_p1_even_outside_backlog(self):
+        self.change(lambda entries: self.workflow(entries).update(
+            behavioral=False, migration={"priority": "P1", "next_step": "test-only promotion"}))
+        self.rejected("every P1 entry must be behavioral")
+
+    def test_p1_matches_supervisor_high_leverage_list(self):
+        expected = {
+            "patterns/reasoning-selection.md", "AGENTS.md#workflow", "patterns/task-time-lesson-activation.md",
+            "AGENTS.md#instruction-composition", "patterns/logic-failure-map.md", "patterns/source-interpretation-provenance.md",
+            "AGENTS.md#pre-final-continuation-invariant", "patterns/codex-github-operating-system.md",
+            "patterns/terminal-response-admission-and-autonomous-continuation.md",
+            "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+            "patterns/owner-goal-followup-and-requirement-accretion.md",
+            "AGENTS.md#follow-up-goal-derivation-and-assistant-added-requirements",
+            "patterns/chatgpt-client-surface-capability-and-thread-recovery.md",
+            "patterns/worker-directive-delivery-and-chat-output-budget.md", "AGENTS.md#owner-facing-operational-references",
+            "patterns/recommendation-preflight-integrity.md", "patterns/shopping-research.md",
+            "patterns/cross-family-reasoning-check.md", "patterns/chat-work-execution-routing-threshold.md",
+            "patterns/exclusive-active-task-locks.md", "patterns/context-compaction-resilience.md",
+            "AGENTS.md#per-turn-bootstrap-invariants",
+        }
+        backlog = coverage.report(self.root)["backlog"]
+        self.assertEqual(expected, {e["id"] for e in backlog if e["priority"] == "P1"})
+
+    def test_report_orders_priority_then_estimated_trigger_frequency(self):
+        report = coverage.report(self.root)
+        keys = [(e["priority"], coverage.TRIGGER_FREQUENCY_ORDER[e["trigger_frequency"]], e["id"]) for e in report["backlog"]]
+        self.assertEqual(keys, sorted(keys))
+        self.assertIn("not measured usage", report["backlog_order"])
+
+    def test_condensed_requirement_retains_counts_and_exact_list_pointers(self):
+        findings = self.read(coverage.REQUIREMENT)["related_findings"]
+        self.assertLess(len(json.dumps(findings, indent=2, ensure_ascii=False).encode()), 4096)
+        current = next(f for f in findings if f["finding_id"] == "pass-2-inventory")
+        self.assertEqual(coverage.report(self.root)["counts_by_disposition"], current["identity_counts_by_disposition"])
+        self.assertEqual(current["exact_lists"], coverage.COVERAGE)
+        self.assertEqual(current["report_command"], "python3 scripts/uda_enforcement_coverage.py report")
 
     def test_report_lists_exact_backlog_ids_priorities_and_shrinkage(self):
         report = coverage.report(self.root)
@@ -271,7 +314,8 @@ class EnforcementCoverageTests(unittest.TestCase):
         baseline["backlog_ids"].append(removed)
         self.write(coverage.BASELINE, baseline)
         requirement = self.read(coverage.REQUIREMENT)
-        next(f for f in requirement["related_findings"] if f["finding_id"] == "pass-1-legacy-baseline")["backlog_ids"].append(removed)
+        anchor = next(f for f in requirement["related_findings"] if f["finding_id"] == "pass-1-legacy-baseline")
+        anchor.update(backlog_count=len(baseline["backlog_ids"]), backlog_ids_sha256=coverage.canonical_hash(baseline["backlog_ids"]))
         self.write(coverage.REQUIREMENT, requirement)
         self.assertEqual([removed], coverage.report(self.root)["removed_since_baseline"])
 

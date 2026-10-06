@@ -663,6 +663,67 @@
           ]
         }
       ]
+    },
+    {
+      "rule_id": "uda.reasoning.dominated-alternative",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/reasoning-selection.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "When a user asks for an operational command, procedure, or practical method and one known route achieves the same requested outcome under the same material constraints with fewer steps and no compensating benefit, do not surface the dominated route as an alternative. If alternatives have materially different tradeoffs, surface only the decision-relevant difference."
+          }
+        ]
+      },
+      "authority_owner": "reasoning selection pattern; owner issue #317",
+      "authority_domain": "operational-method-selection",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "request_kind",
+        "in": [
+          "operational_command",
+          "procedure",
+          "practical_method"
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "omit-dominated-route",
+          "required_behavior": "When a user asks for an operational command, procedure, or practical method and one known route achieves the same requested outcome under the same material constraints with fewer steps and no compensating benefit, do not surface the dominated route as an alternative. If alternatives have materially different tradeoffs, surface only the decision-relevant difference.",
+          "due_phase": "final-delivery",
+          "destination": "owner-visible-final",
+          "acceptance_evidence": "The literal final gives only the sufficient route when another adds steps without benefit under the same material constraints; any retained alternatives identify their material decision-relevant tradeoff.",
+          "non_substitutes": [
+            "presenting the dominated route and then saying the other is preferable",
+            "listing both routes as equal options",
+            "mentioning smallest sufficient guidance without applying it",
+            "reviewing an earlier draft instead of the literal final"
+          ],
+          "carry_through": "Recheck after any final rewrite; the rewritten payload requires a new bound receipt.",
+          "repair": "Remove the dominated alternative, preserve the requested output and constraints, and issue a receipt for the repaired literal final.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner issue #317; pass-2 supervisor design",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
     }
   ]
 }

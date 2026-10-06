@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "receipts": [
+    {
+      "contract_sha256": "6f5867e3c2aa920edb18c7b23143a9ede2069b14dbc2b9e27b42b41205a83496",
+      "rule_id": "uda.reasoning.dominated-alternative",
+      "obligation_id": "omit-dominated-route",
+      "phase": "final-delivery",
+      "destination": "owner-visible-final",
+      "payload_sha256": "ec402cc62962337e905c437bdbb354861f5ce402aaea0449f3482bae6d803c83",
+      "verdict": "PASS",
+      "evidence": "Route A waits for approval of the intermediate before generating output; Route B generates immediately. The literal final explains this material timing tradeoff.",
+      "not_applicable_reason": "",
+      "actor": {
+        "id": "regression-reviewer",
+        "kind": "fixture",
+        "relation": "INDEPENDENT"
+      },
+      "issued_at": "2026-10-06T12:00:00Z"
+    }
+  ]
+}

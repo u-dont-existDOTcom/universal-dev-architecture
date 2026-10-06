@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "receipts": [
+    {
+      "contract_sha256": "64182f729bd66bea0424ad669ec2bd107c10094c65ca95b2393ed1dd5d1d1a5c",
+      "rule_id": "uda.reasoning.dominated-alternative",
+      "obligation_id": "omit-dominated-route",
+      "phase": "final-delivery",
+      "destination": "owner-visible-final",
+      "payload_sha256": "f06fe236eb7c2f0ea8f80ab6a6f365299287f10f332aedc895f99e70b415d559",
+      "verdict": "FAIL",
+      "evidence": "The literal final presents Route A with transform then extract, then Route B using emit-output under identical constraints; calling B preferable leaves the dominated route visible.",
+      "not_applicable_reason": "",
+      "actor": {
+        "id": "regression-reviewer",
+        "kind": "fixture",
+        "relation": "INDEPENDENT"
+      },
+      "issued_at": "2026-10-06T12:00:00Z"
+    }
+  ]
+}

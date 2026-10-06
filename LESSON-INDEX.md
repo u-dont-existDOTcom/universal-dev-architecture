@@ -84,7 +84,6 @@ Use this file as the entry point for cross-project lesson retrieval. This is a r
 75. `patterns/fixed-target-symbolic-profile-fit-evaluation.md` — When evaluating descriptive fit against a fixed symbolic-profile target, freeze the target and calculation assumptions, score hits and misses, test sensitivity and distinguish fit from predictive validation.
 76. `patterns/structured-natal-chart-comparison.md` — When comparing natal charts or running blinded chart matching, follow the specialist exact-calculation, conditional-synthesis and anti-leakage workflow.
 77. `patterns/terminal-response-admission-and-autonomous-continuation.md` — Before an exclusive-task worker emits a terminal response, reconcile authoritative state, continue safe authorized work and admit only a source-bound completion or genuine pause.
-
 78. `patterns/exact-git-write-handoff.md` — Before handing off a bounded Git write, freeze the exact manifest, base and allowed paths, then verify the destination and recovery evidence.
 79. `patterns/mission-control-owner-discovered-supervision-escape-assurance.md` — When reviewing owner-discovered supervision failures or exercising terminal escape assurance, verify the actual supervision boundary and preserve independent evidence limits.
 80. `patterns/portable-vs-owner-specific-deployment-data.md` — Before transferring deployment guidance across projects or publishing portable patterns, isolate owner-specific configuration and preserve the universal behavior without private deployment data.

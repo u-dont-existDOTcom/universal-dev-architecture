@@ -173,8 +173,8 @@ Do not use agentic shorthand (`I chose wrong`, `I forgot`, `I should have`) as c
 The verified systemic coverage gap uses existing entries rather than a new failure category:
 
 - **LF-2.1:** absent or stale bootstrap and undeclared task triggers can keep applicable instructions from loading. External skip-bootstrap authority remains outside repository protection.
-- **LF-7.1:** a loaded rule whose obligation never reaches its actual action, handoff or delivery boundary is a check that never reaches the real endpoint. Current semantic task-time checks return UNKNOWN and cannot accept application evidence; structured records alone do not repair that admission gap.
+- **LF-7.1:** a loaded rule whose obligation never reaches its actual action, handoff or delivery boundary is a check that never reaches the real endpoint. The baseline semantic task-time checks returned UNKNOWN without an application-evidence path; pass 2 now binds attributed receipts to the literal candidate. Structured records and receipt bindings still do not prove the judgment.
 - **LF-7.2:** sentence-presence, index-routing and graph-existence regressions can stay green while representative violating work still passes.
 - **LF-7.3:** wildcard coverage and aggregate green labels overstate what was enforced when exact mappings and backlog identities are absent.
 
-LF-7.1 already covers loaded guidance missing its enforcement boundary, so no new row is necessary. Pass 1 repairs inspectability, trigger routes and the coverage audit; it does not claim semantic receipt admission or universal behavioral protection. The exact inventory and migration report are described in `docs/uda-enforcement-coverage.md`.
+LF-7.1 already covers loaded guidance missing its enforcement boundary, so no new row is necessary. Pass 1 repairs inspectability, trigger routes and the coverage audit; pass 2 adds semantic receipt admission, explicit activation states and the dominated-route regression. Neither claims universal behavioral protection. The exact inventory and migration report are described in `docs/uda-enforcement-coverage.md`.

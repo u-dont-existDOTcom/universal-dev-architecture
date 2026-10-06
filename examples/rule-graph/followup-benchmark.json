@@ -53,6 +53,10 @@
       "state": "KNOWN",
       "value": false,
       "provenance": "dependency-only"
+    },
+    "request_kind": {
+      "state": "ABSENT",
+      "provenance": "example is governance/handoff work, not an operational-method request"
     }
   },
   "legacy_rule_ids": [
@@ -60,5 +64,9 @@
     "uda.bootstrap.live-root",
     "uda.continuation.open-outcome",
     "uda.followup.owner-goal-rebind"
-  ]
+  ],
+  "bootstrap": {
+    "state": "LOADED",
+    "source": "current root AGENTS.md; illustrative governed envelope"
+  }
 }

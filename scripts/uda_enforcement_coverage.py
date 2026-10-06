@@ -37,6 +37,7 @@ PHASES = {"retrieval", "reasoning", "pre-action", "handoff", "persistence",
           "publication", "final-delivery"}
 ENFORCEMENT_TYPES = {"mechanical", "semantic", "owner-evaluated", "unobserved", "none"}
 TRIGGER = re.compile(r"^(?:owner rule:\s*)?(?:When|Before|For|After|Whenever|While|If)\b", re.I)
+TRIGGER_FREQUENCY_ORDER = {"EVERY_TURN": 0, "FREQUENT": 1, "CONDITIONAL": 2, "SPECIALIST": 3}
 INDEX_LINE = re.compile(r"^\s*\d+\.\s+`(patterns/[^`]+\.md)`\s+—\s+(.*)$", re.M)
 
 
@@ -159,6 +160,9 @@ def validate(root: Path | str) -> list[str]:
                 errors.append(prefix + "indexed flag differs from LESSON-INDEX")
             if type(entry.get("behavioral")) is not bool:
                 errors.append(prefix + "behavioral must be a boolean")
+            migration = entry.get("migration", {})
+            if migration.get("priority") == "P1" and entry.get("behavioral") is not True:
+                errors.append(prefix + "every P1 entry must be behavioral")
             # Coverage identifiers/paths must be exact; explanations are prose.
             for key in ("id", "task_time_records", "graph_node", "superseded_by", "evidence"):
                 if any(any(c in s for c in "*?[") for s in strings(entry.get(key))):
@@ -180,6 +184,8 @@ def validate(root: Path | str) -> list[str]:
                 migration = entry.get("migration", {})
                 if not entry.get("behavioral") or migration.get("priority") not in {"P1", "P2", "P3"} or not specific_reason(migration.get("next_step")):
                     errors.append(prefix + "behavioral backlog needs priority and specific migration next_step")
+                if migration.get("trigger_frequency") not in TRIGGER_FREQUENCY_ORDER:
+                    errors.append(prefix + "backlog needs a declared trigger_frequency estimate")
             if disposition == "STRUCTURED_PARTIAL" and not specific_reason(entry.get("legacy_remainder")):
                 errors.append(prefix + "partial disposition needs operative legacy_remainder")
             if disposition == "WORKFLOW_ONLY" and not exception_specific(entry.get("exception_reason"), eid):
@@ -278,9 +284,9 @@ def validate(root: Path | str) -> list[str]:
                         errors.append(prefix + "inventory omits record boundary/type: " + rid)
                     if disposition == "STRUCTURED_ENFORCED":
                         mechanical = ob.get("enforcement") == "mechanical" and (ob.get("mechanical_check") or {}).get("kind") in {"final_timestamp_first_line", "final_elapsed_time", "contains_literal", "nonempty"}
-                        # No semantic receipt path exists in pass 1. Partial entries
-                        # preserve those records honestly until pass 2 implements it.
-                        if not mechanical:
+                        # A semantic admission path binds an assertion; it does
+                        # not certify that the source's full meaning was captured.
+                        if not mechanical and ob.get("enforcement") != "semantic":
                             errors.append(prefix + "obligation has no evaluable admission path: " + rid)
             if disposition == "STRUCTURED_ENFORCED" and entry.get("legacy_remainder"):
                 errors.append(prefix + "enforced disposition cannot retain a legacy remainder")
@@ -301,7 +307,8 @@ def validate(root: Path | str) -> list[str]:
             errors.append("baseline backlog_ids must be a unique list")
         anchors = [f for f in requirement.get("related_findings", [])
                    if f.get("finding_id") == "pass-1-legacy-baseline"]
-        if len(anchors) != 1 or anchors[0].get("backlog_ids") != pinned:
+        if (len(anchors) != 1 or anchors[0].get("backlog_count") != len(pinned)
+                or anchors[0].get("backlog_ids_sha256") != canonical_hash(pinned)):
             errors.append("baseline backlog_ids drift from the captured owner requirement; use owner_authorized_additions for growth")
         allowed = set(pinned)
         for addition in baseline.get("owner_authorized_additions", []):
@@ -333,7 +340,9 @@ def report(root: Path | str) -> dict[str, Any]:
     entries = json.loads((root / COVERAGE).read_text(encoding="utf-8"))["entries"]
     baseline = json.loads((root / BASELINE).read_text(encoding="utf-8"))
     backlog = [{"id": e["id"], "disposition": e["disposition"], **e["migration"]}
-               for e in sorted(entries, key=lambda e: (e.get("migration", {}).get("priority", ""), e["id"])) if e["disposition"] in BACKLOG]
+               for e in sorted(entries, key=lambda e: (e.get("migration", {}).get("priority", ""),
+                   TRIGGER_FREQUENCY_ORDER.get(e.get("migration", {}).get("trigger_frequency"), 99), e["id"]))
+               if e["disposition"] in BACKLOG]
     current = {e["id"] for e in backlog}
     return {
         "schema_version": 1,
@@ -343,6 +352,8 @@ def report(root: Path | str) -> dict[str, Any]:
         "counts_by_disposition": {d: sum(e["disposition"] == d for e in entries) for d in DISPOSITIONS},
         "backlog_count": len(backlog),
         "backlog": backlog,
+        "backlog_order": "Priority P1, P2, P3; then estimated trigger frequency EVERY_TURN, FREQUENT, CONDITIONAL, SPECIALIST; then id. Estimates are routing judgments, not measured usage.",
+        "backlog_counts_by_priority": dict(sorted(Counter(e["priority"] for e in backlog).items())),
         "baseline_backlog_count": len(baseline["backlog_ids"]),
         "removed_since_baseline": sorted(set(baseline["backlog_ids"]) - current),
         "entries_by_evidence_class": {c: sorted(e["id"] for e in entries if any(x["class"] == c for x in e["evidence"])) for c in EVIDENCE_CLASSES},
