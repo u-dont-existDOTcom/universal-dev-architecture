@@ -13,6 +13,7 @@ import {
   PROVIDER_SESSION_MCP_SUMMARY,
   PROVIDER_SESSION_SUMMARY,
   RELAY_STAGE_SUMMARY,
+  canonicalJson,
   parseSupervisoryCycleRouteBody,
   sha256,
   STAGE_LIVENESS_SUMMARY,
@@ -1300,6 +1301,15 @@ test('sent COMPLETE invalid-canonical replacement performs zero old-request prov
   old.data.body = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n' + JSON.stringify(oldPacket);
   const sessionId = 'provider-session:sent-invalid';
   const failureSha = '8'.repeat(64), canonicalBodySha = '7'.repeat(64);
+  const proofEventId = 'reasoning-replacement-proof:sent-invalid';
+  const proofPayload = {
+    schemaVersion: 1, supersededRequestId: oldPacket.requestId, replacementRequestId: 'replacement-invalid-request',
+    reasonCode: 'PROVIDER_INVALID_CANONICAL_DECISION', failureReceiptSha256: failureSha,
+    canonicalBodySha256: canonicalBodySha, providerSessionId: sessionId,
+    trustedRelayProducerId: 'collector:fixture-relay', failureEvidenceEventId: 'invalid-disposition',
+    completeSessionEventId: 'complete-session',
+  };
+  const proofSha = sha256(canonicalJson(proofPayload));
   const replacementPacket = structuredClone(oldPacket);
   Object.assign(replacementPacket, {
     requestId: 'replacement-invalid-request', nonce: 'replacement-invalid-nonce',
@@ -1309,6 +1319,7 @@ test('sent COMPLETE invalid-canonical replacement performs zero old-request prov
   replacementPacket.supersession = {
     schemaVersion: 1, reasonCode: 'PROVIDER_INVALID_CANONICAL_DECISION', failureReceiptSha256: failureSha,
     failureProviderSessionId: sessionId, failureCanonicalBodySha256: canonicalBodySha,
+    proofEventId, proofSha256: proofSha,
     authorization: 'OWNER_EXPLICIT_ONE_REPLACEMENT', replacementOrdinal: 1,
   };
   const evidence = (eventId, summary, refs) => ({
@@ -1319,13 +1330,25 @@ test('sent COMPLETE invalid-canonical replacement performs zero old-request prov
         `provider_session:${sessionId}`, ...refs], verified: true, changed_path_manifest: null,
     },
   });
-  const replacement = { eventId: 'replacement-invalid-v6-route', sequence: 4, occurredAt: replacementPacket.queuedAt,
+  const proof = { eventId: proofEventId, sequence: 4, occurredAt: '2026-09-02T00:00:45.000Z', data: {
+    type: 'evidence_receipt_recorded', receipt_id: proofEventId,
+    producer_id: 'verifier:fleet-supervisor-reasoning-replacement', producer_role: 'VERIFIER',
+    evidence_class: 'ARTIFACT', independence: 'INDEPENDENT', freshness: 'CURRENT', exact_candidate_sha256: proofSha,
+    summary: 'MISSION_CONTROL_REASONING_REPLACEMENT_PROOF_V1',
+    refs: [`request:${proofPayload.supersededRequestId}`, `replacement_request:${proofPayload.replacementRequestId}`,
+      `reason_code:${proofPayload.reasonCode}`, `failure_receipt_sha256:${proofPayload.failureReceiptSha256}`,
+      `canonical_body_sha256:${proofPayload.canonicalBodySha256}`, `provider_session:${proofPayload.providerSessionId}`,
+      `trusted_relay_producer:${proofPayload.trustedRelayProducerId}`, `failure_evidence_event:${proofPayload.failureEvidenceEventId}`,
+      `complete_session_event:${proofPayload.completeSessionEventId}`, 'authorization:OWNER_EXPLICIT_ONE_REPLACEMENT',
+      'canonical_decision_admitted:false', 'historical_request_preserved:true'], verified: true, changed_path_manifest: null,
+  } };
+  const replacement = { eventId: 'replacement-invalid-v6-route', sequence: 5, occurredAt: replacementPacket.queuedAt,
     data: { type: 'worker_message_recorded', message_id: 'replacement-invalid-message',
       body: 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n' + JSON.stringify(replacementPacket) } };
   const state = defaultState();
   state.deliveries[`request:${oldPacket.requestId}`] = { status: 'SUBMITTED_CONFIRMED' };
   const store = new MemoryStateStore(state);
-  const mc = new FakeMissionControl({ routes: [replacement,
+  const mc = new FakeMissionControl({ routes: [replacement, proof,
     evidence('invalid-disposition', 'MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1',
       [`failure_receipt_sha256:${failureSha}`, `canonical_body_sha256:${canonicalBodySha}`,
         'classification:PROVIDER_INVALID_CANONICAL_DECISION', 'canonical_decision_admitted:false']),

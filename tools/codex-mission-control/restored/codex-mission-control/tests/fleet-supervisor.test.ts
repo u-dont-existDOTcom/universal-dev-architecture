@@ -13,7 +13,7 @@ import {
   retireUnsentFleetSupervisorReasoningRequest,
   routeFleetSupervisorReasoning,
 } from "../lib/fleet-supervisor";
-import { pendingDecisionRequests, providerInvalidCanonicalDecisionSummary, supervisoryRequestRetiredUnsentSummary } from "../lib/github-decision-receipts";
+import { pendingDecisionRequests, providerInvalidCanonicalDecisionSummary, reasoningReplacementProofSummary, supervisoryRequestRetiredUnsentSummary } from "../lib/github-decision-receipts";
 import { inBandRequestRoutePrefix } from "../lib/in-band-request-binding";
 import { seedIssue47Store, seedStore } from "../lib/seed";
 import type { MissionControlEventV2, StoredEvent } from "../lib/schema";
@@ -363,27 +363,39 @@ test("one trusted COMPLETE invalid-canonical failure authorizes one append-only 
       requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
     }, replaceAt);
     assert.equal(replacement.duplicate, false);
-    assert.equal(store.count(), before + 1);
+    assert.equal(store.count(), before + 2);
     assert.equal(replacement.event.data.type, "worker_message_recorded");
     if (replacement.event.data.type !== "worker_message_recorded") return;
     const freshRoot = JSON.parse(replacement.event.data.body.slice(inBandRequestRoutePrefix.length));
+    const proof = store.workerEvents(watch.worker).find((event) => event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === reasoningReplacementProofSummary);
+    assert.ok(proof && proof.data.type === "evidence_receipt_recorded");
+    if (!proof || proof.data.type !== "evidence_receipt_recorded") return;
     assert.deepEqual(freshRoot.supersession, {
       schemaVersion: 1,
       reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
       failureReceiptSha256,
       failureProviderSessionId: providerSessionId,
       failureCanonicalBodySha256: canonicalBodySha256,
+      proofEventId: proof.eventId,
+      proofSha256: proof.data.exact_candidate_sha256,
       authorization: "OWNER_EXPLICIT_ONE_REPLACEMENT",
       replacementOrdinal: 1,
     });
+    const proofOnlyHistory = store.workerEvents(watch.worker).filter((event) => event.eventId !== replacement.event.eventId);
+    assert.deepEqual(pendingDecisionRequests(proofOnlyHistory).map((item) => item.requestId), [oldRoot.requestId],
+      "a verifier proof without the route is inert");
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify({
+      ...configuredReceiptPolicy(), requestBound: { enabled: true, relayProducerIds: ["collector:rotated"] },
+    });
     assert.deepEqual(pendingDecisionRequests(store.workerEvents(watch.worker)).map((item) => item.requestId),
-      [replacement.replacementRequestId], "a late old-request decision is no longer eligible for admission");
+      [replacement.replacementRequestId], "trust rotation cannot resurrect the superseded request");
     const replay = replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
       requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
     }, new Date(Date.parse(replaceAt) + 1_000).toISOString());
     assert.equal(replay.duplicate, true);
     assert.equal(replay.replacementRequestId, replacement.replacementRequestId);
-    assert.equal(store.count(), before + 1);
+    assert.equal(store.count(), before + 2);
     assert.throws(() => replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
       requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_EMPTY_COMPLETION",
     }, new Date(Date.parse(replaceAt) + 2_000).toISOString()), /different failure receipt or reason/);

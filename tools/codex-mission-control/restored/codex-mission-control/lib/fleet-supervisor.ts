@@ -4,7 +4,12 @@ import {
   parseGitHubReceiptPolicy,
   pendingDecisionRequests,
   providerInvalidCanonicalDecisionSummary,
+  providerSessionSummary,
+  reasoningReplacementProofProducerId,
+  reasoningReplacementProofSha256,
+  reasoningReplacementProofSummary,
   supervisoryRequestRetiredUnsentSummary,
+  type ReasoningReplacementProofPayload,
   type ReasoningReplacementReasonCode,
 } from "./github-decision-receipts";
 import { inBandRequestRoutePrefix } from "./in-band-request-binding";
@@ -307,13 +312,13 @@ export function replaceFleetSupervisorReasoningRequest(
     || policy.stageIssueNumber !== prior.stageIssueNumber) {
     throw new Error("The superseded request no longer matches the configured receipt policy.");
   }
-  const invalidFailure = reasonCode === "PROVIDER_INVALID_CANONICAL_DECISION"
-    ? invalidCanonicalDecisionFailureSession(history, prior, policy, input.failureReceiptSha256)
-    : undefined;
   const replacementSeed = reasonCode === "PROVIDER_EMPTY_COMPLETION"
     ? `${input.requestId}\n${input.failureReceiptSha256}\nOWNER_EXPLICIT_ONE_REPLACEMENT`
     : `${input.requestId}\n${input.failureReceiptSha256}\n${reasonCode}\nOWNER_EXPLICIT_ONE_REPLACEMENT`;
   const replacementRequestId = `fleet-review:${sha256(replacementSeed).slice(0, 32)}`;
+  const invalidFailure = reasonCode === "PROVIDER_INVALID_CANONICAL_DECISION"
+    ? invalidCanonicalDecisionFailureSession(store, history, prior, policy, replacementRequestId, input.failureReceiptSha256, now)
+    : undefined;
   const nonce = `fleet-review-nonce:${sha256(`${replacementRequestId}\n${prior.ownerOutcome.sha256}`).slice(0, 32)}`;
   const expiresAt = new Date(Date.parse(now) + 24 * 60 * 60 * 1000).toISOString();
   factualPacket.packetId = `packet:${replacementRequestId}`;
@@ -346,7 +351,9 @@ export function replaceFleetSupervisorReasoningRequest(
     reasonCode,
     failureReceiptSha256: input.failureReceiptSha256,
     ...(invalidFailure ? { failureProviderSessionId: invalidFailure.providerSessionId,
-      failureCanonicalBodySha256: invalidFailure.canonicalBodySha256 } : {}),
+      failureCanonicalBodySha256: invalidFailure.canonicalBodySha256,
+      proofEventId: invalidFailure.proofEventId,
+      proofSha256: invalidFailure.proofSha256 } : {}),
     authorization: "OWNER_EXPLICIT_ONE_REPLACEMENT",
     replacementOrdinal: 1,
   };
@@ -363,19 +370,62 @@ export function replaceFleetSupervisorReasoningRequest(
 }
 
 function invalidCanonicalDecisionFailureSession(
-  history: StoredEvent[], prior: ReturnType<typeof pendingDecisionRequests>[number],
-  policy: NonNullable<ReturnType<typeof parseGitHubReceiptPolicy>>, failureReceiptSha256: string,
-): { providerSessionId: string; canonicalBodySha256: string } {
-  const relayIds = policy.requestBound?.enabled ? policy.requestBound.relayProducerIds : [];
-  const trusted = (event: StoredEvent) => event.data.type === "evidence_receipt_recorded"
-    && event.data.verified === true && event.data.producer_role === "COLLECTOR"
-    && relayIds.includes(event.data.producer_id) && event.data.freshness === "CURRENT"
-    && Date.parse(event.occurredAt) >= Date.parse(prior.queuedAt);
+  store: EventStore, history: StoredEvent[], prior: ReturnType<typeof pendingDecisionRequests>[number],
+  policy: NonNullable<ReturnType<typeof parseGitHubReceiptPolicy>>, replacementRequestId: string,
+  failureReceiptSha256: string, now: string,
+): { providerSessionId: string; canonicalBodySha256: string; proofEventId: string; proofSha256: string } {
+  if (history.some((event) => event.data.type === "github_decision_receipt_ingested" && event.data.request_id === prior.requestId)) {
+    throw new Error("The superseded request already has an admitted canonical decision.");
+  }
   const eventRef = (event: StoredEvent, prefix: string) => {
     const values = event.data.type === "evidence_receipt_recorded"
       ? event.data.refs.filter((ref) => ref.startsWith(prefix)).map((ref) => ref.slice(prefix.length)) : [];
     return values.length === 1 ? values[0]! : null;
   };
+  const existing = history.filter((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.verified === true
+    && event.data.producer_id === reasoningReplacementProofProducerId
+    && event.data.producer_role === "VERIFIER"
+    && event.data.summary === reasoningReplacementProofSummary
+    && eventRef(event, "request:") === prior.requestId
+    && eventRef(event, "replacement_request:") === replacementRequestId
+    && eventRef(event, "failure_receipt_sha256:") === failureReceiptSha256
+    && eventRef(event, "reason_code:") === "PROVIDER_INVALID_CANONICAL_DECISION");
+  if (existing.length > 1) throw new Error("Invalid-canonical replacement has ambiguous durable verifier proofs.");
+  if (existing.length === 1) {
+    const proof = existing[0]!;
+    if (proof.data.type !== "evidence_receipt_recorded") throw new Error("Invalid durable replacement proof.");
+    const payload: ReasoningReplacementProofPayload = {
+      schemaVersion: 1,
+      supersededRequestId: prior.requestId,
+      replacementRequestId,
+      reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+      failureReceiptSha256,
+      canonicalBodySha256: eventRef(proof, "canonical_body_sha256:") ?? "",
+      providerSessionId: eventRef(proof, "provider_session:") ?? "",
+      trustedRelayProducerId: eventRef(proof, "trusted_relay_producer:") ?? "",
+      failureEvidenceEventId: eventRef(proof, "failure_evidence_event:") ?? "",
+      completeSessionEventId: eventRef(proof, "complete_session_event:") ?? "",
+    };
+    const proofSha256 = reasoningReplacementProofSha256(payload);
+    if (!/^[a-f0-9]{64}$/.test(payload.canonicalBodySha256)
+      || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,299}$/.test(payload.providerSessionId)
+      || !payload.trustedRelayProducerId || !payload.failureEvidenceEventId || !payload.completeSessionEventId
+      || proof.data.exact_candidate_sha256 !== proofSha256
+      || proof.data.receipt_id !== proof.eventId
+      || eventRef(proof, "authorization:") !== "OWNER_EXPLICIT_ONE_REPLACEMENT"
+      || eventRef(proof, "canonical_decision_admitted:") !== "false"
+      || eventRef(proof, "historical_request_preserved:") !== "true") {
+      throw new Error("Invalid durable replacement proof.");
+    }
+    return { providerSessionId: payload.providerSessionId, canonicalBodySha256: payload.canonicalBodySha256,
+      proofEventId: proof.eventId, proofSha256 };
+  }
+  const relayIds = policy.requestBound?.enabled ? policy.requestBound.relayProducerIds : [];
+  const trusted = (event: StoredEvent) => event.data.type === "evidence_receipt_recorded"
+    && event.data.verified === true && event.data.producer_role === "COLLECTOR"
+    && relayIds.includes(event.data.producer_id) && event.data.freshness === "CURRENT"
+    && Date.parse(event.occurredAt) >= Date.parse(prior.queuedAt);
   const failures = history.filter((event) => trusted(event)
     && event.data.type === "evidence_receipt_recorded"
     && event.data.summary === providerInvalidCanonicalDecisionSummary
@@ -398,19 +448,69 @@ function invalidCanonicalDecisionFailureSession(
   if (!canonicalBodySha256 || !/^[a-f0-9]{64}$/.test(canonicalBodySha256)) {
     throw new Error("Invalid-canonical failure evidence lacks one sealed canonical-body SHA-256.");
   }
-  if (history.some((event) => event.data.type === "github_decision_receipt_ingested" && event.data.request_id === prior.requestId)) {
-    throw new Error("The superseded request already has an admitted canonical decision.");
-  }
-  const complete = history.some((event) => trusted(event)
+  const complete = history.filter((event) => trusted(event)
     && event.data.type === "evidence_receipt_recorded"
     && event.data.producer_id === failureProducerId
-    && event.data.summary === "MISSION_CONTROL_PROVIDER_SESSION_V1"
+    && event.data.summary === providerSessionSummary
     && eventRef(event, "request:") === prior.requestId
     && eventRef(event, "supervisor:") === prior.supervisorId
     && eventRef(event, "provider_session:") === sessionId
     && event.data.refs.includes("lifecycle_status:COMPLETE"));
-  if (!complete) throw new Error("Invalid-canonical replacement requires a trusted COMPLETE provider session for the exact request.");
-  return { providerSessionId: sessionId, canonicalBodySha256 };
+  if (complete.length !== 1) throw new Error("Invalid-canonical replacement requires one exact trusted COMPLETE provider session for the exact request.");
+  const payload: ReasoningReplacementProofPayload = {
+    schemaVersion: 1,
+    supersededRequestId: prior.requestId,
+    replacementRequestId,
+    reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    failureReceiptSha256,
+    canonicalBodySha256,
+    providerSessionId: sessionId,
+    trustedRelayProducerId: failureProducerId,
+    failureEvidenceEventId: failures[0]!.eventId,
+    completeSessionEventId: complete[0]!.eventId,
+  };
+  const proofSha256 = reasoningReplacementProofSha256(payload);
+  const proofEventId = `reasoning-replacement-proof:${proofSha256.slice(0, 32)}`;
+  store.append({
+    schema_version: 2,
+    event_id: proofEventId,
+    mission_id: "mission-control-live",
+    occurred_at: now,
+    data: {
+      type: "evidence_receipt_recorded",
+      worker: prior.worker,
+      receipt_id: proofEventId,
+      producer_id: reasoningReplacementProofProducerId,
+      producer_role: "VERIFIER",
+      evidence_class: "ARTIFACT",
+      independence: "INDEPENDENT",
+      freshness: "CURRENT",
+      exact_candidate_sha256: proofSha256,
+      summary: reasoningReplacementProofSummary,
+      refs: [
+        `request:${prior.requestId}`,
+        `replacement_request:${replacementRequestId}`,
+        "reason_code:PROVIDER_INVALID_CANONICAL_DECISION",
+        `failure_receipt_sha256:${failureReceiptSha256}`,
+        `canonical_body_sha256:${canonicalBodySha256}`,
+        `provider_session:${sessionId}`,
+        `trusted_relay_producer:${failureProducerId}`,
+        `failure_evidence_event:${failures[0]!.eventId}`,
+        `complete_session_event:${complete[0]!.eventId}`,
+        "authorization:OWNER_EXPLICIT_ONE_REPLACEMENT",
+        "canonical_decision_admitted:false",
+        "historical_request_preserved:true",
+      ],
+      verified: true,
+      changed_path_manifest: null,
+    },
+  }, undefined, {
+    id: reasoningReplacementProofProducerId,
+    kind: "VERIFIER",
+    workerScopes: [prior.worker],
+    taskScopes: [prior.taskId],
+  });
+  return { providerSessionId: sessionId, canonicalBodySha256, proofEventId, proofSha256 };
 }
 
 export function retireUnsentFleetSupervisorReasoningRequest(

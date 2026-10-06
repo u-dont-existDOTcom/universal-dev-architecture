@@ -480,6 +480,15 @@ test('a sent COMPLETE invalid-canonical replacement requires its exact sealed tr
   const sessionId = 'provider-session:invalid-canonical';
   const failureSha = '8'.repeat(64);
   const canonicalBodySha = '7'.repeat(64);
+  const proofEventId = 'reasoning-replacement-proof:test';
+  const proofPayload = {
+    schemaVersion: 1, supersededRequestId: prior.requestId, replacementRequestId: 'fresh-invalid-request',
+    reasonCode: 'PROVIDER_INVALID_CANONICAL_DECISION', failureReceiptSha256: failureSha,
+    canonicalBodySha256: canonicalBodySha, providerSessionId: sessionId,
+    trustedRelayProducerId: 'collector:fixture-relay', failureEvidenceEventId: 'invalid-disposition',
+    completeSessionEventId: 'complete-session',
+  };
+  const proofSha = sha256(canonicalJson(proofPayload));
   const replacement = {
     ...structuredClone(prior), requestId: 'fresh-invalid-request', nonce: 'fresh-invalid-nonce',
     queuedAt: '2026-09-02T12:01:00.000Z', expiresAt: '2026-09-03T12:01:00.000Z',
@@ -488,6 +497,7 @@ test('a sent COMPLETE invalid-canonical replacement requires its exact sealed tr
     supersession: {
       schemaVersion: 1, reasonCode: 'PROVIDER_INVALID_CANONICAL_DECISION', failureReceiptSha256: failureSha,
       failureProviderSessionId: sessionId, failureCanonicalBodySha256: canonicalBodySha,
+      proofEventId, proofSha256: proofSha,
       authorization: 'OWNER_EXPLICIT_ONE_REPLACEMENT', replacementOrdinal: 1,
     },
   };
@@ -498,16 +508,20 @@ test('a sent COMPLETE invalid-canonical replacement requires its exact sealed tr
     trustedFailureEvent(3, 'invalid-disposition', 'MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1', prior, sessionId,
       [`failure_receipt_sha256:${failureSha}`, `canonical_body_sha256:${canonicalBodySha}`,
         'classification:PROVIDER_INVALID_CANONICAL_DECISION', 'canonical_decision_admitted:false']));
-  snapshot.workers[0].timeline.at(-1).sequence = 4;
+  snapshot.workers[0].timeline.at(-1).sequence = 5;
   const state = defaultState();
   state.deliveries[`request:${prior.requestId}`] = { status: 'SUBMITTED_CONFIRMED' };
+  assert.deepEqual(extractQueuedRoutes(snapshot, [chat], state).map((route) => route.requestId), [],
+    'raw collector evidence cannot authorize a replacement');
+  snapshot.workers[0].timeline.splice(3, 0, replacementProofEvent(4, proofEventId, proofPayload, proofSha));
   assert.deepEqual(extractQueuedRoutes(snapshot, [chat], state).map((route) => route.requestId), [replacement.requestId]);
-  const missingFailure = structuredClone(snapshot);
-  missingFailure.workers[0].timeline = missingFailure.workers[0].timeline.filter((event) => event.eventId !== 'invalid-disposition');
-  assert.deepEqual(extractQueuedRoutes(missingFailure, [chat], state).map((route) => route.requestId), []);
-  const duplicateSessionRef = structuredClone(snapshot);
-  duplicateSessionRef.workers[0].timeline.find((event) => event.eventId === 'invalid-disposition').data.refs.push('provider_session:ambiguous');
-  assert.deepEqual(extractQueuedRoutes(duplicateSessionRef, [chat], state).map((route) => route.requestId), []);
+  const untrustedProof = structuredClone(snapshot);
+  untrustedProof.workers[0].timeline.find((event) => event.eventId === proofEventId).data.producer_id = 'collector:fixture-relay';
+  untrustedProof.workers[0].timeline.find((event) => event.eventId === proofEventId).data.producer_role = 'COLLECTOR';
+  assert.deepEqual(extractQueuedRoutes(untrustedProof, [chat], state).map((route) => route.requestId), []);
+  const lateProof = structuredClone(snapshot);
+  lateProof.workers[0].timeline.find((event) => event.eventId === proofEventId).sequence = 6;
+  assert.deepEqual(extractQueuedRoutes(lateProof, [chat], state).map((route) => route.requestId), []);
   const malformed = structuredClone(replacement);
   malformed.supersession.failureProviderSessionId = '';
   assert.equal(parseSupervisoryCycleRouteBody(IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(malformed)), null);
@@ -757,6 +771,24 @@ function trustedFailureEvent(sequence, eventId, summary, prior, providerSessionI
       evidence_class: 'ARTIFACT', independence: 'SAME_PROVENANCE', freshness: 'CURRENT', exact_candidate_sha256: null,
       summary, refs: [`request:${prior.requestId}`, `supervisor:${prior.destinationSupervisorId}`,
         `provider_session:${providerSessionId}`, ...refs], verified: true, changed_path_manifest: null,
+    },
+  };
+}
+
+function replacementProofEvent(sequence, eventId, payload, proofSha) {
+  return {
+    eventId, sequence, occurredAt: '2026-09-02T12:00:45.000Z', data: {
+      type: 'evidence_receipt_recorded', receipt_id: eventId,
+      producer_id: 'verifier:fleet-supervisor-reasoning-replacement', producer_role: 'VERIFIER',
+      evidence_class: 'ARTIFACT', independence: 'INDEPENDENT', freshness: 'CURRENT',
+      exact_candidate_sha256: proofSha, summary: 'MISSION_CONTROL_REASONING_REPLACEMENT_PROOF_V1',
+      refs: [`request:${payload.supersededRequestId}`, `replacement_request:${payload.replacementRequestId}`,
+        `reason_code:${payload.reasonCode}`, `failure_receipt_sha256:${payload.failureReceiptSha256}`,
+        `canonical_body_sha256:${payload.canonicalBodySha256}`, `provider_session:${payload.providerSessionId}`,
+        `trusted_relay_producer:${payload.trustedRelayProducerId}`, `failure_evidence_event:${payload.failureEvidenceEventId}`,
+        `complete_session_event:${payload.completeSessionEventId}`, 'authorization:OWNER_EXPLICIT_ONE_REPLACEMENT',
+        'canonical_decision_admitted:false', 'historical_request_preserved:true'],
+      verified: true, changed_path_manifest: null,
     },
   };
 }
