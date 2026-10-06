@@ -1841,12 +1841,8 @@ def audit_repository(
     workflows = _workflow_files(root_path)
     _audit_workflows(root_path, workflows, findings)
 
-    # UDA-specific gate; keep the generic repository audit's scope unchanged.
-    uda_root = root_path / "AGENTS.md"
-    is_uda_kernel = uda_root.is_file() and uda_root.read_text(
-        encoding="utf-8", errors="replace"
-    ).startswith("# Universal development architecture")
-    if is_uda_kernel:
+    # Kernel identity comes from the profile, independent of prose and inventory.
+    if profile is not None and profile.get("uda_kernel") is True:
         for error in validate_enforcement_coverage(root_path):
             findings.append(finding(
                 "error", "uda.enforcement.coverage", error,

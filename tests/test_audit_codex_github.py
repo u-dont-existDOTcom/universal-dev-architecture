@@ -104,7 +104,7 @@ class RepositoryAuditTests(unittest.TestCase):
 
     def test_uda_kernel_requires_coverage_even_when_artifacts_are_missing(self) -> None:
         self.add_minimal_repository_files()
-        self.write_profile()
+        self.write_profile(uda_kernel=True)
         self.write("AGENTS.md", "# Universal development architecture\n")
         findings = audit_repository(self.root)
         self.assertIn("uda.enforcement.coverage", self.codes(findings))

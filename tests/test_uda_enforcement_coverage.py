@@ -24,7 +24,7 @@ class EnforcementCoverageTests(unittest.TestCase):
         inventory = json.loads((ROOT / coverage.COVERAGE).read_text())
         paths = {coverage.COVERAGE, coverage.BASELINE, coverage.METADATA,
                  coverage.LOCK, coverage.REQUIREMENT, "rules/UDA-RULE-GRAPH.json", "AGENTS.md",
-                 "LESSON-INDEX.md", "docs/uda-enforcement-coverage.md",
+                 "LESSON-INDEX.md", ".github/codex-repository.json", "docs/uda-enforcement-coverage.md",
                  "scripts/uda_rule_graph_task_time.py", "scripts/instruction-layering-profile.json",
                  "examples/rule-graph/work-handoff.json", WORK_CONTRACT}
         paths.update(p.relative_to(ROOT).as_posix() for p in (ROOT / "patterns").glob("*.md"))
@@ -389,6 +389,24 @@ class EnforcementCoverageTests(unittest.TestCase):
                      coverage.REQUIREMENT, "rules/UDA-RULE-GRAPH.json"):
             (self.root / path).unlink()
         self.assertTrue(any(f["code"] == "uda.enforcement.coverage" and f["severity"] == "error" for f in audit_repository(self.root)))
+
+    def test_heading_edits_cannot_disable_missing_or_corrupt_inventory_gate(self):
+        agents = self.root / "AGENTS.md"
+        body = agents.read_text(encoding="utf-8").split("\n", 1)[1]
+        inventory = self.root / coverage.COVERAGE
+        for heading in ("# Universal architecture", "# UNIVERSAL DEVELOPMENT ARCHITECTURE",
+                        "\ufeff# Universal development architecture"):
+            for content in (None, "{not-json}\n"):
+                with self.subTest(heading=heading, inventory=content):
+                    agents.write_text(heading + "\n" + body, encoding="utf-8")
+                    if content is None:
+                        inventory.unlink(missing_ok=True)
+                    else:
+                        inventory.write_text(content, encoding="utf-8")
+                    errors = [f for f in audit_repository(self.root)
+                              if f["code"] == "uda.enforcement.coverage" and f["severity"] == "error"]
+                    self.assertTrue(errors)
+                    self.assertEqual(coverage.validate(self.root), [f["message"] for f in errors])
 
     def test_cli_report_and_invalid_exit_status(self):
         script = str(ROOT / "scripts/uda_enforcement_coverage.py")
