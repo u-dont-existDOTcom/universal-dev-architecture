@@ -1,0 +1,68 @@
+{
+  "requirement_id": "2026-10-06-universal-enforcement-coverage",
+  "date": "2026-10-06",
+  "source": "Owner task issue #317 (created 2026-10-06T04:02:54Z by the owner's account) and tasks/ACTIVE-TASK.json task uda-universal-enforcement-coverage-20261006. The owner handed the task to this Claude session on 2026-10-06 ('continue, sent some work in your lane').",
+  "problem": "UDA rules can exist as prose, an index entry, a rule-graph node or a sentence test without any path to the task-time boundary where they would change or block the answer. On 2026-10-06, 70 patterns were indexed but structured task-time metadata sourced only 5 of them. A wildcard 'patterns/*' legacy entry implied coverage. Semantic obligations always ended UNKNOWN, with no way to bind evidence. A simple operational request then received a dominated two-command route next to the better one-command route, although existing guidance already said to use the smallest sufficient method and to minimize owner choice.",
+  "owner_corrections": [
+    "Repair UDA so applicable rules are not merely stored as prose or indexed, but reliably reach the task-time boundary where they can change or block the actual answer/action.",
+    "Do **not** make this a one-off fix for a PDF-command mistake. The owner’s concern is systemic: there are likely many UDA rules that exist but are not actually enforced.",
+    "Success is not “add another rule saying to follow rules.” Success requires an inspectable path from rule → applicability/trigger → obligation → correct boundary → evidence/check → admission, plus regressions that fail if that path silently breaks.",
+    "continue, sent some work in your lane"
+  ],
+  "failure_mechanisms": [
+    "Coverage: an active rule can be index-routed prose with no explicit enforcement disposition.",
+    "Trigger: a discoverable rule can lack an explicit task-time activation route; 31 of 70 index entries had no leading trigger, and 16 pattern files were not indexed at all.",
+    "Admission: semantic obligations had no way to bind PASS or FAIL evidence to the exact candidate, so they could only block or be ignored.",
+    "Bootstrap: a turn that never loaded UDA cannot be protected by UDA, but nothing stated that.",
+    "Regression: tests proved that rule text exists, not that violating work is blocked."
+  ],
+  "existing_coverage": [
+    "patterns/task-time-lesson-activation.md and patterns/rule-graph-activation-and-dependency-resolution.md",
+    "rules/UDA-RULE-GRAPH.json, rules/rule-graph/task-time-metadata.v1.json and scripts/uda_rule_graph_task_time.py (compile and check)",
+    "patterns/reasoning-selection.md (smallest sufficient method, minimum owner choice)",
+    "tests/test_uda_rule_graph.py and tests/test_uda_rule_graph_task_time.py"
+  ],
+  "required_behavior": [
+    "Every active indexed UDA rule and pattern has exactly one explicit enforcement disposition.",
+    "A wildcard, an index listing, a rule-graph node or a sentence test never counts as enforcement proof.",
+    "A new unclassified rule, or one that adds legacy-unstructured backlog without the owner's authorization, fails the audit.",
+    "Semantic obligations can receive PASS, FAIL or NOT_APPLICABLE evidence bound to the exact contract, obligation, phase, destination and payload. Mechanical code verifies the binding and never claims to prove the judgment.",
+    "The dominated-route regression rejects the old answer and admits the repaired one.",
+    "UDA distinguishes an activated, enforced task from one that is NOT_ACTIVATED or OUTSIDE_UDA.",
+    "The external simple-turn bootstrap exemption is reported truthfully, with the exact owner-side instruction change."
+  ],
+  "review_changes": [],
+  "regression": "Coverage, receipt, activation-state and dominated-route tests; mutation-style checks that remove or corrupt an enforcement link.",
+  "scope": "UDA enforcement coverage, task-time activation and admission, semantic evidence binding, the coverage audit, regressions, docs and bounded migration. Mission Control runtime, deployment, provider changes and owner settings are out of scope.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "notes": "The owner directed the task in issue #317 and handed it to this session. Design choices not fixed by the issue, such as the partial-coverage disposition, the unit of inventory and the receipt fields, are ASSISTANT_INFERENCE within it.",
+    "admission": "OWNER_DIRECT"
+  },
+  "existing_work_basis": [
+    "patterns/task-time-lesson-activation.md",
+    "patterns/rule-graph-activation-and-dependency-resolution.md",
+    "patterns/logic-failure-map.md",
+    "patterns/reasoning-selection.md"
+  ],
+  "execution_surfaces": [
+    {
+      "surface": "Agents that compile and check task-time contracts with scripts/uda_rule_graph_task_time.py",
+      "disposition": "PROJECTED",
+      "note": "They gain semantic receipts and an activation state."
+    },
+    {
+      "surface": "The owner's ChatGPT instructions (the simple-turn bootstrap exemption)",
+      "disposition": "OWNER_ACTION",
+      "note": "Outside the repository; the exact replacement text is reported to the owner."
+    }
+  ],
+  "related_findings": [],
+  "learning_state_at_merge": [
+    "CAPTURED"
+  ],
+  "nonclaims": [
+    "A receipt shows that an agent applied an obligation to an exact payload; it is not independent review unless issued by an independent reviewer.",
+    "Turns that never load UDA are outside its protection; the repository cannot enforce them."
+  ]
+}
