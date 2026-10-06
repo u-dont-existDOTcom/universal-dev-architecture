@@ -5,6 +5,9 @@ import {
   MANAGED_CHATGPT_HARD_CEILING_TABS,
   MCP_BINDING_PRELOAD_STEP,
   IN_BAND_PRE_SEND_SUMMARY,
+  IN_BAND_COPY_CONFIRMED_STATUS,
+  IN_BAND_COPY_PENDING_STATUS,
+  IN_BAND_RECOVERY_BLOCKED_STATUS,
   IN_BAND_REQUEST_PROTOCOL,
   LEGACY_FIXED_CONSUMER_CONTROLS,
   IN_BAND_REQUEST_STEP,
@@ -36,6 +39,7 @@ import {
   shouldAttemptRoute,
   startedCycleStepStatus,
 } from './core.mjs';
+import { validateRecoveredDecisionObservation } from './provider-decision-recovery.mjs';
 import { readMemoryMetrics } from './memory.mjs';
 import { isTerminalControllerCycle } from './controller-mediated-pm.mjs';
 import { isCentralSubmissionQueued, isGlobalSubmissionCooldown, publicCooldown } from './submission-pacing.mjs';
@@ -774,10 +778,11 @@ export class RelayRuntime {
     let target;
     let expectedUrl;
 
-    if (action.type === 'WAIT_GENERATION') {
+    if (action.type === 'WAIT_GENERATION' || action.type === 'RECOVER_AND_PUBLISH') {
       session = prior?.providerSessionId ? state.providerSessions[prior.providerSessionId] : null;
-      if (!session || session.requestId !== route.requestId || session.supervisorId !== route.supervisorId || session.status !== 'ACTIVE') {
-        throw new Error(`Provider session ${prior?.providerSessionId ?? 'UNKNOWN'} is not active for ${route.requestId}/${action.step}.`);
+      const expectedSessionStatus = action.type === 'WAIT_GENERATION' ? 'ACTIVE' : 'COMPLETE';
+      if (!session || session.requestId !== route.requestId || session.supervisorId !== route.supervisorId || session.status !== expectedSessionStatus) {
+        throw new Error(`Provider session ${prior?.providerSessionId ?? 'UNKNOWN'} is not ${expectedSessionStatus.toLowerCase()} for ${route.requestId}/${action.step}.`);
       }
       if (!session.conversationUrl) throw new Error(`Provider session ${session.providerSessionId} lacks its exact conversation URL after generation start.`);
       const liveTargets = await this.browser.listTargets();
@@ -893,7 +898,7 @@ export class RelayRuntime {
     const postOpenMetrics = await this.memoryReader(this.config.browser.profileDir);
     memory = this.#memoryState(postOpenMetrics);
     const closedTargets = await this.#applyTabBudget(await this.browser.listTargets(), state, memory.pressure, target.id);
-    if (memory.pressure === 'HARD') {
+    if (memory.pressure === 'HARD' && action.type !== 'RECOVER_AND_PUBLISH') {
       if (target.created) await this.browser.closeTarget(target.id).catch(() => {});
       session.status = 'FAILED';
       session.failedAt = new Date().toISOString();
@@ -926,7 +931,7 @@ export class RelayRuntime {
       if (session.targetId) this.#rememberReusableTarget(state, session.targetId, session.conversationUrl);
       state.deliveries[route.routeKey] = {
         ...prior,
-        status: completedCycleStepStatus(action.step),
+        status: inBandRequest ? IN_BAND_COPY_PENDING_STATUS : completedCycleStepStatus(action.step),
         conversationUrl: session.conversationUrl,
         generationCompletedAt: observation.completedAtObserved,
         generationCompletion: observation,
@@ -934,7 +939,76 @@ export class RelayRuntime {
       state.health.lastError = null;
       state.health.pausedReason = null;
       state = await this.stateStore.write(state);
-      return this.#writeStandaloneStatus(completedCycleStepStatus(action.step), state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), observation });
+      const completionStatus = inBandRequest ? IN_BAND_COPY_PENDING_STATUS : completedCycleStepStatus(action.step);
+      return this.#writeStandaloneStatus(completionStatus, state, { memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), observation });
+    }
+
+    if (action.type === 'RECOVER_AND_PUBLISH') {
+      const prompt = cycleControlPrompt(route, action.step);
+      const binding = deriveInBandRequestBinding(route, session.providerSessionId);
+      try {
+        const observation = await this.browser.recoverBoundConversationTurns(target, { expectedUrl });
+        const recovered = validateRecoveredDecisionObservation(observation, {
+          prompt,
+          promptSha256: prior.promptSha256,
+          requestId: route.requestId,
+          supervisorId: route.supervisorId,
+          providerSessionId: session.providerSessionId,
+          nonce: route.packet.nonce,
+          inBandBindingSha256: binding.in_band_binding_sha256,
+          evidenceCapsule: route.packet.evidenceCapsule,
+          ownerOutcome: route.packet.ownerOutcome,
+          reasoningLane: route.packet.reasoningLane,
+        });
+        const copied = await this.missionControl.copyProviderDecision({
+          requestId: route.requestId,
+          supervisorId: route.supervisorId,
+          providerSessionId: session.providerSessionId,
+          workerId: route.workerId,
+          conversationUrl: session.conversationUrl,
+          providerPromptSha256: prior.promptSha256,
+          canonicalBody: recovered.canonicalBody,
+          canonicalBodySha256: recovered.canonicalBodySha256,
+          browserTargetIdSha256: sha256(target.id),
+          userTurnKeySha256: recovered.userTurnKeySha256,
+          assistantTurnKeySha256: recovered.assistantTurnKeySha256,
+          sourceReaderApp: 'GitHub',
+        });
+        state = await this.stateStore.read();
+        state.deliveries[route.routeKey] = {
+          ...state.deliveries[route.routeKey],
+          status: IN_BAND_COPY_CONFIRMED_STATUS,
+          recoveryClassification: recovered.classification,
+          canonicalBodySha256: recovered.canonicalBodySha256,
+          githubReceipt: copied.githubReceipt,
+          decisionIngestedEventId: copied.ingestedEventId,
+          copyConfirmedAt: copied.ingestedAt,
+        };
+        state.health.lastError = null;
+        state.health.pausedReason = null;
+        state = await this.stateStore.write(state);
+        return this.#writeStandaloneStatus('DECISION_RECEIPT_INGESTED', state, {
+          memory, queue: summarizeRoutes(routes, state), route: publicRoute(route),
+          recoveryClassification: recovered.classification,
+          canonicalBodySha256: recovered.canonicalBodySha256,
+          githubReceipt: copied.githubReceipt,
+        });
+      } catch (error) {
+        state = await this.stateStore.read();
+        const classification = error?.classification ?? 'READBACK_UNRESOLVED';
+        state.deliveries[route.routeKey] = {
+          ...state.deliveries[route.routeKey],
+          status: IN_BAND_RECOVERY_BLOCKED_STATUS,
+          recoveryClassification: classification,
+          recoveryError: redactError(error),
+          recoveryBlockedAt: new Date().toISOString(),
+        };
+        state.health.pausedReason = `Provider decision recovery blocked for ${route.requestId}; no resend is permitted.`;
+        state = await this.stateStore.write(state);
+        return this.#writeStandaloneStatus(IN_BAND_RECOVERY_BLOCKED_STATUS, state, {
+          memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), recoveryClassification: classification,
+        });
+      }
     }
 
     const prompt = cycleControlPrompt(route, action.step);

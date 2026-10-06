@@ -23,6 +23,9 @@ export const IN_BAND_REQUEST_STEP = 'IN_BAND_REQUEST_DECISION';
 export const IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n';
 export const IN_BAND_REQUEST_PROTOCOL = 'IN_BAND_REQUEST_BINDING_V1';
 export const IN_BAND_PRE_SEND_SUMMARY = 'MISSION_CONTROL_IN_BAND_REQUEST_BINDING_PRE_SEND_V1';
+export const IN_BAND_COPY_PENDING_STATUS = `${IN_BAND_REQUEST_STEP}_COMPLETE_PENDING_COPY`;
+export const IN_BAND_COPY_CONFIRMED_STATUS = `${IN_BAND_REQUEST_STEP}_COPY_CONFIRMED`;
+export const IN_BAND_RECOVERY_BLOCKED_STATUS = `${IN_BAND_REQUEST_STEP}_RECOVERY_BLOCKED`;
 export const MANAGED_CHATGPT_STEADY_STATE_TABS = 1;
 export const MANAGED_CHATGPT_TRANSITION_MAX_TABS = 2;
 export const MANAGED_CHATGPT_HARD_CEILING_TABS = 3;
@@ -797,7 +800,11 @@ export function nextSupervisoryCycleAction(route, prior, nowMs = Date.now(), con
   const status = prior?.status ?? 'UNSEEN';
   if (route.packet.routeSchemaVersion === 6) {
     if (status === startedCycleStepStatus(IN_BAND_REQUEST_STEP)) return { type: 'WAIT_GENERATION', step: IN_BAND_REQUEST_STEP };
-    if (status === completedCycleStepStatus(IN_BAND_REQUEST_STEP)) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'RECONCILE_EXISTING_REQUEST' };
+    if (status === IN_BAND_COPY_PENDING_STATUS || status === completedCycleStepStatus(IN_BAND_REQUEST_STEP)) {
+      return { type: 'RECOVER_AND_PUBLISH', step: IN_BAND_REQUEST_STEP };
+    }
+    if (status === IN_BAND_COPY_CONFIRMED_STATUS) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'COPIER_CONFIRMED_AWAITING_PROJECTION' };
+    if (status === IN_BAND_RECOVERY_BLOCKED_STATUS) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'PROVIDER_DECISION_RECOVERY_BLOCKED_NO_RESEND' };
     if (!Number.isFinite(Date.parse(route.packet.expiresAt)) || nowMs >= Date.parse(route.packet.expiresAt)) return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'REQUEST_EXPIRED_NO_NEW_SEND' };
     if (status === 'UNSEEN' || status === 'RETRY_AUTHORIZED') return { type: 'SEND_CONTROL', step: IN_BAND_REQUEST_STEP, model: 'EXTRA_HIGH' };
     return { type: 'WAIT_GITHUB_RECEIPT', recovery: 'V6_ONE_SEND_EXHAUSTED_NO_REPLAY' };

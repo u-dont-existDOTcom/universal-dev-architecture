@@ -58,6 +58,25 @@ test("GitHub App provider signs a bounded JWT, requests least-privilege reposito
   assert.equal(authorizationHeaders.length, 2, "the provider must renew inside the five-minute safety window");
 });
 
+test("GitHub App provider requests issue write permission only when the deterministic copier needs it", async () => {
+  let body: unknown;
+  const provider = new GitHubAppInstallationTokenProvider({
+    appId: "123456",
+    installationId: "789012",
+    privateKeyPem,
+    repository: "owner/private-receipts",
+    issuesPermission: "write",
+    now: () => Date.parse("2026-10-05T00:00:00.000Z"),
+    fetchImpl: async (_input, init) => {
+      body = JSON.parse(String(init?.body));
+      return Response.json({ token: "write-token", expires_at: "2026-10-05T01:00:00.000Z" });
+    },
+  });
+
+  assert.equal(await provider.token(), "write-token");
+  assert.deepEqual(body, { repositories: ["private-receipts"], permissions: { issues: "write" } });
+});
+
 test("environment factory fails closed on ambiguous or partial GitHub authentication and preserves static-token compatibility", async () => {
   assert.throws(() => githubReconciliationTokenProviderFromEnv({
     repository: "owner/repo",

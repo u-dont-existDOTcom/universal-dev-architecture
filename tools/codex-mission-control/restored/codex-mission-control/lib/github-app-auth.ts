@@ -12,6 +12,7 @@ export interface GitHubAppInstallationTokenProviderOptions {
   installationId: string;
   privateKeyPem: string;
   repository: string;
+  issuesPermission?: 'read' | 'write';
   fetchImpl?: typeof fetch;
   now?: () => number;
 }
@@ -23,6 +24,7 @@ export class GitHubAppInstallationTokenProvider {
   private readonly privateKey: ReturnType<typeof createPrivateKey>;
   private readonly fetchImpl: typeof fetch;
   private readonly now: () => number;
+  private readonly issuesPermission: 'read' | 'write';
   private cached: { token: string; expiresAtMs: number } | null = null;
 
   constructor(options: GitHubAppInstallationTokenProviderOptions) {
@@ -33,6 +35,7 @@ export class GitHubAppInstallationTokenProvider {
     if (this.privateKey.asymmetricKeyType !== "rsa") throw new Error("GitHub App private key must be an RSA key.");
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.now = options.now ?? Date.now;
+    this.issuesPermission = options.issuesPermission ?? 'read';
   }
 
   async token(): Promise<string> {
@@ -53,7 +56,7 @@ export class GitHubAppInstallationTokenProvider {
         },
         body: JSON.stringify({
           repositories: [this.repositoryName],
-          permissions: { issues: "read" },
+          permissions: { issues: this.issuesPermission },
         }),
         signal: AbortSignal.timeout(30_000),
       },
@@ -92,6 +95,7 @@ export function githubReconciliationTokenProviderFromEnv(options: {
   fetchImpl?: typeof fetch;
   now?: () => number;
   readFile?: (path: string) => string;
+  issuesPermission?: 'read' | 'write';
 }): GitHubReconciliationTokenProvider | null {
   const env = options.env ?? process.env;
   const staticToken = env.MISSION_CONTROL_GITHUB_RECONCILIATION_TOKEN?.trim();
@@ -117,6 +121,7 @@ export function githubReconciliationTokenProviderFromEnv(options: {
       repository: options.repository,
       fetchImpl: options.fetchImpl,
       now: options.now,
+      issuesPermission: options.issuesPermission,
     });
     return () => provider.token();
   }

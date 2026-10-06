@@ -764,6 +764,7 @@ class FakeMissionControl {
     this.evidence = [...evidence]; this.routes = [...routes]; this.recordedEvidence = []; this.sequence = 50;
     this.producerId = 'collector:fixture-relay';
     this.autoFirstTurnMcp = autoFirstTurnMcp; this.projectionLagReads = projectionLagReads; this.fetchFleetCalls = 0;
+    this.copyCalls = [];
   }
   async fetchFleet() {
     this.fetchFleetCalls += 1;
@@ -789,6 +790,23 @@ class FakeMissionControl {
     }
     return { eventId: `stored-${input.receiptId}` };
   }
+  async copyProviderDecision(input) {
+    this.copyCalls.push(structuredClone(input));
+    const commentId = 6000000000 + this.copyCalls.length;
+    const immutableUrl = `https://github.com/o/r/issues/1#issuecomment-${commentId}`;
+    const eventId = `github-decision-${commentId}`;
+    this.evidence.push({ eventId, sequence: ++this.sequence, occurredAt: '2026-09-02T00:00:20.000Z', data: {
+      type: 'github_decision_receipt_ingested', request_id: input.requestId, supervisor_id: input.supervisorId,
+      provider_session_id: input.providerSessionId, execution_provenance: 'IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED',
+      receipt_id: `github-comment:${commentId}`, github_receipt: { immutable_url: immutableUrl },
+    } });
+    return {
+      status: 'INGESTED', requestId: input.requestId, providerSessionId: input.providerSessionId,
+      canonicalBodySha256: input.canonicalBodySha256, ingestedEventId: eventId,
+      ingestedAt: '2026-09-02T00:00:20.000Z', duplicate: false,
+      githubReceipt: { repository: 'o/r', issueNumber: 1, commentId, immutableUrl },
+    };
+  }
 }
 
 class FakeBrowser {
@@ -806,6 +824,7 @@ class FakeBrowser {
     this.completionConversationUrl = completionConversationUrl;
     this.submitCalls = 0; this.waitCalls = 0; this.freshChatCalls = 0; this.createdTargetCalls = 0; this.controlChecks = []; this.targets = []; this.closedTargets = []; this.lastSubmittedBody = null;
     this.selectAppsCalls = []; this.appSelectionEvidence = []; this.selectedApps = []; this.lastDoctorOptions = null;
+    this.recoveryCalls = 0; this.recoveryObservation = null;
   }
   async doctor(options = {}) { this.lastDoctorOptions = structuredClone(options); return { browser: 'Fake', automationWindowId: this.automationWindowId, automationOwnedTabCount: 1, automationOwnedTargetIdsSha256: this.automationOwnedTargetIdsSha256, targetCount: this.targets.length, managedChatGptTabCount: this.targets.filter((target) => target.url.startsWith('https://chatgpt.com/')).length }; }
   async listTargets() { return structuredClone(this.targets); }
@@ -861,6 +880,29 @@ class FakeBrowser {
       completedAtObserved: `2026-09-02T00:00:1${this.waitCalls}.000Z`,
       inspectedAssistantOutput: false,
     };
+  }
+  async recoverBoundConversationTurns() {
+    this.recoveryCalls += 1;
+    if (this.recoveryObservation) return structuredClone(this.recoveryObservation);
+    const marker = 'copy it without alteration: ';
+    const start = this.lastSubmittedBody.indexOf(marker) + marker.length;
+    const end = this.lastSubmittedBody.indexOf('\n', start);
+    const binding = JSON.parse(this.lastSubmittedBody.slice(start, end));
+    const exactText = 'Synthetic exact decision.';
+    const decision = {
+      schema_version: 5, envelope_kind: 'MISSION_CONTROL_CANONICAL_DECISION', request_id: binding.request_id,
+      supervisor_id: binding.supervisor_id, provider_session_id: binding.provider_session_id,
+      nonce: binding.request_nonce, in_band_binding_sha256: binding.in_band_binding_sha256,
+      execution_provenance: 'IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED', evidence_capsule: binding.evidence_capsule,
+      owner_outcome: binding.owner_outcome, reasoning_lane: binding.reasoning_lane,
+      decision_block: { decision_id: 'decision:synthetic', exact_text: exactText, sha256: sha256(exactText) },
+      pro_decision_block: { used: false, model_mode: null, exact_text: null, sha256: null },
+      writer_contract: { mode: 'EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY', reinterpretation_allowed: false },
+    };
+    return { urlMismatch: false, turns: [
+      { key: 'user-turn', role: 'user', text: this.lastSubmittedBody },
+      { key: 'assistant-turn', role: 'assistant', text: `MISSION_CONTROL_CANONICAL_DECISION_V1\n${JSON.stringify(decision)}` },
+    ] };
   }
 }
 
@@ -1112,11 +1154,11 @@ test('V6 operator submitted-attestation preserves generation reconciliation with
   );
 
   const completed = await runtime.cycle();
-  assert.equal(completed.status, 'IN_BAND_REQUEST_DECISION_COMPLETE', JSON.stringify(completed));
+  assert.equal(completed.status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY', JSON.stringify(completed));
   assert.equal(browser.submitCalls, 1);
   assert.equal(browser.waitCalls, 1);
   assert.equal(store.state.deliveries['request:r-1'].providerSessionId, providerSessionId);
-  assert.equal(store.state.deliveries['request:r-1'].status, 'IN_BAND_REQUEST_DECISION_COMPLETE');
+  assert.equal(store.state.deliveries['request:r-1'].status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
 });
 
 test('V6 operator-authorized proven-unsent retry re-enters the same one-send control step', async () => {
@@ -1210,7 +1252,26 @@ test('V6 records one trusted binding/body/admission receipt before one GitHub-on
   assert.ok(preSend[0].refs.includes('semantic_authority:false'));
   assert.equal(mc.recordedEvidence.some((item) => item.summary === PROVIDER_SESSION_MCP_SUMMARY), false);
   assert.equal(store.state.providerSessions[store.state.deliveries['request:r-1'].providerSessionId].sessionRole, 'IN_BAND_REQUEST_DECISION_SESSION');
-  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE');
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  assert.equal((await runtime.cycle()).status, 'DECISION_RECEIPT_INGESTED');
+  assert.equal(mc.copyCalls.length, 1);
+  assert.equal(browser.recoveryCalls, 1);
+  assert.equal((await runtime.cycle()).status, 'DECISION_RECEIPT_INGESTED');
+  assert.equal(mc.copyCalls.length, 1);
+  assert.equal(browser.submitCalls, 1);
+});
+
+test('V6 invalid or empty exact-turn recovery blocks without another provider send', async () => {
+  const { store, mc, browser, runtime } = inBandRequestFixture();
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  browser.recoveryObservation = { urlMismatch: false, turns: [{ key: 'user-turn', role: 'user', text: browser.lastSubmittedBody }] };
+  const blocked = await runtime.cycle();
+  assert.equal(blocked.status, 'IN_BAND_REQUEST_DECISION_RECOVERY_BLOCKED');
+  assert.equal(blocked.recoveryClassification, 'EMPTY_PROVIDER_COMPLETION');
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(mc.copyCalls.length, 0);
+  assert.equal(store.state.deliveries['request:r-1'].status, 'IN_BAND_REQUEST_DECISION_RECOVERY_BLOCKED');
   assert.equal((await runtime.cycle()).status, 'AWAITING_GITHUB_RECEIPT');
   assert.equal(browser.submitCalls, 1);
 });

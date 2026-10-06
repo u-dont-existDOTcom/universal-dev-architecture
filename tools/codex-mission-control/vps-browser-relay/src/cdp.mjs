@@ -1064,6 +1064,38 @@ const CONTINUE_TURN_STRUCTURE_FN = `function(expectedUrl) {
   return { urlMismatch: false, turns, assistantContentObserved: false };
 }`;
 
+export const BOUND_TURN_READBACK_FN = `function(expectedUrl) {
+  const normalizeUrl = (value) => {
+    try {
+      const url = new URL(value);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
+      return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
+    } catch { return null; }
+  };
+  if (normalizeUrl(location.href) !== expectedUrl) return { urlMismatch: true, currentUrl: location.href, turns: [] };
+  const roleNodes = [...document.querySelectorAll('[data-message-author-role="user"], [data-message-author-role="assistant"]')];
+  const seenContainers = new Set();
+  const turns = [];
+  for (const roleNode of roleNodes) {
+    const container = roleNode.closest('article[data-testid^="conversation-turn-"], article[data-turn-id], [data-testid^="conversation-turn-"]') || roleNode;
+    if (seenContainers.has(container)) continue;
+    seenContainers.add(container);
+    const role = roleNode.getAttribute('data-message-author-role');
+    const key = roleNode.getAttribute('data-message-id')
+      || container.getAttribute('data-turn-id')
+      || container.getAttribute('data-testid')
+      || container.id
+      || null;
+    const contentRoots = role === 'assistant'
+      ? [...roleNode.querySelectorAll('.markdown, [class*="markdown"], [class*="prose"]')]
+      : [];
+    const roots = contentRoots.length === 1 ? contentRoots : [roleNode];
+    const text = roots.map((root) => typeof root.innerText === 'string' ? root.innerText : root.textContent || '').join('');
+    turns.push({ key, role, text: text.replace(/\\r\\n?/g, '\\n') });
+  }
+  return { urlMismatch: false, currentUrl: location.href, turns };
+}`;
+
 const CLICK_FAILED_CONTINUE_RETRY_FN = `function(expectedUrl, binding) {
   const normalizeUrl = (value) => {
     try {
@@ -1324,6 +1356,11 @@ export class ChromeDevtoolsBrowser {
 
   async detectJournalWriteConfirmation(target, { expectedUrl }) {
     return this.#withPageClient(target, (client) => client.callFunction(JOURNAL_WRITE_CONFIRMATION_FN, [expectedUrl]));
+  }
+
+  async recoverBoundConversationTurns(target, { expectedUrl }) {
+    const normalized = normalizeConversationUrl(expectedUrl);
+    return this.#withPageClient(target, (client) => client.callFunction(BOUND_TURN_READBACK_FN, [normalized]));
   }
 
   async approveJournalWriteConfirmation(target, { expectedUrl, appName, toolName, button }) {

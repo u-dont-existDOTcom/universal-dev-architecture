@@ -39,6 +39,7 @@ import { boundedJevShadowHook } from "../lib/jev-shadow-hook";
 import { FleetSupervisorLoop, fleetSupervisorSlowTickMs, fleetSupervisorStallMs } from "../lib/fleet-supervisor-loop";
 import { jevShadowSummaryForProducer, jevShadowSummaryTool } from "../lib/jev-shadow-surface";
 import { githubReconciliationTokenProviderFromEnv } from "../lib/github-app-auth";
+import { ProviderDecisionCopier } from "../lib/provider-decision-copier";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
 const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
@@ -69,6 +70,9 @@ const githubReconciliationEventCache = githubPolicy && githubReconciliationStart
 const githubReconciliationTokenProvider = githubPolicy
   ? githubReconciliationTokenProviderFromEnv({ repository: githubPolicy.repository })
   : null;
+const githubDecisionCopyTokenProvider = githubPolicy
+  ? githubReconciliationTokenProviderFromEnv({ repository: githubPolicy.repository, issuesPermission: "write" })
+  : null;
 const eventHistory = () => githubReconciliationEventCache?.eventsForRead(store) ?? store.allEvents();
 const githubReconciliationCoordinator = githubPolicy && githubReconciliationEventCache
   ? new GitHubReconciliationCoordinator({
@@ -78,6 +82,18 @@ const githubReconciliationCoordinator = githubPolicy && githubReconciliationEven
       eventCache: githubReconciliationEventCache,
     }),
     latestSequence: () => store.latestSequence(),
+    onAppended: (events) => {
+      for (const event of events) notifications.emit("event", event);
+    },
+  })
+  : null;
+const providerDecisionCopier = githubPolicy && githubDecisionCopyTokenProvider
+  ? new ProviderDecisionCopier({
+    store,
+    policy: githubPolicy,
+    tokenProvider: githubDecisionCopyTokenProvider,
+    eventCache: githubReconciliationEventCache,
+    eventHistory,
     onAppended: (events) => {
       for (const event of events) notifications.emit("event", event);
     },
@@ -316,6 +332,17 @@ const server = http.createServer(async (request, response) => {
         return json(response, 200, await githubReconciliationCoordinator.run("OWNER_RECOVERY"));
       } catch {
         return json(response, 502, { error: "GitHub reconciliation failed.", code: "GITHUB_RECONCILIATION_FAILED" });
+      }
+    }
+    if (request.method === "POST" && url.pathname === "/github/decision-receipts/copy") {
+      const producer = authorizeMutation(request);
+      if (!providerDecisionCopier) {
+        return json(response, 503, { error: "Provider decision copy is not configured." });
+      }
+      try {
+        return json(response, 200, await providerDecisionCopier.copy(await readJson(request), producer));
+      } catch (error) {
+        return json(response, 409, { error: error instanceof Error ? error.message : "Provider decision copy was rejected." });
       }
     }
     if (request.method === "POST" && url.pathname === "/github/decision-receipts") {

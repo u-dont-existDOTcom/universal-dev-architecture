@@ -64,6 +64,20 @@ export class MissionControlClient {
     return payload.event;
   }
 
+  async copyProviderDecision(input) {
+    const payload = await this.#requestJson('/api/github/decision-receipts/copy', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    }, { allowConflict: true });
+    if (payload?.status !== 'INGESTED' || payload?.requestId !== input.requestId
+      || payload?.providerSessionId !== input.providerSessionId
+      || payload?.canonicalBodySha256 !== input.canonicalBodySha256) {
+      throw new Error(`Mission Control deterministic decision copy did not confirm exact ingestion: ${safeMessage(payload)}`);
+    }
+    return payload;
+  }
+
   async requestExecutionAdmission(worker, input) {
     return this.#requestJson(`/api/worker-channel/${encodeURIComponent(worker)}/admission`, {
       method: 'POST',

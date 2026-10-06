@@ -6,6 +6,9 @@ import {
   CONTINUE_NUDGE_DELAY_MS,
   MANAGED_CHATGPT_HARD_CEILING_TABS,
   IN_BAND_REQUEST_STEP,
+  IN_BAND_COPY_CONFIRMED_STATUS,
+  IN_BAND_COPY_PENDING_STATUS,
+  IN_BAND_RECOVERY_BLOCKED_STATUS,
   IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX,
   MCP_BINDING_PRELOAD_STEP,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
@@ -225,6 +228,12 @@ test('V6 carries exact request authority in-band and selects GitHub without any 
     type: 'SEND_CONTROL', step: IN_BAND_REQUEST_STEP, model: 'EXTRA_HIGH',
   });
   assert.equal(nextSupervisoryCycleAction(route, { status: 'FAILED_RETRYABLE', preBoundaryAbortConfirmed: true }, Date.parse('2026-09-02T00:01:00.000Z')).recovery, 'V6_ONE_SEND_EXHAUSTED_NO_REPLAY');
+  assert.deepEqual(nextSupervisoryCycleAction(route, { status: IN_BAND_COPY_PENDING_STATUS }), {
+    type: 'RECOVER_AND_PUBLISH', step: IN_BAND_REQUEST_STEP,
+  });
+  assert.equal(nextSupervisoryCycleAction(route, { status: completedCycleStepStatus(IN_BAND_REQUEST_STEP) }).type, 'RECOVER_AND_PUBLISH');
+  assert.equal(nextSupervisoryCycleAction(route, { status: IN_BAND_COPY_CONFIRMED_STATUS }).type, 'WAIT_GITHUB_RECEIPT');
+  assert.equal(nextSupervisoryCycleAction(route, { status: IN_BAND_RECOVERY_BLOCKED_STATUS }).recovery, 'PROVIDER_DECISION_RECOVERY_BLOCKED_NO_RESEND');
 });
 
 test('canonical project manager is fleet-wide while specialist routing remains worker-bound', () => {
