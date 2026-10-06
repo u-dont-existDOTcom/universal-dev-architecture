@@ -57,6 +57,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-3.6 | A paraphrase treated as the source's own words. | Keep exact wording and provenance apart from interpretation. | `patterns/source-interpretation-provenance.md` | |
 | LF-3.7 | A vivid or detailed account treated as strong evidence. | Ask what independent evidence it adds; keep denominators. | `patterns/interview-evidence-information-gain.md` | |
 | LF-3.8 | An old pass or green label trusted as a current result. | Reproduce the exact boundary before relying on it. | `patterns/external-evaluation-reproducibility.md` | |
+| LF-3.9 | A large practical effect from one or a few studies is treated as established although independent evidence streams do not echo it. | Ask what should be observable if the claim were true; check replication, intervention identity, relevant historical use, and real-world reports when exposure is sufficient. | `patterns/consilience-and-expected-observability.md` | |
 
 ### 4. Reasoning
 

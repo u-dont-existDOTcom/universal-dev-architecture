@@ -75,6 +75,8 @@ Use this file as the entry point for cross-project lesson retrieval. This is a r
 68. `patterns/parallel-chat-write-isolation.md` — When concurrent agents or chats may write to the same repository, isolate their branches/worktrees and serialize shared mutable state; never share a mutable branch.
 69. `patterns/runtime-chat-work-authority-admission-and-internal-routing.md` — When a controlled supervisory route may admit native Work execution, apply runtime authority admission and internal routing without giving Work semantic or owner-decision authority.
 
+70. `patterns/consilience-and-expected-observability.md` — For practical effectiveness claims, especially large or surprising effects from a small study set or purchasable products, triangulate materially independent evidence streams and apply an expected-observability check; when exposure, identity, salience, and reporting opportunity make an effect reasonably observable, unexplained real-world silence is negative evidence that must downgrade practical confidence rather than letting one point estimate dominate.
+
 ## Kernel cross-reference
 
 - `AGENTS.md` → **Workflow** — When closing a substantive pass or switching methods, verify that every explicit commitment was executed or explicitly superseded; adjacent analysis or planning does not close it.
