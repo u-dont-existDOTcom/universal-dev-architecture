@@ -22,6 +22,7 @@ import {
   parseGitHubReceiptPolicy,
   reconcileGitHubDecisionReceipts,
   type GitHubDecisionCandidate,
+  type ReasoningReplacementReasonCode,
 } from "../lib/github-decision-receipts";
 import { SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
@@ -146,10 +147,11 @@ const server = http.createServer(async (request, response) => {
       if (!watch) return json(response, 404, { error: "Fleet watch not found." });
       if (watch.state !== "PAUSED") return json(response, 409, { error: "Reasoning replacement requires the exact fleet watch to be paused." });
       const body = await readJson(request) as Record<string, unknown>;
-      const reasonCode = body.reason_code;
-      if (reasonCode !== undefined
-        && reasonCode !== "PROVIDER_EMPTY_COMPLETION"
-        && reasonCode !== "PROVIDER_INVALID_CANONICAL_DECISION") {
+      let reasonCode: ReasoningReplacementReasonCode | undefined;
+      if (body.reason_code === undefined) reasonCode = undefined;
+      else if (body.reason_code === "PROVIDER_EMPTY_COMPLETION"
+        || body.reason_code === "PROVIDER_INVALID_CANONICAL_DECISION") reasonCode = body.reason_code;
+      else {
         return json(response, 400, { error: "Reasoning replacement reason_code is invalid." });
       }
       try {
