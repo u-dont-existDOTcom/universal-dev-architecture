@@ -2,12 +2,6 @@
   "schema_version": 1,
   "status": "REVIEWED_METADATA_NOT_NORMATIVE_AUTHORITY",
   "graph_path": "rules/UDA-RULE-GRAPH.json",
-  "legacy_covered_sources": [
-    "LESSON-INDEX.md",
-    "docs/INDEX.md",
-    "patterns/* except explicitly registered initial slice",
-    "project-specific AGENTS.md and owner/task overlays not registered in this pilot"
-  ],
   "records": [
     {
       "rule_id": "uda.final.timestamp",

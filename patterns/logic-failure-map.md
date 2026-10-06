@@ -166,3 +166,15 @@ Place every failure on the map first: `patterns/logic-failure-map.md`.
 When explaining an instruction-following, reasoning, routing, tool, execution, or delivery failure, identify the **causal mechanism** that generated the behavior. Check for missing/stale instruction activation, priority or authority conflict, trigger misclassification, wrong phase/surface/destination, lost carry-through between reasoning and final output, capability/tool boundary, stale state, or a failed enforcement check.
 
 Do not use agentic shorthand (`I chose wrong`, `I forgot`, `I should have`) as causal explanation or repair. Separate observed trace facts, supported causal inferences, and unverified hypotheses. If the cause is unknown, state the narrowest verified failure and a discriminating check; do not invent hidden instructions, priority conflicts, psychological states, or model internals. A working fix shows its effect in the tested scope, not the cause. Repair the generating condition at the authority, activation, routing, state, phase, destination, or enforcement boundary, not with promises.
+
+
+## Enforcement coverage diagnosis (issue #317)
+
+The verified systemic coverage gap uses existing entries rather than a new failure category:
+
+- **LF-2.1:** absent or stale bootstrap and undeclared task triggers can keep applicable instructions from loading. External skip-bootstrap authority remains outside repository protection.
+- **LF-7.1:** a loaded rule whose obligation never reaches its actual action, handoff or delivery boundary is a check that never reaches the real endpoint. Current semantic task-time checks return UNKNOWN and cannot accept application evidence; structured records alone do not repair that admission gap.
+- **LF-7.2:** sentence-presence, index-routing and graph-existence regressions can stay green while representative violating work still passes.
+- **LF-7.3:** wildcard coverage and aggregate green labels overstate what was enforced when exact mappings and backlog identities are absent.
+
+LF-7.1 already covers loaded guidance missing its enforcement boundary, so no new row is necessary. Pass 1 repairs inspectability, trigger routes and the coverage audit; it does not claim semantic receipt admission or universal behavioral protection. The exact inventory and migration report are described in `docs/uda-enforcement-coverage.md`.

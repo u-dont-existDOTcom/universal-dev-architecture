@@ -236,3 +236,12 @@ The full loop is:
 This architecture deliberately reuses the policy decision/enforcement split used by Open Policy Agent and admission-control systems: policies are managed separately from the point where a request is allowed or denied. It also aligns with current agent-memory research emphasizing explicit, interpretable admission/control rather than indiscriminate accumulation.
 
 The project-specific novelty is limited to applying those established control principles to durable human/agent lessons and semantic writing/reasoning workflows.
+
+
+## Enforcement coverage inventory
+
+Before adding or migrating a rule, classify its exact source in `rules/rule-graph/enforcement-coverage.v1.json`. Every pattern file and every root level-two section has one disposition. An explicit index or parent trigger is an activation route; prose presence, an index listing, a graph node and compilation alone do not prove application.
+
+`STRUCTURED_PARTIAL` and `LEGACY_UNSTRUCTURED` remain the exact migration backlog pinned in `rules/rule-graph/enforcement-legacy-baseline.v1.json`. New behavioral rules must arrive with structured admission or a specific specialist workflow justification; expanding legacy backlog requires an owner quote, date and source. Large patterns with narrow task-time records remain partial, and semantic UNKNOWN never becomes enforcement PASS.
+
+Run `python3 scripts/uda_enforcement_coverage.py validate` for the deterministic gate and `python3 scripts/uda_enforcement_coverage.py report` for disposition counts, exact prioritized backlog and evidence classes. The repository audit runs the same validator at error level. `docs/uda-enforcement-coverage.md` explains its scope and limits. Pass 1 inventories the gaps; pass 2 on the same branch supplies semantic receipts, activation state and the dominated-route regression. Neither inventory nor a green coverage audit closes the owner outcome while behavioral obligations remain unstructured.

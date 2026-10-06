@@ -20,8 +20,10 @@ from typing import Any, Iterable
 
 if __package__:
     from .task_checkpoint_path import checkpoint_path
+    from .uda_enforcement_coverage import validate as validate_enforcement_coverage
 else:
     from task_checkpoint_path import checkpoint_path
+    from uda_enforcement_coverage import validate as validate_enforcement_coverage
 
 PROFILE_DEFAULT = ".github/codex-repository.json"
 AGENTS_SOFT_LIMIT_BYTES = 24 * 1024
@@ -1838,6 +1840,25 @@ def audit_repository(
 
     workflows = _workflow_files(root_path)
     _audit_workflows(root_path, workflows, findings)
+
+    # UDA-specific gate; keep the generic repository audit's scope unchanged.
+    uda_root = root_path / "AGENTS.md"
+    is_uda_kernel = uda_root.is_file() and uda_root.read_text(
+        encoding="utf-8", errors="replace"
+    ).startswith("# Universal development architecture")
+    if is_uda_kernel or any((root_path / path).exists() for path in (
+        "rules/UDA-RULE-GRAPH.json",
+        "rules/rule-graph/task-time-metadata.v1.json",
+        "rules/rule-graph/enforcement-coverage.v1.json",
+        "rules/rule-graph/enforcement-legacy-baseline.v1.json",
+        "docs/requirements/2026-10-06-universal-enforcement-coverage.owner-requirement.json",
+    )):
+        for error in validate_enforcement_coverage(root_path):
+            findings.append(finding(
+                "error", "uda.enforcement.coverage", error,
+                "rules/rule-graph/enforcement-coverage.v1.json",
+                "Give every source one exact disposition, preserve mappings and routes, and keep backlog within the owner-authorized baseline.",
+            ))
 
     if profile is not None:
         _audit_current_state(root_path, profile, findings)
