@@ -1,10 +1,12 @@
 import copy
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts import uda_rule_graph_task_time as task_time
 
@@ -169,6 +171,56 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
         second = task_time.compile_contract(self.catalog, self.profile, copy.deepcopy(self.work), "graph")
         self.assertEqual(first["content_sha256"], second["content_sha256"])
         self.assertEqual(first["rendered_contract"], second["rendered_contract"])
+
+    def test_lock_contract_and_receipts_survive_containing_and_unrelated_commits(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(task_time, "ROOT", Path(directory)):
+            root = Path(directory)
+            paths = {r["source"]["path"] for r in self.catalog["records"]}
+            paths.add("scripts/uda_rule_graph_task_time.py")
+            for relative in paths:
+                target = root / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / relative, target)
+
+            def git(*args):
+                result = subprocess.run(["git", "-C", str(root), *args],
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+
+            git("init")
+            git("config", "user.name", "Regression fixture")
+            git("config", "user.email", "fixture@example.invalid")
+            git("add", ".")
+            git("commit", "-m", "Initial sources")
+            initial_lock = task_time.build_lock(self.catalog, self.profile)
+            initial_contract = task_time.compile_contract(self.catalog, self.profile, self.work, "graph")
+            source = root / "patterns/task-time-lesson-activation.md"
+            source.write_text(source.read_text() + "\nProvenance regression fixture.\n")
+            dirty_lock = task_time.build_lock(self.catalog, self.profile)
+            dirty_contract = task_time.compile_contract(self.catalog, self.profile, self.work, "graph")
+            self.assertNotEqual(initial_lock["content_sha256"], dirty_lock["content_sha256"])
+            self.assertNotEqual(initial_contract["content_sha256"], dirty_contract["content_sha256"])
+            payload = b"bounded directive"
+            receipts = task_time.receipt_skeleton(dirty_contract, "handoff", payload)
+            for receipt in receipts["receipts"]:
+                receipt.update(verdict="PASS", evidence="Fixture directive meets the selected handoff obligation.",
+                               actor={"id": "fixture", "kind": "test", "relation": "INDEPENDENT"},
+                               issued_at="2026-10-06T12:00:00Z")
+            task_time.emit(str(root / "source-lock.json"), dirty_lock)
+            task_time.emit(str(root / "contract.json"), dirty_contract)
+            git("add", ".")
+            git("commit", "-m", "Sources and generated artifacts")
+            for boundary in ("containing commit", "unrelated commit"):
+                with self.subTest(boundary=boundary):
+                    self.assertEqual(dirty_lock, task_time.build_lock(self.catalog, self.profile))
+                    clean_contract = task_time.compile_contract(self.catalog, self.profile, self.work, "graph")
+                    self.assertEqual(dirty_contract, clean_contract)
+                    checked = task_time.check_contract(clean_contract, "handoff", payload, receipts=receipts)
+                    self.assertEqual(checked["admission"], "ADMITTED")
+                if boundary == "containing commit":
+                    (root / "checkpoint.txt").write_text("Unrelated checkpoint\n")
+                    git("add", ".")
+                    git("commit", "-m", "Unrelated checkpoint")
 
 
 if __name__ == "__main__":

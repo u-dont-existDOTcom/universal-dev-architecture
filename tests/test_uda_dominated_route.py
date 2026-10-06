@@ -11,22 +11,12 @@ RULE = 'uda.reasoning.dominated-alternative'
 
 
 def fixture_contract(task=None):
-    """Compile the selected slice, pinning source revision to its exact blob.
-
-    Golden receipts remain valid across a commit of identical source bytes.
-    Production compilation retains its full repository-revision provenance.
-    No receipt binding field is replaced at check time.
-    """
+    """Compile the selected slice with production source and receipt bindings."""
     catalog = json.loads((ROOT / 'rules/rule-graph/task-time-metadata.v1.json').read_text())
     catalog['records'] = [r for r in catalog['records'] if r['rule_id'] == RULE]
     profile = json.loads((ROOT / 'scripts/instruction-layering-profile.json').read_text())
     envelope = task or json.loads((FIXTURE / 'task.json').read_text())
-    contract = tt.compile_contract(catalog, profile, envelope, 'graph')
-    for rule in contract['selected_rules']:
-        rule['source']['repository_revision'] = 'BLOB:' + rule['source']['git_blob_sha1']
-    content = {k: contract[k] for k in tt.CONTRACT_CONTENT_FIELDS}
-    contract['content_sha256'] = tt.sha256(tt.canonical(content).encode())
-    return contract
+    return tt.compile_contract(catalog, profile, envelope, 'graph')
 
 
 class DominatedRouteRegressionTests(unittest.TestCase):

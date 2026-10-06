@@ -42,8 +42,8 @@ def canonical(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
-def git(*args: str) -> str:
-    p = subprocess.run(["git", "-C", str(ROOT), *args], text=True, capture_output=True)
+def git(*args: str, root: Path | None = None) -> str:
+    p = subprocess.run(["git", "-C", str(root or ROOT), *args], text=True, capture_output=True)
     if p.returncode:
         raise RuleGraphError("GIT_UNAVAILABLE", p.stderr.strip() or "git failed", list(args))
     return p.stdout.strip()
@@ -58,13 +58,13 @@ def read_json(path: Path) -> Any:
         raise RuleGraphError("INVALID_JSON", f"{path}: {exc}") from exc
 
 
-def safe_path(relative: str) -> Path:
+def safe_path(relative: str, root: Path | None = None) -> Path:
     raw = Path(relative)
     if raw.is_absolute() or ".." in raw.parts:
         raise RuleGraphError("UNSAFE_SOURCE_PATH", relative)
-    root = ROOT.resolve()
+    root = (root or ROOT).resolve()
     try:
-        resolved = (ROOT / raw).resolve(strict=True)
+        resolved = (root / raw).resolve(strict=True)
     except FileNotFoundError as exc:
         raise RuleGraphError("SOURCE_NOT_FOUND", relative) from exc
     if root != resolved and root not in resolved.parents:
@@ -74,8 +74,8 @@ def safe_path(relative: str) -> Path:
     return resolved
 
 
-def source_lock(rule: dict[str, Any]) -> dict[str, Any]:
-    path = safe_path(rule["source"]["path"])
+def source_lock(rule: dict[str, Any], root: Path | None = None) -> dict[str, Any]:
+    path = safe_path(rule["source"]["path"], root)
     body = path.read_text(encoding="utf-8")
     parts = []
     for i, selector in enumerate(rule["source"]["selectors"]):
@@ -88,13 +88,13 @@ def source_lock(rule: dict[str, Any]) -> dict[str, Any]:
         parts.append(text)
     extracted = "\n\n".join(parts)
     rel = rule["source"]["path"]
-    blob = git("hash-object", rel)
-    head = git("rev-parse", "HEAD")
-    clean = subprocess.run(["git", "-C", str(ROOT), "diff", "--quiet", "HEAD", "--", rel]).returncode == 0
+    blob = git("hash-object", "--no-filters", rel, root=root)
     return {
         "path": rel,
         "selectors": rule["source"]["selectors"],
-        "repository_revision": head if clean else f"WORKTREE:{blob}",
+        # Generated artifacts precede their containing commit. Bind the exact
+        # source bytes so committing them or moving HEAD cannot change identity.
+        "repository_revision": f"BLOB:{blob}",
         "git_blob_sha1": blob,
         "extracted_utf8_bytes": len(extracted.encode()),
         "extracted_sha256": sha256(extracted.encode()),
@@ -162,7 +162,7 @@ def assert_acyclic(graph: dict[str, list[str]], code: str) -> None:
         visit(node, [])
 
 
-def validate(catalog: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]:
+def validate(catalog: dict[str, Any], profile: dict[str, Any], *, root: Path | None = None) -> dict[str, Any]:
     if catalog.get("schema_version") != 1 or catalog.get("status") not in {"CANDIDATE", "CURRENT", "HISTORICAL", "REVIEWED_METADATA_NOT_NORMATIVE_AUTHORITY"}:
         raise RuleGraphError("INVALID_CATALOG", "catalog version/status")
     roles = profile.get("roles")
@@ -205,7 +205,7 @@ def validate(catalog: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]
                 if flag in ob and type(ob[flag]) is not bool:
                     raise RuleGraphError("INVALID_OBLIGATION_FLAG", f"{rid}:{oid}:{flag}")
         by_id[rid] = rule
-        locks[rid] = source_lock(rule)
+        locks[rid] = source_lock(rule, root)
     for rid, rule in by_id.items():
         for rel in rule.get("relations", []):
             if rel.get("type") not in {"requires", "supersedes", "conflicts_with", "related_to"}:
@@ -348,8 +348,8 @@ def render(envelope: dict[str, Any], rules: list[dict[str, Any]], unresolved: li
     return "\n".join(lines).rstrip() + "\n"
 
 
-def compile_contract(catalog: dict[str, Any], profile: dict[str, Any], envelope: dict[str, Any], mode: str) -> dict[str, Any]:
-    state = validate(catalog, profile)
+def compile_contract(catalog: dict[str, Any], profile: dict[str, Any], envelope: dict[str, Any], mode: str, *, root: Path | None = None) -> dict[str, Any]:
+    state = validate(catalog, profile, root=root)
     by_id, locks = state["by_id"], state["locks"]
     if envelope.get("schema_version") != 1 or not isinstance(envelope.get("facts"), dict):
         raise RuleGraphError("INVALID_TASK_ENVELOPE", "schema_version=1 and facts required")
@@ -441,14 +441,14 @@ def compile_contract(catalog: dict[str, Any], profile: dict[str, Any], envelope:
     }
 
 
-def build_lock(catalog: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]:
-    state = validate(catalog, profile)
+def build_lock(catalog: dict[str, Any], profile: dict[str, Any], *, root: Path | None = None) -> dict[str, Any]:
+    state = validate(catalog, profile, root=root)
     entries = [{"rule_id": rid, **{k: v for k, v in lock.items() if k != "extracted_text"}}
                for rid, lock in sorted(state["locks"].items())]
     base = {
         "schema_version": 1,
         "catalog_sha256": sha256(canonical(catalog).encode()),
-        "compiler_sha256": sha256(Path(__file__).read_bytes()),
+        "compiler_sha256": sha256(((root or ROOT) / "scripts/uda_rule_graph_task_time.py").read_bytes()),
         "entries": entries,
     }
     return {**base, "content_sha256": sha256(canonical(base).encode())}

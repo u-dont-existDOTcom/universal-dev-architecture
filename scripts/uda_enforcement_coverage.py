@@ -18,14 +18,18 @@ from pathlib import Path
 from typing import Any
 
 if __package__:
+    from . import uda_rule_graph_task_time as task_time
     from .uda_rule_graph_task_time import RuleGraphError, validate_trigger
 else:
+    import uda_rule_graph_task_time as task_time
     from uda_rule_graph_task_time import RuleGraphError, validate_trigger
 
 COVERAGE = "rules/rule-graph/enforcement-coverage.v1.json"
 BASELINE = "rules/rule-graph/enforcement-legacy-baseline.v1.json"
 METADATA = "rules/rule-graph/task-time-metadata.v1.json"
 LOCK = "rules/rule-graph/generated/source-lock.v1.json"
+WORK_TASK = "examples/rule-graph/work-handoff.json"
+WORK_CONTRACT = "tools/codex-mission-control/restored/codex-mission-control/generated/rule-graph/work-handoff-contract.json"
 REQUIREMENT = "docs/requirements/2026-10-06-universal-enforcement-coverage.owner-requirement.json"
 DISPOSITIONS = ("STRUCTURED_ENFORCED", "STRUCTURED_PARTIAL", "WORKFLOW_ONLY",
                 "LEGACY_UNSTRUCTURED", "NOT_ACTIVE")
@@ -327,7 +331,17 @@ def validate(root: Path | str) -> list[str]:
                 errors.append("baseline identities must be exact")
         for eid in sorted(e["id"] for e in entries if e.get("disposition") in BACKLOG and e["id"] not in allowed):
             errors.append("unauthorized backlog growth: " + eid)
-    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        # Compare complete regenerated content, not just IDs or a self-declared
+        # checksum. Regeneration stays in memory and uses the audited root.
+        profile = task_time.read_json(file_at(root, "scripts/instruction-layering-profile.json"))
+        file_at(root, "scripts/uda_rule_graph_task_time.py")
+        if lock != task_time.build_lock(catalog, profile, root=root):
+            errors.append("source lock differs from regenerated artifact; regenerate using uda_rule_graph.py")
+        envelope = task_time.read_json(file_at(root, WORK_TASK))
+        projection = task_time.read_json(file_at(root, WORK_CONTRACT))
+        if projection != task_time.compile_contract(catalog, profile, envelope, "graph", root=root):
+            errors.append("Work handoff projection differs from regenerated artifact; regenerate using uda_rule_graph.py")
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, RuleGraphError) as exc:
         errors.append("invalid coverage inputs: " + str(exc))
     return sorted(set(errors))
 

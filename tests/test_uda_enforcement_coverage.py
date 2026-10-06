@@ -7,9 +7,11 @@ import unittest
 from pathlib import Path
 
 from scripts import uda_enforcement_coverage as coverage
+from scripts import uda_rule_graph_task_time as task_time
 from scripts.audit_codex_github import audit_repository
 
 ROOT = Path(__file__).resolve().parents[1]
+WORK_CONTRACT = "tools/codex-mission-control/restored/codex-mission-control/generated/rule-graph/work-handoff-contract.json"
 
 
 class EnforcementCoverageTests(unittest.TestCase):
@@ -22,7 +24,9 @@ class EnforcementCoverageTests(unittest.TestCase):
         inventory = json.loads((ROOT / coverage.COVERAGE).read_text())
         paths = {coverage.COVERAGE, coverage.BASELINE, coverage.METADATA,
                  coverage.LOCK, coverage.REQUIREMENT, "rules/UDA-RULE-GRAPH.json", "AGENTS.md",
-                 "LESSON-INDEX.md", "docs/uda-enforcement-coverage.md"}
+                 "LESSON-INDEX.md", "docs/uda-enforcement-coverage.md",
+                 "scripts/uda_rule_graph_task_time.py", "scripts/instruction-layering-profile.json",
+                 "examples/rule-graph/work-handoff.json", WORK_CONTRACT}
         paths.update(p.relative_to(ROOT).as_posix() for p in (ROOT / "patterns").glob("*.md"))
         paths.update(e["path"] for entry in inventory["entries"] for e in entry["evidence"])
         for path in paths:
@@ -336,6 +340,45 @@ class EnforcementCoverageTests(unittest.TestCase):
         errors = [f for f in findings if f["code"] == "uda.enforcement.coverage"]
         self.assertTrue(errors)
         self.assertTrue(all(f["severity"] == "error" for f in errors))
+
+    def artifact_rejected_by_audit(self, fragment):
+        findings = audit_repository(self.root)
+        self.assertTrue(any(f["code"] == "uda.enforcement.coverage"
+                            and f["severity"] == "error" and fragment in f["message"]
+                            for f in findings), findings)
+
+    def test_audit_rejects_source_lock_tampering_even_with_consistent_hash(self):
+        lock = self.read(coverage.LOCK)
+        lock["entries"][0]["repository_revision"] = "BLOB:" + "0" * 40
+        lock["content_sha256"] = coverage.canonical_hash({k: v for k, v in lock.items() if k != "content_sha256"})
+        self.write(coverage.LOCK, lock)
+        self.artifact_rejected_by_audit("source lock differs from regenerated artifact")
+
+    def test_audit_rejects_work_projection_tampering_even_with_consistent_hash(self):
+        contract = self.read(WORK_CONTRACT)
+        contract["rendered_contract"] += "\nStale projection text\n"
+        contract["content_sha256"] = coverage.canonical_hash({k: contract[k] for k in task_time.CONTRACT_CONTENT_FIELDS})
+        self.write(WORK_CONTRACT, contract)
+        self.artifact_rejected_by_audit("Work handoff projection differs from regenerated artifact")
+
+    def test_audit_binds_whole_source_blob_beyond_selected_text(self):
+        with (self.root / "patterns/task-time-lesson-activation.md").open("a") as handle:
+            handle.write("\nChanged source outside every exact selector.\n")
+        self.artifact_rejected_by_audit("source lock differs from regenerated artifact")
+        self.artifact_rejected_by_audit("Work handoff projection differs from regenerated artifact")
+
+    def test_audit_binds_compiler_bytes_in_audited_root(self):
+        with (self.root / "scripts/uda_rule_graph_task_time.py").open("a") as handle:
+            handle.write("\n# Changed compiler fixture\n")
+        self.artifact_rejected_by_audit("source lock differs from regenerated artifact")
+
+    def test_audit_artifact_comparison_is_read_only(self):
+        def snapshot():
+            return {p.relative_to(self.root): p.read_bytes()
+                    for p in self.root.rglob("*") if p.is_file()}
+        before = snapshot()
+        self.assertEqual([], [f for f in audit_repository(self.root) if f["code"] == "uda.enforcement.coverage"])
+        self.assertEqual(before, snapshot())
 
     def test_missing_coverage_file_fails_audit(self):
         (self.root / coverage.COVERAGE).unlink()
