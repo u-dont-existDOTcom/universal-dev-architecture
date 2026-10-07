@@ -1,0 +1,1 @@
+The first action read the preferred available shell clock at 10:00:00 UTC because no sent time was visible. The second read occurred immediately before final composition at 10:02:00 UTC. No intermediate or cross-clock reads occurred and no retry was needed. The final uses this turn’s second reading with honest capture provenance; the no-clock disclosure condition is absent.

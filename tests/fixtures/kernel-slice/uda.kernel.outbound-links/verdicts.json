@@ -1,0 +1,31 @@
+{
+  "compliant-final.txt": {
+    "verdict": "PASS",
+    "evidence": "Every surfaced outbound destination was opened immediately before delivery, redirects followed and current successful intended content verified. Cached previews and remembered destinations supplied no verification. Unverifiable or broken candidates were withheld from the final and recommendation.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "An outbound destination was recommended without any current exact-destination verification.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "Search snippets were used as link verification, and the unchecked destination was recommended.\nCommitted substitute: search snippets used as link verification.\n",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "exact-current-destination",
+    "non_substitute": "search snippets used as link verification"
+  }
+}

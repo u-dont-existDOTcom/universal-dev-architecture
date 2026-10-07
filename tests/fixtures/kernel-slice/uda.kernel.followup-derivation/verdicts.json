@@ -1,0 +1,31 @@
+{
+  "compliant-final.txt": {
+    "verdict": "PASS",
+    "evidence": "Before authoring, launching or accepting the follow-up, the current parent outcome and gap were recovered and the derivation rules applied. The root is OPEN with a specific unmet result; optional attractive improvements remain optional. Each newly mandatory condition has its origin, necessity and affected current outcome assessed against simpler evidence. Unresolved inferences stay bounded reversible experiments. A degrading added control was revalidated first, the simpler valid path restored and useful support retained. Admission preceded handoff; faithful downstream work was not used as owner alignment. At launch the owner-method contract was checked against the actual runnable configuration.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "A technically attractive improvement became a mandatory root requirement without parent binding or necessity.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "An extra reviewer was required merely because it seemed safer, without showing why the simpler evidence standard was insufficient.\nCommitted substitute: extra reviewer required merely because it seems safer.\n",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "rebind-before-author-launch-accept",
+    "non_substitute": "extra reviewer required merely because it seems safer"
+  }
+}

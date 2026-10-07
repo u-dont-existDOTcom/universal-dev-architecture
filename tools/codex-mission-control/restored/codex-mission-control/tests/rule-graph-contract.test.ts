@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { buildDirectWorkPrompt } from "../lib/chatgpt-work-cloud-autodispatch";
-import { ruleGraphPromptBlock, workHandoffRuleGraphProjection } from "../lib/rule-graph-contract";
+import { ruleGraphPromptBlock, workHandoffRuleGraphProjection, WORK_PROMPT_MAX_BYTES } from "../lib/rule-graph-contract";
 
 test("shadow mode validates the compiled Work contract without changing the prompt", () => {
   const projection = workHandoffRuleGraphProjection({ MISSION_CONTROL_RULE_GRAPH_MODE: "shadow" });
@@ -16,12 +16,12 @@ test("shadow mode validates the compiled Work contract without changing the prom
   assert.deepEqual(ruleGraphPromptBlock(projection), []);
 });
 
-test("graph mode injects exact compiled Active Lesson Contract before the bounded directive", () => {
+test("graph mode injects the receiver contract within the complete prompt budget before the bounded directive", () => {
   const prior = process.env.MISSION_CONTROL_RULE_GRAPH_MODE;
   process.env.MISSION_CONTROL_RULE_GRAPH_MODE = "graph";
   try {
     const exactDirective = "Perform only this bounded mechanical task.";
-    const prompt = buildDirectWorkPrompt({
+    const input = {
       dispatchId: "work-cloud:test",
       worker: "worker:test",
       directiveId: "directive:test",
@@ -36,14 +36,23 @@ test("graph mode injects exact compiled Active Lesson Contract before the bounde
       },
       receiptTarget: { repository: "u-dont-existDOTcom/universal-dev-architecture", stageIssueNumber: 61 },
       exactDirective,
-    });
+    };
+    const prompt = buildDirectWorkPrompt(input);
     assert.match(prompt, /ACTIVE_LESSON_CONTRACT_GRAPH_V1_BEGIN/);
     assert.match(prompt, /uda\.active-contract\.boundary-binding/);
-    assert.match(prompt, /uda\.worker-directive\.same-turn-delivery/);
+    assert.doesNotMatch(prompt, /uda\.worker-directive\.same-turn-delivery/);
+    assert.match(prompt, /uda\.kernel\.work-permissions/);
+    assert.match(prompt, /automatic-task-access-review/);
+    assert.ok(Buffer.byteLength(prompt, "utf8") <= WORK_PROMPT_MAX_BYTES);
     const begin = prompt.indexOf("ACTIVE_LESSON_CONTRACT_GRAPH_V1_BEGIN");
     const directive = prompt.indexOf("EXACT_BOUNDED_DIRECTIVE_BEGIN");
     assert.ok(begin >= 0 && directive > begin);
     assert.match(prompt, new RegExp("EXACT_BOUNDED_DIRECTIVE_BEGIN\\n" + exactDirective.replace(/[.*+?^$\{\}()|[\]\\]/g, "\\$&") + "\\nEXACT_BOUNDED_DIRECTIVE_END"));
+    const remaining = WORK_PROMPT_MAX_BYTES - Buffer.byteLength(prompt, "utf8") + Buffer.byteLength(exactDirective, "utf8");
+    assert.equal(Buffer.byteLength(buildDirectWorkPrompt({ ...input, exactDirective: ".".repeat(remaining) }), "utf8"), WORK_PROMPT_MAX_BYTES);
+    const oversized = "é".repeat(Math.floor(remaining / 2) + 1);
+    assert.ok(prompt.length - exactDirective.length + oversized.length < WORK_PROMPT_MAX_BYTES);
+    assert.throws(() => buildDirectWorkPrompt({ ...input, exactDirective: oversized }), /48 KiB instruction budget/);
   } finally {
     if (prior === undefined) delete process.env.MISSION_CONTROL_RULE_GRAPH_MODE;
     else process.env.MISSION_CONTROL_RULE_GRAPH_MODE = prior;

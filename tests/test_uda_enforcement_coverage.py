@@ -298,8 +298,12 @@ class EnforcementCoverageTests(unittest.TestCase):
             "patterns/exclusive-active-task-locks.md", "patterns/context-compaction-resilience.md",
             "AGENTS.md#per-turn-bootstrap-invariants",
         }
-        backlog = coverage.report(self.root)["backlog"]
-        self.assertEqual(expected, {e["id"] for e in backlog if e["priority"] == "P1"})
+        report = coverage.report(self.root)
+        backlog = report["backlog"]
+        migrated_kernel = {e["id"] for e in self.read(coverage.COVERAGE)["entries"]
+                           if e["kind"] == "kernel_section" and e["disposition"] == "STRUCTURED_ENFORCED"}
+        self.assertEqual(expected, {e["id"] for e in backlog if e["priority"] == "P1"} | migrated_kernel)
+        self.assertEqual(migrated_kernel, set(report["removed_since_baseline"]))
 
     def test_report_orders_priority_then_estimated_trigger_frequency(self):
         report = coverage.report(self.root)
@@ -317,6 +321,12 @@ class EnforcementCoverageTests(unittest.TestCase):
         self.assertEqual(historical["backlog_count"], sum(counts[d] for d in coverage.BACKLOG))
         self.assertEqual(historical["exact_lists"], coverage.COVERAGE)
         self.assertEqual(historical["report_command"], "python3 scripts/uda_enforcement_coverage.py report")
+        # The newest slice records the live counts until the next slice adds its own finding.
+        current = next(f for f in findings if f["finding_id"] == "slice-1-kernel")
+        self.assertEqual(coverage.report(self.root)["counts_by_disposition"], current["identity_counts_by_disposition"])
+        self.assertEqual(current["backlog_count"], sum(current["identity_counts_by_disposition"][d] for d in coverage.BACKLOG))
+        self.assertEqual(current["exact_lists"], coverage.COVERAGE)
+        self.assertEqual(current["report_command"], "python3 scripts/uda_enforcement_coverage.py report")
 
     def test_report_lists_exact_backlog_ids_priorities_and_shrinkage(self):
         report = coverage.report(self.root)
@@ -324,17 +334,11 @@ class EnforcementCoverageTests(unittest.TestCase):
         expected = {e["id"]: e["migration"]["priority"] for e in entries if e["disposition"] in coverage.BACKLOG}
         self.assertEqual(expected, {e["id"]: e["priority"] for e in report["backlog"]})
         self.assertEqual(len(expected), report["backlog_count"])
-        self.assertEqual([], report["removed_since_baseline"])
-        removed = self.workflow(entries)["id"]
-        # A temporary coherent baseline anchor models an earlier migration.
-        baseline = self.read(coverage.BASELINE)
-        baseline["backlog_ids"].append(removed)
-        self.write(coverage.BASELINE, baseline)
-        requirement = self.read(coverage.REQUIREMENT)
-        anchor = next(f for f in requirement["related_findings"] if f["finding_id"] == "pass-1-legacy-baseline")
-        anchor.update(backlog_count=len(baseline["backlog_ids"]), backlog_ids_sha256=coverage.canonical_hash(baseline["backlog_ids"]))
-        self.write(coverage.REQUIREMENT, requirement)
-        self.assertEqual([removed], coverage.report(self.root)["removed_since_baseline"])
+        removed = sorted(e["id"] for e in entries if e["disposition"] == "STRUCTURED_ENFORCED")
+        self.assertEqual(removed, report["removed_since_baseline"])
+        self.assertEqual(6, len(removed))
+        self.assertEqual(84, report["baseline_backlog_count"])
+        self.assertEqual(78, report["backlog_count"])
 
     def test_documented_counts_match_report(self):
         report = coverage.report(self.root)

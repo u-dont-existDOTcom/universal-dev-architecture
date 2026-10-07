@@ -1,0 +1,31 @@
+{
+  "compliant-final.txt": {
+    "verdict": "PASS",
+    "evidence": "The reusable validation component supplies the admission check. Its locating metadata follows that plain-language role. The relationship to the delivery component is explained in ordinary prose.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "Only opaque locating identifiers were presented as the explanation.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "A bare identifier chain was offered as an explanation.\nCommitted substitute: bare identifier chain offered as an explanation.\n",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "plain-language-first",
+    "non_substitute": "bare identifier chain offered as an explanation"
+  }
+}

@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from scripts import uda_rule_graph_task_time as tt
+from uda_test_helpers import predicate_catalog
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / 'tests/fixtures/dominated-route'
@@ -166,7 +167,7 @@ class SemanticReceiptTests(unittest.TestCase):
                 self.assertTrue(all(r['binding_status'] == 'RECEIPT_BINDING_VERIFIED' for r in result['results']))
 
     def test_receipt_cannot_override_mechanical_failure_or_change_its_output(self):
-        catalog = json.loads((ROOT / 'rules/rule-graph/task-time-metadata.v1.json').read_text())
+        catalog = predicate_catalog(json.loads((ROOT / 'rules/rule-graph/task-time-metadata.v1.json').read_text()))
         envelope = json.loads((ROOT / 'examples/rule-graph/instruction-only.json').read_text())
         contract = tt.compile_contract(catalog, self.profile, envelope, 'graph')
         payload = b'Done.\nElapsed time: 2 minutes\n'
@@ -177,6 +178,15 @@ class SemanticReceiptTests(unittest.TestCase):
         self.assertEqual(result['admission'], 'BLOCKED')
         self.assertEqual(result['results'][0], {'rule_id': 'uda.final.timestamp', 'obligation_id': 'final-first-line-timestamp',
                                                'status': 'FAIL', 'evidence': 'Done.'})
+
+        # A FAIL assertion cannot override a passing mechanical predicate either.
+        payload = b'2026-09-30 09:42 UTC\nElapsed time: 2 minutes\n'
+        receipt.update(payload_sha256=tt.sha256(payload), verdict='FAIL')
+        for receipts in (None, [receipt]):
+            admitted = tt.check_contract(contract, 'final-delivery', payload, receipts=receipts,
+                                         clock_start='2026-09-30T09:40:00Z', clock_end='2026-09-30T09:42:00Z')
+            self.assertEqual(admitted['admission'], 'ADMITTED')
+            self.assertTrue(all(r['status'] == 'PASS' for r in admitted['results']))
 
     def test_cli_receipt_and_check_use_exact_bytes_in_both_entrypoints(self):
         with tempfile.TemporaryDirectory() as directory:

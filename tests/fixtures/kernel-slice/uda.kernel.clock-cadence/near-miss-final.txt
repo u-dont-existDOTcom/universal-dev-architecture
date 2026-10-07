@@ -1,0 +1,2 @@
+The prescribed first and final readings were taken, plus an extra mid-task clock read.
+Committed substitute: an extra mid-task clock read.

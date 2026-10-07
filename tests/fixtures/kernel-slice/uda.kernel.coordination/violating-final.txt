@@ -1,0 +1,1 @@
+Concurrent actors wrote the same mutable resource without coordination or recovery state.

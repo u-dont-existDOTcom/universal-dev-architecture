@@ -1,0 +1,31 @@
+{
+  "compliant-final.txt": {
+    "verdict": "PASS",
+    "evidence": "Before delivery the current compact rules for priority, provenance, companion materials and usability were loaded. The complete usable artifact and necessary companions were delivered directly as an attachment. The recipient can use it without repository navigation or missing-piece reconstruction, and completion was claimed only after delivery.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "Completion was claimed after creating the artifact; the recipient received no usable output.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "Only a repository path was given as the artifact delivery.\nCommitted substitute: repository path only.\n",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "usable-delivery-before-completion",
+    "non_substitute": "repository path only"
+  }
+}
