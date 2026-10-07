@@ -51,9 +51,12 @@ through the existing worker channel with acknowledgement/reconciliation.
 A deployment may use an authenticated private GitHub receipt as that durable
 bridge when the Chat has an already-authorized GitHub write connector and the
 Mission Control public MCP is intentionally read-only. The receipt must bind the
-exact current owner outcome and immutable answer bytes; Mission Control, not the
-owner, performs the downstream worker delivery. Never weaken a no-auth public MCP
-into a free-form owner mutation endpoint merely to remove relay friction.
+exact current owner outcome and immutable answer bytes, and only a never-edited
+receipt from an owner-designated writer carries owner authority, because other
+writers can often edit a comment without changing its displayed author. Mission
+Control, not the owner, performs the downstream worker delivery. Never weaken a
+no-auth public MCP into a free-form owner mutation endpoint merely to remove relay
+friction.
 
 ## Delivery truth
 

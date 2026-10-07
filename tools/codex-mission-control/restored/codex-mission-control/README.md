@@ -102,21 +102,27 @@ channel accepts an authenticated owner-direction receipt:
 
 ```text
 MISSION_CONTROL_OWNER_DIRECTION_V1
-{"schema_version":1,"worker":"<worker>","decision_ref":"<question-or-decision-ref>","owner_outcome":{"id":"<id>","epoch":1,"sha256":"<sha256>"},"exact_text":"5A","exact_text_sha256":"<sha256>","priority":"HIGH"}
+{"schema_version":1,"worker":"<worker>","decision_ref":"<question-or-decision-ref>","owner_outcome":{"id":"<id>","epoch":<epoch>,"sha256":"<sha256>"},"exact_text":"<exact owner answer>","exact_text_sha256":"<sha256 of exact_text>","priority":"HIGH"}
 ```
 
-Only an authorized GitHub writer in the centrally configured private decision
-channel can supply this receipt. Reconciliation requires the exact current
-owner-outcome ID, epoch and digest, verifies the exact-text digest, preserves the
-immutable GitHub comment as provenance, and then atomically records the answer as
-an `owner_message_recorded` direction plus the existing durable worker outbox
-delivery. Duplicate immutable receipts are idempotent; stale owner outcomes,
-changed immutable content, untrusted writers, and wrong repositories/issues fail
-closed.
+Only a GitHub login listed in the policy's `ownerDirectionWriterLogins` (which
+must be a subset of `authorizedWriterLogins`) can supply this receipt, and only
+as a never-edited comment in the centrally configured private decision channel:
+GitHub lets any write-access collaborator or app edit another user's comment
+without changing its author. Reconciliation requires the exact current
+owner-outcome ID, epoch and digest, verifies the exact-text digest, and then
+records the answer as an `owner_message_recorded` direction, its existing durable
+worker outbox delivery, and the immutable GitHub comment provenance in one
+transaction. Duplicate immutable receipts are idempotent, including after the
+owner outcome advances; stale owner outcomes, changed or edited content,
+untrusted writers, and wrong repositories/issues fail closed.
 
 This intentionally does **not** add a mutating tool to the unauthenticated public
 Mission Control MCP. GitHub authentication is the owner-authority boundary; the
-public MCP remains metadata-only and read-only.
+public MCP remains metadata-only and read-only. Any agent that can author
+comments as an `ownerDirectionWriterLogins` account is treated as the owner, so
+keep that list to the owner's own login and give agents distinct GitHub
+identities where possible.
 
 Schema-version-3 canonical decisions may also include one complete optional
 `bounded_execution` residue. After every existing repository, issue, writer,

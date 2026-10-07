@@ -82,6 +82,7 @@ export interface PendingDecisionRequest {
 export interface GitHubDecisionCandidate {
   repository: string; issueNumber: number; commentId: number; immutableUrl: string; createdAt: string;
   authorLogin: string; deliveryId: string | null; body: string; ingestionMethod: "GITHUB_WEBHOOK" | "RECONCILIATION_POLL";
+  updatedAt?: string | null;
 }
 interface CapabilityReceiptBody {
   schemaVersion: 1; challengeId: string; chatId: string; mcNonce: string; githubNonce: string;
@@ -212,6 +213,7 @@ export function githubDecisionCandidateFromWebhook(payload: unknown, deliveryId:
     commentId: positiveInteger(comment.id, "comment.id"), immutableUrl: httpsUrl(comment.html_url, "comment.html_url"),
     createdAt: timestamp(comment.created_at, "comment.created_at"), authorLogin: requiredString(user.login, "comment.user.login"),
     deliveryId: deliveryId ? requiredString(deliveryId, "x-github-delivery") : null, body: requiredString(comment.body, "comment.body"), ingestionMethod: "GITHUB_WEBHOOK",
+    updatedAt: optionalTimestamp(comment.updated_at),
   };
 }
 
@@ -362,14 +364,12 @@ function ingestGitHubSupervisionCandidateFromEvents(
     if (!policy.ownerDirectionWriterLogins?.includes(candidate.authorLogin.toLowerCase())) {
       throw new Error("GitHub writer is not authorized for owner directions.");
     }
-    const direction = parseOwnerDirectionReceiptComment(candidate.body);
-    const currentOutcome = [...events].reverse().find((event) => event.worker === direction.worker && event.data.type === "owner_outcome_recorded")?.data;
-    if (currentOutcome?.type !== "owner_outcome_recorded"
-      || currentOutcome.owner_outcome_id !== direction.ownerOutcome.id
-      || currentOutcome.epoch !== direction.ownerOutcome.epoch
-      || currentOutcome.owner_outcome_sha256 !== direction.ownerOutcome.sha256) {
-      throw new Error("Owner direction receipt is stale against the current owner outcome.");
+    const locator = githubCommentIdentity(candidate.immutableUrl);
+    if (!locator || locator.repository.toLowerCase() !== candidate.repository.toLowerCase()
+      || locator.issueNumber !== candidate.issueNumber || locator.commentId !== candidate.commentId) {
+      throw new Error("Owner direction GitHub locator does not match the immutable comment identity.");
     }
+    const direction = parseOwnerDirectionReceiptComment(candidate.body);
     const priorReceipt = events.find((event) => event.data.type === "evidence_receipt_recorded"
       && event.data.summary === ownerDirectionReceiptSummary
       && event.data.refs.includes(`github_comment:${candidate.immutableUrl}`));
@@ -377,30 +377,42 @@ function ingestGitHubSupervisionCandidateFromEvents(
       if (priorReceipt.data.refs.includes(`exact_text_sha256:${direction.exactTextSha256}`)) return [];
       throw new Error("An immutable GitHub owner-direction identity was re-presented with changed content.");
     }
+    // Any write-access collaborator or app can edit another user's comment while GitHub keeps
+    // the original author, so only a never-edited comment carries its author's owner authority.
+    if (!candidate.updatedAt || Date.parse(candidate.updatedAt) !== Date.parse(candidate.createdAt)) {
+      throw new Error("Owner direction receipts must be unedited GitHub comments; publish a new receipt instead of editing one.");
+    }
+    const currentOutcome = [...events].reverse().find((event) => event.worker === direction.worker && event.data.type === "owner_outcome_recorded")?.data;
+    if (currentOutcome?.type !== "owner_outcome_recorded"
+      || currentOutcome.owner_outcome_id !== direction.ownerOutcome.id
+      || currentOutcome.epoch !== direction.ownerOutcome.epoch
+      || currentOutcome.owner_outcome_sha256 !== direction.ownerOutcome.sha256) {
+      throw new Error("Owner direction receipt is stale against the current owner outcome.");
+    }
     const latestDirection = [...events].reverse().find((event) => event.worker === direction.worker
       && event.data.type === "owner_message_recorded" && event.data.message_kind === "DIRECTION")?.data;
     const suffix = sha256(candidate.immutableUrl).slice(0, 32);
-    const recorded = recordOwnerMessage(store, {
-      worker: direction.worker, missionId: "mission-control-live", kind: "DIRECTION", body: direction.exactText,
-      priority: direction.priority, scope: { kind: "WORKER", id: direction.worker },
-      supersedesDirectionId: latestDirection?.type === "owner_message_recorded" ? latestDirection.direction_id : null,
-      ownerOutcomeId: direction.ownerOutcome.id, ownerOutcomeSha256: direction.ownerOutcome.sha256, transport: "REMOTE_POLL",
-      now: candidate.createdAt, messageId: `message:github-owner:${suffix}`, directionId: `direction:github-owner:${suffix}`,
-      deliveryId: `delivery:github-owner:${suffix}`, ownerEventId: `owner-message:github-owner:${suffix}`,
-      deliveryEventId: `outbound-queued:github-owner:${suffix}`, supersedeDeliveryEventId: `outbound-superseded:github-owner:${suffix}`,
-    }, githubOwnerAuthority, events);
-    const observed = [...events, ...recorded.appended];
-    const provenance = store.append(evidenceEnvelope({
+    const messageId = `message:github-owner:${suffix}`, directionId = `direction:github-owner:${suffix}`;
+    const provenance = evidenceEnvelope({
       worker: direction.worker, receiptId: `github-owner-direction:${candidate.commentId}`, producer: githubReceiptCollector,
       summary: ownerDirectionReceiptSummary, occurredAt: candidate.createdAt, verified: true,
       refs: [
         `github_comment:${candidate.immutableUrl}`, `decision_ref:${direction.decisionRef}`,
         `owner_outcome:${direction.ownerOutcome.id}`, `owner_outcome_epoch:${direction.ownerOutcome.epoch}`,
         `owner_outcome_sha256:${direction.ownerOutcome.sha256}`, `exact_text_sha256:${direction.exactTextSha256}`,
-        `direction:${recorded.directionId}`, `message:${recorded.messageId}`, "semantic_authority:OWNER",
+        `direction:${directionId}`, `message:${messageId}`, "semantic_authority:OWNER",
       ],
-    }), ingestedAt, githubReceiptCollector, observed);
-    return [...recorded.appended, provenance];
+    });
+    // The owner message, its queued delivery, and the GitHub provenance commit together or not at all.
+    return recordOwnerMessage(store, {
+      worker: direction.worker, missionId: "mission-control-live", kind: "DIRECTION", body: direction.exactText,
+      priority: direction.priority, scope: { kind: "WORKER", id: direction.worker },
+      supersedesDirectionId: latestDirection?.type === "owner_message_recorded" ? latestDirection.direction_id : null,
+      ownerOutcomeId: direction.ownerOutcome.id, ownerOutcomeSha256: direction.ownerOutcome.sha256, transport: "REMOTE_POLL",
+      now: candidate.createdAt, messageId, directionId,
+      deliveryId: `delivery:github-owner:${suffix}`, ownerEventId: `owner-message:github-owner:${suffix}`,
+      deliveryEventId: `outbound-queued:github-owner:${suffix}`, supersedeDeliveryEventId: `outbound-superseded:github-owner:${suffix}`,
+    }, githubOwnerAuthority, events, [{ event: provenance, receivedAt: ingestedAt, producer: githubReceiptCollector }]).appended;
   }
   if (candidate.body.startsWith(canonicalDecisionCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.decisionIssueNumber) throw new Error("Decision receipt arrived outside the configured GitHub decision channel.");
@@ -958,7 +970,7 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
         const candidate: GitHubDecisionCandidate = {
           repository: options.policy.repository, issueNumber, commentId: positiveInteger(comment.id, "comment.id"), immutableUrl: httpsUrl(comment.html_url, "comment.html_url"),
           createdAt: timestamp(comment.created_at, "comment.created_at"), authorLogin: requiredString(user.login, "comment.user.login"), deliveryId: null,
-          body: comment.body, ingestionMethod: "RECONCILIATION_POLL",
+          body: comment.body, ingestionMethod: "RECONCILIATION_POLL", updatedAt: optionalTimestamp(comment.updated_at),
         };
         if (accepted.immutableUrls.has(candidate.immutableUrl)) continue;
         try {
@@ -1552,6 +1564,7 @@ function sha256Array(value: unknown, field: string, max: number): string[] {
 function digest(value: unknown, field: string): string { const result = requiredString(value, field); if (!/^[a-f0-9]{64}$/.test(result)) throw new Error(`${field} must be a lowercase SHA-256 digest.`); return result; }
 function positiveInteger(value: unknown, field: string): number { if (!Number.isInteger(value) || Number(value) < 1) throw new Error(`${field} must be a positive integer.`); return Number(value); }
 function timestamp(value: unknown, field: string): string { const result = requiredString(value, field); if (!Number.isFinite(Date.parse(result))) throw new Error(`${field} must be an ISO timestamp.`); return result; }
+function optionalTimestamp(value: unknown): string | null { return typeof value === "string" && Number.isFinite(Date.parse(value)) ? value : null; }
 function httpsUrl(value: unknown, field: string): string { const result = requiredString(value, field), url = new URL(result); if (url.protocol !== "https:") throw new Error(`${field} must use HTTPS.`); return result; }
 function refValue(refs: string[], prefix: string) { return refs.find((ref) => ref.startsWith(prefix))?.slice(prefix.length) ?? null; }
 function exactRefValue(refs: string[], prefix: string) {
