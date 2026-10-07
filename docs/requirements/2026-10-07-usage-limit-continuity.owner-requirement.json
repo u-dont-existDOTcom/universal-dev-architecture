@@ -1,0 +1,73 @@
+{
+  "requirement_id": "2026-10-07-usage-limit-continuity",
+  "date": "2026-10-07",
+  "source": "Direct owner request dated 2026-10-07, supplied verbatim in the continuity task for pull request #323, task pr-323, alongside the OPEN enforcement-coverage task (issue #317) whose first integration is merged on main.",
+  "owner_statement": "can we make a rule that once claude usage reaches 98%, workers launch a cheap sonnet (f that makes sense) to save their work in github so i can easily continue in my other claude account with just one line, without losing any work? does that make sense? any better ideas?",
+  "problem": "A plan usage limit can stop a turn before the worker saves its current work. Another account lacks the old session context and may lack its scheduled check-ins or memory. The owner needs durable work and a one-line way to resume.",
+  "failure_mechanisms": [
+    "The supplied supervisor design reports that most surfaces do not expose usage to the worker. Claude Code passes rate_limits five-hour and seven-day percentages only to a terminal/desktop status-line script, for Pro and Max subscribers; this is a surface-specific warning channel, not a universal worker signal.",
+    "One large step can jump past 98%; at the limit the turn stops with no further requests, so a last-moment save cannot be relied on.",
+    "A separately launched helper starts without the current context and spends from the same account limits, so it is not a reliable rescue mechanism."
+  ],
+  "existing_coverage": [
+    "patterns/context-compaction-resilience.md §3 already forbids waiting for imminent compaction and is extended rather than replaced.",
+    "The existing task-time compiler and semantic receipt checker supply exact source, trigger, phase, destination and candidate bindings.",
+    "The enforcement inventory preserves the older obligations as an exact legacy remainder; partial coverage stays in the pinned backlog."
+  ],
+  "required_behavior": [
+    "Push work at each completed step, allowing work-in-progress task-branch commits, with current done/next/exact next action in a durable checkpoint; never defer saving to a usage threshold.",
+    "Before ending a turn on OPEN work, persist this turn's state, a one-line resume instruction and account-bound items to recreate. Keep owner-private supervisor state outside public repositories in a private durable store the successor can reach.",
+    "The worker holding the context writes the checkpoint; do not launch a separate helper at the limit.",
+    "When a visible signal reaches an early warning level (about 90%), checkpoint immediately and take only small, restartable steps. This supplements continuous saving. Unknown warning applicability remains unresolved; examples declare the warning fact explicitly.",
+    "If only a model-specific weekly limit is reached, switching model family in the same account is a valid continuation route.",
+    "Add three exact-source semantic records with admission evidence and domain-neutral behavioral fixtures; regenerate the source lock and Work handoff projection, and update coverage counts without growing or shrinking the backlog."
+  ],
+  "scope": "Portable continuity prose, existing index text, three task-time records, partial inventory, examples, regressions, requirement evidence, derived source lock/Work projection, coverage report and this task checkpoint. Mission Control runtime, AskRigor, state/CURRENT-STATE.md, suggested-fixes/, owner settings, AGENTS.md and tasks/ACTIVE-TASK.json are excluded.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "No lost work and continuation in another account with one line.",
+    "mechanism": {
+      "classification": "ASSISTANT_INFERENCE",
+      "source": "Supplied supervisor design explained to the owner",
+      "choice": "Continuous checkpoints and a resumable handoff, with an optional visible early warning instead of a 98% rescue helper.",
+      "necessity": "Saving while the context-bearing worker can still act is the simpler reliable route when warning visibility and another request at the limit are not guaranteed. The warning is supplemental, never a prerequisite or proof that saving occurred."
+    }
+  },
+  "execution_surfaces": [
+    {
+      "surface": "Workers that load UDA and maintain durable task checkpoints",
+      "disposition": "PROJECTED",
+      "note": "The existing context-compaction rule now includes usage-limit and account-switch continuity."
+    },
+    {
+      "surface": "Task-time compiler and exact-candidate semantic receipt admission",
+      "disposition": "PROJECTED",
+      "note": "Step and turn-end records use the OPEN implementation trigger; warning adds usage_warning_visible=true. Semantic truth remains an attributed assertion."
+    },
+    {
+      "surface": "Representative generated Work handoff projection",
+      "disposition": "PROJECTED",
+      "note": "Derived artifact only; no Mission Control runtime change or live dynamic consumer claim."
+    },
+    {
+      "surface": "Optional terminal/desktop status-line usage warning",
+      "disposition": "DEFERRED",
+      "note": "Surface-specific signal described by the supervisor; this task neither installs nor tests a status-line monitor."
+    }
+  ],
+  "regression": "Table-driven violating, compliant and near-miss non-substitute checkpoint candidates for each record, with hash-free verdict fixtures and receipts bound at test time; OPEN vs instruction-only selection, unresolved warning facts and replay/destination/rewritten-payload boundaries.",
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED",
+    "BEHAVIORAL_REGRESSION_TESTED"
+  ],
+  "nonclaims": [
+    "No repository rule can force a worker that never loaded UDA; unactivated turns remain outside UDA protection.",
+    "The status-line warning is surface-specific, not a universal usage signal. No usage monitor, helper launch or automatic account switch is installed.",
+    "Receipt binding verifies exact source/contract/phase/destination/payload association; it does not prove a semantic verdict, a push, private-store reachability, actor identity or independence.",
+    "Continuous checkpointing reduces loss exposure but cannot save a step already interrupted before its next durable boundary.",
+    "The supplied supervisor explanation of provider usage surfaces is provenance for this design, not a fresh independent product capability audit."
+  ]
+}

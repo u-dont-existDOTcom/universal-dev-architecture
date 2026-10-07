@@ -57,6 +57,11 @@
     "request_kind": {
       "state": "ABSENT",
       "provenance": "example is governance/handoff work, not an operational-method request"
+    },
+    "usage_warning_visible": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "illustrative task exposes no usage warning; continuous checkpoints still apply"
     }
   },
   "legacy_rule_ids": [

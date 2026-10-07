@@ -310,10 +310,13 @@ class EnforcementCoverageTests(unittest.TestCase):
     def test_condensed_requirement_retains_counts_and_exact_list_pointers(self):
         findings = self.read(coverage.REQUIREMENT)["related_findings"]
         self.assertLess(len(json.dumps(findings, indent=2, ensure_ascii=False).encode()), 4096)
-        current = next(f for f in findings if f["finding_id"] == "pass-2-inventory")
-        self.assertEqual(coverage.report(self.root)["counts_by_disposition"], current["identity_counts_by_disposition"])
-        self.assertEqual(current["exact_lists"], coverage.COVERAGE)
-        self.assertEqual(current["report_command"], "python3 scripts/uda_enforcement_coverage.py report")
+        historical = next(f for f in findings if f["finding_id"] == "pass-2-inventory")
+        # A later migration must not rewrite the pass-2 historical snapshot.
+        counts = historical["identity_counts_by_disposition"]
+        self.assertEqual(historical["entry_count"], sum(counts.values()))
+        self.assertEqual(historical["backlog_count"], sum(counts[d] for d in coverage.BACKLOG))
+        self.assertEqual(historical["exact_lists"], coverage.COVERAGE)
+        self.assertEqual(historical["report_command"], "python3 scripts/uda_enforcement_coverage.py report")
 
     def test_report_lists_exact_backlog_ids_priorities_and_shrinkage(self):
         report = coverage.report(self.root)

@@ -1,0 +1,20 @@
+[
+  {
+    "case": "violating",
+    "payload": "usage-warning-violating.txt",
+    "verdict": "FAIL",
+    "evidence": "The observed warning did not cause an immediate checkpoint and the next operation is large and non-restartable."
+  },
+  {
+    "case": "compliant",
+    "payload": "usage-warning-compliant.txt",
+    "verdict": "PASS",
+    "evidence": "At the visible 92% warning the context-bearing worker immediately saved; its next command builds one restartable segment, retains continuous saving and allows a model-family switch for a model-specific weekly limit."
+  },
+  {
+    "case": "near-miss",
+    "payload": "usage-warning-near-miss.txt",
+    "verdict": "FAIL",
+    "evidence": "A helper launched at the limit and a future save promise do not satisfy the immediate context-bearing checkpoint at the warning."
+  }
+]
