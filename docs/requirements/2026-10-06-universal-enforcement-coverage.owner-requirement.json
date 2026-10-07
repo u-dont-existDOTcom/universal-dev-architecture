@@ -187,9 +187,9 @@
       "date": "2026-10-07",
       "identity_counts_by_disposition": {
         "STRUCTURED_ENFORCED": 6,
-        "STRUCTURED_PARTIAL": 6,
+        "STRUCTURED_PARTIAL": 7,
         "WORKFLOW_ONLY": 10,
-        "LEGACY_UNSTRUCTURED": 72,
+        "LEGACY_UNSTRUCTURED": 71,
         "NOT_ACTIVE": 2
       },
       "backlog_count": 78,
@@ -204,8 +204,8 @@
       "clauses_found": 103,
       "structured_clauses": 102,
       "consolidated_obligations": 23,
-      "rendered_work_utf8_bytes": 24297,
-      "rendered_work_budget_bytes": 24576
+      "rendered_work_utf8_bytes": 27355,
+      "rendered_work_budget_bytes": 32768
     }
   ],
   "learning_state_at_merge": [

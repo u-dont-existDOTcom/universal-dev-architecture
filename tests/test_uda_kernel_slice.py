@@ -99,14 +99,15 @@ class KernelSliceTests(unittest.TestCase):
                     "actor": {"id": "fixture-author", "kind": "chat", "relation": "SAME_AGENT"}}
         for phase in {o["due_phase"] for r in contract["selected_rules"] for o in r["obligations"]}:
             with self.subTest(phase=phase):
-                self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, **CLOCKS)["admission"])
+                facts = {"current_facts": task["facts"]}  # satisfies the continuity refresh boundary
+                self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, **facts, **CLOCKS)["admission"])
                 receipts = self.bind(contract, phase, payload, judgment)
-                self.assertEqual("ADMITTED", tt.check_contract(contract, phase, payload, receipts=receipts, **CLOCKS)["admission"])
+                self.assertEqual("ADMITTED", tt.check_contract(contract, phase, payload, receipts=receipts, **facts, **CLOCKS)["admission"])
                 for target in receipts["receipts"]:
                     if target["rule_id"] not in expected:
                         continue
                     target["verdict"] = "FAIL"
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=receipts, **CLOCKS)["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=receipts, **facts, **CLOCKS)["admission"])
                     target["verdict"] = "PASS"
 
     def test_each_obligation_individually_blocks_and_candidate_receipts_cannot_replay(self):
@@ -207,7 +208,9 @@ class KernelSliceTests(unittest.TestCase):
         contract = tt.compile_contract(self.catalog, self.profile, task, "graph")
         self.assertEqual(contract, tt.read_json(ROOT / coverage.WORK_CONTRACT))
         rendered = contract["rendered_contract"]
-        self.assertLessEqual(len(rendered.encode("utf-8")), 24 * 1024)
+        # 32 KiB keeps the graph projection inside Codex's default instruction-discovery budget;
+        # Mission Control separately bounds the injected Work block and its directive reserve.
+        self.assertLessEqual(len(rendered.encode("utf-8")), 32 * 1024)
         for record in contract["selected_rules"]:
             with self.subTest(record=record["rule_id"]):
                 self.assertEqual(1, rendered.count(record["source_text"]))

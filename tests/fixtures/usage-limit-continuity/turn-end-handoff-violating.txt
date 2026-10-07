@@ -1,0 +1,4 @@
+Saved checkpoint from the earlier turn.
+Done: selected the input.
+This turn also normalized the input, but that state is only in chat.
+Private supervisor decisions and scheduled check-ins remain in the old account.

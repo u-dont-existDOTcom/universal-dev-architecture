@@ -2,7 +2,7 @@
   "schema_version": 1,
   "receipts": [
     {
-      "contract_sha256": "498d2574a40f1877bf77b0263c8b4db3dd84bc732b740c9bf162d33a3f479adb",
+      "contract_sha256": "635d02356dab35686a2957d2ea31db5a47729be7f6e0e8f50641af2d14787da1",
       "rule_id": "uda.reasoning.dominated-alternative",
       "obligation_id": "omit-dominated-route",
       "phase": "final-delivery",

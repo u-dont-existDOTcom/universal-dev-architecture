@@ -1,0 +1,3 @@
+Completed step: normalized the input.
+Work remains only in the current session; no task-branch push or durable checkpoint was saved.
+Next: keep assembling the result.

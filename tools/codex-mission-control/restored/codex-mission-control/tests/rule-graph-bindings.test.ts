@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { ruleGraphPromptBlock, workHandoffRuleGraphProjection } from "../lib/rule-graph-contract";
+import { ruleGraphPromptBlock, workHandoffRuleGraphProjection, WORK_DIRECTIVE_RESERVE_BYTES, WORK_PROMPT_MAX_BYTES } from "../lib/rule-graph-contract";
 const contract = JSON.parse(readFileSync(new URL("../generated/rule-graph/work-handoff-contract.json", import.meta.url), "utf8"));
 
 test("Work projection activates the receiving actor's access boundary", () => {
@@ -12,11 +12,11 @@ test("Work projection activates the receiving actor's access boundary", () => {
   assert.match(prompt, /automatic-task-access-review/);
 });
 
-test("the complete injected contract fits the instruction budget", () => {
+test("the complete injected contract leaves the directive reserve inside the instruction budget", () => {
   const projection = workHandoffRuleGraphProjection({ MISSION_CONTROL_RULE_GRAPH_MODE: "graph" });
   const prompt = ruleGraphPromptBlock(projection).join("\n");
-  assert.ok(Buffer.byteLength(prompt, "utf8") <= 32 * 1024);
-  assert.throws(() => ruleGraphPromptBlock({ ...projection, renderedContract: "é".repeat(16 * 1024) }), /32 KiB instruction budget/);
+  assert.ok(Buffer.byteLength(prompt, "utf8") <= WORK_PROMPT_MAX_BYTES - WORK_DIRECTIVE_RESERVE_BYTES);
+  assert.throws(() => ruleGraphPromptBlock({ ...projection, renderedContract: "é".repeat(WORK_PROMPT_MAX_BYTES / 2) }), /KiB instruction budget/);
 });
 
 test("graph prompt delivers acceptance evidence, authority and exact source bindings for every rule", () => {

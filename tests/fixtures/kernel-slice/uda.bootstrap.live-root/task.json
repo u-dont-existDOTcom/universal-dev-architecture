@@ -65,6 +65,16 @@
       "state": "KNOWN",
       "value": "plain_answer",
       "provenance": "synthetic task declaration"
+    },
+    "continuity_required": {
+      "state": "KNOWN",
+      "value": true,
+      "provenance": "synthetic multi-step task declaration"
+    },
+    "usage_warning_visible": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "synthetic task declaration"
     }
   }
 }

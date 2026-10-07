@@ -1,0 +1,3 @@
+Visible usage warning: 92%.
+No checkpoint taken at the warning.
+Next: execute the entire remaining assembly and validation in one long operation before saving.

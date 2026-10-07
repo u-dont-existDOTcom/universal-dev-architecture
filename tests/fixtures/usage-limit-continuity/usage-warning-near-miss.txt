@@ -1,0 +1,3 @@
+Visible usage warning: 92%.
+A separate helper is reserved to write the checkpoint at 98%; the current worker promises to explain the context to it then.
+No immediate checkpoint was taken.

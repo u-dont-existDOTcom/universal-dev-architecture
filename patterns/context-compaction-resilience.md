@@ -59,6 +59,18 @@ Update the current-state file whenever losing the current chat would otherwise c
 
 Do not wait for the model to detect that compaction is imminent. Context limits are implementation details and may not be visible to the worker.
 
+#### Usage limits and account switches
+
+Plan usage limits, like context limits, can end a turn without warning. Never defer saving to a usage threshold.
+
+At each completed step, push the work to the task branch (work-in-progress commits are fine) and update the checkpoint's done, next, and exact next action. A fresh session in any account must be able to resume from durable state alone. The worker that holds the context writes the checkpoint; do not launch a separate helper at the limit to save work.
+
+Before ending a turn on OPEN work, make the durable checkpoint reflect that turn's state and include a one-line resume instruction. Keep owner-private supervisor state that cannot go in a public repository in a private durable store the successor can reach. List anything bound to one account that the successor must recreate, such as scheduled check-ins and memory.
+
+When a usage signal is visible at or above a warning level (about 90%), checkpoint immediately and take only small, restartable steps. This warning supplements continuous checkpoints and never replaces them.
+
+If only a model-specific weekly limit is reached, switching model family in the same account is a valid way to continue.
+
 ### 4. Resume by reconciling state, not blindly trusting it
 
 After interruption, a new thread, a model switch, or suspected context loss:
@@ -112,7 +124,7 @@ Transferable lessons discovered during the work must still pass the normal lesso
 
 Use or adapt this invariant:
 
-> Treat chat context as disposable working memory. Maintain project continuity in Git. For long-running or multi-session work, keep one canonical current-state checkpoint containing goal, decisions, completed work, current step, remaining work, blockers, evidence/commits, and next safe action. Update it at meaningful durable boundaries. On any new thread, interruption, context compaction, or model switch, reconcile it against actual repository state and resume from the latest verified checkpoint without repeating completed work.
+> Treat chat context as disposable working memory. Maintain project continuity in Git. For long-running or multi-session work, keep one canonical current-state checkpoint containing goal, decisions, completed work, current step, remaining work, blockers, evidence/commits, and next safe action. Push work and update the checkpoint at each completed step; never wait for a usage threshold. Before ending a turn on OPEN work, save that turn's state, reachable private supervisor state, account-bound items to recreate, and a one-line resume instruction. The worker holding the context saves it; a visible usage warning calls for an immediate checkpoint and small, restartable steps. On any new thread, interruption, context compaction, model switch, or account switch, reconcile the checkpoint against actual repository state and resume from the latest verified checkpoint without repeating completed work.
 
 ## Origin / evidence
 

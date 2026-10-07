@@ -2,7 +2,7 @@ import { canonicalJson, sha256 } from "./canonical";
 import { executionDirectiveArtifactCanonicalJson } from "./github-execution-directive";
 import { launchSelectionFor } from "./work-execution-profile";
 import type { StoredEvent } from "./schema";
-import { ruleGraphPromptBlock, workHandoffRuleGraphProjection, WORK_PROMPT_MAX_BYTES } from "./rule-graph-contract";
+import { ruleGraphPromptBlock, workHandoffRuleGraphProjection, WORK_PROMPT_BUDGET_LABEL, WORK_PROMPT_MAX_BYTES } from "./rule-graph-contract";
 
 export const WORK_CLOUD_EXECUTION_RECEIPT_PREFIX = "MISSION_CONTROL_WORK_CLOUD_EXECUTION_RECEIPT_V1\n";
 export const WORK_CLOUD_AUTODISPATCH_PRODUCER_ID = "system:chatgpt-work-cloud-dispatch";
@@ -235,7 +235,7 @@ export function buildDirectWorkPrompt(input: {
     "EXACT_BOUNDED_DIRECTIVE_END",
   ].join("\n");
   if (ruleGraph.inject && Buffer.byteLength(prompt, "utf8") > WORK_PROMPT_MAX_BYTES) {
-    throw new Error("Rule-graph Work prompt exceeds the 32 KiB instruction budget; use a bounded directive artifact.");
+    throw new Error(`Rule-graph Work prompt exceeds the ${WORK_PROMPT_BUDGET_LABEL}; use a bounded directive artifact.`);
   }
   return prompt;
 }

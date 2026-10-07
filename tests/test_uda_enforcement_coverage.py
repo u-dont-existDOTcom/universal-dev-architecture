@@ -24,7 +24,7 @@ class EnforcementCoverageTests(unittest.TestCase):
         inventory = json.loads((ROOT / coverage.COVERAGE).read_text())
         paths = {coverage.COVERAGE, coverage.BASELINE, coverage.METADATA,
                  coverage.LOCK, coverage.REQUIREMENT, "rules/UDA-RULE-GRAPH.json", "AGENTS.md",
-                 "LESSON-INDEX.md", ".github/codex-repository.json", "docs/uda-enforcement-coverage.md",
+                 "LESSON-INDEX.md", ".github/codex-repository.json", ".github/uda-kernel", "docs/uda-enforcement-coverage.md",
                  "scripts/uda_rule_graph_task_time.py", "scripts/instruction-layering-profile.json",
                  "examples/rule-graph/work-handoff.json", WORK_CONTRACT}
         paths.update(p.relative_to(ROOT).as_posix() for p in (ROOT / "patterns").rglob("*.md"))
@@ -314,8 +314,17 @@ class EnforcementCoverageTests(unittest.TestCase):
     def test_condensed_requirement_retains_counts_and_exact_list_pointers(self):
         findings = self.read(coverage.REQUIREMENT)["related_findings"]
         self.assertLess(len(json.dumps(findings, indent=2, ensure_ascii=False).encode()), 4096)
+        historical = next(f for f in findings if f["finding_id"] == "pass-2-inventory")
+        # A later migration must not rewrite the pass-2 historical snapshot.
+        counts = historical["identity_counts_by_disposition"]
+        self.assertEqual(historical["entry_count"], sum(counts.values()))
+        self.assertEqual(historical["backlog_count"], sum(counts[d] for d in coverage.BACKLOG))
+        self.assertEqual(historical["exact_lists"], coverage.COVERAGE)
+        self.assertEqual(historical["report_command"], "python3 scripts/uda_enforcement_coverage.py report")
+        # The newest slice records the live counts until the next slice adds its own finding.
         current = next(f for f in findings if f["finding_id"] == "slice-1-kernel")
         self.assertEqual(coverage.report(self.root)["counts_by_disposition"], current["identity_counts_by_disposition"])
+        self.assertEqual(current["backlog_count"], sum(current["identity_counts_by_disposition"][d] for d in coverage.BACKLOG))
         self.assertEqual(current["exact_lists"], coverage.COVERAGE)
         self.assertEqual(current["report_command"], "python3 scripts/uda_enforcement_coverage.py report")
 
@@ -440,6 +449,29 @@ class EnforcementCoverageTests(unittest.TestCase):
                     self.assertEqual(coverage.validate(self.root), [f["message"] for f in errors])
                     self.assertTrue(any(f["code"] == "repo.profile.uda-kernel"
                                         and f["severity"] == "error" for f in findings))
+
+    def test_kernel_profile_downgrade_cannot_disable_missing_or_corrupt_inventory_gate(self):
+        self.assertFalse((self.root / ".git").exists())
+        profile_path = ".github/codex-repository.json"
+        original = self.read(profile_path)
+        inventory = self.root / coverage.COVERAGE
+        for marker in ("missing", False):
+            profile = dict(original, repository_kind="policy")
+            if marker == "missing":
+                profile.pop("uda_kernel")
+            else:
+                profile["uda_kernel"] = marker
+            self.write(profile_path, profile)
+            for content in (None, "{not-json}\n"):
+                with self.subTest(marker=marker, inventory=content):
+                    if content is None:
+                        inventory.unlink(missing_ok=True)
+                    else:
+                        inventory.write_text(content, encoding="utf-8")
+                    errors = [f for f in audit_repository(self.root)
+                              if f["code"] == "uda.enforcement.coverage" and f["severity"] == "error"]
+                    self.assertTrue(errors)
+                    self.assertEqual(coverage.validate(self.root), [f["message"] for f in errors])
 
     def test_cli_report_and_invalid_exit_status(self):
         script = str(ROOT / "scripts/uda_enforcement_coverage.py")

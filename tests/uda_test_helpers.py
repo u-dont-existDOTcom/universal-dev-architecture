@@ -17,8 +17,9 @@ def predicate_catalog(catalog):
     return result
 
 
-def pass_receipts(tt, contract, phase, payload):
+def pass_receipts(tt, contract, phase, payload, exclude_rules=()):
     data = tt.receipt_skeleton(contract, phase, payload.encode() if isinstance(payload, str) else payload)
+    data["receipts"] = [r for r in data["receipts"] if not r["rule_id"].startswith(tuple(exclude_rules))]
     for receipt in data["receipts"]:
         receipt.update(verdict="PASS", evidence="Synthetic boundary evidence supplied for this serialization/CLI test.",
                        actor={"id": "fixture-author", "kind": "fixture", "relation": "SAME_AGENT"},

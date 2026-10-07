@@ -3,7 +3,12 @@ import { fileURLToPath } from "node:url";
 
 export type RuleGraphMode = "legacy" | "shadow" | "graph";
 export type RuleGraphEnvironment = { MISSION_CONTROL_RULE_GRAPH_MODE?: string };
-export const WORK_PROMPT_MAX_BYTES = 32 * 1024;
+// Fail-closed bound against runaway contract growth. A ChatGPT Work prompt is not subject to
+// Codex's 32 KiB AGENTS.md discovery limit, so this bound comes from the measured contract:
+// regressions keep at least WORK_DIRECTIVE_RESERVE_BYTES of it for the wrapper and directive.
+export const WORK_PROMPT_MAX_BYTES = 48 * 1024;
+export const WORK_DIRECTIVE_RESERVE_BYTES = 8 * 1024;
+export const WORK_PROMPT_BUDGET_LABEL = `${WORK_PROMPT_MAX_BYTES / 1024} KiB instruction budget`;
 
 export interface RuleGraphWorkHandoffProjection {
   mode: RuleGraphMode;
@@ -94,7 +99,7 @@ export function ruleGraphPromptBlock(projection: RuleGraphWorkHandoffProjection)
     "The contract above constrains execution but does not expand Work authority beyond the exact bounded directive below.",
   ];
   if (Buffer.byteLength(block.join("\n"), "utf8") > WORK_PROMPT_MAX_BYTES) {
-    throw new Error("Rule-graph Work handoff block exceeds the 32 KiB instruction budget.");
+    throw new Error(`Rule-graph Work handoff block exceeds the ${WORK_PROMPT_BUDGET_LABEL}.`);
   }
   return block;
 }
