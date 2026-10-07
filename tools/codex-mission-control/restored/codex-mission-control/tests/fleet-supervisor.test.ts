@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
-import { snapshotFromStore } from "../lib/dashboard-data";
+import { snapshotFromStore, workerTransportSnapshotFromEvents } from "../lib/dashboard-data";
 import {
   classifyFleetSupervisorTick,
   DEFAULT_FLEET_SUPERVISOR_CADENCE_MS,
@@ -307,7 +307,7 @@ test("one sealed empty completion is replaced exactly once without changing scie
   }
 });
 
-test("one trusted COMPLETE invalid-canonical failure authorizes one append-only replacement", () => {
+test("one trusted COMPLETE invalid-canonical failure survives the backend-to-relay transport boundary", async () => {
   const store = new EventStore(":memory:");
   const previous = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
   const previousPolicy = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
@@ -390,6 +390,34 @@ test("one trusted COMPLETE invalid-canonical failure authorizes one append-only 
     });
     assert.deepEqual(pendingDecisionRequests(store.workerEvents(watch.worker)).map((item) => item.requestId),
       [replacement.replacementRequestId], "trust rotation cannot resurrect the superseded request");
+    const relayCore = await import(new URL("../../../vps-browser-relay/src/core.mjs", import.meta.url).href);
+    const chats = [{ ...configuredProjectManager(), workerId: watch.worker }];
+    const transport = workerTransportSnapshotFromEvents(store.allEvents(), watch.worker);
+    assert.ok(transport);
+    if (!transport) return;
+    const routes = relayCore.extractQueuedRoutes({ workers: [transport.worker] }, chats, relayCore.defaultState());
+    assert.deepEqual(routes.map((route: { requestId: string }) => route.requestId), [replacement.replacementRequestId]);
+
+    const withoutProof = workerTransportSnapshotFromEvents(store.allEvents().filter((event) => event.eventId !== proof.eventId), watch.worker);
+    assert.ok(withoutProof);
+    if (!withoutProof) return;
+    const withoutProofRoutes = relayCore.extractQueuedRoutes({ workers: [withoutProof.worker] }, chats, relayCore.defaultState());
+    assert.equal(withoutProofRoutes.some((route: { requestId: string }) => route.requestId === replacement.replacementRequestId), false,
+      "removing the proof summary from the dashboard transport allowlist must make this positive round trip fail");
+
+    const crossWorkerEvents = store.allEvents().map((event) => {
+      if (event.eventId !== proof.eventId || event.data.type !== "evidence_receipt_recorded") return event;
+      return { ...structuredClone(event), worker: "other-worker", data: { ...structuredClone(event.data), worker: "other-worker" } };
+    });
+    const targetTransport = workerTransportSnapshotFromEvents(crossWorkerEvents, watch.worker);
+    const misplacedProof = crossWorkerEvents.find((event) => event.eventId === proof.eventId);
+    assert.ok(targetTransport && misplacedProof);
+    if (!targetTransport || !misplacedProof) return;
+    assert.equal(targetTransport.worker.timeline.some((event) => event.eventId === proof.eventId), false);
+    const crossWorkerRoutes = relayCore.extractQueuedRoutes({ workers: [targetTransport.worker,
+      { id: "other-worker", name: "Other worker", timeline: [misplacedProof], authoritativePendingRequestIds: [] }] }, chats, relayCore.defaultState());
+    assert.equal(crossWorkerRoutes.some((route: { requestId: string }) => route.requestId === replacement.replacementRequestId), false,
+      "a proof transported under another worker cannot authorize this replacement");
     const replay = replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
       requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
     }, new Date(Date.parse(replaceAt) + 1_000).toISOString());

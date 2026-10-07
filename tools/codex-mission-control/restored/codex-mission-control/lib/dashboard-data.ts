@@ -15,6 +15,7 @@ const relayTransportEvidenceSummaries = new Set([
   "MISSION_CONTROL_BINDING_CAPSULE_V1",
   "MISSION_CONTROL_BINDING_ENVELOPE_V1",
   "MISSION_CONTROL_PM_CONTROLLER_STAGE_V1",
+  "MISSION_CONTROL_REASONING_REPLACEMENT_PROOF_V1",
 ]);
 
 export function snapshotFromStore(store: EventStore, options: { includeFixtureOnly?: boolean } = {}) {
