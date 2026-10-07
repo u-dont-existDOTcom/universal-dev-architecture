@@ -413,6 +413,37 @@ export class EventStore {
     }));
   }
 
+  submissionAuthorityProofSnapshot(pacingDomain: string): {
+    state: unknown | null;
+    ledger: { valid: boolean; errors: string[] };
+    records: Array<Record<string, unknown>>;
+  } {
+    // These synchronous reads use the daemon-owned connection, so no other
+    // scheduler mutation can interleave within this snapshot.
+    const state = this.submissionAuthorityState(pacingDomain);
+    const ledger = this.verifySubmissionAuthorityLedger(pacingDomain);
+    const rows = this.db.prepare(`
+      SELECT sequence, ledger_json, previous_hash, event_hash
+      FROM provider_submission_authority_ledger
+      WHERE pacing_domain = ? ORDER BY sequence
+    `).all(pacingDomain) as Array<{
+      sequence: number;
+      ledger_json: string;
+      previous_hash: string | null;
+      event_hash: string;
+    }>;
+    return {
+      state,
+      ledger,
+      records: rows.map((row) => ({
+        sequence: Number(row.sequence),
+        ...JSON.parse(row.ledger_json),
+        previousHash: row.previous_hash,
+        eventHash: row.event_hash,
+      })),
+    };
+  }
+
   submissionAuthorityBoundaryLedger(pacingDomain: string): Array<Record<string, unknown>> {
     const rows = this.db.prepare(`
       SELECT sequence, ledger_json, previous_hash, event_hash

@@ -242,6 +242,13 @@ const server = http.createServer(async (request, response) => {
       const producer = authorizeMutation(request);
       return json(response, 200, await submissionAuthority.ledger(producer, Number(url.searchParams.get("limit") ?? 200)));
     }
+    if (request.method === "GET" && url.pathname === "/submission-authority/admissions/proof") {
+      const producer = authorizeMutation(request);
+      if (url.searchParams.size !== 1 || !url.searchParams.has("admission_id")) {
+        return json(response, 400, { error: "Exact admission proof requires one admission_id query parameter." });
+      }
+      return json(response, 200, await submissionAuthority.exactAdmissionProof(url.searchParams.get("admission_id") ?? "", producer));
+    }
     if (request.method === "GET" && url.pathname === "/operator-status") {
       const producer = authorizeMutation(request);
       if (producer.kind !== "OWNER_AUTHORITY" && producer.kind !== "UI") {

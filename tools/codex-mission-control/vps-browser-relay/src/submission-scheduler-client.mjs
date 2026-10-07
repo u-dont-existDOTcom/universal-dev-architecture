@@ -16,6 +16,14 @@ export class SubmissionSchedulerClient {
   }
 
   status() { return this.#request('/status', { method: 'GET' }); }
+  fetchSubmissionAdmissionProof(admissionId) {
+    if (typeof admissionId !== 'string' || !/^send-admission:[A-Za-z0-9][A-Za-z0-9._:-]{0,279}$/.test(admissionId)) {
+      const error = new Error('Exact admission proof requires one bounded send-admission ID.');
+      error.code = 'SUBMISSION_ADMISSION_PROOF_ID_INVALID';
+      throw error;
+    }
+    return this.#request(`/admissions/proof?admission_id=${encodeURIComponent(admissionId)}`, { method: 'GET' });
+  }
   admit(input) { return this.#json('/admissions', input); }
   validateAdmission(input) { return this.#json('/admissions/validate', input); }
   recordBoundary(input) { return this.#json('/boundaries', input); }
