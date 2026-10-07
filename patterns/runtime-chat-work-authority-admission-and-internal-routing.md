@@ -40,6 +40,24 @@ No backend model evidence is implied by an owner-authorized maintenance action.
 
 Routine internal supervisor routing is an already-authorized control-plane operation. Codex/Work must not ask the owner to paste a prompt, carry a packet, approve transmission, or say “send it.” A generic browser rule for representational communication cannot override the narrower standing authorization for exact internal supervisor routing. External messages to third parties remain representational actions and retain their applicable confirmation boundary.
 
+### Owner answers are routed, not hand-carried
+
+When an existing supervised Work task asks the owner a genuine decision and the
+owner answers in the supervisory Chat, the owner must not be used as the message
+transport. The supervisory layer records the answer through the configured
+authenticated durable owner-direction route, and Mission Control delivers it
+through the existing worker channel with acknowledgement/reconciliation.
+
+A deployment may use an authenticated private GitHub receipt as that durable
+bridge when the Chat has an already-authorized GitHub write connector and the
+Mission Control public MCP is intentionally read-only. The receipt must bind the
+exact current owner outcome and immutable answer bytes, and only a never-edited
+receipt from an owner-designated writer carries owner authority, because other
+writers can often edit a comment without changing its displayed author. Mission
+Control, not the owner, performs the downstream worker delivery. Never weaken a
+no-auth public MCP into a free-form owner mutation endpoint merely to remove relay
+friction.
+
 ## Delivery truth
 
 These states are distinct:
