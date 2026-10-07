@@ -110,6 +110,19 @@ class RepositoryAuditTests(unittest.TestCase):
         self.assertIn("uda.enforcement.coverage", self.codes(findings))
         self.assertEqual({"error"}, self.severities(findings, "uda.enforcement.coverage"))
 
+    def test_kernel_identity_requires_coverage_without_valid_profile(self) -> None:
+        self.add_minimal_repository_files()
+        self.write(".github/uda-kernel")
+        for content in (None, "{not-json}\n"):
+            with self.subTest(profile=content):
+                profile = self.root / ".github/codex-repository.json"
+                if content is None:
+                    profile.unlink(missing_ok=True)
+                else:
+                    self.write(".github/codex-repository.json", content)
+                findings = audit_repository(self.root)
+                self.assertEqual({"error"}, self.severities(findings, "uda.enforcement.coverage"))
+
     def test_standalone_policy_profile_does_not_require_kernel_marker_or_inventory(self) -> None:
         self.add_minimal_repository_files()
         commands = {"test": "python3 -m unittest discover -s tests -v",

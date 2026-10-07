@@ -20,7 +20,7 @@ A wildcard, an index listing, a graph node, a generic green test total or the re
 
 `KERNEL_ALWAYS` loads a root section with activated UDA authority. `STRUCTURED_TRIGGER` uses the listed records' trigger facts. `INDEX_TRIGGER` is an explicit leading When/Before/For/After/Whenever/While/If clause interpreted by the reasoning agent with a recorded activation reason. `PARENT_PATTERN` follows a named active parent that literally mentions the child's path. Parent cycles are rejected. These routes describe reachability, not successful application. They preserve the small active contract instead of loading every pattern on every task.
 
-The kernel profile uses the required `repository_kind: uda-kernel` classification and requires `uda_kernel: true`. This kind retains policy-command checks and runs coverage validation even if the marker is removed or invalid. Standalone `policy` consumers without an affirmative kernel marker remain exempt.
+The kernel profile uses the required `repository_kind: uda-kernel` classification and requires `uda_kernel: true`. This kind retains policy-command checks. The versioned `.github/uda-kernel` identity marker independently activates coverage validation, including in archives without Git metadata, so rewriting both profile fields or removing the profile cannot disable the gate. Its presence activates the gate regardless of its contents. Either affirmative profile field also activates validation for kernels without the identity file. Standalone `policy` consumers without the identity file or an affirmative kernel profile field remain exempt.
 
 ## Adding or migrating a rule
 
