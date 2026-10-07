@@ -17,6 +17,7 @@ from uda_test_helpers import predicate_catalog
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests/fixtures/kernel-slice"
+CLOCKS = {"clock_start": "2030-01-02T10:00:00Z", "clock_end": "2030-01-02T10:02:00Z"}
 
 
 class KernelSliceTests(unittest.TestCase):
@@ -69,7 +70,7 @@ class KernelSliceTests(unittest.TestCase):
                 for phase in {o["due_phase"] for o in record["obligations"]}:
                     with self.subTest(record=record["rule_id"], candidate=filename, phase=phase):
                         bound = self.bind(contract, phase, payload, judgment)
-                        result = tt.check_contract(contract, phase, payload, receipts=bound)
+                        result = tt.check_contract(contract, phase, payload, receipts=bound, **CLOCKS)
                         self.assertTrue(result["results"])
                         target_due = ("obligation_id" not in judgment or any(
                             o["obligation_id"] == judgment["obligation_id"] and o["due_phase"] == phase
@@ -80,8 +81,10 @@ class KernelSliceTests(unittest.TestCase):
                             ob = next(o for o in record["obligations"] if o["obligation_id"] == result_item["obligation_id"])
                             if ob["enforcement"] == "semantic":
                                 self.assertIs(result_item["judgment_proved"], False)
-                            else:
+                            elif ob["mechanical_check"]["kind"] == "final_timestamp_first_line":
                                 self.assertEqual(payload.decode().splitlines()[0], result_item["evidence"])
+                            else:
+                                self.assertEqual(120, result_item["evidence"]["actual_seconds"])
                 self.assertEqual(judgment["verdict"] == "PASS", all(a == "ADMITTED" for a in admissions))
 
     def test_current_full_contract_enforces_all_selected_kernel_boundaries(self):
@@ -91,19 +94,19 @@ class KernelSliceTests(unittest.TestCase):
         expected = self.record_ids - {"uda.kernel.work-permissions"}
         self.assertTrue(expected.issubset(selected))
         self.assertTrue(contract["usable"])
-        payload = b"2030-01-02 10:02:00 UTC\nSynthetic integrated candidate with current boundary evidence.\n"
+        payload = b"2030-01-02 10:02:00 UTC\nElapsed time: 120 seconds\nSynthetic integrated candidate with current boundary evidence.\n"
         judgment = {"verdict": "PASS", "evidence": "The synthetic integrated candidate supplies all selected boundary evidence.",
                     "actor": {"id": "fixture-author", "kind": "chat", "relation": "SAME_AGENT"}}
         for phase in {o["due_phase"] for r in contract["selected_rules"] for o in r["obligations"]}:
             with self.subTest(phase=phase):
-                self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload)["admission"])
+                self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, **CLOCKS)["admission"])
                 receipts = self.bind(contract, phase, payload, judgment)
-                self.assertEqual("ADMITTED", tt.check_contract(contract, phase, payload, receipts=receipts)["admission"])
+                self.assertEqual("ADMITTED", tt.check_contract(contract, phase, payload, receipts=receipts, **CLOCKS)["admission"])
                 for target in receipts["receipts"]:
                     if target["rule_id"] not in expected:
                         continue
                     target["verdict"] = "FAIL"
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=receipts)["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=receipts, **CLOCKS)["admission"])
                     target["verdict"] = "PASS"
 
     def test_each_obligation_individually_blocks_and_candidate_receipts_cannot_replay(self):
@@ -117,20 +120,20 @@ class KernelSliceTests(unittest.TestCase):
                     if obligation["enforcement"] == "mechanical":
                         self.assertFalse(any(r["obligation_id"] == obligation["obligation_id"] for r in bound["receipts"]))
                         for other in ("violating-final.txt", "near-miss-final.txt"):
-                            result = tt.check_contract(contract, phase, (folder / other).read_bytes(), receipts=bound)
+                            result = tt.check_contract(contract, phase, (folder / other).read_bytes(), receipts=bound, **CLOCKS)
                             self.assertEqual("BLOCKED", result["admission"])
                             self.assertEqual("FAIL", next(r for r in result["results"] if r["obligation_id"] == obligation["obligation_id"])["status"])
                         continue
                     target = next(r for r in bound["receipts"] if r["obligation_id"] == obligation["obligation_id"])
                     target["verdict"] = "FAIL"
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound)["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound, **CLOCKS)["admission"])
                     target["verdict"] = "PASS"
                     bound["receipts"].remove(target)
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound)["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound, **CLOCKS)["admission"])
                     bound = self.bind(contract, phase, payload, judgment)
                     for other in ("violating-final.txt", "near-miss-final.txt"):
-                        self.assertEqual("BLOCKED", tt.check_contract(contract, phase, (folder / other).read_bytes(), receipts=bound)["admission"])
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload + b"Rewritten.\n", receipts=bound)["admission"])
+                        self.assertEqual("BLOCKED", tt.check_contract(contract, phase, (folder / other).read_bytes(), receipts=bound, **CLOCKS)["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload + b"Rewritten.\n", receipts=bound, **CLOCKS)["admission"])
 
     def test_not_applicable_requires_permission_and_nonempty_reason(self):
         for folder, record, contract in self.cases():
@@ -149,7 +152,7 @@ class KernelSliceTests(unittest.TestCase):
                     for reason in ("", " ", "The conditional payload or action is absent in this candidate."):
                         target["not_applicable_reason"] = reason
                         expected = "ADMITTED" if reason.strip() and obligation.get("not_applicable_allowed") else "BLOCKED"
-                        self.assertEqual(expected, tt.check_contract(contract, phase, payload, receipts=bound)["admission"])
+                        self.assertEqual(expected, tt.check_contract(contract, phase, payload, receipts=bound, **CLOCKS)["admission"])
 
     def test_actor_scope_and_unknown_trigger_fail_closed(self):
         for folder, record, contract in self.cases():

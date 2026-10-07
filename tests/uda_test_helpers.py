@@ -1,8 +1,8 @@
-"""Isolate fixed serialization predicates from broader source admission.
+"""Select focused serialization contracts without unrelated kernel judgments.
 
 These test-local contracts deliberately require the built-in fixed-format
-timestamp/elapsed syntax. Production enforces timestamp shape mechanically;
-clock provenance and broader elapsed-time wording use bound semantic judgments.
+timestamp/elapsed syntax from the production catalog. Production enforces both
+predicates mechanically; clock provenance uses bound semantic judgments.
 """
 
 import copy
@@ -14,8 +14,6 @@ def predicate_catalog(catalog):
     timestamp = next(r for r in result["records"] if r["rule_id"] == "uda.final.timestamp")
     checks = {"final-first-line-timestamp": "final_timestamp_first_line", "final-elapsed-time": "final_elapsed_time"}
     timestamp["obligations"] = [o for o in timestamp["obligations"] if o["obligation_id"] in checks]
-    for ob in timestamp["obligations"]:
-        ob.update(enforcement="mechanical", mechanical_check={"kind": checks[ob["obligation_id"]]})
     return result
 
 

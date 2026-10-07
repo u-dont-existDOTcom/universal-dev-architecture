@@ -91,23 +91,26 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
 
     def test_production_timestamp_shape_cannot_be_overridden_by_pass_receipts(self):
         catalog = task_time.read_json(ROOT / "rules/rule-graph/task-time-metadata.v1.json")
-        catalog["records"] = [r for r in catalog["records"] if r["rule_id"] == "uda.final.timestamp"]
+        catalog["records"] = [r for r in catalog["records"] if r["rule_id"] in
+                              ("uda.final.timestamp", "uda.kernel.clock-cadence")]
         contract = task_time.compile_contract(catalog, self.profile, self.instruction, "graph")
+        readings = {"clock_start": "2026-09-30T09:40:00+00:00", "clock_end": "2026-09-30T09:42:00+00:00"}
         for payload, expected in (("Done.", "FAIL"),
                                   ("Done.\n2026-09-30 09:42 UTC", "FAIL"),
-                                  ("2026-09-30 09:42 UTC\nDone.", "PASS")):
+                                  ("2026-09-30 09:42 UTC\nElapsed time: 2 minutes\nDone.", "PASS")):
             with self.subTest(payload=payload):
                 receipts = pass_receipts(task_time, contract, "final-delivery", payload)
                 receipts["receipts"] = [r for r in receipts["receipts"] if r["obligation_id"] != "final-first-line-timestamp"]
-                receipts["receipts"].append({**receipts["receipts"][0], "obligation_id": "final-first-line-timestamp"})
-                checked = task_time.check_contract(contract, "final-delivery", payload, receipts=receipts)
+                receipts["receipts"].append({**receipts["receipts"][0], "rule_id": "uda.final.timestamp",
+                                             "obligation_id": "final-first-line-timestamp"})
+                checked = task_time.check_contract(contract, "final-delivery", payload, receipts=receipts, **readings)
                 timestamp = next(r for r in checked["results"] if r["obligation_id"] == "final-first-line-timestamp")
                 self.assertEqual(expected, timestamp["status"])
                 self.assertEqual("ADMITTED" if expected == "PASS" else "BLOCKED", checked["admission"])
         # Shape alone cannot establish current-turn clock provenance.
         checked = task_time.check_contract(contract, "final-delivery", payload)
         self.assertEqual("BLOCKED", checked["admission"])
-        self.assertEqual("UNKNOWN", next(r for r in checked["results"] if r["obligation_id"] == "final-elapsed-time")["status"])
+        self.assertEqual("UNKNOWN", next(r for r in checked["results"] if r["obligation_id"] == "two-read-cadence")["status"])
 
     def test_single_safe_route_accepts_only_reason_bound_inapplicability(self):
         catalog = task_time.read_json(ROOT / "rules/rule-graph/task-time-metadata.v1.json")
@@ -125,6 +128,51 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
         self.assertEqual("BLOCKED", task_time.check_contract(contract, "pre-action", payload)["admission"])
         self.assertEqual("BLOCKED", task_time.check_contract(contract, "pre-action", payload + "Changed.", receipts=receipts)["admission"])
 
+    def test_production_elapsed_time_cannot_be_overridden_by_pass_receipts(self):
+        catalog = task_time.read_json(ROOT / "rules/rule-graph/task-time-metadata.v1.json")
+        catalog["records"] = [r for r in catalog["records"] if r["rule_id"] in
+                              ("uda.final.timestamp", "uda.kernel.clock-cadence")]
+        contract = task_time.compile_contract(catalog, self.profile, self.instruction, "graph")
+        readings = {"clock_start": "2026-09-30T09:40:00+00:00", "clock_end": "2026-09-30T09:42:00+00:00"}
+        for report, expected in (("Done.", "FAIL"), ("Elapsed time: 3 minutes", "FAIL"),
+                                 ("Elapsed time: 2 minutes", "PASS")):
+            with self.subTest(report=report):
+                payload = "2026-09-30 09:42 UTC\n" + report
+                receipts = pass_receipts(task_time, contract, "final-delivery", payload)
+                # A mistaken same-agent elapsed-time assertion cannot replace the predicate.
+                receipts["receipts"] = [r for r in receipts["receipts"] if r["obligation_id"] != "final-elapsed-time"]
+                receipts["receipts"].append({**receipts["receipts"][0], "rule_id": "uda.final.timestamp",
+                                             "obligation_id": "final-elapsed-time"})
+                checked = task_time.check_contract(contract, "final-delivery", payload, receipts=receipts, **readings)
+                elapsed = next(r for r in checked["results"] if r["obligation_id"] == "final-elapsed-time")
+                self.assertEqual(expected, elapsed["status"])
+                self.assertEqual("ADMITTED" if expected == "PASS" else "BLOCKED", checked["admission"])
+        checked = task_time.check_contract(contract, "final-delivery", payload, receipts=receipts)
+        self.assertEqual("UNKNOWN", next(r for r in checked["results"] if r["obligation_id"] == "final-elapsed-time")["status"])
+        # Correct arithmetic still requires a separate clock-provenance judgment.
+        checked = task_time.check_contract(contract, "final-delivery", payload, **readings)
+        self.assertEqual("BLOCKED", checked["admission"])
+        self.assertEqual("UNKNOWN", next(r for r in checked["results"] if r["obligation_id"] == "two-read-cadence")["status"])
+
+    def test_fresh_turn_accepts_only_reason_bound_owner_input_inapplicability(self):
+        catalog = task_time.read_json(ROOT / "rules/rule-graph/task-time-metadata.v1.json")
+        catalog["records"] = [r for r in catalog["records"] if r["rule_id"] == "uda.kernel.owner-input-continuation"]
+        contract = task_time.compile_contract(catalog, self.profile, self.instruction, "graph")
+        payload = "This is a fresh task, with no answer, correction, upload or requested clarification to an active task."
+        receipts = pass_receipts(task_time, contract, "pre-action", payload)
+        receipt = receipts["receipts"][0]
+        receipt["verdict"] = "NOT_APPLICABLE"
+        receipt["evidence"] = payload
+        for reason, expected in (("", "BLOCKED"), (" ", "BLOCKED"), (payload, "ADMITTED")):
+            with self.subTest(reason=reason):
+                receipt["not_applicable_reason"] = reason
+                self.assertEqual(expected, task_time.check_contract(contract, "pre-action", payload, receipts=receipts)["admission"])
+        self.assertEqual("BLOCKED", task_time.check_contract(contract, "pre-action", payload)["admission"])
+        self.assertEqual("BLOCKED", task_time.check_contract(contract, "pre-action", payload + "Changed.", receipts=receipts)["admission"])
+        receipt["verdict"] = "FAIL"
+        receipt["not_applicable_reason"] = ""
+        self.assertEqual("BLOCKED", task_time.check_contract(contract, "pre-action", payload, receipts=receipts)["admission"])
+
     def test_elapsed_time_cannot_be_certified_from_final_payload_alone(self):
         compiled = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
         generated = json.loads((ROOT / "tools/codex-mission-control/restored/codex-mission-control/generated/rule-graph/work-handoff-contract.json").read_text())
@@ -133,7 +181,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
             elapsed = next(x for x in timestamp["obligations"] if x["obligation_id"] == "final-elapsed-time")
             self.assertIn("elapsed", elapsed["required_behavior"].lower())
             self.assertIn("clock readings", elapsed["acceptance_evidence"].lower())
-            self.assertEqual(elapsed["enforcement"], "mechanical" if contract is compiled else "semantic")
+            self.assertEqual(elapsed["enforcement"], "mechanical")
             for payload in ("2026-09-30 09:40 UTC\nDone.", "2026-09-30 09:40 UTC\nElapsed: 2 minutes. Done."):
                 checked = task_time.check_contract(contract, "final-delivery", payload)
                 self.assertEqual(checked["admission"], "BLOCKED")

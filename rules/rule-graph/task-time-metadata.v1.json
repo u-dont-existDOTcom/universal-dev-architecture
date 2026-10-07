@@ -5,7 +5,7 @@
   "records": [
     {
       "rule_id": "uda.final.timestamp",
-      "revision": 7,
+      "revision": 8,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -106,10 +106,10 @@
         },
         {
           "obligation_id": "final-elapsed-time",
-          "required_behavior": "Bind the final timestamp to the second reading and report this turn’s total elapsed time.",
+          "required_behavior": "Report total elapsed time from both clock readings.",
           "due_phase": "final-delivery",
           "destination": "owner-visible-final",
-          "acceptance_evidence": "The final opens with the second current-turn clock reading. Both clock readings and their difference agree with the elapsed time reported in the final; verified unavailable clocks are honestly disclosed. An earlier draft or first/intermediate reading cannot establish this provenance.",
+          "acceptance_evidence": "Both supplied clock readings and their difference agree with the elapsed time reported in the final; its first line matches the supplied second reading. Actual current-turn clock provenance is judged separately by two-read-cadence.",
           "non_substitutes": [
             "first-line timestamp alone",
             "reusing the first intermediate timestamp",
@@ -117,8 +117,10 @@
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
+          "enforcement": "mechanical",
+          "mechanical_check": {
+            "kind": "final_elapsed_time"
+          },
           "not_applicable_allowed": false,
           "independent_review_required": false
         }
@@ -1275,7 +1277,7 @@
     },
     {
       "rule_id": "uda.kernel.owner-input-continuation",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -1321,7 +1323,7 @@
           "required_behavior": "Incorporate owner input and continue the determined safe in-scope action.",
           "due_phase": "pre-action",
           "destination": "authorized execution boundary",
-          "acceptance_evidence": "Answers, corrections, uploads and clarifications are task input. While unfinished, execute the next determined step without acknowledgment-only stops or routine questions. Pause only for a genuine owner/new-authority/risk/access/permission/credential/spend/publication boundary or explicit stop.",
+          "acceptance_evidence": "Answers, corrections, uploads and clarifications are task input. While unfinished, execute the next determined step without acknowledgment-only stops or routine questions. Pause only for a genuine owner/new-authority/risk/access/permission/credential/spend/publication boundary or explicit stop. NOT_APPLICABLE requires a bound reason establishing that this turn is not an answer, correction, upload or requested clarification to an active task.",
           "non_substitutes": [
             "owner correction acknowledged as task completion",
             "acknowledgment without resumed action",
@@ -1332,7 +1334,7 @@
           "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
           "enforcement": "semantic",
           "mechanical_check": null,
-          "not_applicable_allowed": false,
+          "not_applicable_allowed": true,
           "independent_review_required": false
         }
       ],
