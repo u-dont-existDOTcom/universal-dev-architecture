@@ -1,0 +1,2 @@
+The implementation was delegated, and the producing actor’s own review was presented as independent review.
+Committed substitute: delegation presented as its own independent review.

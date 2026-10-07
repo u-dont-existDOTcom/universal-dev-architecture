@@ -26,10 +26,23 @@ The result must include `uda.owner-correction.reactivate` and its dependency clo
 
 ```bash
 printf '2026-09-22 15:12 UTC\nElapsed time: 2 minutes\nResult\n' > /tmp/final.txt
-python3 scripts/uda_rule_graph.py check --contract /tmp/corrected-contract.json --phase final-delivery --destination owner-visible-final --payload /tmp/final.txt --clock-start 2026-09-22T15:10:00+00:00 --clock-end 2026-09-22T15:12:00+00:00
+python3 scripts/uda_rule_graph.py receipt --contract /tmp/corrected-contract.json --phase final-delivery --payload /tmp/final.txt --output /tmp/final-receipts.json
+python3 - <<'PY'
+import json
+from pathlib import Path
+path = Path('/tmp/final-receipts.json')
+receipts = json.loads(path.read_text())
+for receipt in receipts['receipts']:
+    receipt.update(verdict='PASS',
+                   evidence='Illustrative judgment of the final answer: current-turn clock readings, no open next action left undone.',
+                   actor={'id': 'example-author', 'kind': 'fixture', 'relation': 'SAME_AGENT'},
+                   issued_at='2026-09-22T15:12:00+00:00')
+path.write_text(json.dumps(receipts))
+PY
+python3 scripts/uda_rule_graph.py check --contract /tmp/corrected-contract.json --phase final-delivery --destination owner-visible-final --payload /tmp/final.txt --receipts /tmp/final-receipts.json --clock-start 2026-09-22T15:10:00+00:00 --clock-end 2026-09-22T15:12:00+00:00
 ```
 
-Supply the two current-turn readings as ISO 8601 timestamps with UTC offsets. The first line must match the end reading, and `Elapsed time` must equal their difference. Missing readings or a timestamp only on a later line block admission.
+Supply the two current-turn readings as ISO 8601 timestamps with UTC offsets. The first line must match the end reading, and `Elapsed time` must equal their difference. Missing readings or a timestamp only on a later line block admission. The kernel's semantic final obligations, such as clock provenance and continuation, also need receipts bound to the exact final bytes; this example fills them with an illustrative judgment. Receipts never replace the timestamp and elapsed-time predicates.
 
 ## Durable checkpoint check
 

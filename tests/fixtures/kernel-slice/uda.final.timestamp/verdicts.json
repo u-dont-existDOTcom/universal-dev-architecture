@@ -1,0 +1,31 @@
+{
+  "compliant-final.txt": {
+    "verdict": "PASS",
+    "evidence": "2030-01-02 10:02:00 UTC\nElapsed time: 120 seconds\nThe final contains the second current-turn reading on its first line. The actual outgoing content was checked after rewriting; the first reading was at 10:00:00 UTC. The same final-surface check applies on a brief answer. An absent stamp is a delivery failure even when the result is correct.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "The final is unstamped, although the result is correct.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "The result is complete.\n2030-01-02 10:02:00 UTC\nElapsed time: 120 seconds\nCommitted substitute: timestamp elsewhere in the answer.\n",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "final-first-line-timestamp",
+    "non_substitute": "timestamp elsewhere in the answer"
+  }
+}

@@ -1,0 +1,4 @@
+The result is complete.
+2030-01-02 10:02:00 UTC
+Elapsed time: 120 seconds
+Committed substitute: timestamp elsewhere in the answer.

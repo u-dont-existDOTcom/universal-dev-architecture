@@ -1,0 +1,1 @@
+The current stop-admission rules were applied to the actual final. The parent is OPEN. The safe authorized current action and all independent work in this slice were executed. Parent authority survives child completion. Further execution reaches an evidenced owner-reserved publication boundary, and access, spending, privacy, platform and irreversible-action gates remain in force.

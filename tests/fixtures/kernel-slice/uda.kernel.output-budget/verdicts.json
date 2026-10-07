@@ -1,0 +1,31 @@
+{
+  "compliant-final.txt": {
+    "verdict": "PASS",
+    "evidence": "The long reusable output was materialized as a directly delivered usable attachment. This chat gives a concise summary and the recipient received the complete file through the prescribed delivery route.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "The reusable output exceeds the budget and was pasted entirely into chat.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "The file was created but the recipient received no usable handoff.\nCommitted substitute: file created without a usable handoff.\n",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "file-for-long-reusable-output",
+    "non_substitute": "file created without a usable handoff"
+  }
+}

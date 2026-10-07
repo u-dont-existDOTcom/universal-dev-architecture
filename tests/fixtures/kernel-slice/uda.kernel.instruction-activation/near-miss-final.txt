@@ -1,0 +1,2 @@
+The index was opened, but its entries were treated as loaded pattern content.
+Committed substitute: index entries treated as loaded pattern content.

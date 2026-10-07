@@ -318,36 +318,46 @@ def order_rules(selected: set[str], by_id: dict[str, dict[str, Any]]) -> list[st
 
 def render(envelope: dict[str, Any], rules: list[dict[str, Any]], unresolved: list[dict[str, Any]],
            refresh_boundaries: list[dict[str, Any]]) -> str:
+    # Exact prose supplies the detail once. The compact rows bind each
+    # behavior and non-substitutes; full acceptance/provenance stays in
+    # selected_rules. Repeated lifecycle text is shared without truncation.
+    lifecycle = list(dict.fromkeys((ob["carry_through"], ob["repair"])
+                                  for rule in rules for ob in rule["obligations"]))
     lines = [
         "# Active Lesson Contract — graph projection",
         "",
         f"Task: {envelope.get('task_id', 'unknown')}",
         "Projection owner: existing Active Lesson Contract lifecycle",
+        "Evidence must establish every operative source clause at its behavior's boundary; reject the substitutes below.",
+        "C permits N/A only with a bound reason; I requires independent review; L# supplies carry-through/repair.",
+        "Full acceptance evidence, source hashes and authority are retained in structured selected_rules.",
         "",
         "## Active lessons",
     ]
     for rule in rules:
         lines += [
             "",
-            f"### {rule['rule_id']} @ r{rule['revision']}",
-            f"- Source: {rule['source']['path']} · blob {rule['source']['git_blob_sha1']} · extracted sha256 {rule['source']['extracted_sha256']}",
-            f"- Authority: {rule['authority_owner']} / {rule['authority_domain']}",
-            "- Exact operative source:",
+            f"### {rule['rule_id']} @ r{rule['revision']} ({rule['source']['path']})",
             "",
             rule["source_text"],
             "",
         ]
         for ob in rule["obligations"]:
+            binding = f"{ob['enforcement']}; L{lifecycle.index((ob['carry_through'], ob['repair'])) + 1}"
+            if ob.get("not_applicable_allowed"):
+                binding += "; C"
+            if ob.get("independent_review_required"):
+                binding += "; I"
+            if ob.get("mechanical_check"):
+                binding += "; predicate " + canonical(ob["mechanical_check"])
             lines += [
-                f"- Obligation {ob['obligation_id']}",
-                f"  - Required behavior: {ob['required_behavior']}",
-                f"  - Due: {ob['due_phase']} -> {ob['destination']}",
-                f"  - Acceptance evidence: {ob['acceptance_evidence']}",
-                f"  - Non-substitutes: {'; '.join(ob['non_substitutes']) or 'none'}",
-                f"  - Carry-through: {ob['carry_through']}",
-                f"  - Repair: {ob['repair']}",
-                f"  - Enforcement: {ob['enforcement']}",
+                f"- {ob['obligation_id']}: {ob['due_phase']} -> {ob['destination']} [{binding}]",
+                f"  Do: {ob['required_behavior']}",
+                f"  Reject: {'; '.join(ob['non_substitutes']) or 'none'}",
             ]
+    lines += ["", "## Shared lifecycle"]
+    for i, (carry, repair) in enumerate(lifecycle, 1):
+        lines += [f"L{i}: Carry: {carry} Repair: {repair}"]
     if refresh_boundaries:
         lines += ["", "## Contract refresh boundaries"]
         for boundary in refresh_boundaries:

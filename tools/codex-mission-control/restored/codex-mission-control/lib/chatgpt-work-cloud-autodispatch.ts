@@ -2,7 +2,7 @@ import { canonicalJson, sha256 } from "./canonical";
 import { executionDirectiveArtifactCanonicalJson } from "./github-execution-directive";
 import { launchSelectionFor } from "./work-execution-profile";
 import type { StoredEvent } from "./schema";
-import { ruleGraphPromptBlock, workHandoffRuleGraphProjection } from "./rule-graph-contract";
+import { ruleGraphPromptBlock, workHandoffRuleGraphProjection, WORK_PROMPT_BUDGET_LABEL, WORK_PROMPT_MAX_BYTES } from "./rule-graph-contract";
 
 export const WORK_CLOUD_EXECUTION_RECEIPT_PREFIX = "MISSION_CONTROL_WORK_CLOUD_EXECUTION_RECEIPT_V1\n";
 export const WORK_CLOUD_AUTODISPATCH_PRODUCER_ID = "system:chatgpt-work-cloud-dispatch";
@@ -218,7 +218,7 @@ export function buildDirectWorkPrompt(input: {
     blockerCodes: [],
     artifactSha256s: [],
   });
-  return [
+  const prompt = [
     "MISSION_CONTROL_NATIVE_WORK_EXECUTION_V2",
     `Originating Chat title: ${input.sourceChat.sourceChatTitle}`,
     `Originating Chat URL: ${input.sourceChat.sourceChatBrowserUrl ?? input.sourceChat.sourceChatUrl}`,
@@ -234,6 +234,10 @@ export function buildDirectWorkPrompt(input: {
     input.exactDirective,
     "EXACT_BOUNDED_DIRECTIVE_END",
   ].join("\n");
+  if (ruleGraph.inject && Buffer.byteLength(prompt, "utf8") > WORK_PROMPT_MAX_BYTES) {
+    throw new Error(`Rule-graph Work prompt exceeds the ${WORK_PROMPT_BUDGET_LABEL}; use a bounded directive artifact.`);
+  }
+  return prompt;
 }
 
 function conversationUriFromBrowserUrl(value: string | null): string | null {
