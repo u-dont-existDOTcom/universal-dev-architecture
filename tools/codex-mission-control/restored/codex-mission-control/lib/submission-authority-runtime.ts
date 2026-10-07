@@ -386,7 +386,8 @@ export class SubmissionAuthorityRuntime {
     const exactLedgerRecords = exactAdmissionLedgerRecords(snapshot.records, admission, queueItem);
     assertExactAdmissionEvidence(admission, queueItem, exactLedgerRecords);
     const head = snapshot.records.at(-1);
-    if (!head || !Number.isInteger(head.sequence) || typeof head.eventHash !== "string") {
+    if (!head || typeof head.sequence !== "number" || !Number.isInteger(head.sequence)
+      || typeof head.eventHash !== "string") {
       throw admissionProofError("SUBMISSION_ADMISSION_PROOF_LEDGER_HEAD_MISSING", "The durable authority ledger has no exact head identity.", 409);
     }
     const publicBinding = publicRelayBinding(authenticatedBinding);
