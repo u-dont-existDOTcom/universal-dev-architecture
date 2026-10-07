@@ -94,6 +94,30 @@ metadata-only. This implementation has deterministic test coverage; live routing
 provider source timestamps, deployments, and production promotion are separate
 boundaries and are not established by these tests.
 
+### Owner decisions without manual relay
+
+A supervisory Chat that already has the owner's explicit answer must not ask the
+owner to copy that answer into Work. The configured private GitHub decision
+channel accepts an authenticated owner-direction receipt:
+
+```text
+MISSION_CONTROL_OWNER_DIRECTION_V1
+{"schema_version":1,"worker":"<worker>","decision_ref":"<question-or-decision-ref>","owner_outcome":{"id":"<id>","epoch":1,"sha256":"<sha256>"},"exact_text":"5A","exact_text_sha256":"<sha256>","priority":"HIGH"}
+```
+
+Only an authorized GitHub writer in the centrally configured private decision
+channel can supply this receipt. Reconciliation requires the exact current
+owner-outcome ID, epoch and digest, verifies the exact-text digest, preserves the
+immutable GitHub comment as provenance, and then atomically records the answer as
+an `owner_message_recorded` direction plus the existing durable worker outbox
+delivery. Duplicate immutable receipts are idempotent; stale owner outcomes,
+changed immutable content, untrusted writers, and wrong repositories/issues fail
+closed.
+
+This intentionally does **not** add a mutating tool to the unauthenticated public
+Mission Control MCP. GitHub authentication is the owner-authority boundary; the
+public MCP remains metadata-only and read-only.
+
 Schema-version-3 canonical decisions may also include one complete optional
 `bounded_execution` residue. After every existing repository, issue, writer,
 nonce, binding, session, lane, owner-outcome, evidence, freshness, capability,
