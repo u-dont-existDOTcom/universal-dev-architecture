@@ -1,5 +1,6 @@
 import copy
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -361,6 +362,32 @@ class DestinationScopedContinuityTests(unittest.TestCase):
                         result = json.loads(run.stdout)
                         self.assertEqual(result['admission'], expected)
                         self.assertEqual(result['destination'], destination)
+
+    def test_readme_owner_correction_checks_final_and_checkpoint_separately(self):
+        readme = (ROOT / 'examples/rule-graph/README.md').read_text()
+        sections = re.split(r'^## ', readme, flags=re.MULTILINE)
+        workflow = '\n'.join(section for section in sections if section.startswith((
+            'Owner correction / recompile\n', 'Literal final-output check\n',
+            'Durable checkpoint check\n')))
+        blocks = re.findall(r'```bash\n(.*?)\n```', workflow, flags=re.DOTALL)
+        checks = {}
+        with tempfile.TemporaryDirectory() as directory:
+            for block in blocks:
+                # Run the documented workflow, isolating its temporary artifacts.
+                run = subprocess.run(['bash', '-e', '-c', block.replace('/tmp/', directory + '/')],
+                                     capture_output=True, text=True, cwd=ROOT)
+                self.assertEqual(run.returncode, 0, run.stderr or run.stdout)
+                if ' check ' in block:
+                    result = json.loads(run.stdout)
+                    self.assertEqual(result['admission'], 'ADMITTED')
+                    checks[result['destination']] = result
+        self.assertEqual(set(checks), {'owner-visible-final', DESTINATION})
+        self.assertEqual({r['obligation_id'] for r in checks['owner-visible-final']['results']},
+                         {'final-first-line-timestamp', 'final-elapsed-time'})
+        handoff, = checks[DESTINATION]['results']
+        self.assertEqual(handoff['obligation_id'], 'save-turn-end-handoff')
+        self.assertEqual(handoff['binding_status'], 'RECEIPT_BINDING_VERIFIED')
+        self.assertFalse(handoff['judgment_proved'])
 
 
 if __name__ == '__main__':
