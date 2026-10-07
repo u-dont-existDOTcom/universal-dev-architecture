@@ -547,15 +547,16 @@ def semantic_result(contract: dict[str, Any], rule: dict[str, Any], ob: dict[str
 def check_contract(contract: dict[str, Any] | None, phase: str, payload: str | bytes,
                    clock_start: str | None = None, clock_end: str | None = None,
                    receipts: Any = None, destination: str | None = None) -> dict[str, Any]:
+    scope_result = {"destination": destination, "out_of_scope": []} if destination is not None else {}
     if (not isinstance(contract, dict) or contract.get("uda_protection") != "UDA_GOVERNED"
             or not isinstance(contract.get("uda_activation"), dict)
             or contract["uda_activation"].get("state") != "ACTIVE"):
-        return {"schema_version": 1, "phase": phase, "results": [], "admission": "NOT_EVALUATED",
+        return {**scope_result, "schema_version": 1, "phase": phase, "results": [], "admission": "NOT_EVALUATED",
                 "uda_protection": "OUTSIDE_UDA", "reason": "no activated governed contract"}
     # Do not let an edited contract reuse the old content hash.
     content = {k: contract[k] for k in CONTRACT_CONTENT_FIELDS if k in contract}
     if len(content) != len(CONTRACT_CONTENT_FIELDS) or sha256(canonical(content).encode()) != contract.get("content_sha256"):
-        return {"schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
+        return {**scope_result, "schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
                 "reason": "contract content hash mismatch"}
     payload_bytes = payload if isinstance(payload, bytes) else payload.encode("utf-8")
     payload = payload_bytes.decode("utf-8")
@@ -565,8 +566,8 @@ def check_contract(contract: dict[str, Any] | None, phase: str, payload: str | b
             if ob.get("due_phase") != phase:
                 continue
             if destination is not None and destination != ob["destination"]:
-                results.append({"rule_id": rule["rule_id"], "obligation_id": ob["obligation_id"],
-                                "status": "UNKNOWN", "reason": "check destination differs from obligation"})
+                scope_result["out_of_scope"].append({"rule_id": rule["rule_id"],
+                    "obligation_id": ob["obligation_id"], "destination": ob["destination"]})
                 continue
             if ob.get("enforcement") == "semantic":
                 results.append(semantic_result(contract, rule, ob, phase, payload_bytes, receipts))
@@ -608,7 +609,8 @@ def check_contract(contract: dict[str, Any] | None, phase: str, payload: str | b
                 continue
             results.append({"rule_id": rule["rule_id"], "obligation_id": ob["obligation_id"], "status": "PASS" if ok else "FAIL", "evidence": evidence})
     admitted = not contract.get("unresolved") and all(x["status"] in {"PASS", "NOT_APPLICABLE"} for x in results)
-    return {"schema_version": 1, "phase": phase, "results": results, "admission": "ADMITTED" if admitted else "BLOCKED"}
+    admission = "NOT_EVALUATED" if destination is not None and not results else "ADMITTED" if admitted else "BLOCKED"
+    return {**scope_result, "schema_version": 1, "phase": phase, "results": results, "admission": admission}
 
 
 def impact(catalog: dict[str, Any], profile: dict[str, Any], paths: list[str]) -> dict[str, Any]:

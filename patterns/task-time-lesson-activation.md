@@ -202,6 +202,8 @@ For a semantic obligation, run `python3 scripts/uda_rule_graph_task_time.py rece
 
 A receipt binds contract_sha256 (the compiled content_sha256), rule_id, obligation_id, phase, destination and payload_sha256 of the exact payload bytes. Missing, malformed, mismatched, unbound, stale or duplicate matching receipts leave semantic obligations UNKNOWN and block admission. FAIL blocks. NOT_APPLICABLE requires both an obligation with `not_applicable_allowed: true` and a nonempty not_applicable_reason; otherwise it blocks. An obligation with `independent_review_required: true` accepts only INDEPENDENT receipts. Owner correction requires recompile; any final rewrite requires a new payload receipt. Unresolved applicability remains blocking.
 
+A destination-scoped check evaluates only obligations due there, lists the others under `out_of_scope`, and returns NOT_EVALUATED if none match. A phase with several destinations is admitted when each destination's scoped check is ADMITTED with its own payload: the final answer for `owner-visible-final`, the checkpoint text for `durable-task-checkpoint`. Unscoped checks still evaluate every due obligation.
+
 Results state RECEIPT_BINDING_VERIFIED and identify who asserted the judgment, with judgment_proved false. SAME_AGENT is application evidence, never independent verification; INDEPENDENT is an independent-review assertion. The code verifies bindings and receipt shape, not semantic truth, identity authentication or actual reviewer independence. A well-formed but mistaken PASS assertion can admit a violating candidate. Do not turn this admission path into a claim of universal behavioral proof or use receipts to substitute for mechanical checks.
 
 

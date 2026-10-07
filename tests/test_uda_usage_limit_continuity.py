@@ -1,5 +1,8 @@
 import copy
 import json
+import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -191,8 +194,11 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                 result = tt.check_contract(contract, phase, payload,
                                            receipts=bound_receipts(contract, phase, payload, case),
                                            destination='owner-visible-final')
-                self.assertEqual(result['results'][0]['status'], 'UNKNOWN')
-                self.assertEqual(result['admission'], 'BLOCKED')
+                self.assertEqual(result['results'], [])
+                self.assertEqual(result['admission'], 'NOT_EVALUATED')
+                self.assertEqual(result['out_of_scope'], [
+                    {'rule_id': rule_id, 'obligation_id': RULES[rule_id][0],
+                     'destination': DESTINATION}])
 
     def test_rewrite_or_owner_correction_requires_new_receipt(self):
         for rule_id, (_, phase) in RULES.items():
@@ -217,6 +223,98 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                                            destination=DESTINATION)
                 self.assertEqual(result['results'][0]['status'], 'UNKNOWN')
                 self.assertEqual(result['admission'], 'BLOCKED')
+
+
+class DestinationScopedContinuityTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        catalog = json.loads((ROOT / 'rules/rule-graph/task-time-metadata.v1.json').read_text())
+        profile = json.loads((ROOT / 'scripts/instruction-layering-profile.json').read_text())
+        task = json.loads((ROOT / 'examples/rule-graph/work-handoff.json').read_text())
+        cls.contract = tt.compile_contract(catalog, profile, task, 'graph')
+        cls.final = b'2026-10-07 00:02:00 UTC\nElapsed time: 2 minutes\nWork saved.\n'
+        cls.readings = {'clock_start': '2026-10-07T00:00:00Z',
+                        'clock_end': '2026-10-07T00:02:00Z'}
+        cls.checkpoint = (FIXTURE / 'turn-end-handoff-compliant.txt').read_bytes()
+        verdicts = json.loads((FIXTURE / 'turn-end-handoff.verdicts.json').read_text())
+        cls.receipts = bound_receipts(cls.contract, 'final-delivery', cls.checkpoint, verdicts[1])
+        cls.handoff = {'rule_id': 'uda.continuity.turn-end-handoff',
+                       'obligation_id': 'save-turn-end-handoff', 'destination': DESTINATION}
+
+    def check(self, payload, **kwargs):
+        return tt.check_contract(self.contract, 'final-delivery', payload, **kwargs)
+
+    def test_open_task_final_scoped_check_excludes_continuity_handoff(self):
+        result = self.check(self.final, destination='owner-visible-final', **self.readings)
+        self.assertEqual(result['admission'], 'ADMITTED')
+        self.assertEqual(result['destination'], 'owner-visible-final')
+        self.assertEqual(result['out_of_scope'], [self.handoff])
+        self.assertEqual({r['obligation_id'] for r in result['results']},
+                         {'final-first-line-timestamp', 'final-elapsed-time'})
+        self.assertTrue(all(r['status'] == 'PASS' for r in result['results']))
+
+    def test_checkpoint_scoped_check_needs_its_own_payload_receipt(self):
+        result = self.check(self.checkpoint, destination=DESTINATION, receipts=self.receipts)
+        self.assertEqual(result['admission'], 'ADMITTED')
+        self.assertEqual(result['destination'], DESTINATION)
+        self.assertEqual(len(result['results']), 1)
+        self.assertEqual(result['results'][0]['obligation_id'], self.handoff['obligation_id'])
+        self.assertEqual(result['results'][0]['status'], 'PASS')
+        self.assertEqual(result['out_of_scope'], [
+            {'rule_id': 'uda.final.timestamp', 'obligation_id': obligation,
+             'destination': 'owner-visible-final'}
+            for obligation in ('final-first-line-timestamp', 'final-elapsed-time')])
+        for payload, receipts in ((self.checkpoint, None), (self.final, self.receipts)):
+            with self.subTest(payload=payload, receipts_supplied=receipts is not None):
+                blocked = self.check(payload, destination=DESTINATION, receipts=receipts)
+                self.assertEqual(blocked['admission'], 'BLOCKED')
+                self.assertEqual(blocked['results'][0]['status'], 'UNKNOWN')
+
+    def test_destination_with_no_due_obligation_is_not_evaluated(self):
+        result = self.check(self.final, destination='another-surface',
+                            receipts=self.receipts, **self.readings)
+        self.assertEqual(result['admission'], 'NOT_EVALUATED')
+        self.assertEqual(result['destination'], 'another-surface')
+        self.assertEqual(result['results'], [])
+        self.assertEqual(len(result['out_of_scope']), 3)
+        self.assertIn(self.handoff, result['out_of_scope'])
+
+    def test_unscoped_multidestination_check_still_evaluates_every_due_obligation(self):
+        result = self.check(self.final, **self.readings)
+        self.assertEqual(result['admission'], 'BLOCKED')
+        self.assertEqual(len(result['results']), 3)
+        self.assertEqual(next(r for r in result['results']
+                              if r['obligation_id'] == 'save-turn-end-handoff')['status'], 'UNKNOWN')
+        self.assertNotIn('destination', result)
+        self.assertNotIn('out_of_scope', result)
+
+    def test_both_clis_scope_checks_to_their_own_payloads(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            contract, final, checkpoint, receipts = (root / name for name in
+                ('contract.json', 'final.txt', 'checkpoint.txt', 'receipts.json'))
+            contract.write_text(json.dumps(self.contract))
+            final.write_bytes(self.final)
+            checkpoint.write_bytes(self.checkpoint)
+            receipts.write_text(json.dumps(self.receipts))
+            for script in ('uda_rule_graph_task_time.py', 'uda_rule_graph.py'):
+                for destination, payload, extra, expected in (
+                    ('owner-visible-final', final, ['--clock-start', self.readings['clock_start'],
+                     '--clock-end', self.readings['clock_end']], 'ADMITTED'),
+                    (DESTINATION, checkpoint, ['--receipts', str(receipts)], 'ADMITTED'),
+                    (DESTINATION, checkpoint, [], 'BLOCKED'),
+                    ('another-surface', final, [], 'NOT_EVALUATED'),
+                ):
+                    with self.subTest(script=script, destination=destination, expected=expected):
+                        run = subprocess.run([sys.executable, str(ROOT / 'scripts' / script),
+                            'check', '--contract', str(contract), '--phase', 'final-delivery',
+                            '--destination', destination, '--payload', str(payload), *extra],
+                            capture_output=True, text=True, cwd=ROOT)
+                        self.assertEqual(run.returncode, 0 if expected == 'ADMITTED' else 4,
+                                         run.stderr or run.stdout)
+                        result = json.loads(run.stdout)
+                        self.assertEqual(result['admission'], expected)
+                        self.assertEqual(result['destination'], destination)
 
 
 if __name__ == '__main__':
