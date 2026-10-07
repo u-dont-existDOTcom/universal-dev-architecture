@@ -76,7 +76,12 @@ class KernelSliceTests(unittest.TestCase):
                             for o in record["obligations"]))
                         self.assertEqual("BLOCKED" if judgment["verdict"] == "FAIL" and target_due else "ADMITTED", result["admission"])
                         admissions.append(result["admission"])
-                        self.assertTrue(all(r["judgment_proved"] is False for r in result["results"]))
+                        for result_item in result["results"]:
+                            ob = next(o for o in record["obligations"] if o["obligation_id"] == result_item["obligation_id"])
+                            if ob["enforcement"] == "semantic":
+                                self.assertIs(result_item["judgment_proved"], False)
+                            else:
+                                self.assertEqual(payload.decode().splitlines()[0], result_item["evidence"])
                 self.assertEqual(judgment["verdict"] == "PASS", all(a == "ADMITTED" for a in admissions))
 
     def test_current_full_contract_enforces_all_selected_kernel_boundaries(self):
@@ -86,7 +91,7 @@ class KernelSliceTests(unittest.TestCase):
         expected = self.record_ids - {"uda.kernel.work-permissions"}
         self.assertTrue(expected.issubset(selected))
         self.assertTrue(contract["usable"])
-        payload = b"Synthetic integrated candidate with current boundary evidence.\n"
+        payload = b"2030-01-02 10:02:00 UTC\nSynthetic integrated candidate with current boundary evidence.\n"
         judgment = {"verdict": "PASS", "evidence": "The synthetic integrated candidate supplies all selected boundary evidence.",
                     "actor": {"id": "fixture-author", "kind": "chat", "relation": "SAME_AGENT"}}
         for phase in {o["due_phase"] for r in contract["selected_rules"] for o in r["obligations"]}:
@@ -109,6 +114,13 @@ class KernelSliceTests(unittest.TestCase):
                 phase = obligation["due_phase"]
                 with self.subTest(record=record["rule_id"], obligation=obligation["obligation_id"]):
                     bound = self.bind(contract, phase, payload, judgment)
+                    if obligation["enforcement"] == "mechanical":
+                        self.assertFalse(any(r["obligation_id"] == obligation["obligation_id"] for r in bound["receipts"]))
+                        for other in ("violating-final.txt", "near-miss-final.txt"):
+                            result = tt.check_contract(contract, phase, (folder / other).read_bytes(), receipts=bound)
+                            self.assertEqual("BLOCKED", result["admission"])
+                            self.assertEqual("FAIL", next(r for r in result["results"] if r["obligation_id"] == obligation["obligation_id"])["status"])
+                        continue
                     target = next(r for r in bound["receipts"] if r["obligation_id"] == obligation["obligation_id"])
                     target["verdict"] = "FAIL"
                     self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound)["admission"])
@@ -128,6 +140,10 @@ class KernelSliceTests(unittest.TestCase):
                 phase = obligation["due_phase"]
                 with self.subTest(record=record["rule_id"], obligation=obligation["obligation_id"]):
                     bound = self.bind(contract, phase, payload, judgment)
+                    if obligation["enforcement"] == "mechanical":
+                        self.assertFalse(obligation["not_applicable_allowed"])
+                        self.assertFalse(any(r["obligation_id"] == obligation["obligation_id"] for r in bound["receipts"]))
+                        continue
                     target = next(r for r in bound["receipts"] if r["obligation_id"] == obligation["obligation_id"])
                     target["verdict"] = "NOT_APPLICABLE"
                     for reason in ("", " ", "The conditional payload or action is absent in this candidate."):

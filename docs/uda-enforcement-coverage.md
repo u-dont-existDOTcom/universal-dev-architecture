@@ -45,7 +45,7 @@ Indexed patterns: 82
 
 Migration backlog: 78
 
-Task-time records: 25, sourced from 7 files, with 0 mechanical and 32 semantic obligations (23 consolidated kernel behaviors and 9 existing pattern obligations).
+Task-time records: 25, sourced from 7 files, with 1 mechanical and 31 semantic obligations (23 consolidated kernel behaviors and 9 existing pattern obligations).
 
 | Disposition | Count |
 |---|---:|
@@ -65,12 +65,12 @@ Each row below matches the inventory's obligation_map exactly. One obligation co
 
 Records apply to chat, work, codex and claude unless the source limits the actor: the Work permission record applies only to work/codex. Every-turn records trigger on governance_required; the live-root record also needs owner_requires_live_root, and instruction maintenance needs the existing action_classes value instruction_maintenance. Unknown trigger facts remain unresolved and block. No new facts were introduced, so no new envelope declarations are required.
 
-Payload/action-dependent obligations remain selected with not_applicable_allowed: true. Their bound receipts must explain the absent condition, including outbound-link verification when no outbound link is sent. NOT_APPLICABLE is not an escape from an active payload obligation; its semantic correctness still requires review. Each obligation declares its actual retrieval, reasoning, pre-action, handoff, persistence or final-delivery boundary, destination, acceptance evidence, non-substitutes, carry-through and repair. Pre-action gates are not deferred to the final. Reusable output is checked at handoff to recipient-file-and-chat-summary; owner-required artifacts and companions are checked at their actual handoff. Prose and outbound links are checked before surfacing any owner-visible message or question payload, including commentary. Completion claims and explicit final-only duties remain at final-delivery to owner-visible-final.
+Payload/action-dependent obligations remain selected with not_applicable_allowed: true. Their bound receipts must explain the absent condition, including coordination when only one safe in-scope approach exists and outbound-link verification when no outbound link is sent. NOT_APPLICABLE is not an escape from an active payload obligation; its semantic correctness still requires review. Each obligation declares its actual retrieval, reasoning, pre-action, handoff, persistence or final-delivery boundary, destination, acceptance evidence, non-substitutes, carry-through and repair. Pre-action gates are not deferred to the final. Reusable output is checked at handoff to recipient-file-and-chat-summary; owner-required artifacts and companions are checked at their actual handoff. Prose and outbound links are checked before surfacing any owner-visible message or question payload, including commentary. Completion claims and explicit final-only duties remain at final-delivery to owner-visible-final.
 
-The prior timestamp predicates checked a particular serialization (an ISO-shaped timestamp and a fixed Elapsed time phrase). Those are useful built-in predicates, but the root does not prescribe those complete formats: a compliant duration can use different wording, and a shape match cannot prove clock provenance or a valid time. Slice 1 makes the source timestamp/elapsed obligations semantic, with exact-candidate evidence covering the readings and final. The unchanged built-in predicates are tested independently in narrowly scoped test contracts; receipts cannot override their PASS or FAIL results. No new predicate kind or fixed-format owner requirement was added.
+The final-first-line-timestamp obligation retains the built-in final_timestamp_first_line predicate: a bound semantic PASS cannot admit a missing or misplaced timestamp. Clock provenance and total elapsed time are checked separately by the existing semantic final-elapsed-time obligation, which binds the final to the second current-turn reading. The fixed-format elapsed predicate remains available in serialization test contracts; the root permits broader duration wording. Receipts cannot override mechanical PASS or FAIL results.
 
+The representative rendered Work handoff remains below the 24 KiB (24,576-byte) rendering cap; the first slice draft was 79,386 bytes. The renderer emits each selected record's exact source once, compact behavior/boundary/non-substitute rows and shared lifecycle text. The Work prompt adapter also injects every rule's acceptance evidence, authority owner/domain and exact source hashes, bound by rule and obligation identity. The rendering cap measures rendered_contract alone; the complete injected block includes these additional bindings. No records, selectors or enumerated clauses were removed.
 
-The representative rendered Work handoff is 24,297 UTF-8 bytes (23.73 KiB), below the 24 KiB (24,576-byte) test cap; the first slice draft was 79,386 bytes. The renderer emits each selected record's exact source once, compact behavior/boundary/non-substitute rows and shared lifecycle text. Full acceptance evidence, source hashes and authority remain in the structured projection. No records, selectors or enumerated clauses were removed.
 
 | Section | Before structured obligations | After consolidated obligations | Preserved map clauses | Exceptions |
 |---|---:|---:|---:|---:|
@@ -163,7 +163,7 @@ Clauses 27; consolidated obligations 6; structured clauses 26; excepted 1; remai
 | Read with `date -u` in a shell tool, else the current-time tool, else the code tool's clock; | uda.kernel.clock-cadence / two-read-cadence |
 | if a read fails or isn't later than the first, use the next one once. | uda.kernel.clock-cadence / two-read-cadence |
 | Never compare clocks or read mid-task. | uda.kernel.clock-cadence / two-read-cadence |
-| The final answer opens with the second reading | uda.final.timestamp / final-first-line-timestamp |
+| The final answer opens with the second reading | uda.final.timestamp / final-elapsed-time |
 | and says how long the turn took in total. | uda.final.timestamp / final-elapsed-time |
 | Don't reuse a prior-turn timestamp | uda.kernel.clock-cadence / two-read-cadence |
 | or present capture time as hidden provider sent time. | uda.kernel.clock-cadence / two-read-cadence |

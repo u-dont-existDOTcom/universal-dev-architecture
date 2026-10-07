@@ -5,7 +5,7 @@
   "records": [
     {
       "rule_id": "uda.final.timestamp",
-      "revision": 6,
+      "revision": 7,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -83,35 +83,37 @@
           "required_behavior": "Deliver and literally check the final first-line timestamp on every turn.",
           "due_phase": "final-delivery",
           "destination": "owner-visible-final",
-          "acceptance_evidence": "The delivered final opens with the second current-turn date/time/zone, including trivial or brief answers. Inspect the actual final after rewrites; prepend that reading without another read if needed. A missing stamp fails regardless of correct content.",
+          "acceptance_evidence": "The literal final first line contains a date/time/zone, including trivial or brief answers. Inspect the actual final after rewrites; a missing stamp fails regardless of correct content. Clock provenance is checked separately.",
           "non_substitutes": [
             "timestamp elsewhere in the answer",
             "treating the stamp as a task-dependent suggestion",
             "timestamp only in commentary",
             "timestamp only in hidden reasoning",
-            "reusing the first intermediate timestamp",
             "checking an earlier draft",
             "repair by taking an extra clock reading",
             "omitting the stamp on a one-line answer",
             "brevity used to waive timestamp delivery",
-            "correct content treated as compensating for an absent stamp",
-            "opening with the first reading"
+            "correct content treated as compensating for an absent stamp"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
+          "repair": "Prepend the required timestamp; rerun the first-line check.",
+          "enforcement": "mechanical",
+          "mechanical_check": {
+            "kind": "final_timestamp_first_line"
+          },
           "not_applicable_allowed": false,
           "independent_review_required": false
         },
         {
           "obligation_id": "final-elapsed-time",
-          "required_behavior": "Report total elapsed time from this turn’s readings.",
+          "required_behavior": "Bind the final timestamp to the second reading and report this turn’s total elapsed time.",
           "due_phase": "final-delivery",
           "destination": "owner-visible-final",
-          "acceptance_evidence": "Both current-turn clock readings and their difference agree with the elapsed time reported in the final; verified unavailable clocks are honestly disclosed.",
+          "acceptance_evidence": "The final opens with the second current-turn clock reading. Both clock readings and their difference agree with the elapsed time reported in the final; verified unavailable clocks are honestly disclosed. An earlier draft or first/intermediate reading cannot establish this provenance.",
           "non_substitutes": [
-            "first-line timestamp alone"
+            "first-line timestamp alone",
+            "reusing the first intermediate timestamp",
+            "opening with the first reading"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
@@ -1194,7 +1196,7 @@
     },
     {
       "rule_id": "uda.kernel.coordination",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -1248,7 +1250,7 @@
           "required_behavior": "Choose the better-coordinated safe route within the same owner outcome.",
           "due_phase": "pre-action",
           "destination": "authorized execution boundary",
-          "acceptance_evidence": "Use isolated workspaces, durable plan/recovery, separable decision-relevant delegation plus independent review, and serialized shared writes. Do not ask the owner to select routine modes or expand authority; substantive owner decisions remain theirs.",
+          "acceptance_evidence": "Use isolated workspaces, durable plan/recovery, separable decision-relevant delegation plus independent review, and serialized shared writes. Do not ask the owner to select routine modes or expand authority; substantive owner decisions remain theirs. A bound NOT_APPLICABLE reason must establish that multiple safe in-scope approaches are unavailable.",
           "non_substitutes": [
             "asking the owner to pick a routine execution mode",
             "concurrent writers sharing mutable state",
@@ -1261,7 +1263,7 @@
           "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
           "enforcement": "semantic",
           "mechanical_check": null,
-          "not_applicable_allowed": false,
+          "not_applicable_allowed": true,
           "independent_review_required": false
         }
       ],

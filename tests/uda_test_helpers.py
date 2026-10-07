@@ -1,8 +1,8 @@
-"""Isolate serialization predicates from semantic kernel-source admission.
+"""Isolate fixed serialization predicates from broader source admission.
 
 These test-local contracts deliberately require the built-in fixed-format
-timestamp/elapsed syntax. The owner-authored root permits broader wording, so
-production source obligations now use bound semantic judgments.
+timestamp/elapsed syntax. Production enforces timestamp shape mechanically;
+clock provenance and broader elapsed-time wording use bound semantic judgments.
 """
 
 import copy

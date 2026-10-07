@@ -42,7 +42,14 @@ export function workHandoffRuleGraphProjection(
       loaded: true,
       inject: mode === "graph",
       contractSha256: sha,
-      renderedContract: rendered,
+      renderedContract: rendered.trimEnd() + "\n\n## Retained acceptance and provenance bindings\n" + JSON.stringify(selected.map((rule) => ({
+        rule_id: rule.rule_id,
+        authority_owner: rule.authority_owner,
+        authority_domain: rule.authority_domain,
+        source: rule.source,
+        acceptance_evidence: Object.fromEntries(rule.obligations.map((ob: { obligation_id: string; acceptance_evidence: string }) =>
+          [ob.obligation_id, ob.acceptance_evidence])),
+      }))),
       error: null,
     };
   } catch (error) {

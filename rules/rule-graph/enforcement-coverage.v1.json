@@ -431,6 +431,7 @@
         "recipient-file-and-chat-summary"
       ],
       "enforcement_types": [
+        "mechanical",
         "semantic"
       ],
       "task_time_records": [
@@ -511,7 +512,7 @@
         {
           "sentence": "The final answer opens with the second reading",
           "record": "uda.final.timestamp",
-          "obligation_id": "final-first-line-timestamp"
+          "obligation_id": "final-elapsed-time"
         },
         {
           "sentence": "and says how long the turn took in total.",
