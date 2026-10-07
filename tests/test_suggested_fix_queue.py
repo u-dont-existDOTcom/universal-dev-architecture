@@ -38,7 +38,7 @@ class SuggestedFixQueueTests(unittest.TestCase):
             "When a project starts using these rules, the agent carrying them in adds the wiring section",
             "one pull request adds only that section to its `AGENTS.md`",
             "because an unwired project cannot read its lane",
-            "The one-time wiring pull request in step 7 is the only exception.",
+            "The exceptions are the one-time wiring pull request in step 7 and the `uda-lane` pull-request route in step 9.",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, pattern)
@@ -145,6 +145,18 @@ class SuggestedFixQueueTests(unittest.TestCase):
         index_entry = next(line for line in (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8").splitlines()
                            if "`patterns/suggested-fix-queue.md` —" in line)
         self.assertIn("Changes to this repository are pull requests here labeled `uda-lane`.", index_entry)
+
+    def test_filing_rule_routes_uda_to_pull_requests_instead_of_directory(self) -> None:
+        pattern = PATTERN.read_text(encoding="utf-8")
+        filing = next(line for line in pattern.splitlines()
+                      if line.startswith("2. **Filing.**"))
+        for phrase in (
+            "The exceptions are the one-time wiring pull request in step 7 and the `uda-lane` pull-request route in step 9.",
+            "The latter replaces `suggested-fixes/universal-dev-architecture/`; do not file UDA suggestions in that directory.",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, filing)
+        self.assertNotIn("the only exception", filing)
 
     def test_maintainer_handoff_requirement_preserves_owner_provenance(self) -> None:
         requirement = ROOT / "docs" / "requirements" / "2026-10-07-uda-lane-handoff.owner-requirement.json"
