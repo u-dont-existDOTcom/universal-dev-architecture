@@ -19,8 +19,8 @@
     },
     "actor": {
       "state": "KNOWN",
-      "value": "chat",
-      "provenance": "current reasoning actor"
+      "value": "work",
+      "provenance": "receiving execution actor"
     },
     "destination": {
       "state": "KNOWN",
