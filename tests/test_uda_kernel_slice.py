@@ -262,12 +262,54 @@ class KernelCoverageMutations(unittest.TestCase):
 
     def test_removing_selector_fails_even_with_regenerated_artifacts(self):
         self.mutate_json(coverage.METADATA, lambda d: next(r for r in d["records"] if r["rule_id"] == "uda.kernel.outbound-links")["source"]["selectors"].pop())
+        self.regenerate_artifacts()
+        self.rejected("obligation_map sentence absent from record selectors")
+
+    def regenerate_artifacts(self):
         catalog = tt.read_json(self.root / coverage.METADATA)
         profile = tt.read_json(self.root / "scripts/instruction-layering-profile.json")
         (self.root / coverage.LOCK).write_text(json.dumps(tt.build_lock(catalog, profile, root=self.root)))
         task = tt.read_json(self.root / coverage.WORK_TASK)
         (self.root / coverage.WORK_CONTRACT).write_text(json.dumps(tt.compile_contract(catalog, profile, task, "graph", root=self.root)))
-        self.rejected("obligation_map sentence absent from record selectors")
+
+    def test_coordinated_record_and_map_deletion_fails_after_regeneration(self):
+        rid = "uda.kernel.coordination"
+        self.mutate_json(coverage.METADATA, lambda d: d.update(
+            records=[r for r in d["records"] if r["rule_id"] != rid]))
+        def remove(data):
+            entry = next(e for e in data["entries"] if e["id"] == "AGENTS.md#workflow")
+            entry["task_time_records"].remove(rid)
+            entry["obligation_map"] = [i for i in entry["obligation_map"] if i.get("record") != rid]
+        self.mutate_json(coverage.COVERAGE, remove)
+        self.regenerate_artifacts()
+        errors = coverage.validate(self.root)
+        self.assertEqual(["AGENTS.md#workflow: obligation_map differs from independent source clause manifest"], errors)
+
+    def test_coordinated_clause_and_selector_shortening_fails_with_same_count(self):
+        rid = "uda.kernel.coordination"
+        catalog = tt.read_json(self.root / coverage.METADATA)
+        selector = next(r for r in catalog["records"] if r["rule_id"] == rid)["source"]["selectors"][0]
+        sentence = selector["text"]
+        shortened = sentence.split(",", 1)[0]
+        self.assertNotEqual(sentence, shortened)
+        def shorten(data):
+            entry = next(e for e in data["entries"] if e["id"] == "AGENTS.md#workflow")
+            next(i for i in entry["obligation_map"] if i["sentence"] == sentence)["sentence"] = shortened
+        self.mutate_json(coverage.COVERAGE, shorten)
+        self.mutate_json(coverage.METADATA, lambda d: next(r for r in d["records"] if r["rule_id"] == rid)["source"]["selectors"][0].update(text=shortened))
+        self.regenerate_artifacts()
+        self.rejected("obligation_map differs from independent source clause manifest")
+
+    def test_removing_exception_map_clause_fails(self):
+        def remove(data):
+            entry = next(e for e in data["entries"] if e["id"] == "AGENTS.md#per-turn-bootstrap-invariants")
+            entry["obligation_map"] = [i for i in entry["obligation_map"] if "exception" not in i]
+        self.mutate_json(coverage.COVERAGE, remove)
+        self.rejected("obligation_map differs from independent source clause manifest")
+
+    def test_fully_enforced_section_requires_independent_clause_manifest(self):
+        self.mutate_json(coverage.REQUIREMENT, lambda d: d.get("source_clause_manifest", {}).pop("AGENTS.md#workflow", None))
+        self.rejected("missing independent source clause manifest")
 
     def test_removing_exception_sentence_from_source_fails(self):
         entries = tt.read_json(self.root / coverage.COVERAGE)["entries"]

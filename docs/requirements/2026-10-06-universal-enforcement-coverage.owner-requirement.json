@@ -31,6 +31,32 @@
     "UDA distinguishes an activated, enforced task from one that is NOT_ACTIVATED or OUTSIDE_UDA.",
     "The external simple-turn bootstrap exemption is reported truthfully, with the exact owner-side instruction change."
   ],
+  "source_clause_manifest": {
+    "AGENTS.md#follow-up-goal-derivation-and-assistant-added-requirements": {
+      "clause_count": 16,
+      "clauses_sha256": "fcccb173e9a1c7a391d8a567786d4b27371e030e3a1c3ea2619209c12e6c3da8"
+    },
+    "AGENTS.md#instruction-composition": {
+      "clause_count": 12,
+      "clauses_sha256": "e26640c9d66fc751a5597e4827cb586925fb011e72c04f5e98f3d85541ab043b"
+    },
+    "AGENTS.md#owner-facing-operational-references": {
+      "clause_count": 9,
+      "clauses_sha256": "3ccde4efbdd0f812c2217fdd65a49355b9208c2f1cad00908b892bb6f4a5ba83"
+    },
+    "AGENTS.md#per-turn-bootstrap-invariants": {
+      "clause_count": 27,
+      "clauses_sha256": "676fc2cf69e8ce98c63891168379cbc86c4cc38e06bb7b9c31de9ce0d4aec9a8"
+    },
+    "AGENTS.md#pre-final-continuation-invariant": {
+      "clause_count": 6,
+      "clauses_sha256": "299d2fa99c53f74fb6b38713ada6ee77737454fa5da494a50a636e478b8120b2"
+    },
+    "AGENTS.md#workflow": {
+      "clause_count": 33,
+      "clauses_sha256": "0296f83c29eb4a6e0aa59c0ad74785f72224a331282c461d1b92757531d1d6b1"
+    }
+  },
   "review_changes": [
     {
       "review": "independent pass-1 code and inventory review",

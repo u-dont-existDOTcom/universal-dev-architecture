@@ -259,6 +259,17 @@ def validate(root: Path | str) -> list[str]:
                     errors.append(prefix + "enforced disposition needs a complete obligation_map")
                 if not {"ADMISSION", "BEHAVIORAL_REGRESSION"}.issubset(evidence_classes):
                     errors.append(prefix + "enforced disposition needs both ADMISSION and BEHAVIORAL_REGRESSION evidence")
+                # Pin the source clauses in the requirement, independently of
+                # editable records/maps and their regenerable lock/projection.
+                manifest = requirement.get("source_clause_manifest", {}).get(eid)
+                if not isinstance(manifest, dict):
+                    errors.append(prefix + "missing independent source clause manifest")
+                elif isinstance(obligation_map, list):
+                    clauses = sorted(item["sentence"] for item in obligation_map
+                                     if isinstance(item, dict) and isinstance(item.get("sentence"), str))
+                    if (manifest.get("clause_count") != len(clauses)
+                            or manifest.get("clauses_sha256") != canonical_hash(clauses)):
+                        errors.append(prefix + "obligation_map differs from independent source clause manifest")
             mapped_obligations = set()
             if obligation_map is not None:
                 if not isinstance(obligation_map, list) or not obligation_map:
