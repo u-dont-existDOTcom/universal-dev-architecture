@@ -15,6 +15,11 @@ REQUIREMENT = ROOT / "docs" / "requirements" / "2026-09-30-suggested-fix-lanes.o
 HEADER_FIELDS = ("For", "Filed", "From", "Owner request", "Existing pull request", "Supersedes")
 SECTIONS = ("## What to do", "## Why", "## Check first")
 ITEM_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
+BOOTSTRAP_TEMPLATES = (
+    "AGENTS-UNIVERSAL-BOOTSTRAP.md",
+    "AGENTS-CODEX.md",
+    "PROJECT-AGENTS.md",
+)
 
 
 def lane_items() -> list[Path]:
@@ -22,6 +27,71 @@ def lane_items() -> list[Path]:
 
 
 class SuggestedFixQueueTests(unittest.TestCase):
+    def test_every_uda_project_has_a_lane_before_its_first_item(self) -> None:
+        pattern = PATTERN.read_text(encoding="utf-8")
+        for phrase in (
+            "Every project that uses this architecture's rules has a lane here",
+            "Its folder is created when the first item is filed.",
+            "whether or not the folder exists yet",
+            "No folder means no items are waiting.",
+            "unless its agents load this repository's root `AGENTS.md` every turn",
+            "When a project starts using these rules, the agent carrying them in adds the wiring section",
+            "one pull request adds only that section to its `AGENTS.md`",
+            "because an unwired project cannot read its lane",
+            "The one-time wiring pull request in step 7 is the only exception.",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, pattern)
+
+    def test_root_bootstrap_templates_carry_the_complete_readme_wiring(self) -> None:
+        readme = README.read_text(encoding="utf-8")
+        wiring = re.search(
+            r"```markdown\n(## Suggested fixes from other projects\n.*?)\n```",
+            readme, re.DOTALL,
+        )
+        self.assertIsNotNone(wiring, "The README wiring section is missing")
+        section = wiring.group(1)
+        self.assertIn("`suggested-fixes/<repository>/` on its default branch", section)
+        self.assertIn("Check it even if its folder does not exist yet", section)
+        for name in BOOTSTRAP_TEMPLATES:
+            with self.subTest(template=name):
+                text = (ROOT / "templates" / name).read_text(encoding="utf-8")
+                self.assertEqual(text.count("## Suggested fixes from other projects"), 1)
+                self.assertIn(section + "\n", text)
+
+    def test_carrying_uda_adds_wiring_at_project_adoption(self) -> None:
+        text = (ROOT / "patterns" / "carrying-uda-into-standalone-projects.md").read_text(encoding="utf-8")
+        for phrase in (
+            "When a project starts using these rules, the agent carrying them in adds the suggested-fix wiring section",
+            "from `suggested-fixes/README.md` to its `AGENTS.md`",
+            "replacing `<repository>` with the project's name",
+            "unless its agents load this repository's root `AGENTS.md` every turn",
+            "`patterns/suggested-fix-queue.md`, step 7",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, text)
+
+    def test_readme_distinguishes_lanes_from_wired_projects(self) -> None:
+        text = README.read_text(encoding="utf-8")
+        for phrase in (
+            "Every project that uses this architecture's rules has a lane here",
+            "is created when the first item is filed",
+            "whether or not its folder exists yet",
+            "The table lists the projects whose agents are wired to check their lanes",
+            "When a project starts using these rules, the agent carrying them in adds this section",
+            "one pull request there adding only this section",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, text)
+
+    def test_universal_lane_requirement_preserves_second_owner_request(self) -> None:
+        path = ROOT / "docs" / "requirements" / "2026-10-07-uda-lane-handoff.owner-requirement.json"
+        data = json.loads(path.read_text(encoding="utf-8"))["second_owner_request"]
+        self.assertEqual(data["date"], "2026-10-07")
+        self.assertEqual(data["owner_statement"], "can we universalize this fix so that any project that's using UDA rules has a lane for suggestions from elsewhere that it checks?")
+        self.assertEqual(data["origin"]["classification"], "OWNER")
+        self.assertTrue(data["required_behavior"])
+
     def test_pattern_states_filing_checking_deciding_recording_and_wiring(self) -> None:
         text = PATTERN.read_text(encoding="utf-8")
         for phrase in (
