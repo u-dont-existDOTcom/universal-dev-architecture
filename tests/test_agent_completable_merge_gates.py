@@ -32,6 +32,7 @@ class AgentCompletableMergeGatesTests(unittest.TestCase):
             "at the start, not at the first merge",
             "**Do not hand the owner a recurring chore list.**",
             "the one decision in rule 2 covers them all",
+            "list each instance that still needs the owner under **For you to do**",
             "**Keep owner clicks for decisions.**",
             "batch it into one step",
             "exact links to every target in one place",
@@ -58,6 +59,7 @@ class AgentCompletableMergeGatesTests(unittest.TestCase):
             "the latest review of the exact head commit reports nothing open",
             "every earlier finding maps to a fix commit or to a written reason it was not changed",
             "the required status checks pass",
+            "rerun it whenever the base moves before the merge, or use a merge queue that tests the exact merge",
             "the check also confirms that the head contains the current base commit, or runs the required checks on the exact merge result",
             "**Automate the gate with owner-approved tooling,**",
             "The agent never grants itself the permission that was refused.",
@@ -112,6 +114,7 @@ class AgentCompletableMergeGatesTests(unittest.TestCase):
             "an exact link to every target",
             "group them into one step",
             "it becomes one open question about removing or automating it",
+            "Until it is removed or automated, each instance that still needs the owner stays listed here",
             f"`{RELATIVE}`",
         ):
             with self.subTest(phrase=phrase):
