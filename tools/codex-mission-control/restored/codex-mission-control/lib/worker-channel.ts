@@ -183,7 +183,7 @@ export function recordOwnerMessage(
   const appended = store.appendMany(appendItems, eventHistory);
   const message = appended[0];
   const delivery = appended.at(-1)!;
-  return { message, delivery, directionId, messageId, deliveryId };
+  return { message, delivery, directionId, messageId, deliveryId, appended };
 }
 
 export function pullWorkerOutbox(
