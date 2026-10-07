@@ -53,6 +53,37 @@ class SuggestedFixQueueTests(unittest.TestCase):
         self.assertEqual(len(row), 1)
         self.assertIn("`patterns/suggested-fix-queue.md`", row[0])
 
+    def test_repository_changes_have_explicit_maintainer_handoff(self) -> None:
+        pattern = PATTERN.read_text(encoding="utf-8")
+        step = next((line for line in pattern.splitlines()
+                     if line.startswith("9. **Changes to this repository.**")), "")
+        self.assertTrue(step, "The architecture maintainer handoff step is missing")
+        for phrase in (
+            "opens a pull request here (a draft is fine)",
+            "adds the `uda-lane` label",
+            "leaves one comment saying what remains",
+            "The label hands the pull request to this repository's maintainer lane",
+            "lists labeled pull requests at each of its check-ins, then reviews and merges them",
+            "After handing over, the filing agent changes the pull request only if the maintainer asks.",
+            "Chats, handoff folders and files are not a handoff channel.",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, step)
+        readme = README.read_text(encoding="utf-8")
+        self.assertIn("Suggestions for this repository are pull requests here carrying the `uda-lane` label", readme)
+        self.assertIn("[step 9 of the suggested-fix pattern](../patterns/suggested-fix-queue.md#rule)", readme)
+        index_entry = next(line for line in (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8").splitlines()
+                           if "`patterns/suggested-fix-queue.md` —" in line)
+        self.assertIn("Changes to this repository are pull requests here labeled `uda-lane`.", index_entry)
+
+    def test_maintainer_handoff_requirement_preserves_owner_provenance(self) -> None:
+        requirement = ROOT / "docs" / "requirements" / "2026-10-07-uda-lane-handoff.owner-requirement.json"
+        data = json.loads(requirement.read_text(encoding="utf-8"))
+        self.assertEqual(data["owner_statement"], "you need to make sure that everyone knows how to send you theiir fix proposals because it seems like currently they don't understand.")
+        self.assertEqual(data["origin"]["classification"], "OWNER")
+        self.assertIn(f"`docs/requirements/{requirement.name}`", PATTERN.read_text(encoding="utf-8"))
+        self.assertTrue(data["nonclaims"])
+
     def test_readme_lists_every_lane_and_carries_the_wiring_section(self) -> None:
         readme = README.read_text(encoding="utf-8")
         lanes = sorted(path.name for path in LANES.iterdir() if path.is_dir())

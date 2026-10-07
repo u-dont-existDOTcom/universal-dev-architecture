@@ -4,6 +4,8 @@
 
 Current universal pattern. Origin: **OWNER**, 2026-09-30. The owner proposed that every project have a suggested-fix lane that it checks whenever it does its other fixes. Then he would no longer copy suggestions between chats, and an agent working here would not have to update projects it isn't working on. Owner requirement: `docs/requirements/2026-09-30-suggested-fix-lanes.owner-requirement.json`.
 
+Maintainer handoff for changes to this repository: **OWNER**, 2026-10-07. Owner requirement: `docs/requirements/2026-10-07-uda-lane-handoff.owner-requirement.json`.
+
 ## Problem
 
 Agents working in one place keep finding fixes for other projects. Until now those fixes reached the other project in one of two ways, and both went wrong:
@@ -23,6 +25,7 @@ Either way the owner was the channel between agents (`patterns/logic-failure-map
 6. **Recording.** The project keeps `docs/suggested-fixes-ledger.md`, with one row per item: the item, the outcome, where it landed (pull request or commit), the date, and a note. The row goes in with the change it describes, or on its own for a decline. When an adopted item brings a rule from this architecture into the project's runtime, it is also recorded as an import (`patterns/carrying-uda-into-standalone-projects.md`).
 7. **Wiring.** Each project's `AGENTS.md` carries the short section given in `suggested-fixes/README.md`, so its agents check the lane even if they never load this architecture. Agents that load this repository's root `AGENTS.md` get the same instruction from there.
 8. **Revising and closing.** A changed suggestion is a new item that names the one it replaces. Once a project's ledger records an item's outcome, an agent working here may move the item to `suggested-fixes/<repository>/done/`.
+9. **Changes to this repository.** An agent with a change for this architecture opens a pull request here (a draft is fine), adds the `uda-lane` label, and leaves one comment saying what remains, such as an owner decision it couldn't get. The label hands the pull request to this repository's maintainer lane, which lists labeled pull requests at each of its check-ins, then reviews and merges them. After handing over, the filing agent changes the pull request only if the maintainer asks. Chats, handoff folders and files are not a handoff channel.
 
 ## Bounds
 

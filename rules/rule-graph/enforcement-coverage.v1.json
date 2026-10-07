@@ -4532,6 +4532,7 @@
       ],
       "task_time_records": [],
       "graph_node": null,
+      "existing_coverage_limits": "Text-presence tests preserve other-project lane rules and the architecture's uda-lane pull-request handoff step, README route and OWNER provenance. They do not enforce filing, label application, remaining-work comments, maintainer check-ins/review/merge or the filing agent's stop-editing boundary.",
       "evidence": [
         {
           "path": "patterns/suggested-fix-queue.md",
@@ -4556,7 +4557,7 @@
       ],
       "migration": {
         "priority": "P2",
-        "next_step": "Bind project lane intake, owner-request disposition and ledger updates to session-start and cross-project suggestion persistence; reject owner-as-transport handoffs.",
+        "next_step": "Bind project lane intake, owner-request disposition and ledger updates to session-start and cross-project suggestion persistence; bind architecture pull-request uda-lane labeling, the remaining-work comment, maintainer check-in/review/merge and filing-agent edit restrictions to the handoff boundary; reject owner-as-transport handoffs.",
         "trigger_frequency": "CONDITIONAL"
       }
     },

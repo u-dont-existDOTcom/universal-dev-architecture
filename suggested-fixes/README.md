@@ -12,7 +12,7 @@ Each directory here is one project's lane: suggestions filed by agents working e
 | `design/` | `u-dont-existDOTcom/design` | wiring section in its `AGENTS.md` |
 | `creativeTailSampling/` | `u-dont-existDOTcom/creativeTailSampling` | wiring section in its `AGENTS.md` |
 
-Suggestions for this repository are pull requests here, as before.
+Suggestions for this repository are pull requests here carrying the `uda-lane` label; see [step 9 of the suggested-fix pattern](../patterns/suggested-fix-queue.md#rule).
 
 ## Item format
 

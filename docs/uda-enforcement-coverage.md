@@ -57,6 +57,8 @@ Task-time records: 10, sourced from 7 files, with 2 mechanical and 10 semantic o
 
 The seven partial sources are the bootstrap kernel section, task-time lesson activation, owner-goal follow-up, Chat/Work execution routing, the repository operating system, worker-directive/output delivery, and reasoning selection. The last now structures the dominated-route obligation; its other reasoning obligations remain in the legacy remainder. No whole source was newly fully structured in either pass. The pinned backlog has the same 84 identities, so shrinkage is zero. The report shows exact removed identities after migration.
 
+The 2026-10-07 maintainer-handoff addition in `patterns/suggested-fix-queue.md` remains text-only coverage within its existing `LEGACY_UNSTRUCTURED` identity. Its tests protect step 9, the `uda-lane` label and README/index routing; they do not enforce live handoff, maintainer check-ins or filing-agent edit restrictions. The inventory records those limits and the migration work; the backlog remains 84 identities.
+
 ## Exact migration backlog
 
 P1 is exactly the issue's 22 high-leverage identities that remain in backlog. Other general behavioral entries are P2 (47); mechanics specific to a project or infrastructure surface are P3 (15), including Mission Control supervision/relay, browser automation, worker permissions and Work cloud dispatch. Every P1 entry is behavioral, checked by the validator.
