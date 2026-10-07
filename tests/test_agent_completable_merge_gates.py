@@ -58,6 +58,7 @@ class AgentCompletableMergeGatesTests(unittest.TestCase):
             "the latest review of the exact head commit reports nothing open",
             "every earlier finding maps to a fix commit or to a written reason it was not changed",
             "the required status checks pass",
+            "the check also confirms that the head contains the current base commit, or runs the required checks on the exact merge result",
             "**Automate the gate with owner-approved tooling,**",
             "The agent never grants itself the permission that was refused.",
             "**Keep the gate and the clicks,**",

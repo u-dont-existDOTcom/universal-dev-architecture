@@ -37,6 +37,7 @@ class ConvergentReviewAcceptanceGatesTests(unittest.TestCase):
             "**Gate on aggregates with hard floors.**",
             "pooled recall against a frozen reference",
             "plus zero critical misses",
+            "add a per-unit or per-stratum minimum to the floors",
             "Report the failed units and the error counts beside the aggregate",
             "**Estimate the false-failure rate before running at scale.**",
             "**Track findings per cycle and stop early when they do not fall.**",
