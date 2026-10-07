@@ -5,7 +5,7 @@ records actual accounts, hosts, service IDs, machine paths, private locator
 attestations, or live topology. Portable rules remain in `patterns/` and
 `templates/`; no owner secret or private locator belongs here.
 
-Updated: 2026-09-29
+Updated: 2026-10-07
 
 ## Goal
 
@@ -24,6 +24,8 @@ Updated: 2026-09-29
 - Earlier task checkpoints remain in `state/tasks/` after merge as task records.
 
 ## Current checkpoint
+
+- On 2026-10-07, an opaque remote-device connector outage exposed an owner-friction gap: one failed transport was incorrectly treated as target-wide inaccessibility even though a healthy authorized endpoint already had an SSH route to the same host. UDA now requires semantic identity recovery plus authorized access-topology recovery before owner escalation: inspect bounded task-relevant mappings, verify target equivalence with read-only probes, use an equivalent authorized alternate route when available, and never ask the owner to recognize a machine-generated target label merely because the first connector failed. The canonical rule is in `patterns/worker-self-remediation-before-owner-interruption.md`, projected to root/reusable agent instructions and `patterns/human-readable-operational-references.md`, with provenance in `audits/2026-10-07-opaque-target-access-recovery.md` and regression coverage in `tests/test_worker_self_remediation_before_owner_interruption.py`.
 
 - This file routes repository recovery and records repository-level state only.
 - Resolve the active branch's task checkpoint before resuming task work.

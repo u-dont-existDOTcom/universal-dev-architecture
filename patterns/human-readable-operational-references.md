@@ -128,7 +128,9 @@ Do not:
 
 ## Recovery rule
 
-After context loss or a fresh conversation, assume opaque operational identifiers have lost their human meaning even if they remain retrievable from Git. Recover the repository state, then reconstruct and state each relevant identifier's plain-language referent before using it in owner-facing reasoning. If the recovered task requires the owner to use an artifact, retrieve/materialize it or create a direct link rather than making the owner reconstruct its repository location.
+After context loss or a fresh conversation, assume opaque operational identifiers have lost their human meaning even if they remain retrievable from Git. This includes device IDs, host/service/session handles, container IDs, cloud resource IDs, and similar machine-generated target labels—not only repository identifiers. Recover the relevant system/repository state and authorized topology, then reconstruct and state each relevant identifier's plain-language referent before using it in owner-facing reasoning. If the recovered task requires the owner to use an artifact, retrieve/materialize it or create a direct link rather than making the owner reconstruct its repository location.
+
+Do not ask the owner to recognize or access an opaque target until the system has first tried to resolve it from authorized topology evidence. A direct connector outage is route-specific evidence, not a semantic explanation of what the target is and not proof that every authorized route to it has failed.
 
 ## Transfer rationale and limits
 
