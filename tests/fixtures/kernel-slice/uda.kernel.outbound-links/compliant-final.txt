@@ -1,0 +1,1 @@
+Every surfaced outbound destination was opened immediately before delivery, redirects followed and current successful intended content verified. Cached previews and remembered destinations supplied no verification. Unverifiable or broken candidates were withheld from the final and recommendation.

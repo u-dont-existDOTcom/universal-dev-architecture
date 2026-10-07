@@ -1,0 +1,1 @@
+Counts were not saved and the repair loop kept running without IDs or escalation.

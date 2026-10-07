@@ -5,22 +5,58 @@
   "records": [
     {
       "rule_id": "uda.final.timestamp",
-      "revision": 4,
+      "revision": 8,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
         "selectors": [
           {
             "kind": "exact_text",
-            "text": "- The timestamp must appear in the final answer/message content delivered to the user on every assistant turn. A timestamp written only in hidden reasoning, visible thinking/reasoning UI, analysis, tool-call commentary, scratch work, or any intermediate channel **does not satisfy this requirement**."
+            "text": "For **every assistant turn** governed by this architecture, the **first line of the final user-visible assistant answer MUST be an explicit date-and-time stamp including a timezone or UTC offset**."
           },
           {
             "kind": "exact_text",
-            "text": "- Two clock readings per turn, no others (owner, 2026-09-30). First: the message's sent time if the surface shows it, else a read as the turn's first action. Second: a read right before writing the final answer. Read with `date -u` in a shell tool, else the current-time tool, else the code tool's clock; if a read fails or isn't later than the first, use the next one once. Never compare clocks or read mid-task. The final answer opens with the second reading and says how long the turn took in total. Don't reuse a prior-turn timestamp or present capture time as hidden provider sent time. If no clock answers, say so rather than inventing a time."
+            "text": "This is a final-output contract and a pre-answer invariant, not a task-dependent recommendation."
           },
           {
             "kind": "exact_text",
-            "text": "- Before finalizing every assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form. If it does not, prepend the second reading; the check needs no further reading."
+            "text": "The timestamp must appear in the final answer/message content delivered to the user on every assistant turn."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A timestamp written only in hidden reasoning, visible thinking/reasoning UI, analysis, tool-call commentary, scratch work, or any intermediate channel **does not satisfy this requirement**."
+          },
+          {
+            "kind": "exact_text",
+            "text": "An earlier timestamp in reasoning or an intermediate step does not satisfy the final-output contract; use the second reading in the final answer."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The final answer opens with the second reading"
+          },
+          {
+            "kind": "exact_text",
+            "text": "and says how long the turn took in total."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Before finalizing every assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If it does not, prepend the second reading; the check needs no further reading."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Apply it on every turn even for trivial arithmetic, greetings, smoke tests, follow-up acknowledgments, corrections, status updates, or prompts that otherwise warrant a direct one-line answer."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Simple answers, low-effort reasoning, tool avoidance, brevity, and shallow repository reads **must not waive this invariant**."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Treat failure to emit the timestamp as the first line of the final user-visible answer on any assistant turn as an instruction-following failure even when the timestamp appeared during thinking or the underlying task answer is otherwise correct."
           }
         ]
       },
@@ -33,7 +69,8 @@
         "actors": [
           "chat",
           "work",
-          "codex"
+          "codex",
+          "claude"
         ]
       },
       "trigger": {
@@ -43,64 +80,75 @@
       "obligations": [
         {
           "obligation_id": "final-first-line-timestamp",
-          "required_behavior": "The literal first line of the final user-visible answer contains date, time, and timezone/UTC offset.",
+          "required_behavior": "Deliver and literally check the final first-line timestamp on every turn.",
           "due_phase": "final-delivery",
           "destination": "owner-visible-final",
-          "acceptance_evidence": "Literal first line of the final payload matches the timestamp contract.",
+          "acceptance_evidence": "The literal final first line contains a date/time/zone, including trivial or brief answers. Inspect the actual final after rewrites; a missing stamp fails regardless of correct content. Clock provenance is checked separately.",
           "non_substitutes": [
+            "timestamp elsewhere in the answer",
+            "treating the stamp as a task-dependent suggestion",
             "timestamp only in commentary",
             "timestamp only in hidden reasoning",
-            "timestamp elsewhere in the answer"
+            "checking an earlier draft",
+            "repair by taking an extra clock reading",
+            "omitting the stamp on a one-line answer",
+            "brevity used to waive timestamp delivery",
+            "correct content treated as compensating for an absent stamp"
           ],
-          "carry_through": "Recheck after any final rewrite.",
-          "repair": "Prepend the second clock reading as a date/time/timezone first line before emitting; do not read the clock again.",
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Prepend the required timestamp; rerun the first-line check.",
           "enforcement": "mechanical",
           "mechanical_check": {
             "kind": "final_timestamp_first_line"
-          }
+          },
+          "not_applicable_allowed": false,
+          "independent_review_required": false
         },
         {
           "obligation_id": "final-elapsed-time",
-          "required_behavior": "Report the total elapsed time from the two current-turn clock readings in the final user-visible answer.",
+          "required_behavior": "Report total elapsed time from both clock readings.",
           "due_phase": "final-delivery",
           "destination": "owner-visible-final",
-          "acceptance_evidence": "The first and second current-turn clock readings and their difference agree with the elapsed time reported in the final answer.",
+          "acceptance_evidence": "Both supplied clock readings and their difference agree with the elapsed time reported in the final; its first line matches the supplied second reading. Actual current-turn clock provenance is judged separately by two-read-cadence.",
           "non_substitutes": [
             "first-line timestamp alone",
-            "elapsed time asserted without both clock readings"
+            "reusing the first intermediate timestamp",
+            "opening with the first reading"
           ],
-          "carry_through": "Verify the reported total after any final rewrite.",
-          "repair": "Calculate the difference between the two readings and report it in the final answer.",
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
           "enforcement": "mechanical",
           "mechanical_check": {
             "kind": "final_elapsed_time"
-          }
+          },
+          "not_applicable_allowed": false,
+          "independent_review_required": false
         }
       ],
       "provenance": {
         "origin": "owner-validated root invariant",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": [
-        {
-          "type": "requires",
-          "rule_id": "uda.active-contract.boundary-binding",
-          "supplies": [
-            "final payload destination and recheck binding"
-          ]
-        }
-      ]
+      "relations": []
     },
     {
       "rule_id": "uda.bootstrap.live-root",
-      "revision": 1,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
         "selectors": [
           {
             "kind": "exact_text",
-            "text": "- When current owner instructions require the canonical GitHub bootstrap, **re-fetch the live default-branch root `AGENTS.md` on every user turn before task reasoning, artifact composition, task execution, or answering**. Tool discovery, current-clock checks, and the bootstrap retrieval itself are permitted prerequisites. A prior-turn fetch, cached copy, remembered summary, or earlier reasoning does not satisfy per-turn activation."
+            "text": "When current owner instructions require the canonical GitHub bootstrap, **re-fetch the live default-branch root `AGENTS.md` on every user turn before task reasoning, artifact composition, task execution, or answering**."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Tool discovery, current-clock checks, and the bootstrap retrieval itself are permitted prerequisites."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A prior-turn fetch, cached copy, remembered summary, or earlier reasoning does not satisfy per-turn activation."
           }
         ]
       },
@@ -113,7 +161,8 @@
         "actors": [
           "chat",
           "work",
-          "codex"
+          "codex",
+          "claude"
         ]
       },
       "trigger": {
@@ -131,34 +180,28 @@
       "obligations": [
         {
           "obligation_id": "live-root-refetch",
-          "required_behavior": "Fetch the live default-branch root AGENTS.md in the current turn before substantive reasoning or execution.",
+          "required_behavior": "Re-fetch the live default-branch root before substantive work each turn.",
           "due_phase": "retrieval",
           "destination": "current reasoning/execution turn",
-          "acceptance_evidence": "Current-turn live root retrieval from default branch.",
+          "acceptance_evidence": "Current-turn live retrieval precedes reasoning, composition, execution and answering. Only tool discovery, current-clock checks and retrieval itself may precede it; prior reads, cached roots and remembered activation do not qualify.",
           "non_substitutes": [
             "cached root",
-            "prior-turn root read",
-            "remembered summary"
+            "artifact composition before bootstrap",
+            "prior-turn root read"
           ],
-          "carry_through": "Repeat on the next user turn when the owner requirement remains active.",
-          "repair": "Fetch the live root before further substantive work.",
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
           "enforcement": "semantic",
-          "mechanical_check": null
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
         }
       ],
       "provenance": {
         "origin": "current owner bootstrap requirement",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": [
-        {
-          "type": "requires",
-          "rule_id": "uda.active-contract.boundary-binding",
-          "supplies": [
-            "retrieval due boundary"
-          ]
-        }
-      ]
+      "relations": []
     },
     {
       "rule_id": "uda.active-contract.boundary-binding",
@@ -722,6 +765,2904 @@
       "provenance": {
         "origin": "owner issue #317; pass-2 supervisor design",
         "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.continuity.step-checkpoint",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/context-compaction-resilience.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Plan usage limits, like context limits, can end a turn without warning. Never defer saving to a usage threshold."
+          },
+          {
+            "kind": "exact_text",
+            "text": "At each completed step, push the work to the task branch (work-in-progress commits are fine) and update the checkpoint's done, next, and exact next action. A fresh session in any account must be able to resume from durable state alone. The worker that holds the context writes the checkpoint; do not launch a separate helper at the limit to save work."
+          },
+          {
+            "kind": "exact_text",
+            "text": "- Tiny one-shot tasks do not need a dedicated current-state file."
+          }
+        ]
+      },
+      "authority_owner": "Context-compaction resilience; owner usage-limit continuity request 2026-10-07",
+      "authority_domain": "durable-continuity",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "owner_outcome_status",
+            "eq": "OPEN"
+          },
+          {
+            "not": {
+              "fact": "task_mode",
+              "in": [
+                "INSTRUCTION_ONLY",
+                "DIAGNOSTIC_ONLY",
+                "NO_CHANGE",
+                "STOP"
+              ]
+            }
+          },
+          {
+            "fact": "continuity_required",
+            "eq": true
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "save-completed-step",
+          "required_behavior": "At each completed step, the worker holding the context pushes the work to the task branch and updates done, next and the exact next action in the durable checkpoint, so any account can resume from durable state alone; never wait for a usage threshold or a helper at the limit.",
+          "due_phase": "persistence",
+          "destination": "durable-task-checkpoint",
+          "acceptance_evidence": "The durable checkpoint matches the completed step, identifies the pushed task-branch work, and records done, next and an exact executable resume action without needing the old chat.",
+          "non_substitutes": [
+            "a promise to save later",
+            "a summary only in chat",
+            "local-only work with no push",
+            "waiting for a usage threshold",
+            "a helper launched at the limit"
+          ],
+          "carry_through": "Keep saving at each completed step across turns, compaction, model changes and account switches; carry the current goal, constraints and remaining action into the successor checkpoint.",
+          "repair": "The worker holding the context saves and pushes the completed work and repairs done, next and the exact next action before continuing; preserve and name any real access or publication gate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "OWNER_REQUIRED continuity outcome; ASSISTANT_INFERENCE continuous-checkpoint and optional-warning mechanism, supplied supervisor design",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.continuity.turn-end-handoff",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/context-compaction-resilience.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Before ending a turn on OPEN work, make the durable checkpoint reflect that turn's state and include a one-line resume instruction. Keep owner-private supervisor state that cannot go in a public repository in a private durable store the successor can reach. List anything bound to one account that the successor must recreate, such as scheduled check-ins and memory."
+          },
+          {
+            "kind": "exact_text",
+            "text": "- Tiny one-shot tasks do not need a dedicated current-state file."
+          }
+        ]
+      },
+      "authority_owner": "Context-compaction resilience; owner usage-limit continuity request 2026-10-07",
+      "authority_domain": "durable-continuity",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "owner_outcome_status",
+            "eq": "OPEN"
+          },
+          {
+            "not": {
+              "fact": "task_mode",
+              "in": [
+                "INSTRUCTION_ONLY",
+                "DIAGNOSTIC_ONLY",
+                "NO_CHANGE",
+                "STOP"
+              ]
+            }
+          },
+          {
+            "fact": "continuity_required",
+            "eq": true
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "save-turn-end-handoff",
+          "required_behavior": "Before final delivery on OPEN work, update the durable checkpoint to this turn's state, keep owner-private supervisor state in a private durable store reachable by the successor, include a one-line resume instruction, and list account-bound scheduled check-ins, memory or other items to recreate.",
+          "due_phase": "final-delivery",
+          "destination": "durable-task-checkpoint",
+          "acceptance_evidence": "The saved checkpoint records this turn's done/next/exact next action and a usable one-line resume instruction; any private supervisor state has a successor-reachable private handoff, and account-bound items and their recreation needs are listed (or explicitly none).",
+          "non_substitutes": [
+            "a promise to save later",
+            "a summary only in chat",
+            "a checkpoint from an earlier turn",
+            "private state only in the old account",
+            "a handoff that omits account-bound items"
+          ],
+          "carry_through": "Recheck the durable handoff after any change in this turn's state or final rewrite; private state and account-bound recreation duties travel with the one-line resume instruction.",
+          "repair": "Refresh the actual durable checkpoint before final delivery, save private supervisor state through an authorized reachable private route, and add the one-line resume instruction and account-bound recreation list without exposing private data.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "OWNER_REQUIRED continuity outcome; ASSISTANT_INFERENCE continuous-checkpoint and optional-warning mechanism, supplied supervisor design",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.continuity.usage-warning",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/context-compaction-resilience.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "When a usage signal is visible at or above a warning level (about 90%), checkpoint immediately and take only small, restartable steps. This warning supplements continuous checkpoints and never replaces them."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If only a model-specific weekly limit is reached, switching model family in the same account is a valid way to continue."
+          }
+        ]
+      },
+      "authority_owner": "Context-compaction resilience; owner usage-limit continuity request 2026-10-07",
+      "authority_domain": "durable-continuity",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "refresh_on_facts": [
+        "usage_warning_visible"
+      ],
+      "trigger": {
+        "all": [
+          {
+            "all": [
+              {
+                "fact": "owner_outcome_status",
+                "eq": "OPEN"
+              },
+              {
+                "not": {
+                  "fact": "task_mode",
+                  "in": [
+                    "INSTRUCTION_ONLY",
+                    "DIAGNOSTIC_ONLY",
+                    "NO_CHANGE",
+                    "STOP"
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "fact": "usage_warning_visible",
+            "eq": true
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "checkpoint-visible-usage-warning",
+          "required_behavior": "When a visible usage signal reaches the warning level (about 90%), the worker holding the context checkpoints immediately and takes only small, restartable steps. The warning supplements continuous checkpoints; a model-family switch in the same account remains valid when only a model-specific weekly limit is reached.",
+          "due_phase": "persistence",
+          "destination": "durable-task-checkpoint",
+          "acceptance_evidence": "The durable checkpoint records an immediate save in response to the visible warning and a small, restartable next action; saving remains continuous rather than threshold-only, with no separate helper launched at the limit.",
+          "non_substitutes": [
+            "waiting until 98% to save",
+            "a promise to save later",
+            "a summary only in chat",
+            "a helper launched at the limit",
+            "one large non-restartable step after the warning",
+            "treating an unseen usage signal as observed"
+          ],
+          "carry_through": "Carry the warning, latest durable state and small-step restriction across resumed sessions while the warning condition holds; an absent signal never cancels completed-step or turn-end checkpoints.",
+          "repair": "Checkpoint immediately with the worker that has the context, split the next work into small restartable steps, and retain continuous saving; do not invent a usage signal or block an allowed model-family switch.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "OWNER_REQUIRED continuity outcome; ASSISTANT_INFERENCE continuous-checkpoint and optional-warning mechanism, supplied supervisor design",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.kernel.clock-cadence",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Two clock readings per turn, no others (owner, 2026-09-30)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "First: the message's sent time if the surface shows it, else a read as the turn's first action."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Second: a read right before writing the final answer."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Read with `date -u` in a shell tool, else the current-time tool, else the code tool's clock;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "if a read fails or isn't later than the first, use the next one once."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Never compare clocks or read mid-task."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Don't reuse a prior-turn timestamp"
+          },
+          {
+            "kind": "exact_text",
+            "text": "or present capture time as hidden provider sent time."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If no clock answers, say so rather than inventing a time."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "clock-cadence",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "governance_required",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "first-reading",
+          "required_behavior": "Use visible sent time or a clock read as the first turn action.",
+          "due_phase": "retrieval",
+          "destination": "current reasoning/execution turn",
+          "acceptance_evidence": "Evidence identifies the visible message sent time or first-action reading, with honest capture provenance.",
+          "non_substitutes": [
+            "a later capture presented as message sent time"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        },
+        {
+          "obligation_id": "two-read-cadence",
+          "required_behavior": "Use and report the prescribed current-turn clock cadence.",
+          "due_phase": "final-delivery",
+          "destination": "owner-visible-final",
+          "acceptance_evidence": "Exactly two prescribed readings; second immediately before final writing. Use shell, current-time tool, then code clock in order; after a failed/nonlater read use the next source once. No mid-task reads or clock comparisons. Final provenance is current and honest; disclose if no clock answers.",
+          "non_substitutes": [
+            "an extra mid-task clock read",
+            "an earlier task-time reading used as the final reading",
+            "clock shopping for a preferred timestamp",
+            "a mid-task comparison of clock sources",
+            "prior-turn timestamp reuse",
+            "fabricated time presented as a reading",
+            "repeated retries after the one permitted next read",
+            "captured time claimed as hidden provider sent time"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authored kernel; migration slice 1",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.kernel.output-budget",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "**Every turn:** reusable output over ~8,000 characters goes in a file, for any recipient;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "output-budget",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "governance_required",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "file-for-long-reusable-output",
+          "required_behavior": "Deliver reusable output over ~8,000 characters in a file with a chat summary.",
+          "due_phase": "handoff",
+          "destination": "recipient-file-and-chat-summary",
+          "acceptance_evidence": "For any recipient, materialize and deliver the usable reusable file; chat contains its summary.",
+          "non_substitutes": [
+            "long reusable payload pasted into chat",
+            "file created without a usable handoff"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authored kernel; migration slice 1",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.kernel.continuation",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Before final delivery, apply `patterns/codex-github-operating-system.md` → **Continuation and stop admission**."
+          },
+          {
+            "kind": "exact_text",
+            "text": "An OPEN task with a safe authorized executable next action requires doing it now, not just diagnosing or planning it."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A self-authored scope or completed lease cannot cancel parent implementation authority."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Check the actual final output: stop only at an evidenced boundary,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "finish independent work,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "and preserve explicit owner restrictions and real access, spending, privacy, platform, and irreversible-action gates."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "continuation",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "governance_required",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "execute-open-frontier",
+          "required_behavior": "Apply stop admission and execute safe authorized work before final delivery.",
+          "due_phase": "final-delivery",
+          "destination": "owner-visible-final",
+          "acceptance_evidence": "Check the actual final against parent authority and the current frontier. OPEN with an executable next action requires execution now; child scope/lease cannot cancel parent authority. Stop only with evidenced boundaries, after independent work, preserving owner restrictions and real access/spending/privacy/platform/irreversible gates.",
+          "non_substitutes": [
+            "only reading the rule without stop admission",
+            "diagnostic summary instead of executable work",
+            "child lease completion treated as root completion",
+            "a promise to continue later",
+            "one blocked dependency used to stop all work",
+            "continuation used to bypass a real gate"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authored kernel; migration slice 1",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.kernel.instruction-activation",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Before handling any task, including a brief request to remember a preference, open `LESSON-INDEX.md`,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "select entries whose triggers match,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "and read their current patterns."
+          },
+          {
+            "kind": "exact_text",
+            "text": "activation uses `patterns/task-time-lesson-activation.md`."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Resolve graph-covered dependencies via `rules/UDA-RULE-GRAPH.json`/`scripts/uda_rule_graph.py`;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "canonical prose remains authoritative;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "unmapped rules stay index-routed;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "shopping routes through `LESSON-INDEX.md`."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "instruction-activation",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "governance_required",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "open-index-every-task",
+          "required_behavior": "Load the index and current matching patterns under the activation lifecycle.",
+          "due_phase": "retrieval",
+          "destination": "current reasoning/execution turn",
+          "acceptance_evidence": "Before any task, including remembering a preference, retrieve the index, select by actual triggers and read current patterns. Apply the task-time activation pattern rather than a second ledger.",
+          "non_substitutes": [
+            "brief task used to skip the index",
+            "loading unrelated rules as a substitute for relevant selection",
+            "index entries treated as loaded pattern content",
+            "a second incompatible activation ledger"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        },
+        {
+          "obligation_id": "resolve-covered-dependencies",
+          "required_behavior": "Resolve graph-covered dependencies and retain authoritative index/prose routing.",
+          "due_phase": "retrieval",
+          "destination": "current reasoning/execution turn",
+          "acceptance_evidence": "Resolve declared graph closure via the rule graph/script; canonical prose remains authoritative. Route applicable unmapped rules and shopping through the lesson index.",
+          "non_substitutes": [
+            "hand-selected rule list without declared dependency closure",
+            "graph metadata used to override prose",
+            "graph absence treated as nonapplicability",
+            "a shopping task routed from memory"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authored kernel; migration slice 1",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.kernel.instruction-maintenance",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Instruction maintenance uses `patterns/instruction-composition-and-portable-intelligence.md`;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Task-specific rules live in patterns"
+          },
+          {
+            "kind": "exact_text",
+            "text": "and are reached through `LESSON-INDEX.md`;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "a new task rule adds a pattern and an index entry, never a root line."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "instruction-maintenance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "fact": "action_classes",
+            "contains": "instruction_maintenance"
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "maintenance-pattern-owner",
+          "required_behavior": "Maintain portable instruction ownership through patterns and index entries.",
+          "due_phase": "persistence",
+          "destination": "instruction-artifact",
+          "acceptance_evidence": "Apply the composition pattern, preserving normative ownership and scope. Task-specific rules live in patterns reached through the index; add both pattern and entry for a new rule, never a root line.",
+          "non_substitutes": [
+            "lexical deduplication without ownership preservation",
+            "task-specific requirement added at the root",
+            "orphan pattern without index reachability",
+            "adding a root line for a task-specific rule"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authored kernel; migration slice 1",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.kernel.coordination",
+      "revision": 3,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "When multiple safe in-scope execution approaches achieve the same outcome, choose the better-coordinated approach without asking the owner to select an execution mode:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "use isolated workspaces,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "a durable plan and recovery ledger,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "delegation plus independent review when safely separable and decision-relevant,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "and serialize shared mutable state."
+          },
+          {
+            "kind": "exact_text",
+            "text": "This standing permission does not broaden task authority and does not replace substantive owner decisions."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "coordination",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "governance_required",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "choose-coordinated-route",
+          "required_behavior": "Choose the better-coordinated safe route within the same owner outcome.",
+          "due_phase": "pre-action",
+          "destination": "authorized execution boundary",
+          "acceptance_evidence": "Use isolated workspaces, durable plan/recovery, separable decision-relevant delegation plus independent review, and serialized shared writes. Do not ask the owner to select routine modes or expand authority; substantive owner decisions remain theirs. A bound NOT_APPLICABLE reason must establish that multiple safe in-scope approaches are unavailable.",
+          "non_substitutes": [
+            "asking the owner to pick a routine execution mode",
+            "concurrent writers sharing mutable state",
+            "plan present only in disposable chat",
+            "delegation presented as its own independent review",
+            "parallel writes to the same mutable resource",
+            "coordination used to invent additional authority"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authored kernel; migration slice 1",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.kernel.owner-input-continuation",
+      "revision": 3,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event."
+          },
+          {
+            "kind": "exact_text",
+            "text": "After incorporating it, continue automatically to the next safe in-scope action while the stated goal remains unfinished."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Pause only for a genuine missing owner decision, new authority, destructive or irreversible risk, unavailable permission or credential, spending, publication, or access, or an explicit request to stop."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "owner-input-continuation",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "governance_required",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "resume-after-input",
+          "required_behavior": "Incorporate owner input and continue the determined safe in-scope action.",
+          "due_phase": "pre-action",
+          "destination": "authorized execution boundary",
+          "acceptance_evidence": "Answers, corrections, uploads and clarifications are task input. While unfinished, execute the next determined step without acknowledgment-only stops or routine questions. Pause only for a genuine owner/new-authority/risk/access/permission/credential/spend/publication boundary or explicit stop. NOT_APPLICABLE requires a bound reason establishing that this turn is not an answer, correction, upload or requested clarification to an active task.",
+          "non_substitutes": [
+            "owner correction acknowledged as task completion",
+            "acknowledgment without resumed action",
+            "asking the owner what to do next despite a determined frontier",
+            "inventing a permission request for routine work"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authored kernel; migration slice 1",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.kernel.work-permissions",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Work selects authorized task-scoped access and the automatic reviewer; do not ask the owner to choose routine permissions."
+          },
+          {
+            "kind": "exact_text",
+            "text": "This adds no semantic, spending, publication, representation, destructive, or self-approval authority."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "work-permissions",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "work",
+          "codex"
+        ]
+      },
+      "trigger": {
+        "fact": "governance_required",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "automatic-task-access-review",
+          "required_behavior": "Work selects authorized task access and automatic review without routine permission questions.",
+          "due_phase": "pre-action",
+          "destination": "authorized execution boundary",
+          "acceptance_evidence": "Work selects scoped access/reviewer; it gains no semantic/spending/publication/representation/destructive/self-approval authority.",
+          "non_substitutes": [
+            "asking the owner to choose routine permissions",
+            "automatic review treated as self-approval authority"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authored kernel; migration slice 1",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.kernel.owner-interaction",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Resolve engineering blockers; ask only about a material tradeoff, with plain consequences and a recommendation, or a required human gate."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Minimize owner choice as an execution invariant."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Resolve routine implementation details and already-authorized subordinate actions without asking."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A confirmation for the same destination, data boundary, scope, and consequence remains valid across retries, resumed execution, or an alternate authorized transport path; a failed tool or transport does not consume that approval."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Ask again only if those facts materially change or the platform requires a fresh human gesture."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If owner interaction is genuinely required, finish independent preparation,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "consolidate the exact dependent actions into the fewest confirmations permitted,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "explain the concrete downside or risk and why the gate is mandatory,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "give a recommended default,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "and resume automatically after the answer."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "owner-interaction",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "governance_required",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "minimize-owner-choice",
+          "required_behavior": "Resolve engineering details and preserve valid authorization across retries.",
+          "due_phase": "pre-action",
+          "destination": "authorized execution boundary",
+          "acceptance_evidence": "Resolve blockers and authorized subordinate choices autonomously. Same destination/data/scope/consequence approval survives retries, resumed execution and alternate transport; ask again only for material changes or a platform-required fresh gesture.",
+          "non_substitutes": [
+            "routine engineering recovery assigned to the owner",
+            "routine execution options sent to the owner",
+            "reconfirmation of an already-authorized detail",
+            "failed transport treated as consuming approval",
+            "retry alone used to demand a new confirmation"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        },
+        {
+          "obligation_id": "consolidate-confirmations",
+          "required_behavior": "Prepare a concrete minimal owner question at a genuine decision or human gate.",
+          "due_phase": "pre-action",
+          "destination": "owner-visible-message",
+          "acceptance_evidence": "Finish independent preparation; consolidate dependent actions into the fewest permitted confirmations. State the material tradeoff with plain consequences, risk and mandatory gate reason; recommend a default, then resume automatically after the answer.",
+          "non_substitutes": [
+            "asking before independent preparation is ready",
+            "separate routine confirmations for the same gate",
+            "an unexplained permission prompt",
+            "opaque alternatives without recommendation",
+            "cleared gate followed only by acknowledgment"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authored kernel; migration slice 1",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.kernel.target-recovery",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Before declaring a host, device, service, session, or other target inaccessible—or asking the owner to identify, restart, reconnect, or configure an opaque machine-generated target—recover its semantic identity and the authorized access topology first."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Treat a failed connector/device transport as a route-specific failure, not proof that the underlying target is unavailable."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Inspect current connected endpoints plus task-relevant local mappings such as SSH config/aliases, durable task state, service/process metadata, and recent authorized execution history;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "from a healthy authorized endpoint, use bounded read-only probes such as `hostname` and exact target-path existence/read checks to prove which route reaches the same target."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Use an equivalent authorized alternate route when one exists."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Never ask the owner to recognize an opaque identifier merely because the first transport failed."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Escalate only after plausible authorized routes are exhausted or a genuinely human-only action remains."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "target-recovery",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "governance_required",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "identity-and-topology-before-escalation",
+          "required_behavior": "Recover target identity and authorized routes before an accessibility claim or request.",
+          "due_phase": "pre-action",
+          "destination": "owner-visible-message",
+          "acceptance_evidence": "Scope connector failures to their route. Inspect connected endpoints, SSH/local/task/process/history mappings; bounded hostname/exact-path probes prove the same target. Use verified equivalent routes; explain meaning, never ask recognition of opaque IDs. Escalate only after plausible routes are exhausted or a human-only gate remains.",
+          "non_substitutes": [
+            "opaque target handed to the owner after one failure",
+            "one route failure called target unavailability",
+            "unavailability claim without topology probes",
+            "available alternate route ignored",
+            "asking the owner to identify an opaque handle",
+            "escalation after only the first failed route",
+            "route equivalence assumed without exact-resource probes"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authored kernel; migration slice 1",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.kernel.operation-commitments",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "When you explicitly commit to a substantive operation, method, comparison, audit, experiment, or artifact, keep it as an open obligation until it is actually executed, I explicitly supersede it, or new evidence makes it invalid and you say so."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Adjacent analysis, planning, preparation, or a different method does not count as completion."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Before switching methods, declaring progress complete, or ending a substantial pass, verify what observable result proves each promised operation actually occurred."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If a still-valid promised step was displaced by later work, execute it before continuing."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "operation-commitments",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "governance_required",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "keep-promised-operation-open",
+          "required_behavior": "Keep explicit operation commitments open until their observable result exists.",
+          "due_phase": "pre-action",
+          "destination": "operation-commitment-ledger",
+          "acceptance_evidence": "Track execution, explicit owner supersession or disclosed evidence-based invalidation. Before switching/closing, verify each promised operation actually occurred; execute still-valid displaced steps before continuing.",
+          "non_substitutes": [
+            "dropping a promised operation from the ledger",
+            "adjacent preparation labeled as execution",
+            "method switch without checking outstanding commitments",
+            "later work silently displacing an outstanding promise"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authored kernel; migration slice 1",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.kernel.followup-derivation",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Before authoring, launching, or accepting a consequential follow-up task, re-bind the proposed work to the current parent owner outcome"
+          },
+          {
+            "kind": "exact_text",
+            "text": "and follow `patterns/owner-goal-followup-and-requirement-accretion.md`."
+          },
+          {
+            "kind": "exact_text",
+            "text": "First classify the root outcome as `OPEN`, `SATISFIED`, `SUPERSEDED`, `CANCELED`, or `AUTHORITY_UNRESOLVED`,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "and state the exact remaining owner gap."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A useful improvement is not unfinished owner work merely because it is technically attractive."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Every new mandatory requirement that was not already present in the owner outcome must declare its origin and necessity."
+          },
+          {
+            "kind": "exact_text",
+            "text": "An `ASSISTANT_INFERENCE` or inherited choice (not a declared gate) with unresolved necessity may be only a bounded reversible experiment; it may not become a fail-closed blocker, architecture prerequisite, root acceptance criterion, stronger assurance gate, or reason to disable a previously working owner-aligned path."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Treat stronger assurance as requirement accretion when it changes whether work may proceed or count as complete."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Independent readback, provider attestation, extra reviewers, new trust boundaries, and similar controls must identify the current owner decision/outcome they materially change and why a simpler evidence standard is insufficient before becoming mandatory."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If a newly added control blocks or degrades a previously working owner-aligned path, stop the compensating-fix chain"
+          },
+          {
+            "kind": "exact_text",
+            "text": "and revalidate the first added requirement against the parent outcome and the strongest materially simpler alternative."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Preserve useful supporting work,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "but restore the simpler valid path when necessity is not established."
+          },
+          {
+            "kind": "exact_text",
+            "text": "This gate runs at follow-up-task authoring, before the new framing is handed to Work or another executor."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A later worker faithfully executing a substituted goal is too late."
+          },
+          {
+            "kind": "exact_text",
+            "text": "At experiment launch, apply the operational owner-method contract to the actual runnable configuration."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "followup-derivation",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "governance_required",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "rebind-before-author-launch-accept",
+          "required_behavior": "Admit follow-ups against the current parent outcome and necessary requirements.",
+          "due_phase": "reasoning",
+          "destination": "current task decision",
+          "acceptance_evidence": "Before authoring/launching/accepting, apply the follow-up pattern; classify OPEN/SATISFIED/SUPERSEDED/CANCELED/AUTHORITY_UNRESOLVED and exact gap. Attractive improvements stay optional. New requirements and stronger assurance declare origin, necessity, affected decision and why simpler evidence is insufficient. Unresolved inference/inherited choices stay bounded reversible experiments, never mandatory blockers or path disabling. Gate before executor handoff; faithful downstream work is insufficient.",
+          "non_substitutes": [
+            "child goal authored without the parent binding",
+            "useful improvement described as an unmet requirement",
+            "an attractive improvement promoted to owner-required work",
+            "stronger requirement added without origin",
+            "unresolved inference promoted to a fail-closed blocker",
+            "extra assurance called neutral bookkeeping",
+            "extra reviewer required merely because it seems safer",
+            "deferring goal review to the executor",
+            "worker-to-contract success used to prove owner alignment",
+            "naming the follow-up pattern without applying its gate",
+            "a proxy improvement substituted for the current owner gap"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        },
+        {
+          "obligation_id": "revalidate-first-added-control",
+          "required_behavior": "Revalidate the first regressing added control before compensating repairs.",
+          "due_phase": "pre-action",
+          "destination": "authorized execution boundary",
+          "acceptance_evidence": "Stop the compensating-fix chain; compare the first added requirement to the parent and strongest materially simpler alternative. Preserve useful support and restore the simpler valid path when necessity is unestablished.",
+          "non_substitutes": [
+            "repairing around an unvalidated first blocker",
+            "keeping the working path disabled while necessity remains unresolved",
+            "another compensating fix launched before revalidation",
+            "discarding useful support when removing the added blocker"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        },
+        {
+          "obligation_id": "actual-runnable-method",
+          "required_behavior": "At launch check the owner-method contract against the actual runnable configuration.",
+          "due_phase": "pre-action",
+          "destination": "authorized execution boundary",
+          "acceptance_evidence": "Actual configuration preserves the owner-authorized method dimensions at experiment launch.",
+          "non_substitutes": [
+            "a second self-authored promise substituted for runnable configuration"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authored kernel; migration slice 1",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.kernel.operational-references",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "In user-facing prose, never make repository identifiers the primary explanation."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, and similar opaque references are locating metadata, not semantic referents."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "operational-references",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "governance_required",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "plain-language-first",
+          "required_behavior": "Explain operational objects and relations plainly before locating metadata.",
+          "due_phase": "pre-action",
+          "destination": "owner-visible-message",
+          "acceptance_evidence": "Inspect the literal owner-facing prose: object/function and substantive relations are explained first; PR/issue/branch/SHA/workflow/run/job identifiers serve only as locating metadata.",
+          "non_substitutes": [
+            "opaque identifiers as the primary explanation",
+            "bare identifier chain offered as an explanation"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authored kernel; migration slice 1",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.kernel.outbound-links",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Immediately before surfacing any outbound link to the owner, open the exact destination, follow redirects, and verify that the final page resolves successfully to the intended current content—not an error, 404, dead, parked, or stale page."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Search snippets, cached previews, remembered URLs, and earlier checks do not count as verification."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If the exact link cannot be verified in the current turn, do not surface it."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Never present a broken or unverified link as a recommendation."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "outbound-links",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "governance_required",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "exact-current-destination",
+          "required_behavior": "Verify each exact current outbound destination immediately before surfacing it.",
+          "due_phase": "pre-action",
+          "destination": "owner-visible-message",
+          "acceptance_evidence": "Open the exact link, follow redirects and confirm intended current content succeeds; no error/404/dead/parked/stale page. Cached previews/snippets/remembered URLs/earlier checks do not count. Omit unverifiable links and broken recommendations.",
+          "non_substitutes": [
+            "search snippets used as link verification",
+            "remembered URL treated as verified",
+            "unverified link surfaced with a caveat",
+            "broken link kept as a recommendation"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authored kernel; migration slice 1",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.kernel.artifact-delivery",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "**Delivery is part of completion.**"
+          },
+          {
+            "kind": "exact_text",
+            "text": "When the owner needs to use a file, packet, handoff, protocol, report, generated artifact, or other output, do not make them navigate GitHub branches or repository paths to obtain it."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Before delivering that output, load the delivery-priority, provenance, companion-material, and pre-close usability rules: `patterns/human-readable-operational-references.md` → **Compact rules moved from root `AGENTS.md`**."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "artifact-delivery",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "governance_required",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "usable-delivery-before-completion",
+          "required_behavior": "Deliver complete usable artifacts before claiming completion.",
+          "due_phase": "handoff",
+          "destination": "owner-required artifact and companion materials",
+          "acceptance_evidence": "Before delivery load the compact delivery-priority/provenance/companions/pre-close usability rules. Deliver the artifact and required companions directly via the available priority route; the owner can use them without GitHub navigation or reconstructing pieces. Completion follows usable delivery.",
+          "non_substitutes": [
+            "repository path only",
+            "naming the delivery pattern without loading it",
+            "completion claimed after creation without delivery"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authored kernel; migration slice 1",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.change-scope",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "After a repair, send the reviewer only the earlier findings and the items the repair changed."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Carry forward every item that passed and did not change."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Give each item a stable ID when it is first produced, and match items to their earlier verdicts mechanically, by ID and exact content (a hash is enough), never by asking the reviewer."
+          },
+          {
+            "kind": "exact_text",
+            "text": "An item whose ID or content does not match counts as changed."
+          },
+          {
+            "kind": "exact_text",
+            "text": "a repair cycle re-reviews items that passed and did not change;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Carrying an item forward assumes its verdict depends only on that item and the frozen reference."
+          },
+          {
+            "kind": "exact_text",
+            "text": "When a verdict depends on other items (order, duplicates, consistency across items), declare the dependency and count a change to the other item as a change to this one."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Re-review the change, not the whole unit."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "change-scope-at-boundary",
+          "required_behavior": "Re-review only earlier findings and changed or dependency-invalidated items; carry unchanged passing items forward.",
+          "due_phase": "pre-action",
+          "destination": "review-request",
+          "acceptance_evidence": "Stable IDs and exact content/hash match earlier verdicts mechanically. ID/content mismatch is changed. Declare cross-item dependencies and invalidate dependents when inputs change. Only earlier findings and changed items reach the repair reviewer. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "reviewer judgment used as item identity",
+            "whole-unit re-review of unchanged passing items"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.repair-bound",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Fix the number of repair cycles before the first cycle runs."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Declare a stall rule along with the repair bound, for example \"two repairs in a row that leave the count the same or higher\"."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If a controlling directive fixes a repair limit, the stall rule can end repairs sooner and never extends them (`patterns/structured-output-failure-boundary.md`)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Stopping repairs does not show that the unit, the repair method, or the reviewer is wrong."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The next step is diagnosis or an owner decision (`patterns/outcome-advancement-and-strategy-efficacy.md`, section 9.4)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "repairs have no bound fixed in advance, or findings per cycle are not recorded;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Bound the repairs and degrade by item."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A directive's ceiling stays a ceiling."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A bound ends spend and proves nothing else."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "repair-bound-at-boundary",
+          "required_behavior": "Fix repair and stall bounds before the first cycle and preserve any tighter controlling ceiling.",
+          "due_phase": "pre-action",
+          "destination": "review-repair-plan",
+          "acceptance_evidence": "The plan fixes a cycle ceiling and a stall rule before spend, permits early stop without extension, and requires per-cycle findings. Exhaustion ends spend; it proves nothing about unit, method or reviewer correctness and routes to diagnosis or an owner decision with item degradation. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "a ceiling invented after repairs",
+            "exhaustion presented as proof that the reviewer is wrong"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.item-degradation",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "When the repairs run out, withhold only the items still flagged and mark them for review, keep every other item, and record each omission that is still flagged (a reference item the reviewer says the output lacks) as a gap in the output."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Do not discard the unit, and do not halt the pipeline: one unit's leftover flags never stop units that do not depend on it."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A unit that consumes or checks the withheld items waits until they are reviewed, or runs without them and records the gap; it never treats them as accepted."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Keep the independent units moving while the question waits."
+          },
+          {
+            "kind": "exact_text",
+            "text": "a unit is discarded, or the pipeline halted, because some items stay flagged."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "item-degradation-at-boundary",
+          "required_behavior": "At exhaustion or stall withhold only unresolved items, preserve independent work and persist every omission gap.",
+          "due_phase": "persistence",
+          "destination": "review-accepted-output",
+          "acceptance_evidence": "Flagged items are withheld and marked for review; other items and independent units continue. Still-flagged reference omissions appear as output gaps. Consumers of withheld items wait for review or run without them with explicit gaps; none treats withheld items as accepted. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "discarding the unit because of leftover flags",
+            "dependent consumers treating withheld items as accepted"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.acceptance-floors",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Accept a run on aggregate measures with floors stated in advance, not on every unit reaching zero findings."
+          },
+          {
+            "kind": "exact_text",
+            "text": "An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Where units are not interchangeable, because each customer, source or experiment must keep its own required items, add a per-unit or per-stratum minimum to the floors: a pooled measure lets strong units hide one that kept nothing."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Freeze the reference before the gate runs, and never trade a hard floor against another measure."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Report the failed units and the error counts beside the aggregate, each measure on its own line, so a passing aggregate hides neither."
+          },
+          {
+            "kind": "exact_text",
+            "text": "An aggregate can hide a bad unit, which is why rule 3 reports failed units and error counts beside it."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A frozen reference is only as sound as its own provenance."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Gate on aggregates with hard floors."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "acceptance-floors-at-boundary",
+          "required_behavior": "Judge acceptance against advance aggregate hard floors and disclose failures without masking per-unit requirements.",
+          "due_phase": "pre-action",
+          "destination": "review-acceptance-decision",
+          "acceptance_evidence": "Floors and a provenance-grounded reference are frozen before the gate. Measures are not traded against hard floors. Noninterchangeable units/strata have their own minimum. Failed units and error counts accompany the aggregate, each measure on its own line. Pooled recall plus zero critical misses is an example, not a mandatory metric set. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "a pooled pass that conceals an empty required unit",
+            "trading a hard floor against another measure"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.false-failure",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Before a gate runs over many units, estimate how often it will fail correct work, using the formulas in the Problem section."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Take p from a pilot on units known to be correct (the frozen reference, for example) or from earlier cycles' records, and say so when p is a guess."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Apply the estimate to each hard floor too: a zero-critical-misses floor is a zero-findings gate over the m critical items alone, so it fails correct work with probability 1 - (1 - p)^m."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If the estimate would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after."
+          },
+          {
+            "kind": "exact_text",
+            "text": "a gate needs zero findings from a model reviewer on every unit and no false-failure estimate was made;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "The formulas assume false flags are independent at one constant rate p."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Real flags cluster, since one misreading can flag several items, and p differs by item type and by reviewer."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Treat the formulas as planning estimates, and prefer a pass rate measured on known-correct units."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A reviewer that misses real defects needs a different reviewer or a deterministic check."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Estimate the false-failure rate before running at scale."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "false-failure-at-boundary",
+          "required_behavior": "Estimate false failures before scale, including each hard floor, and redesign when rejection would change the decision.",
+          "due_phase": "pre-action",
+          "destination": "review-scale-gate-design",
+          "acceptance_evidence": "Estimate unit/run acceptance and each hard floor with the source formulas. Identify pilot or earlier-cycle evidence for p and label guesses. Independence/constant-rate assumptions are planning limits; prefer measured known-correct pass rates. Redesign via change scope, bounded item degradation and aggregate floors before scale when material. Missed real defects require another reviewer or deterministic check. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "a false-failure estimate made only after the scale run",
+            "a guessed p presented as a measured pilot"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.cycle-escalation",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Record the number of findings after every cycle, with the item IDs."
+          },
+          {
+            "kind": "exact_text",
+            "text": "When the count stays flat or bounces across repairs, stop spending rounds and apply rule 2."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Put the question on the owner questions page (`patterns/owner-questions-page.md`) with the per-cycle counts, what each cycle changed, and the options (for example accept the partial result with its gaps, change the gate, or have a person review the flagged items)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Track findings per cycle and stop early when they do not fall."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "cycle-escalation-at-boundary",
+          "required_behavior": "Persist findings and IDs after every cycle; stop at stall and escalate with evidence while independent units continue.",
+          "due_phase": "persistence",
+          "destination": "review-cycle-ledger",
+          "acceptance_evidence": "Every completed cycle records counts and item IDs. Flat or bouncing repairs meet the advance stall rule, stop rounds and apply item degradation. The owner questions page has counts, changes by cycle and options; independent units keep moving while the decision waits. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "cycle counts mentioned only in disposable chat",
+            "a stall declaration followed by another spend round"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.declared-authority",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "The rules shape a gate that an agent or pipeline designs, or that a project leaves open."
+          },
+          {
+            "kind": "exact_text",
+            "text": "They never lower a gate the owner or the project's authority has declared blocking."
+          },
+          {
+            "kind": "exact_text",
+            "text": "For a declared zero-finding gate, run it as declared, put the false-failure estimate and the proposed aggregate gate on the owner questions page as a proposal, and keep running the declared gate until the owner or the project authority changes it (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The pattern addresses false flags."
+          },
+          {
+            "kind": "exact_text",
+            "text": "It makes no claim about which reviewer or model is better."
+          },
+          {
+            "kind": "exact_text",
+            "text": "It adds no gate to any project and does not lower a gate that the owner or a project has declared."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Declared gates stay hard."
+          },
+          {
+            "kind": "exact_text",
+            "text": "it covers only gates whose checker is a noisy reviewer. It adds no blocking gate and lowers no declared one."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "declared-authority-at-boundary",
+          "required_behavior": "Keep declared gates hard and limit this advice to noisy-reviewer gates without adding authority or comparative claims.",
+          "due_phase": "pre-action",
+          "destination": "review-gate-authority",
+          "acceptance_evidence": "Agent-designed/open gates alone may change through this advice. A declared zero-finding gate continues as declared; false-failure and aggregate alternatives are proposals on the owner questions page until authority changes. No new blocking gate, lowered declared gate or claim of a better reviewer/model follows from this pattern.",
+          "non_substitutes": [
+            "an aggregate proposal treated as authorization to lower a declared gate",
+            "claiming the pattern proves one model better"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.failure-repair",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; and put the counts on the owner questions page."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "failure-repair-at-boundary",
+          "required_behavior": "Repair an observed review-gate failure before resuming its affected action.",
+          "due_phase": "pre-action",
+          "destination": "repaired-review-gate",
+          "acceptance_evidence": "Restore the estimate, change-only review, fixed bound and stall rule, aggregate acceptance as a proposal for declared gates, item withholding with output gaps and counts on the owner questions page. Independent authorized work remains executable. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "a repair plan presented as a repaired gate"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.merge-gate.capability",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/agent-completable-merge-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "For a workstream that will merge, release, or deploy through hosted controls, list each hosted gate on that path (for example required reviews, resolved conversations, required checks, bypass limits, environment approvals, and the merge itself) from current settings evidence, not from repository files (`patterns/codex-github-operating-system.md`)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "For each gate, check that the agent can satisfy it with the permissions it actually has: account or token scopes, the connector's actions, the sandbox, and the permission or safety layer's own refusals, which can block an action the platform allows."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Check the exact action, not a neighboring one, because being able to read threads says nothing about resolving them (`patterns/reasoning-selection.md`, capability edges)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Read the permission rules or documentation that govern the action, query the settings read-only, or use a refusal already on record."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Attempt the action itself only on a destination the workstream already authorizes for such tests, such as a sandbox repository, never by creating a hosted object just to probe."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Record can or cannot for each gate in the task checkpoint."
+          },
+          {
+            "kind": "exact_text",
+            "text": "the first sign that the agent cannot complete a hosted gate comes at the merge step;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Which actions a permission layer refuses depends on the platform, the account and the layer's current configuration."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Check the exact action in the current session; do not rely on this pattern's example."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Check the gates when the workstream starts."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "hosted merge gates",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "merge_gate"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "capability-at-boundary",
+          "required_behavior": "At workstream start check and persist every hosted gate capability against current settings and exact authorized actions.",
+          "due_phase": "pre-action",
+          "destination": "gate-capability-checkpoint",
+          "acceptance_evidence": "Current hosted settings list reviews, conversations, checks, bypass/approval limits and merge on the actual path. Each can/cannot result checks account/token, connector, sandbox and permission/safety refusals in this session. Use governing rules, read-only settings or recorded refusal; attempt only exact actions on already-authorized test destinations, never create probe objects. Persist each result in the checkpoint before reaching the first merge. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "repository files substituted for live hosted settings",
+            "reading threads presented as proof that resolution is allowed"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.merge-gate.owner-decision",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/agent-completable-merge-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Put one question on the owner questions page (`patterns/owner-questions-page.md`) at the start, not at the first merge."
+          },
+          {
+            "kind": "exact_text",
+            "text": "It is the owner's decision because it changes what the platform enforces."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Name the gate in plain words, say why the agent cannot satisfy it, and give the options with a recommendation."
+          },
+          {
+            "kind": "exact_text",
+            "text": "First sort the gate."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A clerical gate records a step whose substance a check can verify, such as resolved review conversations or an up-to-date branch."
+          },
+          {
+            "kind": "exact_text",
+            "text": "An approval gate exists for independent human authorization, such as a required approving review or an environment approval, and an agent-run check cannot stand in for that separation."
+          },
+          {
+            "kind": "exact_text",
+            "text": "(the recommendation for a clerical gate; never offered for an approval gate)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "It ends the recurring clicks, and it costs the platform's own enforcement unless the check is also made a required status check."
+          },
+          {
+            "kind": "exact_text",
+            "text": "scoped to that one action, with the approval and scope written down."
+          },
+          {
+            "kind": "exact_text",
+            "text": "It keeps the platform gate and removes the clicks, and it costs tooling the owner must approve and maintain."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The agent never grants itself the permission that was refused."
+          },
+          {
+            "kind": "exact_text",
+            "text": "(the recommendation for an approval gate) when the gate exists for a person's authorization or the owner wants a person to confirm each one."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Rule 4 then applies, and the agent can attach the substance check's result so the approval rests on a verified result."
+          },
+          {
+            "kind": "exact_text",
+            "text": "An owner action that returns on every pull request signals a gate the agent cannot complete."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Raise the gate once instead of treating each return as a new request; the one decision in rule 2 covers them all."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Raise it once per workstream and gate."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Reopen it only when the gate, the agent's permissions, or the permission or safety layer changes."
+          },
+          {
+            "kind": "exact_text",
+            "text": "the owner is asked for the same gate action on a second pull request with no decision on the page;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Replacing a gate changes what the platform enforces."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The owner accepts that tradeoff in deciding; the agent states it in the question."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If the agent cannot complete a gate, raise one owner decision early."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Replace the gate with a check the agent can run that verifies substance"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Automate the gate with owner-approved tooling,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Keep the gate and the clicks,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Do not hand the owner a recurring chore list."
+          },
+          {
+            "kind": "exact_text",
+            "text": "One question per gate."
+          },
+          {
+            "kind": "exact_text",
+            "text": "it adds one start-of-workstream check and at most one owner question per gate. It adds no blocking gate and changes no hosted setting."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "hosted merge gates",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "merge_gate"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "owner-decision-at-boundary",
+          "required_behavior": "Raise one early gate decision per workstream, classify clerical versus approval gates and present the scoped options and costs.",
+          "due_phase": "handoff",
+          "destination": "owner-questions-page",
+          "acceptance_evidence": "Name the gate plainly, explain inability and give a recommendation at start. Recommend a substance check only for clerical gates and disclose loss of platform enforcement unless required status. Offer only written owner-approved action-scoped tooling; never self-grant refused permission. Recommend keeping human approval gates and attach substance evidence. Recurrent instances reuse the decision; reopen only after gate, permissions or safety-layer change. This adds no blocking gate or hosted setting change. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "a substance check offered to replace independent human approval",
+            "a new question for each unchanged recurring gate",
+            "agent self-grant of a refused permission"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.merge-gate.substance-check",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/agent-completable-merge-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "The check passes when the latest review of the exact head commit reports nothing open, every earlier finding maps to a fix commit or to a written reason it was not changed, and the required status checks pass."
+          },
+          {
+            "kind": "exact_text",
+            "text": "When the gate it replaces is the up-to-date-branch requirement, the check also confirms that the head contains the current base commit, or runs the required checks on the exact merge result, so checks that passed on an older base cannot admit a change that conflicts with newer work."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Bind that result to the base commit it checked, and rerun it whenever the base moves before the merge, or use a merge queue that tests the exact merge."
+          },
+          {
+            "kind": "exact_text",
+            "text": "a thread is marked resolved with no fix and no written reason to point to."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The substance check is only as good as the review behind it."
+          },
+          {
+            "kind": "exact_text",
+            "text": "It does not turn an author's own review into independent review (`patterns/independent-evaluation-separation.md`), and it assumes a reviewer that reports open findings against the exact head commit."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "hosted merge gates",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "merge_gate"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "substance-check-at-boundary",
+          "required_behavior": "Bind the substance check to the exact head and current base with disposition of every prior finding and required checks.",
+          "due_phase": "pre-action",
+          "destination": "merge-eligibility-evidence",
+          "acceptance_evidence": "Latest exact-head review reports nothing open. Each prior finding maps to a fix commit or written reason and required status checks pass. A replaced up-to-date gate also proves current-base containment or exact-merge checks; bind base and rerun on base movement or use an exact-merge queue. Resolved threads alone prove nothing. Review quality limits remain and author review is never independent review. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "green checks on an older base",
+            "thread resolution with no fix or written reason",
+            "author review presented as independent review"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.merge-gate.owner-clicks",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/agent-completable-merge-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Until the gate is removed or automated, it stays in force: list each instance that still needs the owner under **For you to do**, grouped into one step with exact links (rule 4), so the page stays the complete list of his work, and attach the substance check's result to each pull request so his clicks rest on a verified result."
+          },
+          {
+            "kind": "exact_text",
+            "text": "When a click is unavoidable, batch it into one step: exact links to every target in one place (the **For you to do** section of the owner questions page),"
+          },
+          {
+            "kind": "exact_text",
+            "text": "The owner is then not asked twice, and the agent does not take \"done\" on faith."
+          },
+          {
+            "kind": "exact_text",
+            "text": "and a read-back the agent runs afterward to confirm it worked, such as a hosted query that counts the threads still open."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "hosted merge gates",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "merge_gate"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "owner-clicks-at-boundary",
+          "required_behavior": "Batch every unavoidable owner action with exact links and substance evidence.",
+          "due_phase": "handoff",
+          "destination": "owner-questions-page",
+          "acceptance_evidence": "Before the owner click, every remaining gate instance is listed under For you to do, grouped into one step with exact target links and per-change substance evidence. Keep declared gates in force until removal/automation. A reason-bound NOT_APPLICABLE receipt must establish that no owner click is required.",
+          "non_substitutes": [
+            "recurring clicks omitted from the complete owner page",
+            "an unlinked recurring chore list"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        },
+        {
+          "obligation_id": "verify-owner-action",
+          "required_behavior": "Run hosted readback after the owner action and preserve the verified result.",
+          "due_phase": "persistence",
+          "destination": "owner-action-readback",
+          "acceptance_evidence": "After each unavoidable owner action a hosted readback confirms the effect, such as remaining open-thread count. Do not trust done or ask twice. A reason-bound NOT_APPLICABLE receipt must establish no owner action has yet occurred.",
+          "non_substitutes": [
+            "a complete batch list with no readback",
+            "a done assertion substituted for hosted confirmation"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.merge-gate.authority",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/agent-completable-merge-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "A click that records a choice only the owner can make (accept a risk, approve a spend, merge a change) stays with the owner."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Nothing here lets an agent relax a hosted gate, use an owner-only bypass, merge around a refusal, or disguise a refused action behind another tool or route."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A refusal by the permission or safety layer is a boundary (`patterns/worker-self-remediation-before-owner-interruption.md`, **Fail closed on genuine boundaries**)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The agent proposes the replacement, and the owner decides (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A hosted setting counts as changed only when settings or API evidence shows it (`patterns/codex-github-operating-system.md`)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "It adds no gate and grants no authority. Changing a hosted gate stays the owner's decision."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Keep owner clicks for decisions."
+          },
+          {
+            "kind": "exact_text",
+            "text": "No bypass."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A declared gate stays until the owner changes it."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "hosted merge gates",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "merge_gate"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "authority-at-boundary",
+          "required_behavior": "Preserve human decisions and genuine refusals; change declared hosted controls only through owner authority and observed settings.",
+          "due_phase": "pre-action",
+          "destination": "hosted-gate-authority",
+          "acceptance_evidence": "Risk, spend and merge choices reserved to the owner stay theirs. No relaxation, owner-only bypass, merge around refusal or disguised alternate-route action is admitted. Permission/safety refusals remain boundaries. Owner decides proposed replacements; settings/API evidence alone establishes a hosted change. This pattern grants no authority and adds no gate.",
+          "non_substitutes": [
+            "owner approval in general treated as bypass of an exact refusal",
+            "a proposed setting change treated as a live change"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.merge-gate.failure-repair",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/agent-completable-merge-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Repair: stop listing the click; put the decision on the owner questions page with a recommendation; batch the unavoidable clicks as in rule 4;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "and move the answer to **Decided** when the owner replies."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "hosted merge gates",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "merge_gate"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "failure-repair-at-boundary",
+          "required_behavior": "Repair recurring chores by persisting and handing off the gate decision with a recommendation and batched clicks.",
+          "due_phase": "handoff",
+          "destination": "owner-questions-page",
+          "acceptance_evidence": "After an observed failure, the owner questions page has the decision, recommendation and unavoidable instances. Stop treating each click as a new chore. A reason-bound NOT_APPLICABLE receipt must establish no failure requiring repair occurred.",
+          "non_substitutes": [
+            "an unanswered proposal moved to Decided",
+            "repair mentioned without the decision page update"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        },
+        {
+          "obligation_id": "record-owner-reply",
+          "required_behavior": "Move a gate answer to Decided only when the owner replies.",
+          "due_phase": "persistence",
+          "destination": "owner-questions-page",
+          "acceptance_evidence": "An actual owner reply is recorded in Decided and carries to recurring instances. A reason-bound NOT_APPLICABLE receipt must establish no owner reply has yet arrived.",
+          "non_substitutes": [
+            "an unanswered proposal moved to Decided"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
       },
       "relations": []
     }

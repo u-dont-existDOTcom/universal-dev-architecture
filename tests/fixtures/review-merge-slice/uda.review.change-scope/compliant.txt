@@ -1,0 +1,1 @@
+Items A and B passed with exact IDs and content tokens. Repair changed C. D depends on C and its dependency is declared, so C and D plus earlier findings are in the next request. A and B carry forward by exact mechanical comparison. An ID mismatch in E marks E changed, so E also reaches the next review request.

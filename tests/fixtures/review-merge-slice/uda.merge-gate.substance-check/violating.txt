@@ -1,0 +1,1 @@
+A thread was marked resolved but has no mapped fix or written reason and the latest head was never reviewed.

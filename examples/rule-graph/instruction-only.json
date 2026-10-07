@@ -30,7 +30,7 @@
     "action_classes": {
       "state": "KNOWN",
       "value": [],
-      "provenance": "instruction-only request"
+      "provenance": "instruction-only request; review_round, review_finding_judgment and merge_gate are absent"
     },
     "owner_outcome_status": {
       "state": "KNOWN",
@@ -55,6 +55,16 @@
     "request_kind": {
       "state": "ABSENT",
       "provenance": "example is governance/handoff work, not an operational-method request"
+    },
+    "usage_warning_visible": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "illustrative task exposes no usage warning; continuous checkpoints still apply"
+    },
+    "continuity_required": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "instruction-only one-shot task; no durable recovery handoff needed"
     }
   },
   "legacy_rule_ids": [

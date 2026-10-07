@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Before scale, a known-correct pilot estimates p = 0.05. For n = 27, unit pass probability is 0.95^27; across N units it is q^N. For m = 10 critical items, floor failure is 1 - 0.95^10. These are planning estimates under independence and constant-rate assumptions; measured pilot pass rates are preferred. The predicted rejection changes the decision, so change-only reviews, bounded item degradation and aggregate floors replace the open design before scale. A separate observed missed defect uses a deterministic check.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The gate ran across many units before anyone considered its false-failure rate.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The pre-scale worksheet labels p as pilot evidence even though it was guessed and no known-correct pilot exists. a guessed p presented as a measured pilot.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "false-failure-at-boundary",
+    "non_substitute": "a guessed p presented as a measured pilot"
+  }
+}

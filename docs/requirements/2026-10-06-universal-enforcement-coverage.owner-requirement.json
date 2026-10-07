@@ -31,6 +31,92 @@
     "UDA distinguishes an activated, enforced task from one that is NOT_ACTIVATED or OUTSIDE_UDA.",
     "The external simple-turn bootstrap exemption is reported truthfully, with the exact owner-side instruction change."
   ],
+  "source_clause_manifest": {
+    "AGENTS.md#follow-up-goal-derivation-and-assistant-added-requirements": {
+      "clause_count": 16,
+      "clauses_sha256": "fcccb173e9a1c7a391d8a567786d4b27371e030e3a1c3ea2619209c12e6c3da8"
+    },
+    "AGENTS.md#instruction-composition": {
+      "clause_count": 12,
+      "clauses_sha256": "e26640c9d66fc751a5597e4827cb586925fb011e72c04f5e98f3d85541ab043b"
+    },
+    "AGENTS.md#owner-facing-operational-references": {
+      "clause_count": 9,
+      "clauses_sha256": "3ccde4efbdd0f812c2217fdd65a49355b9208c2f1cad00908b892bb6f4a5ba83"
+    },
+    "AGENTS.md#per-turn-bootstrap-invariants": {
+      "clause_count": 27,
+      "clauses_sha256": "676fc2cf69e8ce98c63891168379cbc86c4cc38e06bb7b9c31de9ce0d4aec9a8"
+    },
+    "AGENTS.md#pre-final-continuation-invariant": {
+      "clause_count": 6,
+      "clauses_sha256": "299d2fa99c53f74fb6b38713ada6ee77737454fa5da494a50a636e478b8120b2"
+    },
+    "AGENTS.md#workflow": {
+      "clause_count": 33,
+      "clauses_sha256": "0296f83c29eb4a6e0aa59c0ad74785f72224a331282c461d1b92757531d1d6b1"
+    },
+    "patterns/convergent-review-acceptance-gates.md": {
+      "clause_count": 53,
+      "clauses_sha256": "7b307bf86dece82ce7e323304317d453c302bb32fd0809c7af8e44609b2bd2db",
+      "sections": {
+        "status": {
+          "clause_count": 1,
+          "clauses_sha256": "99691207cdcb42ba76934779fd05b47ae0426353331fdfce550f571c979d6670"
+        },
+        "rules": {
+          "clause_count": 27,
+          "clauses_sha256": "df727cf7079d2ee458cc59ea0e7b99c14694113a617bf15977be11395e2cd7e5"
+        },
+        "bounds": {
+          "clause_count": 9,
+          "clauses_sha256": "069bf44d4581a7b44adab98c765c9def7cebf77e8f7d74331cace9b311678686"
+        },
+        "failure-condition-and-repair": {
+          "clause_count": 5,
+          "clauses_sha256": "168907e422f3d49562b82e52f9d4ce33f3896800ada8cb0f474a3be09681ffeb"
+        },
+        "requirement-accretion-declaration": {
+          "clause_count": 1,
+          "clauses_sha256": "2b1979a568bf0415afa9c01d79679ab63f8dea074ad3297c10240a5f1665f248"
+        },
+        "transfer-rationale-and-limits": {
+          "clause_count": 10,
+          "clauses_sha256": "6d9e61ea020a3c694c18e092ee84e819ce25191c8453f182c7763935a3dda150"
+        }
+      }
+    },
+    "patterns/agent-completable-merge-gates.md": {
+      "clause_count": 58,
+      "clauses_sha256": "821fd0ccde08f02407576b5a0b45d7c061ee8c59e81efc6fbb442f60a154ef2f",
+      "sections": {
+        "status": {
+          "clause_count": 1,
+          "clauses_sha256": "2b196683168c52671ec211051d15409c471edef216bafebdffcd09a942dbba5a"
+        },
+        "rules": {
+          "clause_count": 36,
+          "clauses_sha256": "98e2b44582bb49d3a6e98db847be0370e8910f5ece763822b96914a7ee6bedcd"
+        },
+        "bounds": {
+          "clause_count": 9,
+          "clauses_sha256": "75d77060b04deb83cd50915169eddfd82d769817652d23c173a5531bfe170b26"
+        },
+        "failure-condition-and-repair": {
+          "clause_count": 5,
+          "clauses_sha256": "3a431c2d184330cd504b47cff803b73cc05d21b9fa0ab3044cc05a2c008dd009"
+        },
+        "requirement-accretion-declaration": {
+          "clause_count": 1,
+          "clauses_sha256": "426884de5ffda68860f667d44258f21c44f2155aaa4852cd046c0477305a6a90"
+        },
+        "transfer-rationale-and-limits": {
+          "clause_count": 6,
+          "clauses_sha256": "ebeae1cb4231f26f5e17f0ed8879cb8167ec3418890ecbe02e54ab1e562c5d17"
+        }
+      }
+    }
+  },
   "review_changes": [
     {
       "review": "independent pass-1 code and inventory review",
@@ -105,8 +191,7 @@
         "LF-7.1",
         "LF-7.2",
         "LF-7.3"
-      ],
-      "notes": "Existing map already covers instructions not loaded, loaded checks missing the real endpoint, proxy tests and overstated coverage. No new broad pattern or LF row is needed."
+      ]
     },
     {
       "finding_id": "pass-1-inventory",
@@ -126,21 +211,20 @@
       "date": "2026-10-06",
       "backlog_count": 84,
       "backlog_ids_sha256": "6311f2d872d7c8a02f3d9d4f38667b71b4d23e25f614f1f9c825aaa644f9a0b2",
-      "path": "rules/rule-graph/enforcement-legacy-baseline.v1.json",
-      "notes": "Exact identities are pinned in this file; the count and canonical-list digest retain the requirement-bound anti-tampering anchor without duplicating the list."
+      "path": "rules/rule-graph/enforcement-legacy-baseline.v1.json"
     },
     {
       "finding_id": "pass-2-inventory",
-      "entry_count": 98,
-      "indexed_pattern_count": 84,
+      "entry_count": 96,
+      "indexed_pattern_count": 82,
       "identity_counts_by_disposition": {
-        "LEGACY_UNSTRUCTURED": 79,
+        "LEGACY_UNSTRUCTURED": 77,
         "STRUCTURED_PARTIAL": 7,
         "WORKFLOW_ONLY": 10,
         "NOT_ACTIVE": 2,
         "STRUCTURED_ENFORCED": 0
       },
-      "backlog_count": 86,
+      "backlog_count": 84,
       "baseline_shrinkage": 0,
       "root_owner_outcome": "OPEN",
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
@@ -149,12 +233,53 @@
     },
     {
       "finding_id": "policy-pr-312-reconciliation",
-      "basis": "Available remote-tracking snapshot 3ed51341b1f9221057c7b49c0f46402c5f878759; live freshness unavailable. No dependency on this open policy change.",
+      "basis": "Maintainer chose structured admission on 2026-10-07; no backlog-addition authorization.",
       "new_pattern_ids": [
         "patterns/agent-completable-merge-gates.md",
         "patterns/convergent-review-acceptance-gates.md"
       ],
-      "required_second_merge_action": "Both are behavioral. Whichever integrates second must add exact universe entries and activation routes. Structured records/admission or a genuine specialist-workflow reason are needed; legacy backlog additions require explicit owner authorization. No preclassification for absent files and no automatic grandfathering."
+      "required_second_merge_action": "Completed: both are STRUCTURED_ENFORCED with maps, pins and bound admission regressions; no backlog additions."
+    },
+    {
+      "finding_id": "slice-1-kernel",
+      "date": "2026-10-07",
+      "identity_counts_by_disposition": {
+        "STRUCTURED_ENFORCED": 6,
+        "STRUCTURED_PARTIAL": 7,
+        "WORKFLOW_ONLY": 10,
+        "LEGACY_UNSTRUCTURED": 71,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 78,
+      "baseline_shrinkage": 6,
+      "excepted": 1,
+      "remaining_in_six_sections": 0,
+      "new_records": 15,
+      "root_owner_outcome": "OPEN",
+      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "Six sections, 103 clauses, one exception, 23 behaviors and a budget-tested projection. Later slices remain.",
+      "clauses_found": 103,
+      "structured_clauses": 102,
+      "consolidated_obligations": 23,
+      "rendered_work_utf8_bytes": 27355,
+      "rendered_work_budget_bytes": 32768
+    },
+    {
+      "finding_id": "slice-2-review-merge",
+      "date": "2026-10-07",
+      "identity_counts_by_disposition": {
+        "LEGACY_UNSTRUCTURED": 71,
+        "STRUCTURED_ENFORCED": 8,
+        "WORKFLOW_ONLY": 10,
+        "STRUCTURED_PARTIAL": 7,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 78,
+      "baseline_shrinkage": 6,
+      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "Two new identities structured: 53 review clauses / 8 obligations; 58 merge clauses / 8 obligations; 14 new records, no exceptions or backlog additions."
     }
   ],
   "learning_state_at_merge": [

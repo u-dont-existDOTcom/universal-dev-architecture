@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The latest independent review is bound to exact head H and reports no open findings. Prior finding A maps to fix F; B maps to a written reason. Required checks pass on the exact merge result with current base B2, and the result names B2. Base movement invalidates the result and causes a rerun before merging, or an exact-merge queue supplies fresh checks. Resolution alone is never evidence; author review is not independent and review quality remains a limit.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "A thread was marked resolved but has no mapped fix or written reason and the latest head was never reviewed.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Exact-head review is clear and every finding is mapped, but required checks were run only against old base B1 while current base is B2. green checks on an older base.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "substance-check-at-boundary",
+    "non_substitute": "green checks on an older base"
+  }
+}

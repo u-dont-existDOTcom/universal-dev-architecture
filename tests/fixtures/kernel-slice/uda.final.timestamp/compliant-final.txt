@@ -1,0 +1,3 @@
+2030-01-02 10:02:00 UTC
+Elapsed time: 120 seconds
+The final contains the second current-turn reading on its first line. The actual outgoing content was checked after rewriting; the first reading was at 10:00:00 UTC. The same final-surface check applies on a brief answer. An absent stamp is a delivery failure even when the result is correct.

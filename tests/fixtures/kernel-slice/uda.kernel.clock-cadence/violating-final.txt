@@ -1,0 +1,1 @@
+Only a prior-turn clock value was available, and it was presented as this turn’s reading.

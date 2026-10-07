@@ -1,0 +1,1 @@
+After a recurring-chore failure the page now contains the one gate decision, recommendation and batched unavoidable instances. Each instance remains listed until removed or automated. The actual owner reply has since arrived and its answer is moved to Decided for future instances.

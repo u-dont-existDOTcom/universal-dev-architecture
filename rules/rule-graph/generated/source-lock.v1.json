@@ -1,14 +1,14 @@
 {
-  "catalog_sha256": "cd96719fa644c0a489d3796814423d86af0085db76d7643f0b74f37fe6e07b61",
-  "compiler_sha256": "f69a872718aa0823b1cda01f3d7099b2510046174517930ee7b28833820c6493",
-  "content_sha256": "086f3ca223c0ca345bc294caa8c2ccbfafe39aaf4ed4c4e4f74f610cd5969069",
+  "catalog_sha256": "c6b997acbd55ab9bf2d753585245adc032f3eb7fcf3fe654fa252d1ac14a5cea",
+  "compiler_sha256": "e526ae1e706c6ff97d74d00302c55d0a7e49aafc2df41df09f703520f7e9997a",
+  "content_sha256": "201352ae04b9cda208d630065d2f81b1ad3abd6207946afe34d87ae1b6e6a692",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
       "extracted_utf8_bytes": 268,
-      "git_blob_sha1": "d92598a8fd8685c9f2722b3882fe7eb52b2ee228",
+      "git_blob_sha1": "435926ddf6f1b8623a23cc2bd016b7f9be7968e0",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:d92598a8fd8685c9f2722b3882fe7eb52b2ee228",
+      "repository_revision": "BLOB:435926ddf6f1b8623a23cc2bd016b7f9be7968e0",
       "rule_id": "uda.active-contract.boundary-binding",
       "selectors": [
         {
@@ -18,7 +18,7 @@
       ]
     },
     {
-      "extracted_sha256": "237c0fe902e6de5dd2efe5628b6023ac7e912a6b0b775480a73847c9463148b8",
+      "extracted_sha256": "9471cda27b154706269e66df58a38da8b29825a6a48fcadc6755dcdfe2bf9518",
       "extracted_utf8_bytes": 435,
       "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
       "path": "AGENTS.md",
@@ -27,7 +27,15 @@
       "selectors": [
         {
           "kind": "exact_text",
-          "text": "- When current owner instructions require the canonical GitHub bootstrap, **re-fetch the live default-branch root `AGENTS.md` on every user turn before task reasoning, artifact composition, task execution, or answering**. Tool discovery, current-clock checks, and the bootstrap retrieval itself are permitted prerequisites. A prior-turn fetch, cached copy, remembered summary, or earlier reasoning does not satisfy per-turn activation."
+          "text": "When current owner instructions require the canonical GitHub bootstrap, **re-fetch the live default-branch root `AGENTS.md` on every user turn before task reasoning, artifact composition, task execution, or answering**."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Tool discovery, current-clock checks, and the bootstrap retrieval itself are permitted prerequisites."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A prior-turn fetch, cached copy, remembered summary, or earlier reasoning does not satisfy per-turn activation."
         }
       ]
     },
@@ -60,8 +68,66 @@
       ]
     },
     {
-      "extracted_sha256": "437fdbbaa443fad34771227f636b210adac84c72be8d3e5ba1511356e467a895",
-      "extracted_utf8_bytes": 1207,
+      "extracted_sha256": "21810953693cf4b7df14b86af900753fe9354e4b23cf4353f6eff4282ca56510",
+      "extracted_utf8_bytes": 532,
+      "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
+      "path": "patterns/context-compaction-resilience.md",
+      "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
+      "rule_id": "uda.continuity.step-checkpoint",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Plan usage limits, like context limits, can end a turn without warning. Never defer saving to a usage threshold."
+        },
+        {
+          "kind": "exact_text",
+          "text": "At each completed step, push the work to the task branch (work-in-progress commits are fine) and update the checkpoint's done, next, and exact next action. A fresh session in any account must be able to resume from durable state alone. The worker that holds the context writes the checkpoint; do not launch a separate helper at the limit to save work."
+        },
+        {
+          "kind": "exact_text",
+          "text": "- Tiny one-shot tasks do not need a dedicated current-state file."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "bfca1bf02696ccbadb3f9b5b1adccb2801797061b9b1c0c5904493381abfb5b3",
+      "extracted_utf8_bytes": 433,
+      "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
+      "path": "patterns/context-compaction-resilience.md",
+      "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
+      "rule_id": "uda.continuity.turn-end-handoff",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Before ending a turn on OPEN work, make the durable checkpoint reflect that turn's state and include a one-line resume instruction. Keep owner-private supervisor state that cannot go in a public repository in a private durable store the successor can reach. List anything bound to one account that the successor must recreate, such as scheduled check-ins and memory."
+        },
+        {
+          "kind": "exact_text",
+          "text": "- Tiny one-shot tasks do not need a dedicated current-state file."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "11fffde8e14ce032f957ca197e68bde647f87b3bba73cf7de355ac8fa439f270",
+      "extracted_utf8_bytes": 329,
+      "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
+      "path": "patterns/context-compaction-resilience.md",
+      "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
+      "rule_id": "uda.continuity.usage-warning",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "When a usage signal is visible at or above a warning level (about 90%), checkpoint immediately and take only small, restartable steps. This warning supplements continuous checkpoints and never replaces them."
+        },
+        {
+          "kind": "exact_text",
+          "text": "If only a model-specific weekly limit is reached, switching model family in the same account is a valid way to continue."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "db6944960605fbfbd017db21633d603b4072f3cecc7bdd2c45e766a51ce4dd88",
+      "extracted_utf8_bytes": 1657,
       "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
       "path": "AGENTS.md",
       "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
@@ -69,15 +135,51 @@
       "selectors": [
         {
           "kind": "exact_text",
-          "text": "- The timestamp must appear in the final answer/message content delivered to the user on every assistant turn. A timestamp written only in hidden reasoning, visible thinking/reasoning UI, analysis, tool-call commentary, scratch work, or any intermediate channel **does not satisfy this requirement**."
+          "text": "For **every assistant turn** governed by this architecture, the **first line of the final user-visible assistant answer MUST be an explicit date-and-time stamp including a timezone or UTC offset**."
         },
         {
           "kind": "exact_text",
-          "text": "- Two clock readings per turn, no others (owner, 2026-09-30). First: the message's sent time if the surface shows it, else a read as the turn's first action. Second: a read right before writing the final answer. Read with `date -u` in a shell tool, else the current-time tool, else the code tool's clock; if a read fails or isn't later than the first, use the next one once. Never compare clocks or read mid-task. The final answer opens with the second reading and says how long the turn took in total. Don't reuse a prior-turn timestamp or present capture time as hidden provider sent time. If no clock answers, say so rather than inventing a time."
+          "text": "This is a final-output contract and a pre-answer invariant, not a task-dependent recommendation."
         },
         {
           "kind": "exact_text",
-          "text": "- Before finalizing every assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form. If it does not, prepend the second reading; the check needs no further reading."
+          "text": "The timestamp must appear in the final answer/message content delivered to the user on every assistant turn."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A timestamp written only in hidden reasoning, visible thinking/reasoning UI, analysis, tool-call commentary, scratch work, or any intermediate channel **does not satisfy this requirement**."
+        },
+        {
+          "kind": "exact_text",
+          "text": "An earlier timestamp in reasoning or an intermediate step does not satisfy the final-output contract; use the second reading in the final answer."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The final answer opens with the second reading"
+        },
+        {
+          "kind": "exact_text",
+          "text": "and says how long the turn took in total."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Before finalizing every assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form."
+        },
+        {
+          "kind": "exact_text",
+          "text": "If it does not, prepend the second reading; the check needs no further reading."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Apply it on every turn even for trivial arithmetic, greetings, smoke tests, follow-up acknowledgments, corrections, status updates, or prompts that otherwise warrant a direct one-line answer."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Simple answers, low-effort reasoning, tool avoidance, brevity, and shallow repository reads **must not waive this invariant**."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Treat failure to emit the timestamp as the first line of the final user-visible answer on any assistant turn as an instruction-following failure even when the timestamp appeared during thinking or the underlying task answer is otherwise correct."
         }
       ]
     },
@@ -104,11 +206,801 @@
       ]
     },
     {
+      "extracted_sha256": "d66012b2e948550f38fa49cd6ee25119d041de45c59c7a563b5366818f8ecbc6",
+      "extracted_utf8_bytes": 446,
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "path": "AGENTS.md",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "rule_id": "uda.kernel.artifact-delivery",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "**Delivery is part of completion.**"
+        },
+        {
+          "kind": "exact_text",
+          "text": "When the owner needs to use a file, packet, handoff, protocol, report, generated artifact, or other output, do not make them navigate GitHub branches or repository paths to obtain it."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Before delivering that output, load the delivery-priority, provenance, companion-material, and pre-close usability rules: `patterns/human-readable-operational-references.md` → **Compact rules moved from root `AGENTS.md`**."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "95837b72e7bd6a8188f5006473483b9416764d11c17c9b1063fe408aaa7a64d5",
+      "extracted_utf8_bytes": 566,
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "path": "AGENTS.md",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "rule_id": "uda.kernel.clock-cadence",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Two clock readings per turn, no others (owner, 2026-09-30)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "First: the message's sent time if the surface shows it, else a read as the turn's first action."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Second: a read right before writing the final answer."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Read with `date -u` in a shell tool, else the current-time tool, else the code tool's clock;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "if a read fails or isn't later than the first, use the next one once."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Never compare clocks or read mid-task."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Don't reuse a prior-turn timestamp"
+        },
+        {
+          "kind": "exact_text",
+          "text": "or present capture time as hidden provider sent time."
+        },
+        {
+          "kind": "exact_text",
+          "text": "If no clock answers, say so rather than inventing a time."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "47f1ced3bbf1e4da4c7ffec3fe828e351f1a9c046dcd7dca2f2979e38f132dbc",
+      "extracted_utf8_bytes": 534,
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "path": "AGENTS.md",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "rule_id": "uda.kernel.continuation",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Before final delivery, apply `patterns/codex-github-operating-system.md` → **Continuation and stop admission**."
+        },
+        {
+          "kind": "exact_text",
+          "text": "An OPEN task with a safe authorized executable next action requires doing it now, not just diagnosing or planning it."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A self-authored scope or completed lease cannot cancel parent implementation authority."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Check the actual final output: stop only at an evidenced boundary,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "finish independent work,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "and preserve explicit owner restrictions and real access, spending, privacy, platform, and irreversible-action gates."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "7b2cb7df35e293e835288001493e688b629d21ad8a95311c347a4d3a02a30a0f",
+      "extracted_utf8_bytes": 456,
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "path": "AGENTS.md",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "rule_id": "uda.kernel.coordination",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "When multiple safe in-scope execution approaches achieve the same outcome, choose the better-coordinated approach without asking the owner to select an execution mode:"
+        },
+        {
+          "kind": "exact_text",
+          "text": "use isolated workspaces,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "a durable plan and recovery ledger,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "delegation plus independent review when safely separable and decision-relevant,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "and serialize shared mutable state."
+        },
+        {
+          "kind": "exact_text",
+          "text": "This standing permission does not broaden task authority and does not replace substantive owner decisions."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "25266e68c32d1b7057e9b07804a03545219825bbda65106543a79cba078fdf64",
+      "extracted_utf8_bytes": 1894,
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "path": "AGENTS.md",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "rule_id": "uda.kernel.followup-derivation",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Before authoring, launching, or accepting a consequential follow-up task, re-bind the proposed work to the current parent owner outcome"
+        },
+        {
+          "kind": "exact_text",
+          "text": "and follow `patterns/owner-goal-followup-and-requirement-accretion.md`."
+        },
+        {
+          "kind": "exact_text",
+          "text": "First classify the root outcome as `OPEN`, `SATISFIED`, `SUPERSEDED`, `CANCELED`, or `AUTHORITY_UNRESOLVED`,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "and state the exact remaining owner gap."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A useful improvement is not unfinished owner work merely because it is technically attractive."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Every new mandatory requirement that was not already present in the owner outcome must declare its origin and necessity."
+        },
+        {
+          "kind": "exact_text",
+          "text": "An `ASSISTANT_INFERENCE` or inherited choice (not a declared gate) with unresolved necessity may be only a bounded reversible experiment; it may not become a fail-closed blocker, architecture prerequisite, root acceptance criterion, stronger assurance gate, or reason to disable a previously working owner-aligned path."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Treat stronger assurance as requirement accretion when it changes whether work may proceed or count as complete."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Independent readback, provider attestation, extra reviewers, new trust boundaries, and similar controls must identify the current owner decision/outcome they materially change and why a simpler evidence standard is insufficient before becoming mandatory."
+        },
+        {
+          "kind": "exact_text",
+          "text": "If a newly added control blocks or degrades a previously working owner-aligned path, stop the compensating-fix chain"
+        },
+        {
+          "kind": "exact_text",
+          "text": "and revalidate the first added requirement against the parent outcome and the strongest materially simpler alternative."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Preserve useful supporting work,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "but restore the simpler valid path when necessity is not established."
+        },
+        {
+          "kind": "exact_text",
+          "text": "This gate runs at follow-up-task authoring, before the new framing is handed to Work or another executor."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A later worker faithfully executing a substituted goal is too late."
+        },
+        {
+          "kind": "exact_text",
+          "text": "At experiment launch, apply the operational owner-method contract to the actual runnable configuration."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "56fccc19d7910335da60a6196bc405e3dbd7a1a41cd8d17ae49b8dcdab66f485",
+      "extracted_utf8_bytes": 449,
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "path": "AGENTS.md",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "rule_id": "uda.kernel.instruction-activation",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Before handling any task, including a brief request to remember a preference, open `LESSON-INDEX.md`,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "select entries whose triggers match,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "and read their current patterns."
+        },
+        {
+          "kind": "exact_text",
+          "text": "activation uses `patterns/task-time-lesson-activation.md`."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Resolve graph-covered dependencies via `rules/UDA-RULE-GRAPH.json`/`scripts/uda_rule_graph.py`;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "canonical prose remains authoritative;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "unmapped rules stay index-routed;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "shopping routes through `LESSON-INDEX.md`."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "ab786f8655affc9dd6d51642bc47837daf9eb5815981066388ef21b91d869dcb",
+      "extracted_utf8_bytes": 246,
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "path": "AGENTS.md",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "rule_id": "uda.kernel.instruction-maintenance",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Instruction maintenance uses `patterns/instruction-composition-and-portable-intelligence.md`;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Task-specific rules live in patterns"
+        },
+        {
+          "kind": "exact_text",
+          "text": "and are reached through `LESSON-INDEX.md`;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "a new task rule adds a pattern and an index entry, never a root line."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "753329d321c4a6cebbff51fa2df7484f26329fae3bc4637f4dc0af53753728d5",
+      "extracted_utf8_bytes": 595,
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "path": "AGENTS.md",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "rule_id": "uda.kernel.operation-commitments",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "When you explicitly commit to a substantive operation, method, comparison, audit, experiment, or artifact, keep it as an open obligation until it is actually executed, I explicitly supersede it, or new evidence makes it invalid and you say so."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Adjacent analysis, planning, preparation, or a different method does not count as completion."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Before switching methods, declaring progress complete, or ending a substantial pass, verify what observable result proves each promised operation actually occurred."
+        },
+        {
+          "kind": "exact_text",
+          "text": "If a still-valid promised step was displaced by later work, execute it before continuing."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "dbd317be69907d4d5f68fee2df3f71f43f3f26748728359319b7534c2d14adf0",
+      "extracted_utf8_bytes": 244,
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "path": "AGENTS.md",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "rule_id": "uda.kernel.operational-references",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "In user-facing prose, never make repository identifiers the primary explanation."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, and similar opaque references are locating metadata, not semantic referents."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "b11a78b2ee0175421093b69726f458ad3c48d4ccc719da5752c8f4c2f7dd37be",
+      "extracted_utf8_bytes": 484,
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "path": "AGENTS.md",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "rule_id": "uda.kernel.outbound-links",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Immediately before surfacing any outbound link to the owner, open the exact destination, follow redirects, and verify that the final page resolves successfully to the intended current content—not an error, 404, dead, parked, or stale page."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Search snippets, cached previews, remembered URLs, and earlier checks do not count as verification."
+        },
+        {
+          "kind": "exact_text",
+          "text": "If the exact link cannot be verified in the current turn, do not surface it."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Never present a broken or unverified link as a recommendation."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "aacaabf49929ac46aef09335b7ccc0b85ad1c330bb8bd7fd9d22047588b26c17",
+      "extracted_utf8_bytes": 175,
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "path": "AGENTS.md",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "rule_id": "uda.kernel.output-budget",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "**Every turn:** reusable output over ~8,000 characters goes in a file, for any recipient;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "0df981c5d4ae203095c345a524221d3a32da293e8f44696b8cb9c0afb661449b",
+      "extracted_utf8_bytes": 596,
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "path": "AGENTS.md",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "rule_id": "uda.kernel.owner-input-continuation",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event."
+        },
+        {
+          "kind": "exact_text",
+          "text": "After incorporating it, continue automatically to the next safe in-scope action while the stated goal remains unfinished."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Pause only for a genuine missing owner decision, new authority, destructive or irreversible risk, unavailable permission or credential, spending, publication, or access, or an explicit request to stop."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "99e230d931f0f787cabf3e8169037ecceb8678f963b65360beeb6f2a94fc55e4",
+      "extracted_utf8_bytes": 916,
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "path": "AGENTS.md",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "rule_id": "uda.kernel.owner-interaction",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Resolve engineering blockers; ask only about a material tradeoff, with plain consequences and a recommendation, or a required human gate."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Minimize owner choice as an execution invariant."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Resolve routine implementation details and already-authorized subordinate actions without asking."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A confirmation for the same destination, data boundary, scope, and consequence remains valid across retries, resumed execution, or an alternate authorized transport path; a failed tool or transport does not consume that approval."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Ask again only if those facts materially change or the platform requires a fresh human gesture."
+        },
+        {
+          "kind": "exact_text",
+          "text": "If owner interaction is genuinely required, finish independent preparation,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "consolidate the exact dependent actions into the fewest confirmations permitted,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "explain the concrete downside or risk and why the gate is mandatory,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "give a recommended default,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "and resume automatically after the answer."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "198cb89be5283eaa34aa074af77708da435eb8ae38cb6191ed2d94ccee4d1f8f",
+      "extracted_utf8_bytes": 1008,
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "path": "AGENTS.md",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "rule_id": "uda.kernel.target-recovery",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Before declaring a host, device, service, session, or other target inaccessible—or asking the owner to identify, restart, reconnect, or configure an opaque machine-generated target—recover its semantic identity and the authorized access topology first."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Treat a failed connector/device transport as a route-specific failure, not proof that the underlying target is unavailable."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Inspect current connected endpoints plus task-relevant local mappings such as SSH config/aliases, durable task state, service/process metadata, and recent authorized execution history;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "from a healthy authorized endpoint, use bounded read-only probes such as `hostname` and exact target-path existence/read checks to prove which route reaches the same target."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Use an equivalent authorized alternate route when one exists."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Never ask the owner to recognize an opaque identifier merely because the first transport failed."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Escalate only after plausible authorized routes are exhausted or a genuinely human-only action remains."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "804234c3fff80cfca37675a6899860e2626578cc1db5783f14b459c999680601",
+      "extracted_utf8_bytes": 226,
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "path": "AGENTS.md",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "rule_id": "uda.kernel.work-permissions",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Work selects authorized task-scoped access and the automatic reviewer; do not ask the owner to choose routine permissions."
+        },
+        {
+          "kind": "exact_text",
+          "text": "This adds no semantic, spending, publication, representation, destructive, or self-approval authority."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "479ddd4455cd99eec0a4aa8d10f28d14120d0e5e5ae19bf9b0ee80921effb253",
+      "extracted_utf8_bytes": 924,
+      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "path": "patterns/agent-completable-merge-gates.md",
+      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "rule_id": "uda.merge-gate.authority",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "A click that records a choice only the owner can make (accept a risk, approve a spend, merge a change) stays with the owner."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Nothing here lets an agent relax a hosted gate, use an owner-only bypass, merge around a refusal, or disguise a refused action behind another tool or route."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A refusal by the permission or safety layer is a boundary (`patterns/worker-self-remediation-before-owner-interruption.md`, **Fail closed on genuine boundaries**)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The agent proposes the replacement, and the owner decides (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A hosted setting counts as changed only when settings or API evidence shows it (`patterns/codex-github-operating-system.md`)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "It adds no gate and grants no authority. Changing a hosted gate stays the owner's decision."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Keep owner clicks for decisions."
+        },
+        {
+          "kind": "exact_text",
+          "text": "No bypass."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A declared gate stays until the owner changes it."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "38f7714fa98a42c3926e874f9c3d68a539ec6c748970013ec623e2ba0e65c93f",
+      "extracted_utf8_bytes": 1480,
+      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "path": "patterns/agent-completable-merge-gates.md",
+      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "rule_id": "uda.merge-gate.capability",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "For a workstream that will merge, release, or deploy through hosted controls, list each hosted gate on that path (for example required reviews, resolved conversations, required checks, bypass limits, environment approvals, and the merge itself) from current settings evidence, not from repository files (`patterns/codex-github-operating-system.md`)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "For each gate, check that the agent can satisfy it with the permissions it actually has: account or token scopes, the connector's actions, the sandbox, and the permission or safety layer's own refusals, which can block an action the platform allows."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Check the exact action, not a neighboring one, because being able to read threads says nothing about resolving them (`patterns/reasoning-selection.md`, capability edges)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Read the permission rules or documentation that govern the action, query the settings read-only, or use a refusal already on record."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Attempt the action itself only on a destination the workstream already authorizes for such tests, such as a sandbox repository, never by creating a hosted object just to probe."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Record can or cannot for each gate in the task checkpoint."
+        },
+        {
+          "kind": "exact_text",
+          "text": "the first sign that the agent cannot complete a hosted gate comes at the merge step;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Which actions a permission layer refuses depends on the platform, the account and the layer's current configuration."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Check the exact action in the current session; do not rely on this pattern's example."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Check the gates when the workstream starts."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "c96ebd68e86b6b699c249757a29626f1398cc8f20e9c5811a9209530194ee6bc",
+      "extracted_utf8_bytes": 202,
+      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "path": "patterns/agent-completable-merge-gates.md",
+      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "rule_id": "uda.merge-gate.failure-repair",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Repair: stop listing the click; put the decision on the owner questions page with a recommendation; batch the unavoidable clicks as in rule 4;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "and move the answer to **Decided** when the owner replies."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "542b0d53e9ed2d204699f551b4a17fa5c1a3251b72c38c077e67a1ec5169fe34",
+      "extracted_utf8_bytes": 689,
+      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "path": "patterns/agent-completable-merge-gates.md",
+      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "rule_id": "uda.merge-gate.owner-clicks",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Until the gate is removed or automated, it stays in force: list each instance that still needs the owner under **For you to do**, grouped into one step with exact links (rule 4), so the page stays the complete list of his work, and attach the substance check's result to each pull request so his clicks rest on a verified result."
+        },
+        {
+          "kind": "exact_text",
+          "text": "When a click is unavoidable, batch it into one step: exact links to every target in one place (the **For you to do** section of the owner questions page),"
+        },
+        {
+          "kind": "exact_text",
+          "text": "The owner is then not asked twice, and the agent does not take \"done\" on faith."
+        },
+        {
+          "kind": "exact_text",
+          "text": "and a read-back the agent runs afterward to confirm it worked, such as a hosted query that counts the threads still open."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "4df2ccce2ed5d4a2aac2733d308ba0246dea11586d759222a322df972332f96f",
+      "extracted_utf8_bytes": 2374,
+      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "path": "patterns/agent-completable-merge-gates.md",
+      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "rule_id": "uda.merge-gate.owner-decision",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Put one question on the owner questions page (`patterns/owner-questions-page.md`) at the start, not at the first merge."
+        },
+        {
+          "kind": "exact_text",
+          "text": "It is the owner's decision because it changes what the platform enforces."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Name the gate in plain words, say why the agent cannot satisfy it, and give the options with a recommendation."
+        },
+        {
+          "kind": "exact_text",
+          "text": "First sort the gate."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A clerical gate records a step whose substance a check can verify, such as resolved review conversations or an up-to-date branch."
+        },
+        {
+          "kind": "exact_text",
+          "text": "An approval gate exists for independent human authorization, such as a required approving review or an environment approval, and an agent-run check cannot stand in for that separation."
+        },
+        {
+          "kind": "exact_text",
+          "text": "(the recommendation for a clerical gate; never offered for an approval gate)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "It ends the recurring clicks, and it costs the platform's own enforcement unless the check is also made a required status check."
+        },
+        {
+          "kind": "exact_text",
+          "text": "scoped to that one action, with the approval and scope written down."
+        },
+        {
+          "kind": "exact_text",
+          "text": "It keeps the platform gate and removes the clicks, and it costs tooling the owner must approve and maintain."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The agent never grants itself the permission that was refused."
+        },
+        {
+          "kind": "exact_text",
+          "text": "(the recommendation for an approval gate) when the gate exists for a person's authorization or the owner wants a person to confirm each one."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Rule 4 then applies, and the agent can attach the substance check's result so the approval rests on a verified result."
+        },
+        {
+          "kind": "exact_text",
+          "text": "An owner action that returns on every pull request signals a gate the agent cannot complete."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Raise the gate once instead of treating each return as a new request; the one decision in rule 2 covers them all."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Raise it once per workstream and gate."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Reopen it only when the gate, the agent's permissions, or the permission or safety layer changes."
+        },
+        {
+          "kind": "exact_text",
+          "text": "the owner is asked for the same gate action on a second pull request with no decision on the page;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Replacing a gate changes what the platform enforces."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The owner accepts that tradeoff in deciding; the agent states it in the question."
+        },
+        {
+          "kind": "exact_text",
+          "text": "If the agent cannot complete a gate, raise one owner decision early."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Replace the gate with a check the agent can run that verifies substance"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Automate the gate with owner-approved tooling,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Keep the gate and the clicks,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Do not hand the owner a recurring chore list."
+        },
+        {
+          "kind": "exact_text",
+          "text": "One question per gate."
+        },
+        {
+          "kind": "exact_text",
+          "text": "it adds one start-of-workstream check and at most one owner question per gate. It adds no blocking gate and changes no hosted setting."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "4dc985822ab729d3fbbc087065cc16a3b281f20ba2c6143b0248ddd2829a178c",
+      "extracted_utf8_bytes": 985,
+      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "path": "patterns/agent-completable-merge-gates.md",
+      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "rule_id": "uda.merge-gate.substance-check",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "The check passes when the latest review of the exact head commit reports nothing open, every earlier finding maps to a fix commit or to a written reason it was not changed, and the required status checks pass."
+        },
+        {
+          "kind": "exact_text",
+          "text": "When the gate it replaces is the up-to-date-branch requirement, the check also confirms that the head contains the current base commit, or runs the required checks on the exact merge result, so checks that passed on an older base cannot admit a change that conflicts with newer work."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Bind that result to the base commit it checked, and rerun it whenever the base moves before the merge, or use a merge queue that tests the exact merge."
+        },
+        {
+          "kind": "exact_text",
+          "text": "a thread is marked resolved with no fix and no written reason to point to."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The substance check is only as good as the review behind it."
+        },
+        {
+          "kind": "exact_text",
+          "text": "It does not turn an author's own review into independent review (`patterns/independent-evaluation-separation.md`), and it assumes a reviewer that reports open findings against the exact head commit."
+        }
+      ]
+    },
+    {
       "extracted_sha256": "20246d4cb4a4c9f5f46331555fae123081c44aa8fb779019e93784f7f4a0fd24",
       "extracted_utf8_bytes": 116,
-      "git_blob_sha1": "d92598a8fd8685c9f2722b3882fe7eb52b2ee228",
+      "git_blob_sha1": "435926ddf6f1b8623a23cc2bd016b7f9be7968e0",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:d92598a8fd8685c9f2722b3882fe7eb52b2ee228",
+      "repository_revision": "BLOB:435926ddf6f1b8623a23cc2bd016b7f9be7968e0",
       "rule_id": "uda.owner-correction.reactivate",
       "selectors": [
         {
@@ -128,6 +1020,298 @@
         {
           "kind": "exact_text",
           "text": "When a user asks for an operational command, procedure, or practical method and one known route achieves the same requested outcome under the same material constraints with fewer steps and no compensating benefit, do not surface the dominated route as an alternative. If alternatives have materially different tradeoffs, surface only the decision-relevant difference."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "76b4dd7362e3bde038b7673c23f2307b68cd08a8d58fd93422160b7ce0ec39cb",
+      "extracted_utf8_bytes": 965,
+      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "rule_id": "uda.review.acceptance-floors",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Accept a run on aggregate measures with floors stated in advance, not on every unit reaching zero findings."
+        },
+        {
+          "kind": "exact_text",
+          "text": "An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Where units are not interchangeable, because each customer, source or experiment must keep its own required items, add a per-unit or per-stratum minimum to the floors: a pooled measure lets strong units hide one that kept nothing."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Freeze the reference before the gate runs, and never trade a hard floor against another measure."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Report the failed units and the error counts beside the aggregate, each measure on its own line, so a passing aggregate hides neither."
+        },
+        {
+          "kind": "exact_text",
+          "text": "An aggregate can hide a bad unit, which is why rule 3 reports failed units and error counts beside it."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A frozen reference is only as sound as its own provenance."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Gate on aggregates with hard floors."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "2c52ee44a7cd47f87b7b1d2ec891b2c8142282c0c08b76a0abe01aa72ae9c570",
+      "extracted_utf8_bytes": 776,
+      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "rule_id": "uda.review.change-scope",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "After a repair, send the reviewer only the earlier findings and the items the repair changed."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Carry forward every item that passed and did not change."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Give each item a stable ID when it is first produced, and match items to their earlier verdicts mechanically, by ID and exact content (a hash is enough), never by asking the reviewer."
+        },
+        {
+          "kind": "exact_text",
+          "text": "An item whose ID or content does not match counts as changed."
+        },
+        {
+          "kind": "exact_text",
+          "text": "a repair cycle re-reviews items that passed and did not change;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Carrying an item forward assumes its verdict depends only on that item and the frozen reference."
+        },
+        {
+          "kind": "exact_text",
+          "text": "When a verdict depends on other items (order, duplicates, consistency across items), declare the dependency and count a change to the other item as a change to this one."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Re-review the change, not the whole unit."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "e9906a5e3786af1c90aa253b4e82b42e3987fedfa61ae72f195cd3af50a1e5b4",
+      "extracted_utf8_bytes": 490,
+      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "rule_id": "uda.review.cycle-escalation",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Record the number of findings after every cycle, with the item IDs."
+        },
+        {
+          "kind": "exact_text",
+          "text": "When the count stays flat or bounces across repairs, stop spending rounds and apply rule 2."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Put the question on the owner questions page (`patterns/owner-questions-page.md`) with the per-cycle counts, what each cycle changed, and the options (for example accept the partial result with its gaps, change the gate, or have a person review the flagged items)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Track findings per cycle and stop early when they do not fall."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "3f616d735d636efbba1f81975f5f8c03edb45f605a657db6f8089107a2349064",
+      "extracted_utf8_bytes": 855,
+      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "rule_id": "uda.review.declared-authority",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "The rules shape a gate that an agent or pipeline designs, or that a project leaves open."
+        },
+        {
+          "kind": "exact_text",
+          "text": "They never lower a gate the owner or the project's authority has declared blocking."
+        },
+        {
+          "kind": "exact_text",
+          "text": "For a declared zero-finding gate, run it as declared, put the false-failure estimate and the proposed aggregate gate on the owner questions page as a proposal, and keep running the declared gate until the owner or the project authority changes it (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The pattern addresses false flags."
+        },
+        {
+          "kind": "exact_text",
+          "text": "It makes no claim about which reviewer or model is better."
+        },
+        {
+          "kind": "exact_text",
+          "text": "It adds no gate to any project and does not lower a gate that the owner or a project has declared."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Declared gates stay hard."
+        },
+        {
+          "kind": "exact_text",
+          "text": "it covers only gates whose checker is a noisy reviewer. It adds no blocking gate and lowers no declared one."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "16294aa2651f0a6d13d25bc3fd7514b127b08a64c42783fc098d1b79f8c31441",
+      "extracted_utf8_bytes": 279,
+      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "rule_id": "uda.review.failure-repair",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; and put the counts on the owner questions page."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "c12c83753ea888d3992b9d091e778604076d32f02cfe44c294648817d2ec95fa",
+      "extracted_utf8_bytes": 1131,
+      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "rule_id": "uda.review.false-failure",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Before a gate runs over many units, estimate how often it will fail correct work, using the formulas in the Problem section."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Take p from a pilot on units known to be correct (the frozen reference, for example) or from earlier cycles' records, and say so when p is a guess."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Apply the estimate to each hard floor too: a zero-critical-misses floor is a zero-findings gate over the m critical items alone, so it fails correct work with probability 1 - (1 - p)^m."
+        },
+        {
+          "kind": "exact_text",
+          "text": "If the estimate would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after."
+        },
+        {
+          "kind": "exact_text",
+          "text": "a gate needs zero findings from a model reviewer on every unit and no false-failure estimate was made;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "The formulas assume false flags are independent at one constant rate p."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Real flags cluster, since one misreading can flag several items, and p differs by item type and by reviewer."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Treat the formulas as planning estimates, and prefer a pass rate measured on known-correct units."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A reviewer that misses real defects needs a different reviewer or a deterministic check."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Estimate the false-failure rate before running at scale."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "d41588f149d477b287d172983a1d12cc4aaa58942727638334c2e8a3fb3038af",
+      "extracted_utf8_bytes": 660,
+      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "rule_id": "uda.review.item-degradation",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "When the repairs run out, withhold only the items still flagged and mark them for review, keep every other item, and record each omission that is still flagged (a reference item the reviewer says the output lacks) as a gap in the output."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Do not discard the unit, and do not halt the pipeline: one unit's leftover flags never stop units that do not depend on it."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A unit that consumes or checks the withheld items waits until they are reviewed, or runs without them and records the gap; it never treats them as accepted."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Keep the independent units moving while the question waits."
+        },
+        {
+          "kind": "exact_text",
+          "text": "a unit is discarded, or the pipeline halted, because some items stay flagged."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "702fa5d805d8d2efc05946ab787a4d34f5fb2b8ff8dcb57201d505f03143d715",
+      "extracted_utf8_bytes": 769,
+      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "rule_id": "uda.review.repair-bound",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Fix the number of repair cycles before the first cycle runs."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Declare a stall rule along with the repair bound, for example \"two repairs in a row that leave the count the same or higher\"."
+        },
+        {
+          "kind": "exact_text",
+          "text": "If a controlling directive fixes a repair limit, the stall rule can end repairs sooner and never extends them (`patterns/structured-output-failure-boundary.md`)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Stopping repairs does not show that the unit, the repair method, or the reviewer is wrong."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The next step is diagnosis or an owner decision (`patterns/outcome-advancement-and-strategy-efficacy.md`, section 9.4)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "repairs have no bound fixed in advance, or findings per cycle are not recorded;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Bound the repairs and degrade by item."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A directive's ceiling stays a ceiling."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A bound ends spend and proves nothing else."
         }
       ]
     },

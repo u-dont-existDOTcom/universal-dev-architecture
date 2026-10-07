@@ -1,0 +1,1 @@
+The observed failure persists unchanged while the affected gate resumes.

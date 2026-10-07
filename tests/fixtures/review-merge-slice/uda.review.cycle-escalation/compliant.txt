@@ -1,0 +1,1 @@
+Persisted cycles record counts 3, 3, 4 and item IDs A, B, C, D, with repair changes after each cycle. The advance stall rule fires and no more rounds are spent. Unresolved items are withheld and gaps persist. The owner questions page contains those counts, changes and options: partial result, gate change or human review. Independent units continue.

@@ -85,124 +85,7 @@
       "id": "AGENTS.md#follow-up-goal-derivation-and-assistant-added-requirements",
       "kind": "kernel_section",
       "indexed": false,
-      "disposition": "LEGACY_UNSTRUCTURED",
-      "behavioral": true,
-      "activation_route": {
-        "kind": "KERNEL_ALWAYS",
-        "detail": "Loaded with the root authority on every UDA-activated turn."
-      },
-      "actors": [
-        "reasoning agent",
-        "execution worker"
-      ],
-      "phases": [
-        "reasoning",
-        "pre-action",
-        "final-delivery"
-      ],
-      "destinations": [
-        "follow-up-goal-derivation-and-assistant-added-requirements controlled boundary"
-      ],
-      "enforcement_types": [
-        "unobserved"
-      ],
-      "task_time_records": [],
-      "graph_node": null,
-      "evidence": [
-        {
-          "path": "AGENTS.md",
-          "class": "TEXT_PRESENCE"
-        }
-      ],
-      "migration": {
-        "priority": "P1",
-        "next_step": "Bind the parent owner gap, requirement origin and strongest simpler alternative before accepting a consequential follow-up or mandatory prerequisite.",
-        "trigger_frequency": "EVERY_TURN"
-      }
-    },
-    {
-      "id": "AGENTS.md#instruction-composition",
-      "kind": "kernel_section",
-      "indexed": false,
-      "disposition": "LEGACY_UNSTRUCTURED",
-      "behavioral": true,
-      "activation_route": {
-        "kind": "KERNEL_ALWAYS",
-        "detail": "Loaded with the root authority on every UDA-activated turn."
-      },
-      "actors": [
-        "reasoning agent",
-        "execution worker"
-      ],
-      "phases": [
-        "reasoning",
-        "pre-action",
-        "final-delivery"
-      ],
-      "destinations": [
-        "instruction-composition controlled boundary"
-      ],
-      "enforcement_types": [
-        "unobserved"
-      ],
-      "task_time_records": [],
-      "graph_node": null,
-      "evidence": [
-        {
-          "path": "AGENTS.md",
-          "class": "TEXT_PRESENCE"
-        }
-      ],
-      "migration": {
-        "priority": "P1",
-        "next_step": "Bind task classification and current index selection to pre-attempt activation; preserve canonical authority and exact applicable dependency closure.",
-        "trigger_frequency": "EVERY_TURN"
-      }
-    },
-    {
-      "id": "AGENTS.md#owner-facing-operational-references",
-      "kind": "kernel_section",
-      "indexed": false,
-      "disposition": "LEGACY_UNSTRUCTURED",
-      "behavioral": true,
-      "activation_route": {
-        "kind": "KERNEL_ALWAYS",
-        "detail": "Loaded with the root authority on every UDA-activated turn."
-      },
-      "actors": [
-        "reasoning agent",
-        "execution worker"
-      ],
-      "phases": [
-        "reasoning",
-        "pre-action",
-        "final-delivery"
-      ],
-      "destinations": [
-        "owner-facing-operational-references controlled boundary"
-      ],
-      "enforcement_types": [
-        "unobserved"
-      ],
-      "task_time_records": [],
-      "graph_node": null,
-      "evidence": [
-        {
-          "path": "AGENTS.md",
-          "class": "TEXT_PRESENCE"
-        }
-      ],
-      "migration": {
-        "priority": "P1",
-        "next_step": "Bind plain-language referents, current exact link verification and complete usable artifact delivery to the literal owner-visible final payload.",
-        "trigger_frequency": "EVERY_TURN"
-      }
-    },
-    {
-      "id": "AGENTS.md#per-turn-bootstrap-invariants",
-      "kind": "kernel_section",
-      "indexed": false,
-      "disposition": "STRUCTURED_PARTIAL",
+      "disposition": "STRUCTURED_ENFORCED",
       "behavioral": true,
       "activation_route": {
         "kind": "KERNEL_ALWAYS",
@@ -210,21 +93,342 @@
       },
       "actors": [
         "chat",
+        "claude",
         "codex",
-        "execution worker",
-        "reasoning agent",
+        "work"
+      ],
+      "phases": [
+        "pre-action",
+        "reasoning"
+      ],
+      "destinations": [
+        "authorized execution boundary",
+        "current task decision"
+      ],
+      "enforcement_types": [
+        "semantic"
+      ],
+      "task_time_records": [
+        "uda.kernel.followup-derivation"
+      ],
+      "graph_node": null,
+      "evidence": [
+        {
+          "class": "ADMISSION",
+          "path": "tests/test_uda_kernel_slice.py"
+        },
+        {
+          "class": "BEHAVIORAL_REGRESSION",
+          "path": "tests/test_uda_kernel_slice.py"
+        }
+      ],
+      "obligation_map": [
+        {
+          "sentence": "Before authoring, launching, or accepting a consequential follow-up task, re-bind the proposed work to the current parent owner outcome",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "rebind-before-author-launch-accept"
+        },
+        {
+          "sentence": "and follow `patterns/owner-goal-followup-and-requirement-accretion.md`.",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "rebind-before-author-launch-accept"
+        },
+        {
+          "sentence": "First classify the root outcome as `OPEN`, `SATISFIED`, `SUPERSEDED`, `CANCELED`, or `AUTHORITY_UNRESOLVED`,",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "rebind-before-author-launch-accept"
+        },
+        {
+          "sentence": "and state the exact remaining owner gap.",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "rebind-before-author-launch-accept"
+        },
+        {
+          "sentence": "A useful improvement is not unfinished owner work merely because it is technically attractive.",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "rebind-before-author-launch-accept"
+        },
+        {
+          "sentence": "Every new mandatory requirement that was not already present in the owner outcome must declare its origin and necessity.",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "rebind-before-author-launch-accept"
+        },
+        {
+          "sentence": "An `ASSISTANT_INFERENCE` or inherited choice (not a declared gate) with unresolved necessity may be only a bounded reversible experiment; it may not become a fail-closed blocker, architecture prerequisite, root acceptance criterion, stronger assurance gate, or reason to disable a previously working owner-aligned path.",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "rebind-before-author-launch-accept"
+        },
+        {
+          "sentence": "Treat stronger assurance as requirement accretion when it changes whether work may proceed or count as complete.",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "rebind-before-author-launch-accept"
+        },
+        {
+          "sentence": "Independent readback, provider attestation, extra reviewers, new trust boundaries, and similar controls must identify the current owner decision/outcome they materially change and why a simpler evidence standard is insufficient before becoming mandatory.",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "rebind-before-author-launch-accept"
+        },
+        {
+          "sentence": "If a newly added control blocks or degrades a previously working owner-aligned path, stop the compensating-fix chain",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "revalidate-first-added-control"
+        },
+        {
+          "sentence": "and revalidate the first added requirement against the parent outcome and the strongest materially simpler alternative.",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "revalidate-first-added-control"
+        },
+        {
+          "sentence": "Preserve useful supporting work,",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "revalidate-first-added-control"
+        },
+        {
+          "sentence": "but restore the simpler valid path when necessity is not established.",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "revalidate-first-added-control"
+        },
+        {
+          "sentence": "This gate runs at follow-up-task authoring, before the new framing is handed to Work or another executor.",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "rebind-before-author-launch-accept"
+        },
+        {
+          "sentence": "A later worker faithfully executing a substituted goal is too late.",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "rebind-before-author-launch-accept"
+        },
+        {
+          "sentence": "At experiment launch, apply the operational owner-method contract to the actual runnable configuration.",
+          "record": "uda.kernel.followup-derivation",
+          "obligation_id": "actual-runnable-method"
+        }
+      ],
+      "legacy_remainder": ""
+    },
+    {
+      "id": "AGENTS.md#instruction-composition",
+      "kind": "kernel_section",
+      "indexed": false,
+      "disposition": "STRUCTURED_ENFORCED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "KERNEL_ALWAYS",
+        "detail": "Loaded with the root authority on every UDA-activated turn."
+      },
+      "actors": [
+        "chat",
+        "claude",
+        "codex",
+        "work"
+      ],
+      "phases": [
+        "persistence",
+        "retrieval"
+      ],
+      "destinations": [
+        "current reasoning/execution turn",
+        "instruction-artifact"
+      ],
+      "enforcement_types": [
+        "semantic"
+      ],
+      "task_time_records": [
+        "uda.kernel.instruction-activation",
+        "uda.kernel.instruction-maintenance"
+      ],
+      "graph_node": null,
+      "evidence": [
+        {
+          "class": "ADMISSION",
+          "path": "tests/test_uda_kernel_slice.py"
+        },
+        {
+          "class": "BEHAVIORAL_REGRESSION",
+          "path": "tests/test_uda_kernel_slice.py"
+        }
+      ],
+      "obligation_map": [
+        {
+          "sentence": "Before handling any task, including a brief request to remember a preference, open `LESSON-INDEX.md`,",
+          "record": "uda.kernel.instruction-activation",
+          "obligation_id": "open-index-every-task"
+        },
+        {
+          "sentence": "select entries whose triggers match,",
+          "record": "uda.kernel.instruction-activation",
+          "obligation_id": "open-index-every-task"
+        },
+        {
+          "sentence": "and read their current patterns.",
+          "record": "uda.kernel.instruction-activation",
+          "obligation_id": "open-index-every-task"
+        },
+        {
+          "sentence": "Instruction maintenance uses `patterns/instruction-composition-and-portable-intelligence.md`;",
+          "record": "uda.kernel.instruction-maintenance",
+          "obligation_id": "maintenance-pattern-owner"
+        },
+        {
+          "sentence": "activation uses `patterns/task-time-lesson-activation.md`.",
+          "record": "uda.kernel.instruction-activation",
+          "obligation_id": "open-index-every-task"
+        },
+        {
+          "sentence": "Resolve graph-covered dependencies via `rules/UDA-RULE-GRAPH.json`/`scripts/uda_rule_graph.py`;",
+          "record": "uda.kernel.instruction-activation",
+          "obligation_id": "resolve-covered-dependencies"
+        },
+        {
+          "sentence": "canonical prose remains authoritative;",
+          "record": "uda.kernel.instruction-activation",
+          "obligation_id": "resolve-covered-dependencies"
+        },
+        {
+          "sentence": "unmapped rules stay index-routed;",
+          "record": "uda.kernel.instruction-activation",
+          "obligation_id": "resolve-covered-dependencies"
+        },
+        {
+          "sentence": "shopping routes through `LESSON-INDEX.md`.",
+          "record": "uda.kernel.instruction-activation",
+          "obligation_id": "resolve-covered-dependencies"
+        },
+        {
+          "sentence": "Task-specific rules live in patterns",
+          "record": "uda.kernel.instruction-maintenance",
+          "obligation_id": "maintenance-pattern-owner"
+        },
+        {
+          "sentence": "and are reached through `LESSON-INDEX.md`;",
+          "record": "uda.kernel.instruction-maintenance",
+          "obligation_id": "maintenance-pattern-owner"
+        },
+        {
+          "sentence": "a new task rule adds a pattern and an index entry, never a root line.",
+          "record": "uda.kernel.instruction-maintenance",
+          "obligation_id": "maintenance-pattern-owner"
+        }
+      ],
+      "legacy_remainder": ""
+    },
+    {
+      "id": "AGENTS.md#owner-facing-operational-references",
+      "kind": "kernel_section",
+      "indexed": false,
+      "disposition": "STRUCTURED_ENFORCED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "KERNEL_ALWAYS",
+        "detail": "Loaded with the root authority on every UDA-activated turn."
+      },
+      "actors": [
+        "chat",
+        "claude",
+        "codex",
+        "work"
+      ],
+      "phases": [
+        "handoff",
+        "pre-action"
+      ],
+      "destinations": [
+        "owner-required artifact and companion materials",
+        "owner-visible-message"
+      ],
+      "enforcement_types": [
+        "semantic"
+      ],
+      "task_time_records": [
+        "uda.kernel.operational-references",
+        "uda.kernel.outbound-links",
+        "uda.kernel.artifact-delivery"
+      ],
+      "graph_node": null,
+      "evidence": [
+        {
+          "class": "ADMISSION",
+          "path": "tests/test_uda_kernel_slice.py"
+        },
+        {
+          "class": "BEHAVIORAL_REGRESSION",
+          "path": "tests/test_uda_kernel_slice.py"
+        }
+      ],
+      "obligation_map": [
+        {
+          "sentence": "In user-facing prose, never make repository identifiers the primary explanation.",
+          "record": "uda.kernel.operational-references",
+          "obligation_id": "plain-language-first"
+        },
+        {
+          "sentence": "Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, and similar opaque references are locating metadata, not semantic referents.",
+          "record": "uda.kernel.operational-references",
+          "obligation_id": "plain-language-first"
+        },
+        {
+          "sentence": "Immediately before surfacing any outbound link to the owner, open the exact destination, follow redirects, and verify that the final page resolves successfully to the intended current content—not an error, 404, dead, parked, or stale page.",
+          "record": "uda.kernel.outbound-links",
+          "obligation_id": "exact-current-destination"
+        },
+        {
+          "sentence": "Search snippets, cached previews, remembered URLs, and earlier checks do not count as verification.",
+          "record": "uda.kernel.outbound-links",
+          "obligation_id": "exact-current-destination"
+        },
+        {
+          "sentence": "If the exact link cannot be verified in the current turn, do not surface it.",
+          "record": "uda.kernel.outbound-links",
+          "obligation_id": "exact-current-destination"
+        },
+        {
+          "sentence": "Never present a broken or unverified link as a recommendation.",
+          "record": "uda.kernel.outbound-links",
+          "obligation_id": "exact-current-destination"
+        },
+        {
+          "sentence": "**Delivery is part of completion.**",
+          "record": "uda.kernel.artifact-delivery",
+          "obligation_id": "usable-delivery-before-completion"
+        },
+        {
+          "sentence": "When the owner needs to use a file, packet, handoff, protocol, report, generated artifact, or other output, do not make them navigate GitHub branches or repository paths to obtain it.",
+          "record": "uda.kernel.artifact-delivery",
+          "obligation_id": "usable-delivery-before-completion"
+        },
+        {
+          "sentence": "Before delivering that output, load the delivery-priority, provenance, companion-material, and pre-close usability rules: `patterns/human-readable-operational-references.md` → **Compact rules moved from root `AGENTS.md`**.",
+          "record": "uda.kernel.artifact-delivery",
+          "obligation_id": "usable-delivery-before-completion"
+        }
+      ],
+      "legacy_remainder": ""
+    },
+    {
+      "id": "AGENTS.md#per-turn-bootstrap-invariants",
+      "kind": "kernel_section",
+      "indexed": false,
+      "disposition": "STRUCTURED_ENFORCED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "KERNEL_ALWAYS",
+        "detail": "Loaded with the root authority on every UDA-activated turn."
+      },
+      "actors": [
+        "chat",
+        "claude",
+        "codex",
         "work"
       ],
       "phases": [
         "final-delivery",
-        "pre-action",
-        "reasoning",
+        "handoff",
         "retrieval"
       ],
       "destinations": [
-        "per-turn-bootstrap-invariants controlled boundary",
         "current reasoning/execution turn",
-        "owner-visible-final"
+        "owner-visible-final",
+        "recipient-file-and-chat-summary"
       ],
       "enforcement_types": [
         "mechanical",
@@ -232,73 +436,236 @@
       ],
       "task_time_records": [
         "uda.final.timestamp",
-        "uda.bootstrap.live-root"
+        "uda.kernel.clock-cadence",
+        "uda.bootstrap.live-root",
+        "uda.kernel.output-budget"
       ],
       "graph_node": null,
       "evidence": [
         {
-          "path": "AGENTS.md",
-          "class": "TEXT_PRESENCE"
+          "class": "ADMISSION",
+          "path": "tests/test_uda_kernel_slice.py"
         },
         {
-          "path": "tests/test_uda_rule_graph_task_time.py",
-          "class": "ADMISSION"
-        },
-        {
-          "path": "tests/test_uda_rule_graph_task_time.py",
-          "class": "COMPILATION"
-        },
-        {
-          "path": "tests/test_uda_task_time_receipts.py",
-          "class": "ADMISSION"
+          "class": "BEHAVIORAL_REGRESSION",
+          "path": "tests/test_uda_kernel_slice.py"
         }
       ],
-      "migration": {
-        "priority": "P1",
-        "next_step": "Extend task-specific authority, clock-read cadence and output-budget delivery to their exact boundaries; preserve mechanical final checks and distinguish bootstrap assertions from observed retrieval evidence.",
-        "trigger_frequency": "EVERY_TURN"
-      },
-      "legacy_remainder": "Mechanical checks evaluate the outgoing timestamp and reported elapsed duration only. They do not prove the two-read cadence, actual live bootstrap, task-specific authority loading or long-output artifact delivery; the live-root obligation now accepts attributed receipts, but does not mechanically prove live retrieval. The other kernel obligations remain incompletely represented.",
-      "review_notes": ""
+      "legacy_remainder": "",
+      "review_notes": "",
+      "obligation_map": [
+        {
+          "sentence": "For **every assistant turn** governed by this architecture, the **first line of the final user-visible assistant answer MUST be an explicit date-and-time stamp including a timezone or UTC offset**.",
+          "record": "uda.final.timestamp",
+          "obligation_id": "final-first-line-timestamp"
+        },
+        {
+          "sentence": "This is a final-output contract and a pre-answer invariant, not a task-dependent recommendation.",
+          "record": "uda.final.timestamp",
+          "obligation_id": "final-first-line-timestamp"
+        },
+        {
+          "sentence": "The timestamp must appear in the final answer/message content delivered to the user on every assistant turn.",
+          "record": "uda.final.timestamp",
+          "obligation_id": "final-first-line-timestamp"
+        },
+        {
+          "sentence": "A timestamp written only in hidden reasoning, visible thinking/reasoning UI, analysis, tool-call commentary, scratch work, or any intermediate channel **does not satisfy this requirement**.",
+          "record": "uda.final.timestamp",
+          "obligation_id": "final-first-line-timestamp"
+        },
+        {
+          "sentence": "An earlier timestamp in reasoning or an intermediate step does not satisfy the final-output contract; use the second reading in the final answer.",
+          "record": "uda.final.timestamp",
+          "obligation_id": "final-first-line-timestamp"
+        },
+        {
+          "sentence": "Two clock readings per turn, no others (owner, 2026-09-30).",
+          "record": "uda.kernel.clock-cadence",
+          "obligation_id": "two-read-cadence"
+        },
+        {
+          "sentence": "First: the message's sent time if the surface shows it, else a read as the turn's first action.",
+          "record": "uda.kernel.clock-cadence",
+          "obligation_id": "first-reading"
+        },
+        {
+          "sentence": "Second: a read right before writing the final answer.",
+          "record": "uda.kernel.clock-cadence",
+          "obligation_id": "two-read-cadence"
+        },
+        {
+          "sentence": "Read with `date -u` in a shell tool, else the current-time tool, else the code tool's clock;",
+          "record": "uda.kernel.clock-cadence",
+          "obligation_id": "two-read-cadence"
+        },
+        {
+          "sentence": "if a read fails or isn't later than the first, use the next one once.",
+          "record": "uda.kernel.clock-cadence",
+          "obligation_id": "two-read-cadence"
+        },
+        {
+          "sentence": "Never compare clocks or read mid-task.",
+          "record": "uda.kernel.clock-cadence",
+          "obligation_id": "two-read-cadence"
+        },
+        {
+          "sentence": "The final answer opens with the second reading",
+          "record": "uda.final.timestamp",
+          "obligation_id": "final-elapsed-time"
+        },
+        {
+          "sentence": "and says how long the turn took in total.",
+          "record": "uda.final.timestamp",
+          "obligation_id": "final-elapsed-time"
+        },
+        {
+          "sentence": "Don't reuse a prior-turn timestamp",
+          "record": "uda.kernel.clock-cadence",
+          "obligation_id": "two-read-cadence"
+        },
+        {
+          "sentence": "or present capture time as hidden provider sent time.",
+          "record": "uda.kernel.clock-cadence",
+          "obligation_id": "two-read-cadence"
+        },
+        {
+          "sentence": "If no clock answers, say so rather than inventing a time.",
+          "record": "uda.kernel.clock-cadence",
+          "obligation_id": "two-read-cadence"
+        },
+        {
+          "sentence": "Before finalizing every assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form.",
+          "record": "uda.final.timestamp",
+          "obligation_id": "final-first-line-timestamp"
+        },
+        {
+          "sentence": "If it does not, prepend the second reading; the check needs no further reading.",
+          "record": "uda.final.timestamp",
+          "obligation_id": "final-first-line-timestamp"
+        },
+        {
+          "sentence": "Apply it on every turn even for trivial arithmetic, greetings, smoke tests, follow-up acknowledgments, corrections, status updates, or prompts that otherwise warrant a direct one-line answer.",
+          "record": "uda.final.timestamp",
+          "obligation_id": "final-first-line-timestamp"
+        },
+        {
+          "sentence": "Simple answers, low-effort reasoning, tool avoidance, brevity, and shallow repository reads **must not waive this invariant**.",
+          "record": "uda.final.timestamp",
+          "obligation_id": "final-first-line-timestamp"
+        },
+        {
+          "sentence": "When current owner instructions require the canonical GitHub bootstrap, **re-fetch the live default-branch root `AGENTS.md` on every user turn before task reasoning, artifact composition, task execution, or answering**.",
+          "record": "uda.bootstrap.live-root",
+          "obligation_id": "live-root-refetch"
+        },
+        {
+          "sentence": "Tool discovery, current-clock checks, and the bootstrap retrieval itself are permitted prerequisites.",
+          "record": "uda.bootstrap.live-root",
+          "obligation_id": "live-root-refetch"
+        },
+        {
+          "sentence": "A prior-turn fetch, cached copy, remembered summary, or earlier reasoning does not satisfy per-turn activation.",
+          "record": "uda.bootstrap.live-root",
+          "obligation_id": "live-root-refetch"
+        },
+        {
+          "sentence": "If required GitHub/bootstrap access is unavailable, the final answer must still begin with the timestamp and then state the access failure explicitly rather than pretending the bootstrap occurred.",
+          "exception": {
+            "kind": "BOOTSTRAP_NOT_LOADED",
+            "reason": "This disclosure applies when required GitHub bootstrap cannot load, so no activated UDA contract exists to admit that turn.",
+            "carrier": "docs/uda-enforcement-coverage.md#minimal-always-on-owner-bootstrap-replacement"
+          }
+        },
+        {
+          "sentence": "Treat failure to emit the timestamp as the first line of the final user-visible answer on any assistant turn as an instruction-following failure even when the timestamp appeared during thinking or the underlying task answer is otherwise correct.",
+          "record": "uda.final.timestamp",
+          "obligation_id": "final-first-line-timestamp"
+        },
+        {
+          "sentence": "**Every turn:** reusable output over ~8,000 characters goes in a file, for any recipient;",
+          "record": "uda.kernel.output-budget",
+          "obligation_id": "file-for-long-reusable-output"
+        },
+        {
+          "sentence": "chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`.",
+          "record": "uda.kernel.output-budget",
+          "obligation_id": "file-for-long-reusable-output"
+        }
+      ]
     },
     {
       "id": "AGENTS.md#pre-final-continuation-invariant",
       "kind": "kernel_section",
       "indexed": false,
-      "disposition": "LEGACY_UNSTRUCTURED",
+      "disposition": "STRUCTURED_ENFORCED",
       "behavioral": true,
       "activation_route": {
         "kind": "KERNEL_ALWAYS",
         "detail": "Loaded with the root authority on every UDA-activated turn."
       },
       "actors": [
-        "reasoning agent",
-        "execution worker"
+        "chat",
+        "claude",
+        "codex",
+        "work"
       ],
       "phases": [
-        "reasoning",
-        "pre-action",
         "final-delivery"
       ],
       "destinations": [
-        "pre-final-continuation-invariant controlled boundary"
+        "owner-visible-final"
       ],
       "enforcement_types": [
-        "unobserved"
+        "semantic"
       ],
-      "task_time_records": [],
+      "task_time_records": [
+        "uda.kernel.continuation"
+      ],
       "graph_node": null,
       "evidence": [
         {
-          "path": "AGENTS.md",
-          "class": "TEXT_PRESENCE"
+          "class": "ADMISSION",
+          "path": "tests/test_uda_kernel_slice.py"
+        },
+        {
+          "class": "BEHAVIORAL_REGRESSION",
+          "path": "tests/test_uda_kernel_slice.py"
         }
       ],
-      "migration": {
-        "priority": "P1",
-        "next_step": "Bind the current root outcome and executable frontier before terminal delivery; reject stop claims when safe authorized work remains.",
-        "trigger_frequency": "EVERY_TURN"
-      }
+      "obligation_map": [
+        {
+          "sentence": "Before final delivery, apply `patterns/codex-github-operating-system.md` → **Continuation and stop admission**.",
+          "record": "uda.kernel.continuation",
+          "obligation_id": "execute-open-frontier"
+        },
+        {
+          "sentence": "An OPEN task with a safe authorized executable next action requires doing it now, not just diagnosing or planning it.",
+          "record": "uda.kernel.continuation",
+          "obligation_id": "execute-open-frontier"
+        },
+        {
+          "sentence": "A self-authored scope or completed lease cannot cancel parent implementation authority.",
+          "record": "uda.kernel.continuation",
+          "obligation_id": "execute-open-frontier"
+        },
+        {
+          "sentence": "Check the actual final output: stop only at an evidenced boundary,",
+          "record": "uda.kernel.continuation",
+          "obligation_id": "execute-open-frontier"
+        },
+        {
+          "sentence": "finish independent work,",
+          "record": "uda.kernel.continuation",
+          "obligation_id": "execute-open-frontier"
+        },
+        {
+          "sentence": "and preserve explicit owner restrictions and real access, spending, privacy, platform, and irreversible-action gates.",
+          "record": "uda.kernel.continuation",
+          "obligation_id": "execute-open-frontier"
+        }
+      ],
+      "legacy_remainder": ""
     },
     {
       "id": "AGENTS.md#universal-and-owner-specific-infrastructure-boundary",
@@ -378,70 +745,256 @@
       "id": "AGENTS.md#workflow",
       "kind": "kernel_section",
       "indexed": false,
-      "disposition": "LEGACY_UNSTRUCTURED",
+      "disposition": "STRUCTURED_ENFORCED",
       "behavioral": true,
       "activation_route": {
         "kind": "KERNEL_ALWAYS",
         "detail": "Loaded with the root authority on every UDA-activated turn."
       },
       "actors": [
-        "reasoning agent",
-        "execution worker"
+        "chat",
+        "claude",
+        "codex",
+        "work"
       ],
       "phases": [
-        "reasoning",
-        "pre-action",
-        "final-delivery"
+        "pre-action"
       ],
       "destinations": [
-        "workflow controlled boundary"
+        "authorized execution boundary",
+        "operation-commitment-ledger",
+        "owner-visible-message"
       ],
       "enforcement_types": [
-        "unobserved"
+        "semantic"
       ],
-      "task_time_records": [],
+      "task_time_records": [
+        "uda.kernel.coordination",
+        "uda.kernel.owner-input-continuation",
+        "uda.kernel.work-permissions",
+        "uda.kernel.owner-interaction",
+        "uda.kernel.target-recovery",
+        "uda.kernel.operation-commitments"
+      ],
       "graph_node": null,
       "evidence": [
         {
-          "path": "AGENTS.md",
-          "class": "TEXT_PRESENCE"
+          "class": "ADMISSION",
+          "path": "tests/test_uda_kernel_slice.py"
+        },
+        {
+          "class": "BEHAVIORAL_REGRESSION",
+          "path": "tests/test_uda_kernel_slice.py"
         }
       ],
-      "migration": {
-        "priority": "P1",
-        "next_step": "Bind authorized coordination, owner-input continuation, minimal owner interruption and explicit operation commitments to execution and final stop admission.",
-        "trigger_frequency": "EVERY_TURN"
-      }
+      "obligation_map": [
+        {
+          "sentence": "When multiple safe in-scope execution approaches achieve the same outcome, choose the better-coordinated approach without asking the owner to select an execution mode:",
+          "record": "uda.kernel.coordination",
+          "obligation_id": "choose-coordinated-route"
+        },
+        {
+          "sentence": "use isolated workspaces,",
+          "record": "uda.kernel.coordination",
+          "obligation_id": "choose-coordinated-route"
+        },
+        {
+          "sentence": "a durable plan and recovery ledger,",
+          "record": "uda.kernel.coordination",
+          "obligation_id": "choose-coordinated-route"
+        },
+        {
+          "sentence": "delegation plus independent review when safely separable and decision-relevant,",
+          "record": "uda.kernel.coordination",
+          "obligation_id": "choose-coordinated-route"
+        },
+        {
+          "sentence": "and serialize shared mutable state.",
+          "record": "uda.kernel.coordination",
+          "obligation_id": "choose-coordinated-route"
+        },
+        {
+          "sentence": "This standing permission does not broaden task authority and does not replace substantive owner decisions.",
+          "record": "uda.kernel.coordination",
+          "obligation_id": "choose-coordinated-route"
+        },
+        {
+          "sentence": "An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event.",
+          "record": "uda.kernel.owner-input-continuation",
+          "obligation_id": "resume-after-input"
+        },
+        {
+          "sentence": "After incorporating it, continue automatically to the next safe in-scope action while the stated goal remains unfinished.",
+          "record": "uda.kernel.owner-input-continuation",
+          "obligation_id": "resume-after-input"
+        },
+        {
+          "sentence": "Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step.",
+          "record": "uda.kernel.owner-input-continuation",
+          "obligation_id": "resume-after-input"
+        },
+        {
+          "sentence": "Pause only for a genuine missing owner decision, new authority, destructive or irreversible risk, unavailable permission or credential, spending, publication, or access, or an explicit request to stop.",
+          "record": "uda.kernel.owner-input-continuation",
+          "obligation_id": "resume-after-input"
+        },
+        {
+          "sentence": "Work selects authorized task-scoped access and the automatic reviewer; do not ask the owner to choose routine permissions.",
+          "record": "uda.kernel.work-permissions",
+          "obligation_id": "automatic-task-access-review"
+        },
+        {
+          "sentence": "This adds no semantic, spending, publication, representation, destructive, or self-approval authority.",
+          "record": "uda.kernel.work-permissions",
+          "obligation_id": "automatic-task-access-review"
+        },
+        {
+          "sentence": "Resolve engineering blockers; ask only about a material tradeoff, with plain consequences and a recommendation, or a required human gate.",
+          "record": "uda.kernel.owner-interaction",
+          "obligation_id": "minimize-owner-choice"
+        },
+        {
+          "sentence": "Minimize owner choice as an execution invariant.",
+          "record": "uda.kernel.owner-interaction",
+          "obligation_id": "minimize-owner-choice"
+        },
+        {
+          "sentence": "Resolve routine implementation details and already-authorized subordinate actions without asking.",
+          "record": "uda.kernel.owner-interaction",
+          "obligation_id": "minimize-owner-choice"
+        },
+        {
+          "sentence": "A confirmation for the same destination, data boundary, scope, and consequence remains valid across retries, resumed execution, or an alternate authorized transport path; a failed tool or transport does not consume that approval.",
+          "record": "uda.kernel.owner-interaction",
+          "obligation_id": "minimize-owner-choice"
+        },
+        {
+          "sentence": "Ask again only if those facts materially change or the platform requires a fresh human gesture.",
+          "record": "uda.kernel.owner-interaction",
+          "obligation_id": "minimize-owner-choice"
+        },
+        {
+          "sentence": "If owner interaction is genuinely required, finish independent preparation,",
+          "record": "uda.kernel.owner-interaction",
+          "obligation_id": "consolidate-confirmations"
+        },
+        {
+          "sentence": "consolidate the exact dependent actions into the fewest confirmations permitted,",
+          "record": "uda.kernel.owner-interaction",
+          "obligation_id": "consolidate-confirmations"
+        },
+        {
+          "sentence": "explain the concrete downside or risk and why the gate is mandatory,",
+          "record": "uda.kernel.owner-interaction",
+          "obligation_id": "consolidate-confirmations"
+        },
+        {
+          "sentence": "give a recommended default,",
+          "record": "uda.kernel.owner-interaction",
+          "obligation_id": "consolidate-confirmations"
+        },
+        {
+          "sentence": "and resume automatically after the answer.",
+          "record": "uda.kernel.owner-interaction",
+          "obligation_id": "consolidate-confirmations"
+        },
+        {
+          "sentence": "Before declaring a host, device, service, session, or other target inaccessible—or asking the owner to identify, restart, reconnect, or configure an opaque machine-generated target—recover its semantic identity and the authorized access topology first.",
+          "record": "uda.kernel.target-recovery",
+          "obligation_id": "identity-and-topology-before-escalation"
+        },
+        {
+          "sentence": "Treat a failed connector/device transport as a route-specific failure, not proof that the underlying target is unavailable.",
+          "record": "uda.kernel.target-recovery",
+          "obligation_id": "identity-and-topology-before-escalation"
+        },
+        {
+          "sentence": "Inspect current connected endpoints plus task-relevant local mappings such as SSH config/aliases, durable task state, service/process metadata, and recent authorized execution history;",
+          "record": "uda.kernel.target-recovery",
+          "obligation_id": "identity-and-topology-before-escalation"
+        },
+        {
+          "sentence": "from a healthy authorized endpoint, use bounded read-only probes such as `hostname` and exact target-path existence/read checks to prove which route reaches the same target.",
+          "record": "uda.kernel.target-recovery",
+          "obligation_id": "identity-and-topology-before-escalation"
+        },
+        {
+          "sentence": "Use an equivalent authorized alternate route when one exists.",
+          "record": "uda.kernel.target-recovery",
+          "obligation_id": "identity-and-topology-before-escalation"
+        },
+        {
+          "sentence": "Never ask the owner to recognize an opaque identifier merely because the first transport failed.",
+          "record": "uda.kernel.target-recovery",
+          "obligation_id": "identity-and-topology-before-escalation"
+        },
+        {
+          "sentence": "Escalate only after plausible authorized routes are exhausted or a genuinely human-only action remains.",
+          "record": "uda.kernel.target-recovery",
+          "obligation_id": "identity-and-topology-before-escalation"
+        },
+        {
+          "sentence": "When you explicitly commit to a substantive operation, method, comparison, audit, experiment, or artifact, keep it as an open obligation until it is actually executed, I explicitly supersede it, or new evidence makes it invalid and you say so.",
+          "record": "uda.kernel.operation-commitments",
+          "obligation_id": "keep-promised-operation-open"
+        },
+        {
+          "sentence": "Adjacent analysis, planning, preparation, or a different method does not count as completion.",
+          "record": "uda.kernel.operation-commitments",
+          "obligation_id": "keep-promised-operation-open"
+        },
+        {
+          "sentence": "Before switching methods, declaring progress complete, or ending a substantial pass, verify what observable result proves each promised operation actually occurred.",
+          "record": "uda.kernel.operation-commitments",
+          "obligation_id": "keep-promised-operation-open"
+        },
+        {
+          "sentence": "If a still-valid promised step was displaced by later work, execute it before continuing.",
+          "record": "uda.kernel.operation-commitments",
+          "obligation_id": "keep-promised-operation-open"
+        }
+      ],
+      "legacy_remainder": ""
     },
     {
       "id": "patterns/agent-completable-merge-gates.md",
       "kind": "pattern",
       "indexed": true,
-      "disposition": "LEGACY_UNSTRUCTURED",
+      "disposition": "STRUCTURED_ENFORCED",
       "behavioral": true,
       "activation_route": {
-        "kind": "INDEX_TRIGGER",
-        "detail": "When a workstream will merge, release, or deploy through hosted gates"
+        "kind": "STRUCTURED_TRIGGER",
+        "detail": "governance_required and merge_gate action_classes; unknown facts block"
       },
       "actors": [
-        "reasoning agent",
-        "execution worker"
+        "chat",
+        "work",
+        "codex",
+        "claude"
       ],
       "phases": [
-        "reasoning",
-        "pre-action",
         "handoff",
-        "publication"
+        "persistence",
+        "pre-action"
       ],
       "destinations": [
-        "workstream gate-capability check at start",
-        "owner questions page decision with recommendation",
-        "merge handoff to the owner"
+        "gate-capability-checkpoint",
+        "hosted-gate-authority",
+        "merge-eligibility-evidence",
+        "owner-action-readback",
+        "owner-questions-page"
       ],
       "enforcement_types": [
-        "unobserved"
+        "semantic"
       ],
-      "task_time_records": [],
+      "task_time_records": [
+        "uda.merge-gate.capability",
+        "uda.merge-gate.owner-decision",
+        "uda.merge-gate.substance-check",
+        "uda.merge-gate.owner-clicks",
+        "uda.merge-gate.authority",
+        "uda.merge-gate.failure-repair"
+      ],
       "graph_node": null,
       "evidence": [
         {
@@ -459,13 +1012,308 @@
         {
           "path": "tests/test_agent_completable_merge_gates.py",
           "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_uda_review_merge_slice.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_review_merge_slice.py",
+          "class": "BEHAVIORAL_REGRESSION"
         }
       ],
-      "migration": {
-        "priority": "P2",
-        "next_step": "At workstream start, record for each hosted merge gate whether the agent's actual permissions, including safety-layer refusals, can satisfy it; block a recurring per-change owner click unless one early owner decision with a recommendation is recorded.",
-        "trigger_frequency": "CONDITIONAL"
-      }
+      "obligation_map": [
+        {
+          "sentence": "For a workstream that will merge, release, or deploy through hosted controls, list each hosted gate on that path (for example required reviews, resolved conversations, required checks, bypass limits, environment approvals, and the merge itself) from current settings evidence, not from repository files (`patterns/codex-github-operating-system.md`).",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "For each gate, check that the agent can satisfy it with the permissions it actually has: account or token scopes, the connector's actions, the sandbox, and the permission or safety layer's own refusals, which can block an action the platform allows.",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Check the exact action, not a neighboring one, because being able to read threads says nothing about resolving them (`patterns/reasoning-selection.md`, capability edges).",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Read the permission rules or documentation that govern the action, query the settings read-only, or use a refusal already on record.",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Attempt the action itself only on a destination the workstream already authorizes for such tests, such as a sandbox repository, never by creating a hosted object just to probe.",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Record can or cannot for each gate in the task checkpoint.",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "the first sign that the agent cannot complete a hosted gate comes at the merge step;",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Which actions a permission layer refuses depends on the platform, the account and the layer's current configuration.",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Check the exact action in the current session; do not rely on this pattern's example.",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Check the gates when the workstream starts.",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Put one question on the owner questions page (`patterns/owner-questions-page.md`) at the start, not at the first merge.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "It is the owner's decision because it changes what the platform enforces.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Name the gate in plain words, say why the agent cannot satisfy it, and give the options with a recommendation.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "First sort the gate.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "A clerical gate records a step whose substance a check can verify, such as resolved review conversations or an up-to-date branch.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "An approval gate exists for independent human authorization, such as a required approving review or an environment approval, and an agent-run check cannot stand in for that separation.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "(the recommendation for a clerical gate; never offered for an approval gate).",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "It ends the recurring clicks, and it costs the platform's own enforcement unless the check is also made a required status check.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "scoped to that one action, with the approval and scope written down.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "It keeps the platform gate and removes the clicks, and it costs tooling the owner must approve and maintain.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "The agent never grants itself the permission that was refused.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "(the recommendation for an approval gate) when the gate exists for a person's authorization or the owner wants a person to confirm each one.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Rule 4 then applies, and the agent can attach the substance check's result so the approval rests on a verified result.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "An owner action that returns on every pull request signals a gate the agent cannot complete.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Raise the gate once instead of treating each return as a new request; the one decision in rule 2 covers them all.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Raise it once per workstream and gate.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Reopen it only when the gate, the agent's permissions, or the permission or safety layer changes.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "the owner is asked for the same gate action on a second pull request with no decision on the page;",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Replacing a gate changes what the platform enforces.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "The owner accepts that tradeoff in deciding; the agent states it in the question.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "If the agent cannot complete a gate, raise one owner decision early.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Replace the gate with a check the agent can run that verifies substance",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Automate the gate with owner-approved tooling,",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Keep the gate and the clicks,",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Do not hand the owner a recurring chore list.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "One question per gate.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "it adds one start-of-workstream check and at most one owner question per gate. It adds no blocking gate and changes no hosted setting.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "The check passes when the latest review of the exact head commit reports nothing open, every earlier finding maps to a fix commit or to a written reason it was not changed, and the required status checks pass.",
+          "record": "uda.merge-gate.substance-check",
+          "obligation_id": "substance-check-at-boundary"
+        },
+        {
+          "sentence": "When the gate it replaces is the up-to-date-branch requirement, the check also confirms that the head contains the current base commit, or runs the required checks on the exact merge result, so checks that passed on an older base cannot admit a change that conflicts with newer work.",
+          "record": "uda.merge-gate.substance-check",
+          "obligation_id": "substance-check-at-boundary"
+        },
+        {
+          "sentence": "Bind that result to the base commit it checked, and rerun it whenever the base moves before the merge, or use a merge queue that tests the exact merge.",
+          "record": "uda.merge-gate.substance-check",
+          "obligation_id": "substance-check-at-boundary"
+        },
+        {
+          "sentence": "a thread is marked resolved with no fix and no written reason to point to.",
+          "record": "uda.merge-gate.substance-check",
+          "obligation_id": "substance-check-at-boundary"
+        },
+        {
+          "sentence": "The substance check is only as good as the review behind it.",
+          "record": "uda.merge-gate.substance-check",
+          "obligation_id": "substance-check-at-boundary"
+        },
+        {
+          "sentence": "It does not turn an author's own review into independent review (`patterns/independent-evaluation-separation.md`), and it assumes a reviewer that reports open findings against the exact head commit.",
+          "record": "uda.merge-gate.substance-check",
+          "obligation_id": "substance-check-at-boundary"
+        },
+        {
+          "sentence": "Until the gate is removed or automated, it stays in force: list each instance that still needs the owner under **For you to do**, grouped into one step with exact links (rule 4), so the page stays the complete list of his work, and attach the substance check's result to each pull request so his clicks rest on a verified result.",
+          "record": "uda.merge-gate.owner-clicks",
+          "obligation_id": "owner-clicks-at-boundary"
+        },
+        {
+          "sentence": "When a click is unavoidable, batch it into one step: exact links to every target in one place (the **For you to do** section of the owner questions page),",
+          "record": "uda.merge-gate.owner-clicks",
+          "obligation_id": "owner-clicks-at-boundary"
+        },
+        {
+          "sentence": "The owner is then not asked twice, and the agent does not take \"done\" on faith.",
+          "record": "uda.merge-gate.owner-clicks",
+          "obligation_id": "verify-owner-action"
+        },
+        {
+          "sentence": "and a read-back the agent runs afterward to confirm it worked, such as a hosted query that counts the threads still open.",
+          "record": "uda.merge-gate.owner-clicks",
+          "obligation_id": "verify-owner-action"
+        },
+        {
+          "sentence": "A click that records a choice only the owner can make (accept a risk, approve a spend, merge a change) stays with the owner.",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "Nothing here lets an agent relax a hosted gate, use an owner-only bypass, merge around a refusal, or disguise a refused action behind another tool or route.",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "A refusal by the permission or safety layer is a boundary (`patterns/worker-self-remediation-before-owner-interruption.md`, **Fail closed on genuine boundaries**).",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "The agent proposes the replacement, and the owner decides (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**).",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "A hosted setting counts as changed only when settings or API evidence shows it (`patterns/codex-github-operating-system.md`).",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "It adds no gate and grants no authority. Changing a hosted gate stays the owner's decision.",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "Keep owner clicks for decisions.",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "No bypass.",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "A declared gate stays until the owner changes it.",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "Repair: stop listing the click; put the decision on the owner questions page with a recommendation; batch the unavoidable clicks as in rule 4;",
+          "record": "uda.merge-gate.failure-repair",
+          "obligation_id": "failure-repair-at-boundary"
+        },
+        {
+          "sentence": "and move the answer to **Decided** when the owner replies.",
+          "record": "uda.merge-gate.failure-repair",
+          "obligation_id": "record-owner-reply"
+        }
+      ]
     },
     {
       "id": "patterns/agent-to-agent-consultation.md",
@@ -1420,7 +2268,7 @@
       "id": "patterns/context-compaction-resilience.md",
       "kind": "pattern",
       "indexed": true,
-      "disposition": "LEGACY_UNSTRUCTURED",
+      "disposition": "STRUCTURED_PARTIAL",
       "behavioral": true,
       "activation_route": {
         "kind": "INDEX_TRIGGER",
@@ -1431,7 +2279,8 @@
         "work",
         "codex",
         "controller",
-        "receiving-agent"
+        "receiving-agent",
+        "claude"
       ],
       "phases": [
         "retrieval",
@@ -1444,12 +2293,18 @@
       "destinations": [
         "canonical repository memory",
         "repository/task checkpoint",
-        "reactivated next unit of work"
+        "reactivated next unit of work",
+        "durable-task-checkpoint"
       ],
       "enforcement_types": [
-        "unobserved"
+        "unobserved",
+        "semantic"
       ],
-      "task_time_records": [],
+      "task_time_records": [
+        "uda.continuity.step-checkpoint",
+        "uda.continuity.turn-end-handoff",
+        "uda.continuity.usage-warning"
+      ],
       "graph_node": null,
       "evidence": [
         {
@@ -1463,14 +2318,35 @@
         {
           "path": "tests/test_current_state_concision.py",
           "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "rules/rule-graph/task-time-metadata.v1.json",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "scripts/uda_rule_graph_task_time.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_usage_limit_continuity.py",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "tests/test_uda_usage_limit_continuity.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_usage_limit_continuity.py",
+          "class": "BEHAVIORAL_REGRESSION"
         }
       ],
-      "review_notes": "Current-state checkpoint is a recovery map, not authority over newer exact Git/artifact/owner evidence. Tiny one-shot work is exempt from a dedicated checkpoint; concurrent tasks use separate files.",
+      "review_notes": "The three continuity records bind semantic judgments to actual durable checkpoint bytes at persistence/final-delivery, not to chat summaries. The table-driven regression covers violating, compliant and non-substitute candidates, trigger exclusions, unresolved warning facts and receipt replay/rewrites. Binding verification does not prove pushes, private-store reachability, semantic truth or universal live behavior.",
       "migration": {
         "priority": "P1",
-        "next_step": "Register multi-session recovery and checkpoint boundaries; bind actual repository reconciliation, preserved current owner locks/gates, completed-work inventory and next executable action, then require reactivation after compaction rather than accepting summary mentions.",
+        "next_step": "Register the older §1–§7 recovery/reconciliation and completion obligations listed in legacy_remainder, including actual Git-state reconciliation and reactivation; integrate per-task consumer invocation without claiming global enforcement.",
         "trigger_frequency": "CONDITIONAL"
-      }
+      },
+      "legacy_remainder": "Only §3 Usage limits and account switches is structured. §1 still routes durable decisions, constraints, discoveries, architecture choices and blockers out of chat; §2 still requires an obvious canonical recovery entry point, separate concurrent-task checkpoints and all minimum goal/baseline/decision/gate/completed/current/remaining/blocker/evidence/dirty-state/next-action fields. The earlier §3 milestone, owner-change, blocker, migration, handoff and completion checkpoint boundaries remain prose-routed. §4 still requires actual repository/working-tree/bootstrap/index/commit/artifact inspection, reconciliation, stale-state repair, gate reactivation and resumption without repeated work. §5 still distinguishes durable decision outcomes from hidden reasoning; §6 still requires recovery by a fresh worker without the old transcript; §7 still requires completion evidence, current final state and lesson closeout. The limits on stale authority, secrets, raw-log duplication, tiny one-shot exemptions and equivalent machine-readable stores remain prose-routed."
     },
     {
       "id": "patterns/context-gated-symbolic-personality-synthesis-errata.md",
@@ -1633,30 +2509,45 @@
       "id": "patterns/convergent-review-acceptance-gates.md",
       "kind": "pattern",
       "indexed": true,
-      "disposition": "LEGACY_UNSTRUCTURED",
+      "disposition": "STRUCTURED_ENFORCED",
       "behavioral": true,
       "activation_route": {
-        "kind": "INDEX_TRIGGER",
-        "detail": "When a pipeline accepts work units on a language-model reviewer's findings"
+        "kind": "STRUCTURED_TRIGGER",
+        "detail": "governance_required and review_round or review_finding_judgment action_classes; unknown facts block"
       },
       "actors": [
-        "reasoning agent",
-        "execution worker"
+        "chat",
+        "work",
+        "codex",
+        "claude"
       ],
       "phases": [
-        "reasoning",
-        "pre-action",
-        "persistence"
+        "persistence",
+        "pre-action"
       ],
       "destinations": [
-        "acceptance gate design before the first run",
-        "repair loop re-review scope",
-        "per-cycle finding counts and owner escalation"
+        "repaired-review-gate",
+        "review-acceptance-decision",
+        "review-accepted-output",
+        "review-cycle-ledger",
+        "review-gate-authority",
+        "review-repair-plan",
+        "review-request",
+        "review-scale-gate-design"
       ],
       "enforcement_types": [
-        "unobserved"
+        "semantic"
       ],
-      "task_time_records": [],
+      "task_time_records": [
+        "uda.review.change-scope",
+        "uda.review.repair-bound",
+        "uda.review.item-degradation",
+        "uda.review.acceptance-floors",
+        "uda.review.false-failure",
+        "uda.review.cycle-escalation",
+        "uda.review.declared-authority",
+        "uda.review.failure-repair"
+      ],
       "graph_node": null,
       "evidence": [
         {
@@ -1674,13 +2565,283 @@
         {
           "path": "tests/test_convergent_review_acceptance_gates.py",
           "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_uda_review_merge_slice.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_review_merge_slice.py",
+          "class": "BEHAVIORAL_REGRESSION"
         }
       ],
-      "migration": {
-        "priority": "P2",
-        "next_step": "Before a model-reviewed gate runs at scale, require a recorded false-failure estimate, a fixed repair bound and re-review limited to earlier findings and changed items; reject a gate that needs a zero-finding report on every unit with no aggregate floor.",
-        "trigger_frequency": "CONDITIONAL"
-      }
+      "obligation_map": [
+        {
+          "sentence": "After a repair, send the reviewer only the earlier findings and the items the repair changed.",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "Carry forward every item that passed and did not change.",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "Give each item a stable ID when it is first produced, and match items to their earlier verdicts mechanically, by ID and exact content (a hash is enough), never by asking the reviewer.",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "An item whose ID or content does not match counts as changed.",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "a repair cycle re-reviews items that passed and did not change;",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "Carrying an item forward assumes its verdict depends only on that item and the frozen reference.",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "When a verdict depends on other items (order, duplicates, consistency across items), declare the dependency and count a change to the other item as a change to this one.",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "Re-review the change, not the whole unit.",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "Fix the number of repair cycles before the first cycle runs.",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "Declare a stall rule along with the repair bound, for example \"two repairs in a row that leave the count the same or higher\".",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "If a controlling directive fixes a repair limit, the stall rule can end repairs sooner and never extends them (`patterns/structured-output-failure-boundary.md`).",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "Stopping repairs does not show that the unit, the repair method, or the reviewer is wrong.",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "The next step is diagnosis or an owner decision (`patterns/outcome-advancement-and-strategy-efficacy.md`, section 9.4).",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "repairs have no bound fixed in advance, or findings per cycle are not recorded;",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "Bound the repairs and degrade by item.",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "A directive's ceiling stays a ceiling.",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "A bound ends spend and proves nothing else.",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "When the repairs run out, withhold only the items still flagged and mark them for review, keep every other item, and record each omission that is still flagged (a reference item the reviewer says the output lacks) as a gap in the output.",
+          "record": "uda.review.item-degradation",
+          "obligation_id": "item-degradation-at-boundary"
+        },
+        {
+          "sentence": "Do not discard the unit, and do not halt the pipeline: one unit's leftover flags never stop units that do not depend on it.",
+          "record": "uda.review.item-degradation",
+          "obligation_id": "item-degradation-at-boundary"
+        },
+        {
+          "sentence": "A unit that consumes or checks the withheld items waits until they are reviewed, or runs without them and records the gap; it never treats them as accepted.",
+          "record": "uda.review.item-degradation",
+          "obligation_id": "item-degradation-at-boundary"
+        },
+        {
+          "sentence": "Keep the independent units moving while the question waits.",
+          "record": "uda.review.item-degradation",
+          "obligation_id": "item-degradation-at-boundary"
+        },
+        {
+          "sentence": "a unit is discarded, or the pipeline halted, because some items stay flagged.",
+          "record": "uda.review.item-degradation",
+          "obligation_id": "item-degradation-at-boundary"
+        },
+        {
+          "sentence": "Accept a run on aggregate measures with floors stated in advance, not on every unit reaching zero findings.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Where units are not interchangeable, because each customer, source or experiment must keep its own required items, add a per-unit or per-stratum minimum to the floors: a pooled measure lets strong units hide one that kept nothing.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Freeze the reference before the gate runs, and never trade a hard floor against another measure.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Report the failed units and the error counts beside the aggregate, each measure on its own line, so a passing aggregate hides neither.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "An aggregate can hide a bad unit, which is why rule 3 reports failed units and error counts beside it.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "A frozen reference is only as sound as its own provenance.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Gate on aggregates with hard floors.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Before a gate runs over many units, estimate how often it will fail correct work, using the formulas in the Problem section.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Take p from a pilot on units known to be correct (the frozen reference, for example) or from earlier cycles' records, and say so when p is a guess.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Apply the estimate to each hard floor too: a zero-critical-misses floor is a zero-findings gate over the m critical items alone, so it fails correct work with probability 1 - (1 - p)^m.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "If the estimate would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "a gate needs zero findings from a model reviewer on every unit and no false-failure estimate was made;",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "The formulas assume false flags are independent at one constant rate p.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Real flags cluster, since one misreading can flag several items, and p differs by item type and by reviewer.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Treat the formulas as planning estimates, and prefer a pass rate measured on known-correct units.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "A reviewer that misses real defects needs a different reviewer or a deterministic check.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Estimate the false-failure rate before running at scale.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Record the number of findings after every cycle, with the item IDs.",
+          "record": "uda.review.cycle-escalation",
+          "obligation_id": "cycle-escalation-at-boundary"
+        },
+        {
+          "sentence": "When the count stays flat or bounces across repairs, stop spending rounds and apply rule 2.",
+          "record": "uda.review.cycle-escalation",
+          "obligation_id": "cycle-escalation-at-boundary"
+        },
+        {
+          "sentence": "Put the question on the owner questions page (`patterns/owner-questions-page.md`) with the per-cycle counts, what each cycle changed, and the options (for example accept the partial result with its gaps, change the gate, or have a person review the flagged items).",
+          "record": "uda.review.cycle-escalation",
+          "obligation_id": "cycle-escalation-at-boundary"
+        },
+        {
+          "sentence": "Track findings per cycle and stop early when they do not fall.",
+          "record": "uda.review.cycle-escalation",
+          "obligation_id": "cycle-escalation-at-boundary"
+        },
+        {
+          "sentence": "The rules shape a gate that an agent or pipeline designs, or that a project leaves open.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "They never lower a gate the owner or the project's authority has declared blocking.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "For a declared zero-finding gate, run it as declared, put the false-failure estimate and the proposed aggregate gate on the owner questions page as a proposal, and keep running the declared gate until the owner or the project authority changes it (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**).",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "The pattern addresses false flags.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "It makes no claim about which reviewer or model is better.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "It adds no gate to any project and does not lower a gate that the owner or a project has declared.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "Declared gates stay hard.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "it covers only gates whose checker is a noisy reviewer. It adds no blocking gate and lowers no declared one.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; and put the counts on the owner questions page.",
+          "record": "uda.review.failure-repair",
+          "obligation_id": "failure-repair-at-boundary"
+        }
+      ]
     },
     {
       "id": "patterns/conversational-prose-speakability.md",

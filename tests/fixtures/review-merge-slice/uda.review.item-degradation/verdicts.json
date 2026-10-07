@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The fixed repair limit is reached. Flagged B is withheld and marked for review; accepted A and C remain. Still-flagged missing reference D is a recorded output gap. Independent unit E continues while the question waits. Consumer F waits; consumer G proceeds without B and records that gap. Neither counts B as accepted.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The pipeline discarded the entire unit and halted every independent unit because B remains flagged.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The output withholds B and records gap D, but consumer F treats B as accepted. dependent consumers treating withheld items as accepted.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "item-degradation-at-boundary",
+    "non_substitute": "dependent consumers treating withheld items as accepted"
+  }
+}

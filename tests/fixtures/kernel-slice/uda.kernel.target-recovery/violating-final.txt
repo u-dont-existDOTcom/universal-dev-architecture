@@ -1,0 +1,1 @@
+One connector failed, so the underlying target was declared inaccessible.

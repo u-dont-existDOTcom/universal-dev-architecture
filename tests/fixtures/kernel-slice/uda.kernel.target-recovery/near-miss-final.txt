@@ -1,0 +1,2 @@
+An equivalent authorized route was verified but ignored; the owner was asked to recognize the opaque target instead.
+Committed substitute: available alternate route ignored.

@@ -1,0 +1,3 @@
+Turn outcome: OPEN; validation remains.
+The owner-visible final gives an accurate done/next list and a one-line resume instruction in chat.
+The durable checkpoint still describes the prior turn; private state remains only in the old account and account-bound items are omitted.

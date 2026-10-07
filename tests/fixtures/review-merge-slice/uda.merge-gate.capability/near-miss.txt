@@ -1,0 +1,1 @@
+Current settings are listed and reading threads succeeds, so the checkpoint marks thread resolution allowed without checking that action. reading threads presented as proof that resolution is allowed.

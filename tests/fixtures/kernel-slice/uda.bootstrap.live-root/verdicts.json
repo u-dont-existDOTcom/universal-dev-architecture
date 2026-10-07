@@ -1,0 +1,31 @@
+{
+  "compliant-final.txt": {
+    "verdict": "PASS",
+    "evidence": "The current-turn live default-root retrieval succeeded before reasoning, composition or execution. Only tool discovery, clock checking and the retrieval itself preceded it. No cached or prior-turn source supplied activation.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "Work began before the current-turn root retrieval.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "A cached root supplied activation; no current-turn live root was retrieved.\nCommitted substitute: cached root.\n",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "live-root-refetch",
+    "non_substitute": "cached root"
+  }
+}

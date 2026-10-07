@@ -1,10 +1,10 @@
-# UDA enforcement coverage — first integration, passes 1 and 2
+# UDA enforcement coverage — first integration, continuity and migration slices 1–2
 
 Rules can be readable and easy to find without ever changing an answer or blocking an action. This inventory makes that gap visible. It checks declared coverage, not the semantic truth of an agent's judgment or live enforcement across every consumer. The owner outcome remains OPEN.
 
 ## Dispositions
 
-- **STRUCTURED_ENFORCED:** all behavioral obligations in this source have exact task-time records and an evaluable admission path. Large files with a narrow slice do not qualify. This first integration has no entries in this state; large sources still have unstructured remainders.
+- **STRUCTURED_ENFORCED:** all behavioral obligations in this source have exact task-time records and an evaluable admission path. Large files with a narrow slice do not qualify. Slices 1–2 have six kernel sections and two complete behavioral patterns in this state; other large pattern sources still have unstructured remainders. An obligation-level bootstrap exception is carried outside activated UDA, not represented as an admitted obligation.
 - **STRUCTURED_PARTIAL:** some obligations have exact records; the entry names the remaining operative obligations in `legacy_remainder`. It stays in the migration backlog. Semantic records now accept exact-candidate receipts and fail closed with UNKNOWN when no matching, well-formed receipt supplies a judgment.
 - **WORKFLOW_ONLY:** the source is a specialist authoritative workflow or reference, with a source-specific explanation. This is an explicit exception, not a claim of semantic task-time enforcement. Some specialist workflows do contain behavior; that fact stays visible.
 - **LEGACY_UNSTRUCTURED:** a behavioral rule still relies on prose/index application. Its exact identity and migration priority are reported. Routing does not count as enforcement.
@@ -26,9 +26,9 @@ The kernel profile uses the required `repository_kind: uda-kernel` classificatio
 
 1. Read the full source and its applicable authority. A new pattern file or root level-two section immediately joins the computed universe.
 2. Add exactly one entry in `rules/rule-graph/enforcement-coverage.v1.json`, with canonical id, behavioral classification, actors, phases, destinations, evidence and a real activation route.
-3. For structured coverage, list every exact `task_time_records` id. Each record must exist, match this source (and root section), and be claimed once. Supply admission or behavioral regression evidence. Use partial coverage when obligations remain.
+3. For structured coverage, list every exact `task_time_records` id. Each record must exist, match this source (and root section), and be claimed once. Supply both ADMISSION and BEHAVIORAL_REGRESSION evidence for a fully structured section. Enumerate every operative sentence or clause in its obligation_map and capture its independent source_clause_manifest in the owner requirement record; use partial coverage with an exact legacy_remainder when obligations remain.
 4. For a specialist workflow exception, explain the actual domain and authoritative workflow. For retirement, name the reason and successor. Neither disposition hides a live missing route.
-5. New backlog is forbidden. Existing backlog may shrink freely; additions require `owner_authorized_additions` with exact id, owner quote, ISO date and source. The baseline pins identities, not just a total, and must match the initial count and canonical identity-list SHA-256 preserved in the owner requirement record. Editing that pin alone cannot authorize growth; owner quotes and coordinated policy rewrites still require human authority review.
+5. New backlog is forbidden. The baseline identity pin stays unchanged; current backlog shrinks only through STRUCTURED_ENFORCED identities reported in removed_since_baseline. Additions require `owner_authorized_additions` with exact id, owner quote, ISO date and source. The baseline pins identities, not just a total, and must match the initial count and canonical identity-list SHA-256 preserved in the owner requirement record. Editing that pin alone cannot authorize growth; owner quotes and coordinated policy rewrites still require human authority review.
 6. Update docs counts/backlog and run `python3 scripts/uda_enforcement_coverage.py validate` and `python3 scripts/uda_enforcement_coverage.py report`. The deterministic repository audit runs validation at error level. If task-time metadata or bound source changes, regenerate the lock with `python3 scripts/uda_rule_graph.py validate --write-lock rules/rule-graph/generated/source-lock.v1.json` and regenerate the representative Mission Control projection with `python3 scripts/uda_rule_graph.py compile --task examples/rule-graph/work-handoff.json --mode graph --output tools/codex-mission-control/restored/codex-mission-control/generated/rule-graph/work-handoff-contract.json`. These are derived artifacts, not Mission Control runtime changes.
 
 ## Recomputed baseline
@@ -43,34 +43,204 @@ Inventory entries: 98
 
 Indexed patterns: 84
 
-Migration backlog: 86
+Migration backlog: 78
 
-Task-time records: 10, sourced from 7 files, with 2 mechanical and 10 semantic obligations.
+Task-time records: 42, sourced from 10 files, with 2 mechanical and 49 semantic obligations (23 kernel behaviors, 9 earlier pattern obligations, 3 usage-limit continuity obligations and 16 review/merge-gate behaviors).
 
 | Disposition | Count |
 |---|---:|
-| STRUCTURED_ENFORCED | 0 |
+| STRUCTURED_ENFORCED | 8 |
 | STRUCTURED_PARTIAL | 7 |
 | WORKFLOW_ONLY | 10 |
-| LEGACY_UNSTRUCTURED | 79 |
+| LEGACY_UNSTRUCTURED | 71 |
 | NOT_ACTIVE | 2 |
 
-The seven partial sources are the bootstrap kernel section, task-time lesson activation, owner-goal follow-up, Chat/Work execution routing, the repository operating system, worker-directive/output delivery, and reasoning selection. The last now structures the dominated-route obligation; its other reasoning obligations remain in the legacy remainder. No whole source was newly fully structured in either pass. The pinned backlog keeps its 84 identities, so shrinkage is zero; the two lessons from the review-convergence change are the only additions (see Open policy change reconciliation). The report shows exact removed identities after migration.
+Six root sections and both new review/merge-gate patterns are STRUCTURED_ENFORCED after slices 1–2. The seven partial pattern sources are task-time lesson activation, owner-goal follow-up, Chat/Work execution routing, the repository operating system, worker-directive/output delivery, reasoning selection and context-compaction resilience. Reasoning selection structures the dominated-route obligation; context-compaction resilience structures only §3 Usage limits and account switches. Their exact unstructured remainders stay in backlog; the parent owner outcome remains OPEN.
+
+The immutable baseline pins 84 identities. Current backlog is 78: six fully structured baseline sections removed, no additions. The two new pattern identities were never baseline members; structuring them prevents growth and does not count as baseline shrinkage. P1 falls from 22 to 16; P2 remains 47 and P3 remains 15. The report's removed_since_baseline lists only those six sections. The original pass-1/pass-2 counts remain historical requirement findings.
+
+## Kernel slice 1 obligation map
+
+Each row below matches the inventory's obligation_map exactly. One obligation covers each coherent behavior at its boundary. The 103 unchanged clause rows map to 23 structured behaviors and one unchanged exception; 102 clauses are structured. Detail remains in exact selectors, acceptance evidence and non-substitutes rather than requiring a receipt for each sentence. These are declared source coverage and receipt-admission regressions, not proof of universal runtime invocation or semantic truth.
+
+Records apply to chat, work, codex and claude unless the source limits the actor: the Work permission record applies only to work/codex. Every-turn records trigger on governance_required; the live-root record also needs owner_requires_live_root, and instruction maintenance needs the existing action_classes value instruction_maintenance. Unknown trigger facts remain unresolved and block. No new facts were introduced, so no new envelope declarations are required.
+
+Payload/action-dependent obligations remain selected with not_applicable_allowed: true. Their bound receipts must explain the absent condition, including coordination when only one safe in-scope approach exists and outbound-link verification when no outbound link is sent. NOT_APPLICABLE is not an escape from an active payload obligation; its semantic correctness still requires review. Each obligation declares its actual retrieval, reasoning, pre-action, handoff, persistence or final-delivery boundary, destination, acceptance evidence, non-substitutes, carry-through and repair. Pre-action gates are not deferred to the final. Reusable output is checked at handoff to recipient-file-and-chat-summary; owner-required artifacts and companions are checked at their actual handoff. Prose and outbound links are checked before surfacing any owner-visible message or question payload, including commentary. Completion claims and explicit final-only duties remain at final-delivery to owner-visible-final.
+
+The final-first-line-timestamp and final-elapsed-time obligations retain the built-in final_timestamp_first_line and final_elapsed_time predicates. A bound semantic PASS cannot admit a missing or misplaced timestamp, an absent elapsed-time report or incorrect duration arithmetic. Supply both clock readings for the elapsed predicate; it also matches the final stamp to the supplied second reading. The existing semantic two-read-cadence obligation judges actual current-turn clock provenance separately. Receipts cannot override mechanical PASS or FAIL results. Owner-input continuation permits reason-bound NOT_APPLICABLE when the turn is not an answer, correction, upload or requested clarification to an active task.
+
+The representative rendered Work handoff is 27,355 bytes, below the 32 KiB (32,768-byte) rendering cap; the first slice draft was 79,386 bytes, and the usage-limit continuity records added 3,288 bytes when they joined it. Its envelope selects the receiving work actor, activating the Work/codex permission boundary rather than Chat-only handoff obligations. The Work adapter emits each selected record's exact normative source once with acceptance/non-substitute boundary rows and shared provenance/lifecycle values; redundant behavior summaries remain in structured selected_rules. Authority owner/domain and every exact source binding reach the prompt. Mission Control's injected Work block is 33,139 bytes. Its prompt limit is 48 KiB: a regression keeps at least 8 KiB of it for the wrapper and the bounded directive, and the actual outgoing prompt, including its directive, is measured against the limit. Both boundaries reject oversized UTF-8 payloads before dispatch. The earlier 24 KiB and 32 KiB figures were borrowed from Codex's AGENTS.md discovery budget, which does not apply to a Work prompt; with the continuity records they would have refused every graph-mode Work dispatch, so the limits were revalidated instead of removing records from Work. No selectors or enumerated clauses were removed.
+
+
+| Section | Before structured obligations | After consolidated obligations | Preserved map clauses | Exceptions |
+|---|---:|---:|---:|---:|
+| Follow-up derivation | 16 | 3 | 16 | 0 |
+| Instruction composition | 12 | 3 | 12 | 0 |
+| Operational references | 9 | 3 | 9 | 0 |
+| Bootstrap | 26 | 6 | 27 | 1 |
+| Continuation | 6 | 1 | 6 | 0 |
+| Workflow | 33 | 7 | 33 | 0 |
+| Total | 102 | 23 | 103 | 1 |
+
+### Obligation-level exceptions
+
+An obligation that cannot be checked inside activated UDA may carry an exception instead of a record only for BOOTSTRAP_NOT_LOADED or OWNER_SETTINGS_CHANGE. Each exception contains the exact owning sentence, a specific reason and a named, resolvable carrier. Difficulty of semantic checking is not an exception. A loaded-root fetch duty stays structured; the duty to disclose failure when the required bootstrap never loaded is carried by the owner-side minimal bootstrap below. There are no owner-settings-change exceptions in this slice and no owner settings were changed.
+
+Validation requires every map sentence to occur exactly once in its owning section; every mapped record/obligation to exist and belong to that section; every mapped sentence to occur in that record's exact-text selectors; every selected record obligation to be mapped (several clauses may share it); every exact selector clause to remain represented; and every exception to have one of the two allowed kinds, a specific reason and an existing carrier/anchor. Complete maps and both evidence classes admit STRUCTURED_ENFORCED; partial sections retain their exact operative legacy_remainder. Each enforced section must also match the independently captured clause count and canonical SHA-256 of its sorted exact sentence strings, including exception clauses, in the requirement record's source_clause_manifest. Lock/projection regeneration never updates that pin, so coordinated record/map deletion or clause shortening fails. Changes to the pin require source-completeness review; the digest verifies preservation, not semantic completeness or authority. Human review still owns completeness against the prose. The report lists the exceptions separately, and the backlog validator prohibits removing a baseline identity by reclassifying it as workflow-only or inactive.
+
+### AGENTS.md#follow-up-goal-derivation-and-assistant-added-requirements
+
+Clauses 16; consolidated obligations 3; structured clauses 16; excepted 0; remaining 0.
+
+| Exact sentence or clause | Record / obligation or exception carrier |
+|---|---|
+| Before authoring, launching, or accepting a consequential follow-up task, re-bind the proposed work to the current parent owner outcome | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| and follow `patterns/owner-goal-followup-and-requirement-accretion.md`. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| First classify the root outcome as `OPEN`, `SATISFIED`, `SUPERSEDED`, `CANCELED`, or `AUTHORITY_UNRESOLVED`, | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| and state the exact remaining owner gap. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| A useful improvement is not unfinished owner work merely because it is technically attractive. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| Every new mandatory requirement that was not already present in the owner outcome must declare its origin and necessity. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| An `ASSISTANT_INFERENCE` or inherited choice (not a declared gate) with unresolved necessity may be only a bounded reversible experiment; it may not become a fail-closed blocker, architecture prerequisite, root acceptance criterion, stronger assurance gate, or reason to disable a previously working owner-aligned path. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| Treat stronger assurance as requirement accretion when it changes whether work may proceed or count as complete. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| Independent readback, provider attestation, extra reviewers, new trust boundaries, and similar controls must identify the current owner decision/outcome they materially change and why a simpler evidence standard is insufficient before becoming mandatory. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| If a newly added control blocks or degrades a previously working owner-aligned path, stop the compensating-fix chain | uda.kernel.followup-derivation / revalidate-first-added-control |
+| and revalidate the first added requirement against the parent outcome and the strongest materially simpler alternative. | uda.kernel.followup-derivation / revalidate-first-added-control |
+| Preserve useful supporting work, | uda.kernel.followup-derivation / revalidate-first-added-control |
+| but restore the simpler valid path when necessity is not established. | uda.kernel.followup-derivation / revalidate-first-added-control |
+| This gate runs at follow-up-task authoring, before the new framing is handed to Work or another executor. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| A later worker faithfully executing a substituted goal is too late. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| At experiment launch, apply the operational owner-method contract to the actual runnable configuration. | uda.kernel.followup-derivation / actual-runnable-method |
+
+### AGENTS.md#instruction-composition
+
+Clauses 12; consolidated obligations 3; structured clauses 12; excepted 0; remaining 0.
+
+| Exact sentence or clause | Record / obligation or exception carrier |
+|---|---|
+| Before handling any task, including a brief request to remember a preference, open `LESSON-INDEX.md`, | uda.kernel.instruction-activation / open-index-every-task |
+| select entries whose triggers match, | uda.kernel.instruction-activation / open-index-every-task |
+| and read their current patterns. | uda.kernel.instruction-activation / open-index-every-task |
+| Instruction maintenance uses `patterns/instruction-composition-and-portable-intelligence.md`; | uda.kernel.instruction-maintenance / maintenance-pattern-owner |
+| activation uses `patterns/task-time-lesson-activation.md`. | uda.kernel.instruction-activation / open-index-every-task |
+| Resolve graph-covered dependencies via `rules/UDA-RULE-GRAPH.json`/`scripts/uda_rule_graph.py`; | uda.kernel.instruction-activation / resolve-covered-dependencies |
+| canonical prose remains authoritative; | uda.kernel.instruction-activation / resolve-covered-dependencies |
+| unmapped rules stay index-routed; | uda.kernel.instruction-activation / resolve-covered-dependencies |
+| shopping routes through `LESSON-INDEX.md`. | uda.kernel.instruction-activation / resolve-covered-dependencies |
+| Task-specific rules live in patterns | uda.kernel.instruction-maintenance / maintenance-pattern-owner |
+| and are reached through `LESSON-INDEX.md`; | uda.kernel.instruction-maintenance / maintenance-pattern-owner |
+| a new task rule adds a pattern and an index entry, never a root line. | uda.kernel.instruction-maintenance / maintenance-pattern-owner |
+
+### AGENTS.md#owner-facing-operational-references
+
+Clauses 9; consolidated obligations 3; structured clauses 9; excepted 0; remaining 0.
+
+| Exact sentence or clause | Record / obligation or exception carrier |
+|---|---|
+| In user-facing prose, never make repository identifiers the primary explanation. | uda.kernel.operational-references / plain-language-first |
+| Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, and similar opaque references are locating metadata, not semantic referents. | uda.kernel.operational-references / plain-language-first |
+| Immediately before surfacing any outbound link to the owner, open the exact destination, follow redirects, and verify that the final page resolves successfully to the intended current content—not an error, 404, dead, parked, or stale page. | uda.kernel.outbound-links / exact-current-destination |
+| Search snippets, cached previews, remembered URLs, and earlier checks do not count as verification. | uda.kernel.outbound-links / exact-current-destination |
+| If the exact link cannot be verified in the current turn, do not surface it. | uda.kernel.outbound-links / exact-current-destination |
+| Never present a broken or unverified link as a recommendation. | uda.kernel.outbound-links / exact-current-destination |
+| **Delivery is part of completion.** | uda.kernel.artifact-delivery / usable-delivery-before-completion |
+| When the owner needs to use a file, packet, handoff, protocol, report, generated artifact, or other output, do not make them navigate GitHub branches or repository paths to obtain it. | uda.kernel.artifact-delivery / usable-delivery-before-completion |
+| Before delivering that output, load the delivery-priority, provenance, companion-material, and pre-close usability rules: `patterns/human-readable-operational-references.md` → **Compact rules moved from root `AGENTS.md`**. | uda.kernel.artifact-delivery / usable-delivery-before-completion |
+
+### AGENTS.md#per-turn-bootstrap-invariants
+
+Clauses 27; consolidated obligations 6; structured clauses 26; excepted 1; remaining 0.
+
+| Exact sentence or clause | Record / obligation or exception carrier |
+|---|---|
+| For **every assistant turn** governed by this architecture, the **first line of the final user-visible assistant answer MUST be an explicit date-and-time stamp including a timezone or UTC offset**. | uda.final.timestamp / final-first-line-timestamp |
+| This is a final-output contract and a pre-answer invariant, not a task-dependent recommendation. | uda.final.timestamp / final-first-line-timestamp |
+| The timestamp must appear in the final answer/message content delivered to the user on every assistant turn. | uda.final.timestamp / final-first-line-timestamp |
+| A timestamp written only in hidden reasoning, visible thinking/reasoning UI, analysis, tool-call commentary, scratch work, or any intermediate channel **does not satisfy this requirement**. | uda.final.timestamp / final-first-line-timestamp |
+| An earlier timestamp in reasoning or an intermediate step does not satisfy the final-output contract; use the second reading in the final answer. | uda.final.timestamp / final-first-line-timestamp |
+| Two clock readings per turn, no others (owner, 2026-09-30). | uda.kernel.clock-cadence / two-read-cadence |
+| First: the message's sent time if the surface shows it, else a read as the turn's first action. | uda.kernel.clock-cadence / first-reading |
+| Second: a read right before writing the final answer. | uda.kernel.clock-cadence / two-read-cadence |
+| Read with `date -u` in a shell tool, else the current-time tool, else the code tool's clock; | uda.kernel.clock-cadence / two-read-cadence |
+| if a read fails or isn't later than the first, use the next one once. | uda.kernel.clock-cadence / two-read-cadence |
+| Never compare clocks or read mid-task. | uda.kernel.clock-cadence / two-read-cadence |
+| The final answer opens with the second reading | uda.final.timestamp / final-elapsed-time |
+| and says how long the turn took in total. | uda.final.timestamp / final-elapsed-time |
+| Don't reuse a prior-turn timestamp | uda.kernel.clock-cadence / two-read-cadence |
+| or present capture time as hidden provider sent time. | uda.kernel.clock-cadence / two-read-cadence |
+| If no clock answers, say so rather than inventing a time. | uda.kernel.clock-cadence / two-read-cadence |
+| Before finalizing every assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form. | uda.final.timestamp / final-first-line-timestamp |
+| If it does not, prepend the second reading; the check needs no further reading. | uda.final.timestamp / final-first-line-timestamp |
+| Apply it on every turn even for trivial arithmetic, greetings, smoke tests, follow-up acknowledgments, corrections, status updates, or prompts that otherwise warrant a direct one-line answer. | uda.final.timestamp / final-first-line-timestamp |
+| Simple answers, low-effort reasoning, tool avoidance, brevity, and shallow repository reads **must not waive this invariant**. | uda.final.timestamp / final-first-line-timestamp |
+| When current owner instructions require the canonical GitHub bootstrap, **re-fetch the live default-branch root `AGENTS.md` on every user turn before task reasoning, artifact composition, task execution, or answering**. | uda.bootstrap.live-root / live-root-refetch |
+| Tool discovery, current-clock checks, and the bootstrap retrieval itself are permitted prerequisites. | uda.bootstrap.live-root / live-root-refetch |
+| A prior-turn fetch, cached copy, remembered summary, or earlier reasoning does not satisfy per-turn activation. | uda.bootstrap.live-root / live-root-refetch |
+| If required GitHub/bootstrap access is unavailable, the final answer must still begin with the timestamp and then state the access failure explicitly rather than pretending the bootstrap occurred. | BOOTSTRAP_NOT_LOADED / docs/uda-enforcement-coverage.md#minimal-always-on-owner-bootstrap-replacement |
+| Treat failure to emit the timestamp as the first line of the final user-visible answer on any assistant turn as an instruction-following failure even when the timestamp appeared during thinking or the underlying task answer is otherwise correct. | uda.final.timestamp / final-first-line-timestamp |
+| **Every turn:** reusable output over ~8,000 characters goes in a file, for any recipient; | uda.kernel.output-budget / file-for-long-reusable-output |
+| chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`. | uda.kernel.output-budget / file-for-long-reusable-output |
+
+### AGENTS.md#pre-final-continuation-invariant
+
+Clauses 6; consolidated obligations 1; structured clauses 6; excepted 0; remaining 0.
+
+| Exact sentence or clause | Record / obligation or exception carrier |
+|---|---|
+| Before final delivery, apply `patterns/codex-github-operating-system.md` → **Continuation and stop admission**. | uda.kernel.continuation / execute-open-frontier |
+| An OPEN task with a safe authorized executable next action requires doing it now, not just diagnosing or planning it. | uda.kernel.continuation / execute-open-frontier |
+| A self-authored scope or completed lease cannot cancel parent implementation authority. | uda.kernel.continuation / execute-open-frontier |
+| Check the actual final output: stop only at an evidenced boundary, | uda.kernel.continuation / execute-open-frontier |
+| finish independent work, | uda.kernel.continuation / execute-open-frontier |
+| and preserve explicit owner restrictions and real access, spending, privacy, platform, and irreversible-action gates. | uda.kernel.continuation / execute-open-frontier |
+
+### AGENTS.md#workflow
+
+Clauses 33; consolidated obligations 7; structured clauses 33; excepted 0; remaining 0.
+
+| Exact sentence or clause | Record / obligation or exception carrier |
+|---|---|
+| When multiple safe in-scope execution approaches achieve the same outcome, choose the better-coordinated approach without asking the owner to select an execution mode: | uda.kernel.coordination / choose-coordinated-route |
+| use isolated workspaces, | uda.kernel.coordination / choose-coordinated-route |
+| a durable plan and recovery ledger, | uda.kernel.coordination / choose-coordinated-route |
+| delegation plus independent review when safely separable and decision-relevant, | uda.kernel.coordination / choose-coordinated-route |
+| and serialize shared mutable state. | uda.kernel.coordination / choose-coordinated-route |
+| This standing permission does not broaden task authority and does not replace substantive owner decisions. | uda.kernel.coordination / choose-coordinated-route |
+| An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event. | uda.kernel.owner-input-continuation / resume-after-input |
+| After incorporating it, continue automatically to the next safe in-scope action while the stated goal remains unfinished. | uda.kernel.owner-input-continuation / resume-after-input |
+| Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step. | uda.kernel.owner-input-continuation / resume-after-input |
+| Pause only for a genuine missing owner decision, new authority, destructive or irreversible risk, unavailable permission or credential, spending, publication, or access, or an explicit request to stop. | uda.kernel.owner-input-continuation / resume-after-input |
+| Work selects authorized task-scoped access and the automatic reviewer; do not ask the owner to choose routine permissions. | uda.kernel.work-permissions / automatic-task-access-review |
+| This adds no semantic, spending, publication, representation, destructive, or self-approval authority. | uda.kernel.work-permissions / automatic-task-access-review |
+| Resolve engineering blockers; ask only about a material tradeoff, with plain consequences and a recommendation, or a required human gate. | uda.kernel.owner-interaction / minimize-owner-choice |
+| Minimize owner choice as an execution invariant. | uda.kernel.owner-interaction / minimize-owner-choice |
+| Resolve routine implementation details and already-authorized subordinate actions without asking. | uda.kernel.owner-interaction / minimize-owner-choice |
+| A confirmation for the same destination, data boundary, scope, and consequence remains valid across retries, resumed execution, or an alternate authorized transport path; a failed tool or transport does not consume that approval. | uda.kernel.owner-interaction / minimize-owner-choice |
+| Ask again only if those facts materially change or the platform requires a fresh human gesture. | uda.kernel.owner-interaction / minimize-owner-choice |
+| If owner interaction is genuinely required, finish independent preparation, | uda.kernel.owner-interaction / consolidate-confirmations |
+| consolidate the exact dependent actions into the fewest confirmations permitted, | uda.kernel.owner-interaction / consolidate-confirmations |
+| explain the concrete downside or risk and why the gate is mandatory, | uda.kernel.owner-interaction / consolidate-confirmations |
+| give a recommended default, | uda.kernel.owner-interaction / consolidate-confirmations |
+| and resume automatically after the answer. | uda.kernel.owner-interaction / consolidate-confirmations |
+| Before declaring a host, device, service, session, or other target inaccessible—or asking the owner to identify, restart, reconnect, or configure an opaque machine-generated target—recover its semantic identity and the authorized access topology first. | uda.kernel.target-recovery / identity-and-topology-before-escalation |
+| Treat a failed connector/device transport as a route-specific failure, not proof that the underlying target is unavailable. | uda.kernel.target-recovery / identity-and-topology-before-escalation |
+| Inspect current connected endpoints plus task-relevant local mappings such as SSH config/aliases, durable task state, service/process metadata, and recent authorized execution history; | uda.kernel.target-recovery / identity-and-topology-before-escalation |
+| from a healthy authorized endpoint, use bounded read-only probes such as `hostname` and exact target-path existence/read checks to prove which route reaches the same target. | uda.kernel.target-recovery / identity-and-topology-before-escalation |
+| Use an equivalent authorized alternate route when one exists. | uda.kernel.target-recovery / identity-and-topology-before-escalation |
+| Never ask the owner to recognize an opaque identifier merely because the first transport failed. | uda.kernel.target-recovery / identity-and-topology-before-escalation |
+| Escalate only after plausible authorized routes are exhausted or a genuinely human-only action remains. | uda.kernel.target-recovery / identity-and-topology-before-escalation |
+| When you explicitly commit to a substantive operation, method, comparison, audit, experiment, or artifact, keep it as an open obligation until it is actually executed, I explicitly supersede it, or new evidence makes it invalid and you say so. | uda.kernel.operation-commitments / keep-promised-operation-open |
+| Adjacent analysis, planning, preparation, or a different method does not count as completion. | uda.kernel.operation-commitments / keep-promised-operation-open |
+| Before switching methods, declaring progress complete, or ending a substantial pass, verify what observable result proves each promised operation actually occurred. | uda.kernel.operation-commitments / keep-promised-operation-open |
+| If a still-valid promised step was displaced by later work, execute it before continuing. | uda.kernel.operation-commitments / keep-promised-operation-open |
 
 ## Exact migration backlog
 
-P1 is exactly the issue's 22 high-leverage identities that remain in backlog. Other general behavioral entries are P2 (49); mechanics specific to a project or infrastructure surface are P3 (15), including Mission Control supervision/relay, browser automation, worker permissions and Work cloud dispatch. Every P1 entry is behavioral, checked by the validator.
+P1 retains 16 of the issue's 22 high-leverage identities after the six kernel sections are removed. Other general behavioral entries are P2 (47); mechanics specific to a project or infrastructure surface are P3 (15), including Mission Control supervision/relay, browser automation, worker permissions and Work cloud dispatch. Every P1 entry is behavioral, checked by the validator.
 
 Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_TURN, FREQUENT, CONDITIONAL, SPECIALIST; use the id only to break ties. Frequency classes are declared routing estimates, not measured usage. Each entry retains its specific next step. The report uses this same order.
 
 | Entry id | Priority | Estimated trigger frequency |
 |---|---|---|
-| `AGENTS.md#follow-up-goal-derivation-and-assistant-added-requirements` | P1 | EVERY_TURN |
-| `AGENTS.md#instruction-composition` | P1 | EVERY_TURN |
-| `AGENTS.md#owner-facing-operational-references` | P1 | EVERY_TURN |
-| `AGENTS.md#per-turn-bootstrap-invariants` | P1 | EVERY_TURN |
-| `AGENTS.md#pre-final-continuation-invariant` | P1 | EVERY_TURN |
-| `AGENTS.md#workflow` | P1 | EVERY_TURN |
 | `patterns/chat-work-execution-routing-threshold.md` | P1 | FREQUENT |
 | `patterns/codex-github-operating-system.md` | P1 | FREQUENT |
 | `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md` | P1 | FREQUENT |
@@ -95,13 +265,11 @@ Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_
 | `patterns/human-readable-operational-references.md` | P2 | FREQUENT |
 | `patterns/instruction-composition-and-portable-intelligence.md` | P2 | FREQUENT |
 | `patterns/test-efficiency-and-verification-budget.md` | P2 | FREQUENT |
-| `patterns/agent-completable-merge-gates.md` | P2 | CONDITIONAL |
 | `patterns/agent-to-agent-consultation.md` | P2 | CONDITIONAL |
 | `patterns/artifact-authority-promotion-and-supersession.md` | P2 | CONDITIONAL |
 | `patterns/canonical-design-os-bootstrap.md` | P2 | CONDITIONAL |
 | `patterns/carrying-uda-into-standalone-projects.md` | P2 | CONDITIONAL |
 | `patterns/consilience-and-expected-observability.md` | P2 | CONDITIONAL |
-| `patterns/convergent-review-acceptance-gates.md` | P2 | CONDITIONAL |
 | `patterns/coverage-before-depth-in-selection.md` | P2 | CONDITIONAL |
 | `patterns/delegate-easy-work-to-cheaper-models.md` | P2 | CONDITIONAL |
 | `patterns/durable-chat-learning.md` | P2 | CONDITIONAL |
@@ -234,11 +402,145 @@ The twelve new direct routes use these leading clauses:
 | 81 | `patterns/shared-provider-submission-queue.md` | Before coordinating browser submissions across sessions or workers sharing a provider, |
 | 82 | `patterns/targeted-artifact-edit-preservation.md` | Before a targeted artifact edit, |
 
-## Open policy change reconciliation
+## Review/merge-gate integration reconciliation (slice 2)
 
-The separate review-convergence policy change (draft/open PR #312, local snapshot 3ed51341b1f9221057c7b49c0f46402c5f878759) adds `patterns/agent-completable-merge-gates.md` and `patterns/convergent-review-acceptance-gates.md`. Both were read and are behavioral; neither exists in this branch, so neither is included as an extra inventory entry. This change does not depend on that policy change. Whichever integrates second must give both files exact dispositions and activation routes. It must structure their admission, supply a genuine specialist-workflow justification, or obtain explicit owner-authorized backlog additions. Their pre-existing open pull request does not silently exempt them from the no-growth gate. Reconcile the shared index and logic-map edits at that integration.
+The maintainer lane chose structured admission for the review-convergence policy change on 2026-10-07. Both new behavioral patterns are STRUCTURED_ENFORCED; no specialist exception or legacy addition was used, and no owner quotation or authorization entry was added. The immutable 84-identity baseline remains unchanged and the authorized live backlog stays 78 before and after. The integration draft temporarily listed both new identities as legacy, producing an invalid 80-entry backlog; that was never authorized backlog growth. Earlier integration findings remain historical. The newest slice finding records live disposition counts.
 
-That change integrated second, on 2026-10-07. Both files are `LEGACY_UNSTRUCTURED` (P2, `CONDITIONAL`) with `INDEX_TRIGGER` routes taken from their index entries, now 83 and 84 after renumbering; the logic-map rows LF-7.7 and LF-8.6 did not collide. Neither has structured records, and neither is a specialist workflow, so they enter the backlog only as `owner_authorized_additions`, pending the owner's authorization.
+The unchanged review pattern contributes 53 operative clauses in 8 records and 8 obligations. The unchanged merge-gate pattern contributes 58 clauses in 6 records and 8 obligations. Enumerated clauses include operative scope/authority limits, failure and repair clauses, and transfer qualifications; incident history, formulas explaining the problem and relationships to other patterns are explanatory context. The formula-use obligation binds the pilot/guess, scale and hard-floor estimates; it does not prescribe a particular metric example. No clause needed rewording. Each source has a whole-pattern independent clause pin and independent count/hash pins for every operative level-two section, using sorted exact clause strings in source_clause_manifest. Record/map deletion and same-count selector shortening fail even after regenerating the lock and projection. Pin hashes establish preservation, not completeness or semantic truth.
+
+All new records apply to chat, work, codex and claude under governance_required. They reuse the existing action_classes fact with only three new values: review_round means designing, requesting or running noisy language-model review rounds whose findings govern acceptance; review_finding_judgment means judging/accepting those noisy-reviewer findings; merge_gate means designing, changing or operating merge gates, including deciding whether a pull request may merge and preflighting the workstream's hosted merge/release/deploy path. Deterministic checks are outside both review action values. No new fact keys were introduced. Every illustrative example explicitly declares these values absent from its KNOWN action_classes list. UNKNOWN or missing actor/action/governance facts block, while known unrelated actions do not select these records. A generic Work handoff performs none of them.
+
+Boundaries are the actual review request/plan, scale design, acceptance decision, output/cycle persistence, hosted-capability checkpoint, merge-eligibility check, owner questions handoff and post-action persistence. Owner-click batching and hosted readback are separate obligations; failure escalation and recording a later owner reply are separate too. All 16 obligations are semantic: the current task-time predicates cannot certify their complete meaning in both directions. Bound receipts retain acceptance evidence, non-substitutes, carry-through and repair. Fourteen payload-dependent obligations remain selected with not_applicable_allowed: true and require a reason-bound receipt for an absent action; the two authority invariants do not allow NOT_APPLICABLE. There are no new obligation exceptions. Golden synthetic judgments test admission, not semantic truth, live gate operations or authenticated reviewer independence.
+
+The rendered generic Work projection stays 27,355 bytes before and after (32,768-byte cap). Mission Control's actual injected block stays 33,139 bytes (49,152-byte prompt limit, with 8,192 bytes reserved for the wrapper/directive; 7,821 bytes of additional headroom). Sizes were measured with the current adapter; no limits or runtime code changed beyond incoming main's machinery. The documented regeneration commands produced both derived files. The generic handoff selects none of the 14 new records.
+
+The table-driven fixture folders in tests/fixtures/review-merge-slice/ contain one neutral envelope, violating/compliant/near-miss candidates and hash-free verdicts per record. Receipts bind at test time. Regressions cover failure, compliance, non-substitutes, per-obligation missing/FAIL receipts, cross-candidate and rewrite replay, reason-bound NOT_APPLICABLE, actor/action scope, UNKNOWN facts, clause maps and source pins. Existing pattern text tests remain separate TEXT_PRESENCE evidence.
+
+### Convergent review acceptance obligation map
+
+Source: `patterns/convergent-review-acceptance-gates.md`. All clauses below are structured; no exceptions or remaining clauses.
+
+| Exact sentence or clause | Record / obligation |
+|---|---|
+| After a repair, send the reviewer only the earlier findings and the items the repair changed. | uda.review.change-scope / change-scope-at-boundary |
+| Carry forward every item that passed and did not change. | uda.review.change-scope / change-scope-at-boundary |
+| Give each item a stable ID when it is first produced, and match items to their earlier verdicts mechanically, by ID and exact content (a hash is enough), never by asking the reviewer. | uda.review.change-scope / change-scope-at-boundary |
+| An item whose ID or content does not match counts as changed. | uda.review.change-scope / change-scope-at-boundary |
+| a repair cycle re-reviews items that passed and did not change; | uda.review.change-scope / change-scope-at-boundary |
+| Carrying an item forward assumes its verdict depends only on that item and the frozen reference. | uda.review.change-scope / change-scope-at-boundary |
+| When a verdict depends on other items (order, duplicates, consistency across items), declare the dependency and count a change to the other item as a change to this one. | uda.review.change-scope / change-scope-at-boundary |
+| Re-review the change, not the whole unit. | uda.review.change-scope / change-scope-at-boundary |
+| Fix the number of repair cycles before the first cycle runs. | uda.review.repair-bound / repair-bound-at-boundary |
+| Declare a stall rule along with the repair bound, for example "two repairs in a row that leave the count the same or higher". | uda.review.repair-bound / repair-bound-at-boundary |
+| If a controlling directive fixes a repair limit, the stall rule can end repairs sooner and never extends them (`patterns/structured-output-failure-boundary.md`). | uda.review.repair-bound / repair-bound-at-boundary |
+| Stopping repairs does not show that the unit, the repair method, or the reviewer is wrong. | uda.review.repair-bound / repair-bound-at-boundary |
+| The next step is diagnosis or an owner decision (`patterns/outcome-advancement-and-strategy-efficacy.md`, section 9.4). | uda.review.repair-bound / repair-bound-at-boundary |
+| repairs have no bound fixed in advance, or findings per cycle are not recorded; | uda.review.repair-bound / repair-bound-at-boundary |
+| Bound the repairs and degrade by item. | uda.review.repair-bound / repair-bound-at-boundary |
+| A directive's ceiling stays a ceiling. | uda.review.repair-bound / repair-bound-at-boundary |
+| A bound ends spend and proves nothing else. | uda.review.repair-bound / repair-bound-at-boundary |
+| When the repairs run out, withhold only the items still flagged and mark them for review, keep every other item, and record each omission that is still flagged (a reference item the reviewer says the output lacks) as a gap in the output. | uda.review.item-degradation / item-degradation-at-boundary |
+| Do not discard the unit, and do not halt the pipeline: one unit's leftover flags never stop units that do not depend on it. | uda.review.item-degradation / item-degradation-at-boundary |
+| A unit that consumes or checks the withheld items waits until they are reviewed, or runs without them and records the gap; it never treats them as accepted. | uda.review.item-degradation / item-degradation-at-boundary |
+| Keep the independent units moving while the question waits. | uda.review.item-degradation / item-degradation-at-boundary |
+| a unit is discarded, or the pipeline halted, because some items stay flagged. | uda.review.item-degradation / item-degradation-at-boundary |
+| Accept a run on aggregate measures with floors stated in advance, not on every unit reaching zero findings. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Where units are not interchangeable, because each customer, source or experiment must keep its own required items, add a per-unit or per-stratum minimum to the floors: a pooled measure lets strong units hide one that kept nothing. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Freeze the reference before the gate runs, and never trade a hard floor against another measure. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Report the failed units and the error counts beside the aggregate, each measure on its own line, so a passing aggregate hides neither. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| An aggregate can hide a bad unit, which is why rule 3 reports failed units and error counts beside it. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| A frozen reference is only as sound as its own provenance. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Gate on aggregates with hard floors. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Before a gate runs over many units, estimate how often it will fail correct work, using the formulas in the Problem section. | uda.review.false-failure / false-failure-at-boundary |
+| Take p from a pilot on units known to be correct (the frozen reference, for example) or from earlier cycles' records, and say so when p is a guess. | uda.review.false-failure / false-failure-at-boundary |
+| Apply the estimate to each hard floor too: a zero-critical-misses floor is a zero-findings gate over the m critical items alone, so it fails correct work with probability 1 - (1 - p)^m. | uda.review.false-failure / false-failure-at-boundary |
+| If the estimate would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after. | uda.review.false-failure / false-failure-at-boundary |
+| a gate needs zero findings from a model reviewer on every unit and no false-failure estimate was made; | uda.review.false-failure / false-failure-at-boundary |
+| The formulas assume false flags are independent at one constant rate p. | uda.review.false-failure / false-failure-at-boundary |
+| Real flags cluster, since one misreading can flag several items, and p differs by item type and by reviewer. | uda.review.false-failure / false-failure-at-boundary |
+| Treat the formulas as planning estimates, and prefer a pass rate measured on known-correct units. | uda.review.false-failure / false-failure-at-boundary |
+| A reviewer that misses real defects needs a different reviewer or a deterministic check. | uda.review.false-failure / false-failure-at-boundary |
+| Estimate the false-failure rate before running at scale. | uda.review.false-failure / false-failure-at-boundary |
+| Record the number of findings after every cycle, with the item IDs. | uda.review.cycle-escalation / cycle-escalation-at-boundary |
+| When the count stays flat or bounces across repairs, stop spending rounds and apply rule 2. | uda.review.cycle-escalation / cycle-escalation-at-boundary |
+| Put the question on the owner questions page (`patterns/owner-questions-page.md`) with the per-cycle counts, what each cycle changed, and the options (for example accept the partial result with its gaps, change the gate, or have a person review the flagged items). | uda.review.cycle-escalation / cycle-escalation-at-boundary |
+| Track findings per cycle and stop early when they do not fall. | uda.review.cycle-escalation / cycle-escalation-at-boundary |
+| The rules shape a gate that an agent or pipeline designs, or that a project leaves open. | uda.review.declared-authority / declared-authority-at-boundary |
+| They never lower a gate the owner or the project's authority has declared blocking. | uda.review.declared-authority / declared-authority-at-boundary |
+| For a declared zero-finding gate, run it as declared, put the false-failure estimate and the proposed aggregate gate on the owner questions page as a proposal, and keep running the declared gate until the owner or the project authority changes it (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**). | uda.review.declared-authority / declared-authority-at-boundary |
+| The pattern addresses false flags. | uda.review.declared-authority / declared-authority-at-boundary |
+| It makes no claim about which reviewer or model is better. | uda.review.declared-authority / declared-authority-at-boundary |
+| It adds no gate to any project and does not lower a gate that the owner or a project has declared. | uda.review.declared-authority / declared-authority-at-boundary |
+| Declared gates stay hard. | uda.review.declared-authority / declared-authority-at-boundary |
+| it covers only gates whose checker is a noisy reviewer. It adds no blocking gate and lowers no declared one. | uda.review.declared-authority / declared-authority-at-boundary |
+| Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; and put the counts on the owner questions page. | uda.review.failure-repair / failure-repair-at-boundary |
+
+
+### Agent-completable merge gates obligation map
+
+Source: `patterns/agent-completable-merge-gates.md`. All clauses below are structured; no exceptions or remaining clauses.
+
+| Exact sentence or clause | Record / obligation |
+|---|---|
+| For a workstream that will merge, release, or deploy through hosted controls, list each hosted gate on that path (for example required reviews, resolved conversations, required checks, bypass limits, environment approvals, and the merge itself) from current settings evidence, not from repository files (`patterns/codex-github-operating-system.md`). | uda.merge-gate.capability / capability-at-boundary |
+| For each gate, check that the agent can satisfy it with the permissions it actually has: account or token scopes, the connector's actions, the sandbox, and the permission or safety layer's own refusals, which can block an action the platform allows. | uda.merge-gate.capability / capability-at-boundary |
+| Check the exact action, not a neighboring one, because being able to read threads says nothing about resolving them (`patterns/reasoning-selection.md`, capability edges). | uda.merge-gate.capability / capability-at-boundary |
+| Read the permission rules or documentation that govern the action, query the settings read-only, or use a refusal already on record. | uda.merge-gate.capability / capability-at-boundary |
+| Attempt the action itself only on a destination the workstream already authorizes for such tests, such as a sandbox repository, never by creating a hosted object just to probe. | uda.merge-gate.capability / capability-at-boundary |
+| Record can or cannot for each gate in the task checkpoint. | uda.merge-gate.capability / capability-at-boundary |
+| the first sign that the agent cannot complete a hosted gate comes at the merge step; | uda.merge-gate.capability / capability-at-boundary |
+| Which actions a permission layer refuses depends on the platform, the account and the layer's current configuration. | uda.merge-gate.capability / capability-at-boundary |
+| Check the exact action in the current session; do not rely on this pattern's example. | uda.merge-gate.capability / capability-at-boundary |
+| Check the gates when the workstream starts. | uda.merge-gate.capability / capability-at-boundary |
+| Put one question on the owner questions page (`patterns/owner-questions-page.md`) at the start, not at the first merge. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| It is the owner's decision because it changes what the platform enforces. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Name the gate in plain words, say why the agent cannot satisfy it, and give the options with a recommendation. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| First sort the gate. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| A clerical gate records a step whose substance a check can verify, such as resolved review conversations or an up-to-date branch. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| An approval gate exists for independent human authorization, such as a required approving review or an environment approval, and an agent-run check cannot stand in for that separation. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| (the recommendation for a clerical gate; never offered for an approval gate). | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| It ends the recurring clicks, and it costs the platform's own enforcement unless the check is also made a required status check. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| scoped to that one action, with the approval and scope written down. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| It keeps the platform gate and removes the clicks, and it costs tooling the owner must approve and maintain. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| The agent never grants itself the permission that was refused. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| (the recommendation for an approval gate) when the gate exists for a person's authorization or the owner wants a person to confirm each one. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Rule 4 then applies, and the agent can attach the substance check's result so the approval rests on a verified result. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| An owner action that returns on every pull request signals a gate the agent cannot complete. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Raise the gate once instead of treating each return as a new request; the one decision in rule 2 covers them all. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Raise it once per workstream and gate. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Reopen it only when the gate, the agent's permissions, or the permission or safety layer changes. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| the owner is asked for the same gate action on a second pull request with no decision on the page; | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Replacing a gate changes what the platform enforces. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| The owner accepts that tradeoff in deciding; the agent states it in the question. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| If the agent cannot complete a gate, raise one owner decision early. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Replace the gate with a check the agent can run that verifies substance | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Automate the gate with owner-approved tooling, | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Keep the gate and the clicks, | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Do not hand the owner a recurring chore list. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| One question per gate. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| it adds one start-of-workstream check and at most one owner question per gate. It adds no blocking gate and changes no hosted setting. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| The check passes when the latest review of the exact head commit reports nothing open, every earlier finding maps to a fix commit or to a written reason it was not changed, and the required status checks pass. | uda.merge-gate.substance-check / substance-check-at-boundary |
+| When the gate it replaces is the up-to-date-branch requirement, the check also confirms that the head contains the current base commit, or runs the required checks on the exact merge result, so checks that passed on an older base cannot admit a change that conflicts with newer work. | uda.merge-gate.substance-check / substance-check-at-boundary |
+| Bind that result to the base commit it checked, and rerun it whenever the base moves before the merge, or use a merge queue that tests the exact merge. | uda.merge-gate.substance-check / substance-check-at-boundary |
+| a thread is marked resolved with no fix and no written reason to point to. | uda.merge-gate.substance-check / substance-check-at-boundary |
+| The substance check is only as good as the review behind it. | uda.merge-gate.substance-check / substance-check-at-boundary |
+| It does not turn an author's own review into independent review (`patterns/independent-evaluation-separation.md`), and it assumes a reviewer that reports open findings against the exact head commit. | uda.merge-gate.substance-check / substance-check-at-boundary |
+| Until the gate is removed or automated, it stays in force: list each instance that still needs the owner under **For you to do**, grouped into one step with exact links (rule 4), so the page stays the complete list of his work, and attach the substance check's result to each pull request so his clicks rest on a verified result. | uda.merge-gate.owner-clicks / owner-clicks-at-boundary |
+| When a click is unavoidable, batch it into one step: exact links to every target in one place (the **For you to do** section of the owner questions page), | uda.merge-gate.owner-clicks / owner-clicks-at-boundary |
+| The owner is then not asked twice, and the agent does not take "done" on faith. | uda.merge-gate.owner-clicks / verify-owner-action |
+| and a read-back the agent runs afterward to confirm it worked, such as a hosted query that counts the threads still open. | uda.merge-gate.owner-clicks / verify-owner-action |
+| A click that records a choice only the owner can make (accept a risk, approve a spend, merge a change) stays with the owner. | uda.merge-gate.authority / authority-at-boundary |
+| Nothing here lets an agent relax a hosted gate, use an owner-only bypass, merge around a refusal, or disguise a refused action behind another tool or route. | uda.merge-gate.authority / authority-at-boundary |
+| A refusal by the permission or safety layer is a boundary (`patterns/worker-self-remediation-before-owner-interruption.md`, **Fail closed on genuine boundaries**). | uda.merge-gate.authority / authority-at-boundary |
+| The agent proposes the replacement, and the owner decides (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**). | uda.merge-gate.authority / authority-at-boundary |
+| A hosted setting counts as changed only when settings or API evidence shows it (`patterns/codex-github-operating-system.md`). | uda.merge-gate.authority / authority-at-boundary |
+| It adds no gate and grants no authority. Changing a hosted gate stays the owner's decision. | uda.merge-gate.authority / authority-at-boundary |
+| Keep owner clicks for decisions. | uda.merge-gate.authority / authority-at-boundary |
+| No bypass. | uda.merge-gate.authority / authority-at-boundary |
+| A declared gate stays until the owner changes it. | uda.merge-gate.authority / authority-at-boundary |
+| Repair: stop listing the click; put the decision on the owner questions page with a recommendation; batch the unavoidable clicks as in rule 4; | uda.merge-gate.failure-repair / failure-repair-at-boundary |
+| and move the answer to **Decided** when the owner replies. | uda.merge-gate.failure-repair / record-owner-reply |
 
 ## Semantic receipt workflow and limits
 
@@ -252,7 +554,9 @@ python3 scripts/uda_rule_graph_task_time.py check --contract contract.json --pha
 
 The skeleton contains a receipt for each semantic obligation due in that phase. Fill `verdict` with PASS, FAIL or NOT_APPLICABLE; give short `evidence` about the literal candidate, the asserting actor's `id`, `kind` and `relation` (SAME_AGENT or INDEPENDENT), and an ISO date/time with timezone in `issued_at`. For NOT_APPLICABLE, also give `not_applicable_reason`; it is accepted only when the obligation explicitly sets `not_applicable_allowed: true`. The blank skeleton itself cannot admit work. This CLI and the `scripts/uda_rule_graph.py` facade support the same receipt and check commands.
 
-Every receipt binds `contract_sha256` to the compiled contract's `content_sha256`, plus `rule_id`, `obligation_id`, `phase`, `destination` and `payload_sha256`. Payload hashing uses the exact file bytes: UTF-8 characters, CRLF, whitespace and the final newline all matter. Check verifies the contract's content hash too. Optional `--destination` binds the check's target; when omitted each receipt must still match its obligation's declared destination. Supply the existing `--clock-start` and `--clock-end` arguments for mechanical elapsed-time obligations; receipts do not replace mechanical predicates or change their result format.
+Every receipt binds `contract_sha256` to the compiled contract's `content_sha256`, plus `rule_id`, `obligation_id`, `phase`, `destination` and `payload_sha256`. Payload hashing uses the exact file bytes: UTF-8 characters, CRLF, whitespace and the final newline all matter. Check verifies the contract's content hash too. Optional `--destination` evaluates only obligations due at that destination and lists the others under `out_of_scope`; no due match returns NOT_EVALUATED. Without it, every due obligation is evaluated and each receipt must match its declared destination. For the kernel elapsed-time predicate, supply `--clock-start` and `--clock-end` and a literal `Elapsed time: N minutes [M seconds]` or `Elapsed time: N seconds` line. Receipts establish the separate clock-provenance judgment; they do not replace mechanical predicates or change their result format.
+
+A phase with several destinations is admitted when each destination's scoped check is ADMITTED with its own payload: the final answer for `owner-visible-final`, the checkpoint text for `durable-task-checkpoint`.
 
 Missing, malformed, unbound, mismatched, stale or duplicate matching receipts leave the semantic obligation UNKNOWN and block admission. A matching FAIL blocks. An improper NOT_APPLICABLE blocks. `independent_review_required: true` rejects SAME_AGENT judgments. An owner correction requires recompilation and fresh receipts; a final rewrite, however small, requires a new receipt for its changed bytes. Unresolved applicability still blocks even if supplied receipts say PASS.
 
@@ -270,9 +574,11 @@ A task envelope records `bootstrap.state`:
 
 Compile carries `uda_activation` and `uda_protection`, and marks an outside contract unusable for enforcement. Check without `--contract` also returns NOT_EVALUATED with OUTSIDE_UDA, including a non-success exit code. A declared LOADED state records activation provenance; the compiler does not observe or prove that retrieval happened. Do not set LOADED when the bootstrap failed.
 
+### Minimal always-on owner bootstrap replacement
+
 UDA cannot protect turns it never loaded. Replace the owner's **"unless it's very simple"** bootstrap exemption with this exact proposed owner-side instruction:
 
-> On every user turn, before substantive reasoning, artifact composition, action or answering, load the current canonical default-branch root AGENTS.md, including on very simple turns. Apply its always-on minimal bootstrap obligations. Then use LESSON-INDEX.md to load deeper guidance only when its trigger matches the current task. If the live root cannot be retrieved, say so explicitly, record the bootstrap as NOT_LOADED, and do not claim UDA protection.
+> On every user turn, use the visible message sent time, or take a first clock reading as the first action; take the second reading immediately before writing the final. Use date -u in a shell, then the current-time tool, then the code clock as available; if a read fails or is not later, use the next source once. Do not read mid-task or compare clocks. Before substantive reasoning, artifact composition, action or answering, load the current canonical default-branch root AGENTS.md, including on very simple turns. Apply its always-on minimal bootstrap obligations. Then use LESSON-INDEX.md to load deeper guidance only when its trigger matches the current task. Every final answer starts with the second current-turn reading as date, time and timezone/UTC offset and reports total elapsed time; check the literal first line before emitting it. If the live root cannot be retrieved, retain that final timestamp and explicitly state the access failure, record the bootstrap as NOT_LOADED, and do not claim UDA protection. Do not reuse a prior-turn timestamp or invent time; disclose when no clock answers.
 
 This is an owner-side instruction draft; this repository change does not edit owner settings. Minimal bootstrap is always on; deeper loading stays conditional.
 
@@ -282,7 +588,45 @@ This is an owner-side instruction draft; this repository change does not edit ow
 
 The fixtures in `tests/fixtures/dominated-route/` use abstract inputs/outputs. The old final presents a two-command route, then the same transform command's direct-output option, and calls the latter preferable: its golden FAIL receipt blocks. The repaired one-command final's PASS receipt admits and stays one line (under 160 characters). Replaying a PASS receipt for the old payload or rewriting the final without a new receipt blocks. When intermediate approval before output is a real material tradeoff, both alternatives remain and the golden PASS receipt admits them. These fixtures pin source provenance to the exact source blob for commit-independent golden bindings; production compilation preserves repository-revision provenance. The isolated regression checks the dominated-route slice; the existing mechanical suites separately check timestamps and elapsed time.
 
-Both passes of the first integration are implemented. This establishes inventory, activation-state reporting, semantic binding admission and a behavioral regression; it does not establish universal live behavioral enforcement. The parent owner outcome remains OPEN with 84 partial/legacy identities. Later passes migrate coherent slices in the corrected priority order. The backlog pin remains unchanged, with zero added identities and zero fully removed identities.
+Both passes of the first integration are implemented. This establishes inventory, activation-state reporting, semantic binding admission and a behavioral regression; it does not establish universal live behavioral enforcement. The parent owner outcome remains OPEN with 78 partial/legacy identities after kernel slice 1. Later slices migrate the remaining P1 patterns and subsequent priorities. The baseline pin remains unchanged: no added identities and six fully structured removals are reported.
+
+## Usage-limit continuity slice
+
+The direct owner request dated 2026-10-07 requires no lost work and a one-line way to continue in another account. `docs/requirements/2026-10-07-usage-limit-continuity.owner-requirement.json` preserves the verbatim request and separates OWNER_REQUIRED outcome from the supplied ASSISTANT_INFERENCE mechanism. Context-compaction resilience §3 now requires continuous completed-step checkpoints and a current turn-end handoff; an optional visible early warning supplements saving rather than deferring it to a threshold or a helper at the limit.
+
+All three records use exact-text selectors within that subsection and semantic receipt admission at `durable-task-checkpoint`. The two continuous-save records also bind the tiny one-shot exemption in the pattern's Limits section. Their source-bound acceptance evidence, non-substitutes, carry-through and repair are in the task-time metadata.
+
+| Task-time record | Trigger | Due phase | Destination |
+|---|---|---|---|
+| `uda.continuity.step-checkpoint` | OPEN outcome; task mode outside INSTRUCTION_ONLY, DIAGNOSTIC_ONLY, NO_CHANGE and STOP; `continuity_required = true` | persistence, each completed step | durable-task-checkpoint |
+| `uda.continuity.turn-end-handoff` | Same OPEN implementation and continuity-scope trigger | final-delivery, before ending the turn | durable-task-checkpoint |
+| `uda.continuity.usage-warning` | OPEN implementation AND `usage_warning_visible = true` | persistence, immediately at the warning | durable-task-checkpoint |
+
+Declare `continuity_required` from the actual task scope: true for multi-step, multi-session or long-running work needing durable recovery, false for a tiny one-shot task. False excludes both continuous-save records and their semantic receipts; missing or UNKNOWN scope remains unresolved on otherwise applicable work. A visible usage warning retains its immediate-save trigger independently of that scope fact.
+
+Every example envelope explicitly declares the warning false or ABSENT. Missing or UNKNOWN warning facts remain unresolved on otherwise applicable work and block admission; false/ABSENT warning facts never cancel the other two checkpoints. The fixtures distinguish this from instruction-only, diagnostic, no-change, stop and non-OPEN tasks, which do not select these records.
+
+Persistence checks require current task facts through `check --task task.json`, including when compilation omitted the warning rule. A changed `usage_warning_visible` state/value blocks the stale contract until recompilation; the refreshed warning contract then requires a receipt for the immediate save and small, restartable next action. Fresh explicit ABSENT observations remain valid. Fact provenance and semantic judgments remain assertions rather than independent observation of a provider usage indicator.
+
+| Record | Violating candidate | Compliant candidate | Near-miss non-substitute |
+|---|---|---|---|
+| Step checkpoint | Session-only completed work: BLOCKED | Pushed work and saved done/next/exact action: ADMITTED | Chat summary and promise to save at 98%: BLOCKED |
+| Turn-end handoff | Prior-turn checkpoint, inaccessible account state: BLOCKED | Current checkpoint, reachable private handoff, account-bound recreation list and one-line resume: ADMITTED | Correct chat final with stale durable checkpoint: BLOCKED |
+| Usage warning | Visible warning followed by one long unsaved step: BLOCKED | Immediate save and a small restartable step: ADMITTED | Separate helper reserved for the limit: BLOCKED |
+
+The nine domain-neutral candidates and hash-free verdict files live in `tests/fixtures/usage-limit-continuity/`. `tests/test_uda_usage_limit_continuity.py` binds receipts to the compiled contract and actual candidate bytes at test time. The regressions exercise these cases, actor/trigger selection, one-shot final admission without checkpoint receipts, unknown scope/warning facts, no-receipt/destination failures, checkpoint rewrites, owner-correction replay, requirement provenance, separate final/checkpoint payloads and running-task warning refresh in both CLI entrypoints. Golden semantic verdicts are assertions: the checker verifies binding and reports `judgment_proved: false`, rather than inferring semantic correctness, a push or private-store reachability from prose.
+
+The report now counts the following evidence classes. An entry may occur in several classes, so these counts do not sum to the universe and do not imply universal enforcement.
+
+| Evidence class | Inventory entries |
+|---|---:|
+| TEXT_PRESENCE | 92 |
+| ROUTING | 82 |
+| COMPILATION | 8 |
+| ADMISSION | 26 |
+| BEHAVIORAL_REGRESSION | 23 |
+
+At its historical integration boundary, the continuity slice changed one LEGACY_UNSTRUCTURED entry to STRUCTURED_PARTIAL, with 96 entries, 82 indexed patterns and 84 backlog identities (P1 22, P2 47, P3 15), zero additions and removals. The current counts above include the later kernel and review/merge migrations. No baseline pin was changed. The source lock and representative Work handoff projection are regenerated; Mission Control runtime and owner settings are untouched. A worker that never loaded UDA remains outside its protection, and an optional status-line warning remains surface-specific.
 
 ## Review judgment limits
 
