@@ -84,6 +84,8 @@ Do not ask the owner to approve a work plan as a routine checkpoint. Continue au
 
 ### Minimum-owner-choice rule
 
+When a user asks for an operational command, procedure, or practical method and one known route achieves the same requested outcome under the same material constraints with fewer steps and no compensating benefit, do not surface the dominated route as an alternative. If alternatives have materially different tradeoffs, surface only the decision-relevant difference.
+
 Require the owner to make as few choices as possible. The agent owns routine implementation details, reversible defaults, sequencing, tool selection, and tactical recovery within the authorized outcome. A question is admitted only when at least one of these is true:
 
 1. two or more materially different outcomes remain viable and evidence/authority cannot select among them;

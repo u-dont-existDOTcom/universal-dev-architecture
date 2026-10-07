@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "receipts": [
+    {
+      "contract_sha256": "64182f729bd66bea0424ad669ec2bd107c10094c65ca95b2393ed1dd5d1d1a5c",
+      "rule_id": "uda.reasoning.dominated-alternative",
+      "obligation_id": "omit-dominated-route",
+      "phase": "final-delivery",
+      "destination": "owner-visible-final",
+      "payload_sha256": "2a8e13e05d33cb2e458508be558273e79e1c5c62119d36e316830bd811e67bbc",
+      "verdict": "PASS",
+      "evidence": "The literal final gives only transform with emit-output and keep-intermediate: one command supplies both requested artifacts.",
+      "not_applicable_reason": "",
+      "actor": {
+        "id": "regression-reviewer",
+        "kind": "fixture",
+        "relation": "INDEPENDENT"
+      },
+      "issued_at": "2026-10-06T12:00:00Z"
+    }
+  ]
+}

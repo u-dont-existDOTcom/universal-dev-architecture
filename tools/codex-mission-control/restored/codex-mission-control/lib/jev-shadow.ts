@@ -1,5 +1,6 @@
 import { projectWorker } from "./projection";
 import type { StoredEvent } from "./schema";
+import { jevShadowAnswersSchema } from "./jev-shadow-telemetry";
 
 export const DEFAULT_JEV_SHADOW_MODEL = "typesafe/jev-1.13";
 export const OPENROUTER_JEV_DECISIONS_ENDPOINT = "https://openrouter.ai/api/alpha/decisions";
@@ -33,7 +34,8 @@ export interface JevShadowObservation {
   usage?: { input_tokens?: number; output_tokens?: number; cost?: number };
   provider?: string;
   response_id?: string;
-  error_code?: "STATE_BUILD_ERROR" | "TIMEOUT" | "HTTP_ERROR" | "INVALID_RESPONSE" | "TRANSPORT_ERROR" | "HOOK_ERROR";
+  latency_ms?: number;
+  error_code?: "STATE_BUILD_ERROR" | "TIMEOUT" | "HTTP_ERROR" | "INVALID_RESPONSE" | "TRANSPORT_ERROR" | "HOOK_ERROR" | "HOOK_TIMEOUT";
 }
 
 interface JevDecisionRequest {
@@ -52,6 +54,8 @@ export type JevShadowTransport = (input: {
 export interface JevShadowOptions {
   env?: Readonly<Record<string, string | undefined>>;
   transport?: JevShadowTransport;
+  signal?: AbortSignal;
+  now?: () => number;
 }
 export const MISSION_CONTROL_JEV_QUESTIONS = {
   owner_decision_required: {
@@ -146,7 +150,7 @@ export async function observeFleetSupervisorWithJev(
   }
   const apiKey = env.OPENROUTER_API_KEY?.trim();
   if (!apiKey) {
-    return { status: "MISSING_API_KEY", authoritative: false, model, deterministic_trigger: deterministicTrigger };
+    return { status: "MISSING_API_KEY", authoritative: false, model, deterministic_trigger: deterministicTrigger, latency_ms: 0 };
   }
   let state: JevShadowState;
   try {
@@ -154,13 +158,18 @@ export async function observeFleetSupervisorWithJev(
   } catch {
     return {
       status: "ERROR", authoritative: false, model, deterministic_trigger: deterministicTrigger,
-      error_code: "STATE_BUILD_ERROR",
+      error_code: "STATE_BUILD_ERROR", latency_ms: 0,
     };
   }
-  const timeoutMs = parseTimeout(env.MISSION_CONTROL_JEV_SHADOW_TIMEOUT_MS);
+  const timeoutMs = jevShadowTimeoutMs(env.MISSION_CONTROL_JEV_SHADOW_TIMEOUT_MS);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const transport = options.transport ?? openRouterJevTransport;
+  const now = options.now ?? Date.now;
+  const started = now();
+  const abort = () => controller.abort();
+  options.signal?.addEventListener("abort", abort, { once: true });
+  if (options.signal?.aborted) controller.abort();
 
   try {
     const raw = await transport({
@@ -171,7 +180,8 @@ export async function observeFleetSupervisorWithJev(
     const response = parseJevResponse(raw);
     return {
       status: "OK", authoritative: false, model, deterministic_trigger: deterministicTrigger, state,
-      answers: response.answers, usage: response.usage, provider: response.provider, response_id: response.id,
+      answers: response.answers, usage: response.usage, provider: response.provider, response_id: response.response_id,
+      latency_ms: Math.max(0, now() - started),
     };
   } catch (error) {
     const errorCode = error instanceof JevHttpError ? "HTTP_ERROR"
@@ -180,15 +190,21 @@ export async function observeFleetSupervisorWithJev(
       : "TRANSPORT_ERROR";
     return {
       status: "ERROR", authoritative: false, model, deterministic_trigger: deterministicTrigger,
-      state, error_code: errorCode,
+      state, error_code: errorCode, latency_ms: Math.max(0, now() - started),
+      ...(error instanceof JevResponseError ? error.metadata : {}),
     };
   } finally {
     clearTimeout(timer);
+    options.signal?.removeEventListener("abort", abort);
   }
 }
 
 class JevHttpError extends Error {}
-class JevResponseError extends Error {}
+class JevResponseError extends Error {
+  constructor(message: string, readonly metadata: Pick<JevShadowObservation, "usage" | "provider" | "response_id"> = {}) {
+    super(message);
+  }
+}
 
 async function openRouterJevTransport(input: {
   apiKey: string; body: JevDecisionRequest; signal: AbortSignal;
@@ -207,25 +223,27 @@ function parseJevResponse(raw: unknown): {
   answers: Record<string, unknown>;
   usage?: { input_tokens?: number; output_tokens?: number; cost?: number };
   provider?: string;
-  id?: string;
+  response_id?: string;
 } {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new JevResponseError("Response is not an object.");
   const record = raw as Record<string, unknown>;
-  if (!record.answers || typeof record.answers !== "object" || Array.isArray(record.answers)) {
-    throw new JevResponseError("Response answers are missing.");
-  }
   const usage = record.usage && typeof record.usage === "object" && !Array.isArray(record.usage)
     ? record.usage as Record<string, unknown> : undefined;
-  return {
-    answers: record.answers as Record<string, unknown>,
+  const metadata = {
     usage: usage ? {
-      input_tokens: numberOrUndefined(usage.input_tokens),
-      output_tokens: numberOrUndefined(usage.output_tokens),
+      input_tokens: numberOrUndefined(usage.input_tokens, true),
+      output_tokens: numberOrUndefined(usage.output_tokens, true),
       cost: numberOrUndefined(usage.cost),
     } : undefined,
     provider: typeof record.provider === "string" ? record.provider : undefined,
-    id: typeof record.id === "string" ? record.id : undefined,
+    response_id: typeof record.id === "string" ? record.id : undefined,
   };
+  if (!record.answers || typeof record.answers !== "object" || Array.isArray(record.answers)) {
+    throw new JevResponseError("Response answers are missing.", metadata);
+  }
+  const answers = jevShadowAnswersSchema.safeParse(record.answers);
+  if (!answers.success) throw new JevResponseError("Response answers are invalid.", metadata);
+  return { answers: answers.data, ...metadata };
 }
 
 function deliveryErrorFamily(code: string | null): string {
@@ -237,13 +255,14 @@ function deliveryErrorFamily(code: string | null): string {
   return "OTHER";
 }
 
-function parseTimeout(raw: string | undefined): number {
+export function jevShadowTimeoutMs(raw: string | undefined): number {
   const value = Number(raw ?? 1500);
   return Number.isInteger(value) && value >= 100 && value <= 10_000 ? value : 1500;
 }
 
-function numberOrUndefined(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+function numberOrUndefined(value: unknown, integer = false): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    && (!integer || Number.isSafeInteger(value)) ? value : undefined;
 }
 
 function isAbortError(error: unknown): boolean {

@@ -194,6 +194,17 @@ Result: ADMITTED|BLOCKED
 
 The receipt is working state, not article/product authority. Keep it short and update it rather than accumulating one giant prompt.
 
+### Structured semantic receipts and bootstrap state
+
+The task-time compiler records `uda_activation` and `uda_protection`. Declare `bootstrap.state: LOADED` only after the current required root actually entered the reasoning path: this compiles to ACTIVE with the bootstrap record in `via` and UDA_GOVERNED protection. SKIPPED_BY_OWNER_EXEMPTION, NOT_LOADED and missing/other bootstrap states compile to NOT_ACTIVATED and OUTSIDE_UDA. Check without a contract or on an outside contract returns NOT_EVALUATED, never PASS or ADMITTED. These declarations record provenance; the compiler does not independently observe bootstrap retrieval. UDA cannot protect a turn it never loaded. Always load root AGENTS.md on every turn; deeper index-selected loading remains conditional under current owner authority.
+
+For a semantic obligation, run `python3 scripts/uda_rule_graph_task_time.py receipt --contract contract.json --phase final-delivery --payload final.txt --output receipts.json`. It prints a bound skeleton for each due semantic obligation. Fill its verdict, short evidence tied to the literal candidate, actor id/kind/relation and timezone-bearing issued_at; the blank skeleton cannot admit work. Run `check --contract contract.json --phase final-delivery --destination owner-visible-final --payload final.txt --receipts receipts.json` with the same script. Preserve the ordinary mechanical check inputs, including both clock readings where required. Full commands and the owner-side bootstrap instruction draft are in `docs/uda-enforcement-coverage.md`.
+
+A receipt binds contract_sha256 (the compiled content_sha256), rule_id, obligation_id, phase, destination and payload_sha256 of the exact payload bytes. Missing, malformed, mismatched, unbound, stale or duplicate matching receipts leave semantic obligations UNKNOWN and block admission. FAIL blocks. NOT_APPLICABLE requires both an obligation with `not_applicable_allowed: true` and a nonempty not_applicable_reason; otherwise it blocks. An obligation with `independent_review_required: true` accepts only INDEPENDENT receipts. Owner correction requires recompile; any final rewrite requires a new payload receipt. Unresolved applicability remains blocking.
+
+Results state RECEIPT_BINDING_VERIFIED and identify who asserted the judgment, with judgment_proved false. SAME_AGENT is application evidence, never independent verification; INDEPENDENT is an independent-review assertion. The code verifies bindings and receipt shape, not semantic truth, identity authentication or actual reviewer independence. A well-formed but mistaken PASS assertion can admit a violating candidate. Do not turn this admission path into a claim of universal behavioral proof or use receipts to substitute for mechanical checks.
+
+
 ## 8. Chat vs execution-worker boundary
 
 Where a project distinguishes reasoning chats from execution workers:
@@ -236,3 +247,12 @@ The full loop is:
 This architecture deliberately reuses the policy decision/enforcement split used by Open Policy Agent and admission-control systems: policies are managed separately from the point where a request is allowed or denied. It also aligns with current agent-memory research emphasizing explicit, interpretable admission/control rather than indiscriminate accumulation.
 
 The project-specific novelty is limited to applying those established control principles to durable human/agent lessons and semantic writing/reasoning workflows.
+
+
+## Enforcement coverage inventory
+
+Before adding or migrating a rule, classify its exact source in `rules/rule-graph/enforcement-coverage.v1.json`. Every pattern file and every root level-two section has one disposition. An explicit index or parent trigger is an activation route; prose presence, an index listing, a graph node and compilation alone do not prove application.
+
+`STRUCTURED_PARTIAL` and `LEGACY_UNSTRUCTURED` remain the exact migration backlog pinned in `rules/rule-graph/enforcement-legacy-baseline.v1.json`. New behavioral rules must arrive with structured admission or a specific specialist workflow justification; expanding legacy backlog requires an owner quote, date and source. Large patterns with narrow task-time records remain partial, and semantic UNKNOWN never becomes enforcement PASS.
+
+Run `python3 scripts/uda_enforcement_coverage.py validate` for the deterministic gate and `python3 scripts/uda_enforcement_coverage.py report` for disposition counts, exact prioritized backlog and evidence classes. The repository audit runs the same validator at error level. `docs/uda-enforcement-coverage.md` explains its scope and limits. The first integration inventories the gaps and supplies semantic receipts, activation state and the dominated-route regression. Neither inventory nor a green coverage audit closes the owner outcome while behavioral obligations remain unstructured.

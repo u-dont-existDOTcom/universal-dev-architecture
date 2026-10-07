@@ -84,6 +84,64 @@ class RepositoryAuditTests(unittest.TestCase):
         errors = [item for item in findings if item["severity"] == "error"]
         self.assertEqual([], errors)
 
+    def test_partial_uda_consumers_do_not_require_kernel_inventory(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile()
+        for artifact in (
+            "rules/UDA-RULE-GRAPH.json",
+            "rules/rule-graph/task-time-metadata.v1.json",
+            "rules/rule-graph/enforcement-coverage.v1.json",
+            "rules/rule-graph/enforcement-legacy-baseline.v1.json",
+            "docs/requirements/2026-10-06-universal-enforcement-coverage.owner-requirement.json",
+        ):
+            with self.subTest(artifact=artifact):
+                path = self.write(artifact, "{}\n")
+                try:
+                    errors = [item for item in audit_repository(self.root) if item["severity"] == "error"]
+                    self.assertEqual([], errors)
+                finally:
+                    path.unlink()
+
+    def test_uda_kernel_requires_coverage_even_when_artifacts_are_missing(self) -> None:
+        self.add_minimal_repository_files()
+        self.write_profile(uda_kernel=True)
+        self.write("AGENTS.md", "# Universal development architecture\n")
+        findings = audit_repository(self.root)
+        self.assertIn("uda.enforcement.coverage", self.codes(findings))
+        self.assertEqual({"error"}, self.severities(findings, "uda.enforcement.coverage"))
+
+    def test_kernel_identity_requires_coverage_without_valid_profile(self) -> None:
+        self.add_minimal_repository_files()
+        self.write(".github/uda-kernel")
+        for content in (None, "{not-json}\n"):
+            with self.subTest(profile=content):
+                profile = self.root / ".github/codex-repository.json"
+                if content is None:
+                    profile.unlink(missing_ok=True)
+                else:
+                    self.write(".github/codex-repository.json", content)
+                findings = audit_repository(self.root)
+                self.assertEqual({"error"}, self.severities(findings, "uda.enforcement.coverage"))
+
+    def test_standalone_policy_profile_does_not_require_kernel_marker_or_inventory(self) -> None:
+        self.add_minimal_repository_files()
+        commands = {"test": "python3 -m unittest discover -s tests -v",
+                    "audit": "python3 scripts/audit_codex_github.py --root . --fail-on error"}
+        for marker in ({}, {"uda_kernel": False}):
+            with self.subTest(marker=marker):
+                self.write_profile(repository_kind="policy", commands=commands, **marker)
+                errors = [f for f in audit_repository(self.root) if f["severity"] == "error"]
+                self.assertEqual([], errors)
+
+    def test_nonboolean_kernel_markers_are_profile_errors_for_consumers(self) -> None:
+        self.add_minimal_repository_files()
+        for marker in (None, 0, 1, "true", {}, []):
+            with self.subTest(marker=marker):
+                self.write_profile(uda_kernel=marker)
+                findings = audit_repository(self.root)
+                self.assertEqual({"error"}, self.severities(findings, "repo.profile.uda-kernel"))
+                self.assertNotIn("uda.enforcement.coverage", self.codes(findings))
+
     def test_large_root_agents_file_is_reported(self) -> None:
         """Catch root instructions that consume most of the discovery budget."""
         self.add_minimal_repository_files()
@@ -140,16 +198,18 @@ class RepositoryAuditTests(unittest.TestCase):
     def test_active_policy_requires_test_and_audit_commands(self) -> None:
         """Catch an active control-plane profile with no executable gates."""
         self.add_minimal_repository_files()
-        self.write_profile(repository_kind="policy", commands={})
-        findings = audit_repository(self.root)
-        self.assertIn("policy.command.test.missing", self.codes(findings))
-        self.assertIn("policy.command.audit.missing", self.codes(findings))
-        self.assertEqual(
-            {"error"}, self.severities(findings, "policy.command.test.missing")
-        )
-        self.assertEqual(
-            {"error"}, self.severities(findings, "policy.command.audit.missing")
-        )
+        for kind in ("policy", "uda-kernel"):
+            with self.subTest(kind=kind):
+                self.write_profile(repository_kind=kind, uda_kernel=kind == "uda-kernel", commands={})
+                findings = audit_repository(self.root)
+                self.assertNotIn("repo.profile.kind", self.codes(findings))
+                self.assertNotIn("repo.profile.uda-kernel", self.codes(findings))
+                self.assertEqual(
+                    {"error"}, self.severities(findings, "policy.command.test.missing")
+                )
+                self.assertEqual(
+                    {"error"}, self.severities(findings, "policy.command.audit.missing")
+                )
 
     def test_verified_hosted_control_requires_dated_api_evidence(self) -> None:
         """Catch file-only claims that a hosted GitHub setting was verified."""

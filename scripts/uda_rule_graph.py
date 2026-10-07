@@ -245,12 +245,19 @@ def main() -> int:
         child.add_argument("--mode", choices=["legacy", "flat", "graph"], default="graph")
         child.add_argument("--output")
     check = subparsers.add_parser("check")
-    check.add_argument("--contract", required=True)
+    check.add_argument("--contract")
     check.add_argument("--phase", choices=task_time.PHASES, required=True)
     check.add_argument("--payload", required=True)
     check.add_argument("--clock-start")
     check.add_argument("--clock-end")
+    check.add_argument("--receipts")
+    check.add_argument("--destination")
     check.add_argument("--output")
+    receipt = subparsers.add_parser("receipt")
+    receipt.add_argument("--contract", required=True)
+    receipt.add_argument("--phase", choices=task_time.PHASES, required=True)
+    receipt.add_argument("--payload", required=True)
+    receipt.add_argument("--output")
     impact = subparsers.add_parser("impact")
     impact.add_argument("paths", nargs="+")
     impact.add_argument("--output")
@@ -313,20 +320,29 @@ def main() -> int:
                     ],
                     "unresolved": contract["unresolved"],
                     "content_sha256": contract["content_sha256"],
+                    "uda_activation": contract["uda_activation"],
+                    "uda_protection": contract["uda_protection"],
                 }
             task_time.emit(args.output, value)
             return 0 if value.get("usable", True) else 3
 
         if args.command == "check":
             result = task_time.check_contract(
-                task_time.read_json(Path(args.contract)),
+                task_time.read_json(Path(args.contract)) if args.contract else None,
                 args.phase,
-                Path(args.payload).read_text(encoding="utf-8"),
+                Path(args.payload).read_bytes(),
                 args.clock_start,
                 args.clock_end,
+                task_time.read_receipts(args.receipts),
+                args.destination,
             )
             task_time.emit(args.output, result)
             return 0 if result["admission"] == "ADMITTED" else 4
+
+        if args.command == "receipt":
+            task_time.emit(args.output, task_time.receipt_skeleton(
+                task_time.read_json(Path(args.contract)), args.phase, Path(args.payload).read_bytes()))
+            return 0
 
         if args.command == "impact":
             task_time.emit(args.output, task_time.impact(catalog, profile, args.paths))

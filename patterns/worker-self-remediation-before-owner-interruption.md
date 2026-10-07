@@ -51,6 +51,25 @@ Identify independently:
 
 Do not infer owner necessity from the current sandbox alone.
 
+### 1A. Recover opaque target identity and alternate authorized routes
+
+When the blocked thing is named only by a machine-generated device ID, host label, service ID, session handle, container name, or similar opaque identifier, **do not transfer the identification problem to the owner**. Recover what that identifier means before asking anyone to touch it.
+
+A connector reporting a device as offline or disconnected proves only that the **current transport edge** is unavailable. It does not prove the underlying host or service is unreachable through every already-authorized route. Treat this as a route-specific failure until topology recovery says otherwise.
+
+Before owner escalation:
+
+1. enumerate currently connected/healthy execution endpoints and their semantic system information when available;
+2. inspect task-relevant durable mappings on healthy authorized endpoints, including SSH config/aliases, known-host/task configuration, service/process metadata, durable task state, and recent authorized tool history/logs that can map the opaque identifier to a hostname or role;
+3. search for the opaque identifier and candidate hostname/role in those bounded task-relevant sources rather than asking the owner what the identifier means;
+4. from a healthy authorized endpoint, probe plausible pre-existing routes with **read-only** checks first—for example `hostname`, service status, or existence/readability of the exact required path;
+5. establish target equivalence from concrete evidence such as a matching hostname plus the expected task artifact/path, then use the smallest equivalent authorized alternate route;
+6. preserve the same destination, data boundary, scope, and consequence. An alternate transport is not authority to widen access or expose credentials.
+
+Never ask the owner to “access device `<opaque-id>`,” restart an unknown machine, or run setup commands merely because the first connector path failed. If the target remains unresolved after plausible authorized topology routes are exhausted, describe the plain-language resource/function that is blocked and the exact missing human action; keep the opaque identifier as retrieval metadata only.
+
+This applies equally when the alternate route is indirect—for example, a healthy local workstation already has authorized SSH access to the host whose direct device connector is down. The system should use the working authorized edge rather than converting a transport outage into owner labor.
+
 ### 2. Prefer worker self-remediation
 
 If the worker can safely repair its own user-level configuration or task-scoped setup under current authority, instruct the worker to:
@@ -160,9 +179,11 @@ Before sending any manual operational instruction to the owner while a worker is
 2. If not, can the worker safely change its own task/user configuration so that a fresh process can execute it?
 3. If that configuration is not writable or not authoritative, has the actual runtime-control surface been identified?
 4. If a restart/relaunch is required, can every pre-restart step and command construction/validation be completed by the worker first?
-5. Is the remaining owner action genuinely irreducible?
+5. If the target is named by an opaque device/host/service/session identifier, has its semantic identity and authorized route topology been recovered rather than delegated to the owner?
+6. Has a first-transport failure been checked against plausible already-authorized alternate routes with bounded read-only probes?
+7. Is the remaining owner action genuinely irreducible?
 
-If answers 1–4 reveal self-remediable work, assigning that work to the owner is a failure.
+If answers 1–6 reveal self-remediable work or an equivalent authorized route, assigning that work to the owner is a failure.
 
 ## Codex-specific interaction
 
@@ -183,7 +204,8 @@ In particular:
 Failure condition:
 
 - the owner is given a multi-step manual worker-configuration procedure even though the active worker could safely perform one or more of those steps itself; or
-- the owner is sent through repeated config edits/restarts after evidence shows that configuration surface does not control the effective runtime.
+- the owner is sent through repeated config edits/restarts after evidence shows that configuration surface does not control the effective runtime; or
+- the owner is asked to identify, access, restart, or configure an opaque machine-generated target before the worker resolves its semantic identity and exhausts plausible already-authorized alternate routes.
 
 Repair:
 
@@ -203,7 +225,7 @@ This pattern makes an existing principle operational rather than replacing it:
 - `patterns/worker-directive-delivery-and-chat-output-budget.md` requires same-turn runnable worker instructions once worker execution is selected;
 - root `AGENTS.md` already says Work selects authorized task-scoped access and routine permission choices should not be pushed to the owner.
 
-The new contribution is the explicit **self-remediation-before-owner-interruption admission check** plus a **control-plane checkpoint**: inability of the current sandbox to perform the final target operation is not enough to transfer the repair procedure to the owner, and failure of a proposed repair means identify the actual enforcing surface before repeating it.
+The contribution is the explicit **self-remediation-before-owner-interruption admission check**, a **control-plane checkpoint**, and an **opaque-target topology recovery checkpoint**: inability of the current sandbox or one connector transport to perform the final target operation is not enough to transfer the repair procedure or target-identification problem to the owner. Failure of a proposed repair means identify the actual enforcing surface before repeating it; failure of one access edge means recover target identity and test already-authorized alternate routes before declaring the target inaccessible.
 
 A hosted merge gate that the agent's permission layer will not let it complete follows `patterns/agent-completable-merge-gates.md`: one early owner decision with a recommendation, never a recurring owner chore and never a bypass.
 

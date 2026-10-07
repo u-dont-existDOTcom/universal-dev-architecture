@@ -1,0 +1,1 @@
+Run `transform INPUT --keep-intermediate --emit-output OUTPUT`. It emits the requested output directly and retains the intermediate artifact.

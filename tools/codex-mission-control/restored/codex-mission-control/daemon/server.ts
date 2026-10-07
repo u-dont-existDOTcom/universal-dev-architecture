@@ -30,6 +30,9 @@ import { GitHubReconciliationCoordinator } from "../lib/github-reconciliation-co
 import { FleetSupervisorRuntime, routeFleetSupervisorReasoning } from "../lib/fleet-supervisor";
 import { enrollFleetSupervisorWatch, parseFleetWatchEnrollment } from "../lib/fleet-watch-enrollment";
 import { observeFleetSupervisorWithJev } from "../lib/jev-shadow";
+import { boundedJevShadowHook, sampleJevShadowOnStateChange } from "../lib/jev-shadow-hook";
+import { FleetSupervisorLoop, fleetSupervisorSlowTickMs, fleetSupervisorStallMs } from "../lib/fleet-supervisor-loop";
+import { jevShadowSummaryForProducer, jevShadowSummaryTool } from "../lib/jev-shadow-surface";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
 const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
@@ -79,7 +82,7 @@ const liveSourceWatcher = process.env.MISSION_CONTROL_LIVE_SOURCE && process.env
   }, (event) => notifications.emit("event", event))
   : null;
 const githubReconciliationTimer = startGitHubReconciliation(githubReconciliationCoordinator);
-const fleetSupervisorTimer = startFleetSupervisor();
+const fleetSupervisorLoop = startFleetSupervisor();
 
 const server = http.createServer(async (request, response) => {
   try {
@@ -88,12 +91,16 @@ const server = http.createServer(async (request, response) => {
       return json(response, 200, daemonLiveness());
     }
     if (request.method === "GET" && url.pathname === "/health") {
-      return json(response, 200, await daemonReadiness(store, submissionAuthority));
+      return json(response, 200, await daemonReadiness(store, submissionAuthority, fleetSupervisorLoop.status()));
     }
     if (request.method === "GET" && url.pathname === "/fleet-supervisor") {
       const producer = authorizeMutation(request);
       if (!["OWNER_AUTHORITY", "SUPERVISOR", "UI"].includes(producer.kind)) return json(response, 403, { error: "Fleet watch reads require owner or supervisor scope." });
       return json(response, 200, { defaultCadenceMs: 3_600_000, watches: store.fleetSupervisorWatches() });
+    }
+    if (request.method === "GET" && url.pathname === "/jev-shadow/summary") {
+      const summary = jevShadowSummaryForProducer(store, authorizeMutation(request));
+      return summary ? json(response, 200, summary) : json(response, 403, { error: "Fleet watch reads require owner or supervisor scope." });
     }
     const fleetEnrollMatch = url.pathname.match(/^\/fleet-supervisor\/([^/]+)\/enroll$/);
     if (request.method === "POST" && fleetEnrollMatch) {
@@ -168,12 +175,17 @@ const server = http.createServer(async (request, response) => {
       } });
       if (body.method === "notifications/initialized" && body.id === undefined) return empty(response, 202);
       if (body.method === "tools/list") return json(response, 200, { jsonrpc: "2.0", id, result: { tools: [
+        jevShadowSummaryTool,
         { name: "mission_control_get_fleet", description: "Read the current projected Mission Control fleet and work queue.", annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }, inputSchema: { type: "object", properties: {}, additionalProperties: false } },
         { name: "mission_control_get_worker", description: "Read one worker's projected state, owner channel, queue, blockers, proposals, capability challenges, and transport evidence.", annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }, inputSchema: { type: "object", properties: { worker: { type: "string" } }, required: ["worker"], additionalProperties: false } },
         { name: "mission_control_get_worker_transport", description: "Read one worker's bounded provider-relay route and transport evidence without the full operator history.", annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }, inputSchema: { type: "object", properties: { worker: { type: "string" } }, required: ["worker"], additionalProperties: false } },
       ] } });
       if (body.method === "tools/call") {
         const params = body.params as { name?: string; arguments?: { worker?: string } } | undefined;
+        if (params?.name === jevShadowSummaryTool.name) {
+          const summary = jevShadowSummaryForProducer(store, producer);
+          return summary ? json(response, 200, mcpResult(id, summary)) : json(response, 403, { error: "Fleet reads require owner or supervisor scope." });
+        }
         if (params?.name === "mission_control_get_fleet") {
           if (!["OWNER_AUTHORITY", "SUPERVISOR", "UI"].includes(producer.kind)) return json(response, 403, { error: "Fleet reads require owner or supervisor scope." });
           return json(response, 200, mcpResult(id, snapshotFromEvents(eventHistory(), dashboardProjectionOptions())));
@@ -413,7 +425,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     server.close(() => {
       liveSourceWatcher?.close();
       if (githubReconciliationTimer) clearInterval(githubReconciliationTimer);
-      if (fleetSupervisorTimer) clearInterval(fleetSupervisorTimer);
+      fleetSupervisorLoop.stop();
       store.close();
       process.exit(0);
     });
@@ -547,39 +559,42 @@ function startGitHubReconciliation(coordinator: GitHubReconciliationCoordinator 
   return timer;
 }
 
-function startFleetSupervisor(): NodeJS.Timeout | null {
-  if (process.env.MISSION_CONTROL_FLEET_SUPERVISOR_DISABLED === "1") return null;
+function startFleetSupervisor() {
+  if (process.env.MISSION_CONTROL_FLEET_SUPERVISOR_DISABLED === "1") return new FleetSupervisorLoop(null, { enabled: false });
   const configured = Number(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_POLL_MS ?? 60_000);
   if (!Number.isInteger(configured) || configured < 1_000 || configured > 3_600_000) {
     throw new Error("MISSION_CONTROL_FLEET_SUPERVISOR_POLL_MS must be 1000-3600000.");
   }
-  let running = false;
+  const stallMs = fleetSupervisorStallMs(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_STALL_MS, configured, process.env);
+  const slowTickMs = fleetSupervisorSlowTickMs(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_SLOW_TICK_MS);
   const runtime = new FleetSupervisorRuntime(store, {
     routeReasoning: (watch, decision, events) => routeFleetSupervisorReasoning(store, watch, decision, events),
-    observeJevShadow: (_watch, decision, events, chain) =>
-      observeFleetSupervisorWithJev(decision.trigger, events, chain),
+    observeJevShadow: sampleJevShadowOnStateChange(boundedJevShadowHook((_watch, decision, events, chain, signal) =>
+      observeFleetSupervisorWithJev(decision.trigger, events, chain, { signal }))),
     notifyOwner: (watch, decision) => notifications.emit("event", {
       type: "fleet_supervisor_owner_notification", projectId: watch.projectId, taskId: watch.taskId,
       trigger: decision.trigger, reason: decision.notificationReason,
     }),
   });
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try {
-      const results = await runtime.tick();
+  return new FleetSupervisorLoop(runtime, {
+    pollMs: configured, stallMs, slowTickMs,
+    onStall: (line) => console.error(JSON.stringify(line)),
+    onSlowTick: (line) => console.warn(JSON.stringify(line)),
+    onResults: (results) => {
       for (const item of results) {
         if (item.jevShadow && item.jevShadow.status !== "DISABLED") {
           console.info(JSON.stringify({ event: "jev_shadow_observation", ...item.jevShadow }));
+          try {
+            store.recordJevShadowObservation({ source: "LIVE", projectId: item.projectId, observation: item.jevShadow });
+          } catch {
+            console.error(JSON.stringify({ event: "jev_shadow_record_failed", project_id: item.projectId, error_code: "STORE_ERROR" }));
+          }
         }
       }
       if (results.length) notifications.emit("event", { type: "fleet_supervisor_tick", results });
-    } catch (error) {
+    },
+    onFailure: (error) => {
       console.error(JSON.stringify({ event: "fleet_supervisor_tick_failed", error: error instanceof Error ? error.message : "Unknown fleet supervisor failure" }));
-    } finally { running = false; }
-  };
-  const timer = setInterval(() => void tick(), configured);
-  timer.unref();
-  void tick();
-  return timer;
+    },
+  }).start();
 }

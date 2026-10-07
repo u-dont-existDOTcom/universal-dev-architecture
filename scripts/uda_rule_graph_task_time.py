@@ -19,6 +19,9 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CATALOG = ROOT / "rules" / "rule-graph" / "task-time-metadata.v1.json"
 DEFAULT_PROFILE = ROOT / "scripts" / "instruction-layering-profile.json"
 PHASES = ["retrieval", "reasoning", "pre-action", "handoff", "persistence", "publication", "final-delivery"]
+CONTRACT_CONTENT_FIELDS = ("schema_version", "catalog_schema_version", "mode", "task_id",
+                           "task_envelope_sha256", "uda_activation", "uda_protection",
+                           "selected_rules", "unresolved", "rendered_contract")
 
 
 class RuleGraphError(RuntimeError):
@@ -39,8 +42,8 @@ def canonical(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
-def git(*args: str) -> str:
-    p = subprocess.run(["git", "-C", str(ROOT), *args], text=True, capture_output=True)
+def git(*args: str, root: Path | None = None) -> str:
+    p = subprocess.run(["git", "-C", str(root or ROOT), *args], text=True, capture_output=True)
     if p.returncode:
         raise RuleGraphError("GIT_UNAVAILABLE", p.stderr.strip() or "git failed", list(args))
     return p.stdout.strip()
@@ -55,13 +58,13 @@ def read_json(path: Path) -> Any:
         raise RuleGraphError("INVALID_JSON", f"{path}: {exc}") from exc
 
 
-def safe_path(relative: str) -> Path:
+def safe_path(relative: str, root: Path | None = None) -> Path:
     raw = Path(relative)
     if raw.is_absolute() or ".." in raw.parts:
         raise RuleGraphError("UNSAFE_SOURCE_PATH", relative)
-    root = ROOT.resolve()
+    root = (root or ROOT).resolve()
     try:
-        resolved = (ROOT / raw).resolve(strict=True)
+        resolved = (root / raw).resolve(strict=True)
     except FileNotFoundError as exc:
         raise RuleGraphError("SOURCE_NOT_FOUND", relative) from exc
     if root != resolved and root not in resolved.parents:
@@ -71,8 +74,8 @@ def safe_path(relative: str) -> Path:
     return resolved
 
 
-def source_lock(rule: dict[str, Any]) -> dict[str, Any]:
-    path = safe_path(rule["source"]["path"])
+def source_lock(rule: dict[str, Any], root: Path | None = None) -> dict[str, Any]:
+    path = safe_path(rule["source"]["path"], root)
     body = path.read_text(encoding="utf-8")
     parts = []
     for i, selector in enumerate(rule["source"]["selectors"]):
@@ -85,13 +88,13 @@ def source_lock(rule: dict[str, Any]) -> dict[str, Any]:
         parts.append(text)
     extracted = "\n\n".join(parts)
     rel = rule["source"]["path"]
-    blob = git("hash-object", rel)
-    head = git("rev-parse", "HEAD")
-    clean = subprocess.run(["git", "-C", str(ROOT), "diff", "--quiet", "HEAD", "--", rel]).returncode == 0
+    blob = git("hash-object", "--no-filters", rel, root=root)
     return {
         "path": rel,
         "selectors": rule["source"]["selectors"],
-        "repository_revision": head if clean else f"WORKTREE:{blob}",
+        # Generated artifacts precede their containing commit. Bind the exact
+        # source bytes so committing them or moving HEAD cannot change identity.
+        "repository_revision": f"BLOB:{blob}",
         "git_blob_sha1": blob,
         "extracted_utf8_bytes": len(extracted.encode()),
         "extracted_sha256": sha256(extracted.encode()),
@@ -159,7 +162,7 @@ def assert_acyclic(graph: dict[str, list[str]], code: str) -> None:
         visit(node, [])
 
 
-def validate(catalog: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]:
+def validate(catalog: dict[str, Any], profile: dict[str, Any], *, root: Path | None = None) -> dict[str, Any]:
     if catalog.get("schema_version") != 1 or catalog.get("status") not in {"CANDIDATE", "CURRENT", "HISTORICAL", "REVIEWED_METADATA_NOT_NORMATIVE_AUTHORITY"}:
         raise RuleGraphError("INVALID_CATALOG", "catalog version/status")
     roles = profile.get("roles")
@@ -198,8 +201,11 @@ def validate(catalog: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]
                 raise RuleGraphError("INVALID_ENFORCEMENT", f"{rid}:{oid}")
             if ob.get("enforcement") != "mechanical" and ob.get("mechanical_check") is not None:
                 raise RuleGraphError("NONMECHANICAL_CHECK_DECLARED", f"{rid}:{oid}")
+            for flag in ("not_applicable_allowed", "independent_review_required"):
+                if flag in ob and type(ob[flag]) is not bool:
+                    raise RuleGraphError("INVALID_OBLIGATION_FLAG", f"{rid}:{oid}:{flag}")
         by_id[rid] = rule
-        locks[rid] = source_lock(rule)
+        locks[rid] = source_lock(rule, root)
     for rid, rule in by_id.items():
         for rel in rule.get("relations", []):
             if rel.get("type") not in {"requires", "supersedes", "conflicts_with", "related_to"}:
@@ -342,11 +348,13 @@ def render(envelope: dict[str, Any], rules: list[dict[str, Any]], unresolved: li
     return "\n".join(lines).rstrip() + "\n"
 
 
-def compile_contract(catalog: dict[str, Any], profile: dict[str, Any], envelope: dict[str, Any], mode: str) -> dict[str, Any]:
-    state = validate(catalog, profile)
+def compile_contract(catalog: dict[str, Any], profile: dict[str, Any], envelope: dict[str, Any], mode: str, *, root: Path | None = None) -> dict[str, Any]:
+    state = validate(catalog, profile, root=root)
     by_id, locks = state["by_id"], state["locks"]
     if envelope.get("schema_version") != 1 or not isinstance(envelope.get("facts"), dict):
         raise RuleGraphError("INVALID_TASK_ENVELOPE", "schema_version=1 and facts required")
+    bootstrap = envelope.get("bootstrap", {})
+    loaded = isinstance(bootstrap, dict) and bootstrap.get("state") == "LOADED"
     evaluations, direct, unresolved = {}, set(), []
     for rid, rule in sorted(by_id.items()):
         if rule["status"] != "CURRENT":
@@ -415,6 +423,11 @@ def compile_contract(catalog: dict[str, Any], profile: dict[str, Any], envelope:
         "catalog_schema_version": catalog["schema_version"],
         "mode": mode,
         "task_id": envelope.get("task_id"),
+        # Bind corrections even when they do not change the selected rule set.
+        "task_envelope_sha256": sha256(canonical(envelope).encode()),
+        "uda_activation": {"state": "ACTIVE" if loaded else "NOT_ACTIVATED",
+                           "via": bootstrap if isinstance(bootstrap, dict) and bootstrap else {"state": "NOT_LOADED"}},
+        "uda_protection": "UDA_GOVERNED" if loaded else "OUTSIDE_UDA",
         "selected_rules": out_rules,
         "unresolved": sorted(unresolved, key=canonical),
         "rendered_contract": rendered,
@@ -422,20 +435,20 @@ def compile_contract(catalog: dict[str, Any], profile: dict[str, Any], envelope:
     return {
         **deterministic,
         "content_sha256": sha256(canonical(deterministic).encode()),
-        "usable": not unresolved,
+        "usable": loaded and not unresolved,
         "direct_evaluations": evaluations,
         "legacy_covered_sources": catalog.get("legacy_covered_sources", []),
     }
 
 
-def build_lock(catalog: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]:
-    state = validate(catalog, profile)
+def build_lock(catalog: dict[str, Any], profile: dict[str, Any], *, root: Path | None = None) -> dict[str, Any]:
+    state = validate(catalog, profile, root=root)
     entries = [{"rule_id": rid, **{k: v for k, v in lock.items() if k != "extracted_text"}}
                for rid, lock in sorted(state["locks"].items())]
     base = {
         "schema_version": 1,
         "catalog_sha256": sha256(canonical(catalog).encode()),
-        "compiler_sha256": sha256(Path(__file__).read_bytes()),
+        "compiler_sha256": sha256(((root or ROOT) / "scripts/uda_rule_graph_task_time.py").read_bytes()),
         "entries": entries,
     }
     return {**base, "content_sha256": sha256(canonical(base).encode())}
@@ -469,12 +482,94 @@ def final_line_datetime(payload: str) -> tuple[datetime | None, bool]:
     return parsed, len(time.split(":")) == 3
 
 
-def check_contract(contract: dict[str, Any], phase: str, payload: str,
-                   clock_start: str | None = None, clock_end: str | None = None) -> dict[str, Any]:
+def receipt_skeleton(contract: dict[str, Any], phase: str, payload: bytes) -> dict[str, Any]:
+    """Emit bindings only. Blank judgment fields deliberately cannot admit work."""
+    return {"schema_version": 1, "receipts": [
+        {"contract_sha256": contract["content_sha256"], "rule_id": rule["rule_id"],
+         "obligation_id": ob["obligation_id"], "phase": phase, "destination": ob["destination"],
+         "payload_sha256": sha256(payload), "verdict": None, "evidence": "",
+         "not_applicable_reason": "", "actor": {"id": "", "kind": "", "relation": "SAME_AGENT"},
+         "issued_at": ""}
+        for rule in contract.get("selected_rules", []) for ob in rule.get("obligations", [])
+        if ob.get("due_phase") == phase and ob.get("enforcement") == "semantic"
+    ]}
+
+
+def read_receipts(path: str | None) -> Any:
+    if path is None:
+        return None
+    try:
+        return read_json(Path(path))
+    except (RuleGraphError, OSError, UnicodeError):
+        # A malformed or unavailable receipt never supplies a judgment.
+        return None
+
+
+def semantic_result(contract: dict[str, Any], rule: dict[str, Any], ob: dict[str, Any],
+                    phase: str, payload: bytes, receipts: Any) -> dict[str, Any]:
+    base = {"rule_id": rule["rule_id"], "obligation_id": ob["obligation_id"], "status": "UNKNOWN"}
+    binding = {"contract_sha256": contract.get("content_sha256"), "rule_id": rule["rule_id"],
+               "obligation_id": ob["obligation_id"], "phase": phase,
+               "destination": ob["destination"], "payload_sha256": sha256(payload)}
+    items = receipts.get("receipts") if isinstance(receipts, dict) else receipts
+    if not isinstance(items, list):
+        return {**base, "reason": "missing or malformed semantic receipts"}
+    matches = [r for r in items if isinstance(r, dict) and all(r.get(k) == v for k, v in binding.items())]
+    # Never choose a convenient judgment among duplicate/conflicting assertions.
+    if len(matches) != 1:
+        return {**base, "reason": "expected exactly one receipt matching every binding"}
+    receipt = matches[0]
+    actor = receipt.get("actor")
+    if (not isinstance(receipt.get("verdict"), str)
+            or receipt["verdict"] not in {"PASS", "FAIL", "NOT_APPLICABLE"}
+            or not isinstance(receipt.get("evidence"), str) or not receipt["evidence"].strip()
+            or not isinstance(receipt.get("not_applicable_reason"), str)
+            or clock_datetime(receipt.get("issued_at")) is None
+            or not isinstance(actor, dict)
+            or any(not isinstance(actor.get(k), str) or not actor[k].strip() for k in ("id", "kind"))
+            or not isinstance(actor.get("relation"), str)
+            or actor["relation"] not in {"SAME_AGENT", "INDEPENDENT"}):
+        return {**base, "reason": "malformed semantic receipt"}
+    result = {**base, "binding_status": "RECEIPT_BINDING_VERIFIED", "asserted_by": actor,
+              "judgment_basis": "APPLICATION_EVIDENCE" if actor["relation"] == "SAME_AGENT" else "INDEPENDENT_REVIEW_ASSERTION",
+              "evidence": receipt["evidence"], "issued_at": receipt["issued_at"],
+              "judgment_proved": False}
+    if ob.get("independent_review_required") is True and actor["relation"] != "INDEPENDENT":
+        return {**result, "reason": "independent review required; same-agent assertion cannot resolve obligation"}
+    verdict = receipt["verdict"]
+    if verdict == "NOT_APPLICABLE":
+        if ob.get("not_applicable_allowed") is not True or not receipt["not_applicable_reason"].strip():
+            return {**result, "status": "FAIL", "reason": "improper NOT_APPLICABLE"}
+        result["not_applicable_reason"] = receipt["not_applicable_reason"]
+    return {**result, "status": verdict}
+
+
+def check_contract(contract: dict[str, Any] | None, phase: str, payload: str | bytes,
+                   clock_start: str | None = None, clock_end: str | None = None,
+                   receipts: Any = None, destination: str | None = None) -> dict[str, Any]:
+    if (not isinstance(contract, dict) or contract.get("uda_protection") != "UDA_GOVERNED"
+            or not isinstance(contract.get("uda_activation"), dict)
+            or contract["uda_activation"].get("state") != "ACTIVE"):
+        return {"schema_version": 1, "phase": phase, "results": [], "admission": "NOT_EVALUATED",
+                "uda_protection": "OUTSIDE_UDA", "reason": "no activated governed contract"}
+    # Do not let an edited contract reuse the old content hash.
+    content = {k: contract[k] for k in CONTRACT_CONTENT_FIELDS if k in contract}
+    if len(content) != len(CONTRACT_CONTENT_FIELDS) or sha256(canonical(content).encode()) != contract.get("content_sha256"):
+        return {"schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
+                "reason": "contract content hash mismatch"}
+    payload_bytes = payload if isinstance(payload, bytes) else payload.encode("utf-8")
+    payload = payload_bytes.decode("utf-8")
     results = []
     for rule in contract.get("selected_rules", []):
         for ob in rule.get("obligations", []):
             if ob.get("due_phase") != phase:
+                continue
+            if destination is not None and destination != ob["destination"]:
+                results.append({"rule_id": rule["rule_id"], "obligation_id": ob["obligation_id"],
+                                "status": "UNKNOWN", "reason": "check destination differs from obligation"})
+                continue
+            if ob.get("enforcement") == "semantic":
+                results.append(semantic_result(contract, rule, ob, phase, payload_bytes, receipts))
                 continue
             if ob.get("enforcement") != "mechanical":
                 results.append({"rule_id": rule["rule_id"], "obligation_id": ob["obligation_id"], "status": "UNKNOWN", "reason": f"{ob.get('enforcement')} is not mechanically certifiable"})
@@ -561,7 +656,8 @@ def main() -> int:
     v = sub.add_parser("validate"); v.add_argument("--write-lock")
     for name in ["compile", "explain"]:
         p = sub.add_parser(name); p.add_argument("--task", required=True); p.add_argument("--mode", choices=["legacy", "flat", "graph"], default="graph"); p.add_argument("--output")
-    c = sub.add_parser("check"); c.add_argument("--contract", required=True); c.add_argument("--phase", choices=PHASES, required=True); c.add_argument("--payload", required=True); c.add_argument("--clock-start"); c.add_argument("--clock-end"); c.add_argument("--output")
+    c = sub.add_parser("check"); c.add_argument("--contract"); c.add_argument("--phase", choices=PHASES, required=True); c.add_argument("--payload", required=True); c.add_argument("--clock-start"); c.add_argument("--clock-end"); c.add_argument("--receipts"); c.add_argument("--destination"); c.add_argument("--output")
+    r = sub.add_parser("receipt"); r.add_argument("--contract", required=True); r.add_argument("--phase", choices=PHASES, required=True); r.add_argument("--payload", required=True); r.add_argument("--output")
     i = sub.add_parser("impact"); i.add_argument("paths", nargs="+"); i.add_argument("--output")
     x = sub.add_parser("compare"); x.add_argument("--task", required=True); x.add_argument("--output")
     args = parser.parse_args()
@@ -580,15 +676,21 @@ def main() -> int:
                 "selected": [{"rule_id": r["rule_id"], "why": r["explanation"], "source": r["source"]} for r in contract["selected_rules"]],
                 "omitted": [{"rule_id": rid, "disposition": state} for rid, state in sorted(contract["direct_evaluations"].items()) if rid not in selected],
                 "unresolved": contract["unresolved"], "content_sha256": contract["content_sha256"],
+                "uda_activation": contract["uda_activation"], "uda_protection": contract["uda_protection"],
             }
         else:
             value = contract
         emit(args.output, value)
         return 0 if value.get("usable", True) else 3
     if args.command == "check":
-        result = check_contract(read_json(Path(args.contract)), args.phase, Path(args.payload).read_text(encoding="utf-8"), args.clock_start, args.clock_end)
+        result = check_contract(read_json(Path(args.contract)) if args.contract else None, args.phase,
+                                Path(args.payload).read_bytes(), args.clock_start, args.clock_end,
+                                read_receipts(args.receipts), args.destination)
         emit(args.output, result)
         return 0 if result["admission"] == "ADMITTED" else 4
+    if args.command == "receipt":
+        emit(args.output, receipt_skeleton(read_json(Path(args.contract)), args.phase, Path(args.payload).read_bytes()))
+        return 0
     if args.command == "impact":
         emit(args.output, impact(catalog, profile, args.paths)); return 0
     if args.command == "compare":

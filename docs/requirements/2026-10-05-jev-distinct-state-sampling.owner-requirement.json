@@ -1,0 +1,31 @@
+{
+  "requirement_id": "2026-10-05-jev-distinct-state-sampling",
+  "date": "2026-10-05",
+  "source": "Direct owner follow-up in the Jev monitoring chat after the weekly review and decision-relevant watch surfaced overlapping conclusions.",
+  "problem": "Jev evidence was being reviewed by two scheduled chats, while the Mission Control runtime also called Jev repeatedly on unchanged control state. In addition, the v1 next_action question embeds deterministic Mission Control precedence, so raw agreement is not independent evidence of Jev value.",
+  "owner_corrections": [
+    "Are we duplicating jev testing? Can we fix that?",
+    "And what's the next step? Did you do it?"
+  ],
+  "required_behavior": [
+    "Keep one decision-relevant Jev review/watch rather than overlapping scheduled reviews.",
+    "Do not treat repeated provider calls on an unchanged control state as independent evidence.",
+    "In Mission Control, call Jev immediately when the project/trigger/control-state fingerprint changes, but sample an unchanged fingerprint at most once per hour as a bounded provider-health/drift control.",
+    "Keep Jev strictly non-authoritative.",
+    "Report raw unique provider observations separately from distinct control-state fingerprints, and use distinct state fingerprints for 25/100/500 evidence checkpoints.",
+    "Treat v1 exact-policy next_action agreement separately from evidence that Jev adds independent judgment."
+  ],
+  "non_satisfying_proxies": [
+    "Deduplicating log imports by response_id while still paying for a new provider response every minute on the same state.",
+    "Counting thousands of repeated identical states as thousands of independent real comparisons.",
+    "Using v1 next_action agreement alone as evidence that Jev independently inferred the right Mission Control action."
+  ],
+  "scope": "Mission Control Jev shadow sampling and monitoring semantics. This change does not make Jev authoritative and does not deploy to a live runtime.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT"
+  },
+  "learning_state": [
+    "IMPLEMENTED_NOT_LIVE_VERIFIED"
+  ]
+}

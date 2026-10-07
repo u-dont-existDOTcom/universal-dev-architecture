@@ -54,6 +54,10 @@
       "state": "KNOWN",
       "value": false,
       "provenance": "not directly requested; dependency-only"
+    },
+    "request_kind": {
+      "state": "ABSENT",
+      "provenance": "example is governance/handoff work, not an operational-method request"
     }
   },
   "legacy_rule_ids": [
@@ -62,5 +66,9 @@
     "uda.chat-work.execution-separation",
     "uda.continuation.open-outcome",
     "uda.worker-directive.same-turn-delivery"
-  ]
+  ],
+  "bootstrap": {
+    "state": "LOADED",
+    "source": "current root AGENTS.md; illustrative governed envelope"
+  }
 }

@@ -1,0 +1,167 @@
+{
+  "requirement_id": "2026-10-06-universal-enforcement-coverage",
+  "date": "2026-10-06",
+  "source": "Owner task issue #317 (created 2026-10-06T04:02:54Z by the owner's account) and tasks/ACTIVE-TASK.json task uda-universal-enforcement-coverage-20261006. The owner handed the task to this Claude session on 2026-10-06 ('continue, sent some work in your lane').",
+  "problem": "UDA rules can exist as prose, an index entry, a rule-graph node or a sentence test without any path to the task-time boundary where they would change or block the answer. On 2026-10-06, 70 patterns were indexed but structured task-time metadata sourced only 5 of them. A wildcard 'patterns/*' legacy entry implied coverage. Semantic obligations always ended UNKNOWN, with no way to bind evidence. A simple operational request then received a dominated two-command route next to the better one-command route, although existing guidance already said to use the smallest sufficient method and to minimize owner choice.",
+  "owner_corrections": [
+    "Repair UDA so applicable rules are not merely stored as prose or indexed, but reliably reach the task-time boundary where they can change or block the actual answer/action.",
+    "Do **not** make this a one-off fix for a PDF-command mistake. The owner’s concern is systemic: there are likely many UDA rules that exist but are not actually enforced.",
+    "Success is not “add another rule saying to follow rules.” Success requires an inspectable path from rule → applicability/trigger → obligation → correct boundary → evidence/check → admission, plus regressions that fail if that path silently breaks.",
+    "continue, sent some work in your lane"
+  ],
+  "failure_mechanisms": [
+    "Coverage: an active rule can be index-routed prose with no explicit enforcement disposition.",
+    "Trigger: a discoverable rule can lack an explicit task-time activation route; 31 of 70 index entries had no leading trigger, and 16 pattern files were not indexed at all.",
+    "Admission: semantic obligations had no way to bind PASS or FAIL evidence to the exact candidate, so they could only block or be ignored.",
+    "Bootstrap: a turn that never loaded UDA cannot be protected by UDA, but nothing stated that.",
+    "Regression: tests proved that rule text exists, not that violating work is blocked."
+  ],
+  "existing_coverage": [
+    "patterns/task-time-lesson-activation.md and patterns/rule-graph-activation-and-dependency-resolution.md",
+    "rules/UDA-RULE-GRAPH.json, rules/rule-graph/task-time-metadata.v1.json and scripts/uda_rule_graph_task_time.py (compile and check)",
+    "patterns/reasoning-selection.md (smallest sufficient method, minimum owner choice)",
+    "tests/test_uda_rule_graph.py and tests/test_uda_rule_graph_task_time.py"
+  ],
+  "required_behavior": [
+    "Every active indexed UDA rule and pattern has exactly one explicit enforcement disposition.",
+    "A wildcard, an index listing, a rule-graph node or a sentence test never counts as enforcement proof.",
+    "A new unclassified rule, or one that adds legacy-unstructured backlog without the owner's authorization, fails the audit.",
+    "Semantic obligations can receive PASS, FAIL or NOT_APPLICABLE evidence bound to the exact contract, obligation, phase, destination and payload. Mechanical code verifies the binding and never claims to prove the judgment.",
+    "The dominated-route regression rejects the old answer and admits the repaired one.",
+    "UDA distinguishes an activated, enforced task from one that is NOT_ACTIVATED or OUTSIDE_UDA.",
+    "The external simple-turn bootstrap exemption is reported truthfully, with the exact owner-side instruction change."
+  ],
+  "review_changes": [
+    {
+      "review": "independent pass-1 code and inventory review",
+      "finding": "Editable backlog pin, empty selectors, inactive/malformed record applicability, removable audit sentinels and diagnosis-only pre-write route",
+      "disposition": "Added requirement-bound baseline anchor, selector/trigger/current/actor guards, durable UDA audit marker and operational index routes; new temporary-copy regressions exercise each code guard."
+    },
+    {
+      "review": "final pass-1 admission review",
+      "finding": "A minimum word count on owner authorization quotes exceeded the design; index-clause Markdown needed distinguishing from wildcard coverage.",
+      "disposition": "Require a nonempty quote/date/source and exact addition id, accepting concise authorization. Reject wildcard index clauses while preserving existing bold formatting. Temporary-copy subcases cover concise quotes and both wildcard routes/authorization ids."
+    },
+    {
+      "review": "supervisor acceptance of pass 1 and pass-2 design, 2026-10-06",
+      "finding": "P1 included 60 entries; related_findings duplicated exact lists; index list had a gap between 77 and 78.",
+      "disposition": "P1 is exactly the 22 backlog identities in the supervisor high-leverage list; other general behavior is P2 and surface-specific mechanics P3. Report sorts by priority then estimated trigger frequency. Requirement findings retain counts and a digest-bound baseline, with exact-list/report pointers. Removed only the index gap."
+    },
+    {
+      "review": "pass-2 execution readback",
+      "finding": "Receipts must survive exact-byte input handling and reject malformed JSON or invalid UTF-8 receipt files; an owner correction must stale a receipt even when selection stays the same.",
+      "disposition": "Both CLI entrypoints read payload bytes, malformed receipt files leave UNKNOWN, the whole envelope enters the contract hash, and direct CLI/binding regressions cover these boundaries."
+    }
+  ],
+  "regression": "Coverage, receipt, activation-state and dominated-route tests; mutation-style checks that remove or corrupt an enforcement link.",
+  "scope": "UDA enforcement coverage, task-time activation and admission, semantic evidence binding, the coverage audit, regressions, docs and bounded migration. Mission Control runtime, deployment, provider changes and owner settings are out of scope.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "notes": "The owner directed the task in issue #317 and handed it to this session. Design choices not fixed by the issue, such as the partial-coverage disposition, the unit of inventory and the receipt fields, are ASSISTANT_INFERENCE within it.",
+    "admission": "OWNER_DIRECT"
+  },
+  "existing_work_basis": [
+    "patterns/task-time-lesson-activation.md",
+    "patterns/rule-graph-activation-and-dependency-resolution.md",
+    "patterns/logic-failure-map.md",
+    "patterns/reasoning-selection.md"
+  ],
+  "execution_surfaces": [
+    {
+      "surface": "Agents that compile and check task-time contracts with scripts/uda_rule_graph_task_time.py",
+      "disposition": "PROJECTED",
+      "note": "They gain semantic receipts and an activation state."
+    },
+    {
+      "surface": "The owner's ChatGPT instructions (the simple-turn bootstrap exemption)",
+      "disposition": "OWNER_ACTION",
+      "note": "Outside the repository; the exact replacement text is reported to the owner."
+    }
+  ],
+  "related_findings": [
+    {
+      "finding_id": "pass-1-recomputed-baseline",
+      "date": "2026-10-06",
+      "baseline": {
+        "indexed_pattern_count": 70,
+        "pattern_file_count": 86,
+        "triggerless_index_count": 31,
+        "task_time_record_count": 9,
+        "directly_represented_pattern_count": 5,
+        "task_time_source_count": 6,
+        "indexed_patterns_without_task_time_record_count": 65,
+        "mechanical_obligation_count": 2,
+        "nonmechanical_obligation_count": 9,
+        "active_graph_nodes": 36,
+        "superseded_graph_nodes": 1
+      },
+      "basis": "supplied branch before pass 1 changes; main merged; live fetch unavailable in sandbox",
+      "main_revision": "991c7a08b7d9f831327d9075175b8d70c34c37e6"
+    },
+    {
+      "finding_id": "pass-1-systemic-mechanism",
+      "classification": [
+        "LF-2.1",
+        "LF-7.1",
+        "LF-7.2",
+        "LF-7.3"
+      ],
+      "notes": "Existing map already covers instructions not loaded, loaded checks missing the real endpoint, proxy tests and overstated coverage. No new broad pattern or LF row is needed."
+    },
+    {
+      "finding_id": "pass-1-inventory",
+      "entry_count": 96,
+      "indexed_pattern_count": 82,
+      "counts_by_disposition": {
+        "STRUCTURED_ENFORCED": 0,
+        "STRUCTURED_PARTIAL": 6,
+        "WORKFLOW_ONLY": 10,
+        "LEGACY_UNSTRUCTURED": 78,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 84
+    },
+    {
+      "finding_id": "pass-1-legacy-baseline",
+      "date": "2026-10-06",
+      "backlog_count": 84,
+      "backlog_ids_sha256": "6311f2d872d7c8a02f3d9d4f38667b71b4d23e25f614f1f9c825aaa644f9a0b2",
+      "path": "rules/rule-graph/enforcement-legacy-baseline.v1.json",
+      "notes": "Exact identities are pinned in this file; the count and canonical-list digest retain the requirement-bound anti-tampering anchor without duplicating the list."
+    },
+    {
+      "finding_id": "pass-2-inventory",
+      "entry_count": 96,
+      "indexed_pattern_count": 82,
+      "identity_counts_by_disposition": {
+        "LEGACY_UNSTRUCTURED": 77,
+        "STRUCTURED_PARTIAL": 7,
+        "WORKFLOW_ONLY": 10,
+        "NOT_ACTIVE": 2,
+        "STRUCTURED_ENFORCED": 0
+      },
+      "backlog_count": 84,
+      "baseline_shrinkage": 0,
+      "root_owner_outcome": "OPEN",
+      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "Bound semantic receipts, explicit bootstrap/protection state, dominated-route regression; no claim of universal live enforcement."
+    },
+    {
+      "finding_id": "policy-pr-312-reconciliation",
+      "basis": "Available remote-tracking snapshot 3ed51341b1f9221057c7b49c0f46402c5f878759; live freshness unavailable. No dependency on this open policy change.",
+      "new_pattern_ids": [
+        "patterns/agent-completable-merge-gates.md",
+        "patterns/convergent-review-acceptance-gates.md"
+      ],
+      "required_second_merge_action": "Both are behavioral. Whichever integrates second must add exact universe entries and activation routes. Structured records/admission or a genuine specialist-workflow reason are needed; legacy backlog additions require explicit owner authorization. No preclassification for absent files and no automatic grandfathering."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED"
+  ],
+  "nonclaims": [
+    "A matching receipt verifies the binding and attributes an asserted judgment to an actor; it does not prove application, semantic truth, actor identity or actual independence. SAME_AGENT is application evidence, not independent verification.",
+    "Turns that never load UDA are outside its protection; the repository cannot enforce them."
+  ]
+}

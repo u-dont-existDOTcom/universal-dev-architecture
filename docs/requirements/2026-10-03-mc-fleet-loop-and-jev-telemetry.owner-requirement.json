@@ -1,0 +1,76 @@
+{
+  "requirement_id": "2026-10-03-mc-fleet-loop-and-jev-telemetry",
+  "date": "2026-10-03",
+  "source": "A Mission Control status report the owner forwarded to a Claude chat on 2026-10-03. It found the fleet-supervisor loop frozen since 2026-09-30 and Jev shadow evidence collection stopped with it.",
+  "problem": "The Mission Control daemon stayed up and reported ready, but its fleet-supervisor loop stopped ticking on 2026-09-30 at about 14:35 UTC. All three active fleet watches froze, so fleet supervision and the Jev shadow experiment both stopped, and nothing reported it. Jev observations were written only to container stdout, so the experiment's counts, agreement, latency and cost could not be read back.",
+  "owner_corrections": [
+    "Decision-relevant change: the Mission Control fleet-supervisor loop has stopped advancing, so Jev has effectively stopped collecting shadow evidence.",
+    "The next Mission Control repair should restore that loop and persist Jev count/agreement/latency/cost telemetry so the 25/100/500 checkpoints become measurable."
+  ],
+  "failure_mechanisms": [
+    "Silent wedge: one fleet tick started and never settled. The loop's re-entry guard then skipped every later tick without logging anything, so no error and no stall were ever recorded.",
+    "Unbounded wait: the Jev shadow hook, the only network wait inside a tick, is bounded only by an AbortSignal inside the hook, and nothing outside the hook bounds it.",
+    "Invisible liveness: readiness does not report the loop, so a stalled loop looked healthy.",
+    "Ephemeral telemetry: Jev observations went only to stdout and lacked latency, so the experiment's checkpoints could not be measured from durable data."
+  ],
+  "existing_coverage": [
+    "lib/fleet-supervisor.ts: deterministic fleet decisions and the shadow hook, which may never fail a tick.",
+    "lib/jev-shadow.ts: sanitized state, typed questions, the provider timeout, and status and error codes.",
+    "tests/fleet-supervisor.test.ts and tests/jev-shadow.test.ts."
+  ],
+  "required_behavior": [
+    "A tick that runs past a stall limit is logged once with its stage and project, abandoned, and replaced by a new tick; an abandoned tick makes no further side effects.",
+    "The Jev hook always settles within a hard deadline independent of the provider's abort signal; timeouts and hook errors become recorded ERROR observations.",
+    "Every non-disabled Jev observation is stored durably with latency, cost, tokens, the deterministic expectation and agreement.",
+    "Owner and supervisor surfaces can read a summary: counts, agreement by decision type, owner false positives and misses, latency percentiles, cost, distinct states, and when the 25, 100 and 500 checkpoints were reached.",
+    "Readiness reports the loop's status without changing how readiness is decided.",
+    "Past observations saved from container logs can be imported once, without duplicates."
+  ],
+  "review_changes": [
+    "2026-10-03 final Codex review (OWNER_DIRECT, pr-311): sanitize provider usage independently before answer validation and retain usage, provider and response ID on ERROR/INVALID_RESPONSE observations without storing malformed answers. The new regression failed before repair and passed after; four malformed-answer shapes retain valid tokens/cost and provider identity, and the durable summary includes their paid-call cost. No live verification or deployment is claimed.",
+    "2026-10-03 supervisor review (OWNER_DIRECT, pr-311): fix live answer handling first. Accept next_action.choice as one of seven action strings and retain highest-probability legacy maps; persist only choice/action probabilities/confidence, noul, and consequence score/0-3 probabilities/confidence. Drop echoed legends and all other fields. Regressions use supplied live answer values and observed control states, exact nanosecond Docker OK and ERROR/TIMEOUT formats, idempotent re-import and agreement/latency summaries. The two live-format regressions failed before the schema change and now pass. No historical logs were imported and no live verification is claimed.",
+    "2026-10-03 supervisor review timing: FleetSupervisorRuntime.tick measures worker-event reads, chain verification, classification, reasoning routing (including mechanical recovery), notification, commit and Jev call. Loop status/health retain the last completed total duration, per-watch stage milliseconds and slowest stage. Sum synchronous call work separately from async waits; emit fleet_supervisor_tick_slow with project and timings only, at most once per ten minutes. MISSION_CONTROL_FLEET_SUPERVISOR_SLOW_TICK_MS defaults to 5000, validates integer 1000-3600000, and appears in .env.example and the PR docs section. Four timing/validation regressions failed before implementation and now pass. Deterministic decisions and provider request contents are unchanged; no optimization, deployment, package install, commit or push.",
+    "2026-10-03 supervisor review verification: PASS 54/54 eligible affected app tests across six files, including six new regressions first demonstrated failing; PASS npm run typecheck with 0 diagnostics; PASS 636/636 socket-free root tests from 637 discovered; PASS exact branch/task-scoped audit with 0 findings; PASS git diff --check and scope review. Full npm test, exact full Python discovery (one HTTP canary), and the restricted import CLI case remain for CI; no tests were changed to bypass the sandbox. The record/checkpoint classify local implementation separately from live deployment/import. A fresh canonical GitHub bootstrap was unavailable; supplied current owner instructions and local governance were applied without claiming live freshness. All changes remain in the working tree for the runner to commit/push."
+  ],
+  "regression": "Mission Control tests for the hook deadline, the loop watchdog, the telemetry store and summary, the import script, the MCP tool and readiness.",
+  "scope": "Mission Control daemon and library code, its tests and docs, in this repository. Deploying the change to the live host is a separate step that needs the owner's approval.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "notes": "The owner forwarded the report that asks for this repair. The diagnosis (a wedged tick behind the re-entry guard, no error logged, other intervals alive) comes from read-only checks of the live daemon's logs by the Claude chat (ASSISTANT_INFERENCE about which await hung).",
+    "admission": "OWNER_DIRECT"
+  },
+  "existing_work_basis": [
+    "docs/exec-plans/active/2026-09-21-mc-jev-shadow.md",
+    "docs/exec-plans/active/2026-09-22-mc-jev-calibration.md",
+    "docs/exec-plans/active/2026-09-22-mc-jev-precedence.md",
+    "docs/exec-plans/active/2026-09-19-mission-control-default-fleet-supervisor.md"
+  ],
+  "execution_surfaces": [
+    {
+      "surface": "Mission Control daemon on the live host",
+      "disposition": "DEFERRED",
+      "note": "Changes nothing live until the owner approves a deploy."
+    }
+  ],
+  "related_findings": [
+    "2026-10-03: the deployed daemon/server.ts, lib/fleet-supervisor.ts, lib/jev-shadow.ts and lib/store.ts were byte-identical to main.",
+    "2026-10-03: the last Jev observation was logged at 2026-09-30T14:34:08Z; after it the daemon logged no Jev line, no fleet tick event and no tick failure, while its GitHub reconciliation interval kept logging through 2026-10-03.",
+    "2026-10-03: container logs held 5,697 Jev observations from 2026-09-26T18:37Z to 2026-09-30T14:34Z: 5,607 answered, 89 timeouts at the 1.5 s limit and 1 HTTP error. All 5,607 answers matched the deterministic decision, but only two decision types occurred (5,515 healthy, 92 integrity holds). Summed reported cost was about $0.28.",
+    "2026-10-03 implementation: separate fleet watchdog with per-invocation cancellation and guard ownership; stage/project diagnostics; independent Jev timeout race; durable allowlisted telemetry and scoped summary; readiness field and idempotent Docker log importer. IMPLEMENTED_NOT_LIVE_VERIFIED; no deploy or historical log import performed.",
+    "Gate npm test: BLOCKED_BY_SANDBOX, 0 tests started. The unchanged tsx CLI attempts an IPC socket and receives EPERM. npm run build: NOT_RUN (0 builds), explicitly deferred to CI.",
+    "Gate app socket/process-free alternative: PASS, 459 test cases across 43 files, including all 48 affected cases. Tests ran via node --import tsx --test --test-isolation=none, separately per file for environment isolation. 20 app cases requiring sockets or restricted child processes are deferred to CI; none was edited to bypass the sandbox.",
+    "Gate npm run typecheck: PASS, 0 TypeScript diagnostics.",
+    "Gate python3 -m unittest discover -s tests -v: FAIL_ENVIRONMENT, 637 tests, 636 passed and 1 socket-bound HTTP canary error (PermissionError). The socket-free selection passes all 636 tests. A first-run checkpoint-format error was repaired before the final gate.",
+    "Gate GITHUB_HEAD_REF=claude/mc-fleet-loop-jev-telemetry-20261003 UDA_TASK_ID=pr-311 python3 scripts/audit_codex_github.py --root . --fail-on error: PASS, 0 errors, 0 warnings. A first-run checkpoint-heading warning was repaired.",
+    "Gate relay state-and-client socket/process-free subset: PASS, 16 tests. Three CLI/socket cases are deferred to CI; the initial unrestricted attempt hit sandbox child-process EPERM and a native Node assertion. Relay code and tests were unchanged.",
+    "Importer executable smoke checks through the permitted shell: PASS, file read=1/imported=1/skipped=0/malformed=0; rerun read=1/imported=0/skipped=1/malformed=0; stdin into a separate temporary store read=1/imported=1/skipped=0/malformed=0. The automated child-process CLI case remains for CI."
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "IMPLEMENTED_NOT_LIVE_VERIFIED"
+  ],
+  "nonclaims": [
+    "The logs cannot show which await hung; the fix bounds the network wait and recovers from any wedge rather than assuming one cause.",
+    "Agreement on healthy and integrity-hold states says nothing yet about owner-decision or reasoning-route cases; none occurred."
+  ]
+}
