@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "task_id": "dominated-route:operational-command",
+  "bootstrap": {
+    "state": "LOADED",
+    "source": "current canonical root loaded for this illustrative task"
+  },
+  "request": "Compare immediate output with approval of the intermediate before output generation.",
+  "facts": {
+    "role": {
+      "state": "KNOWN",
+      "value": "universal_internal",
+      "provenance": "task authority"
+    },
+    "actor": {
+      "state": "KNOWN",
+      "value": "chat",
+      "provenance": "candidate author"
+    },
+    "request_kind": {
+      "state": "KNOWN",
+      "value": "operational_command",
+      "provenance": "literal request"
+    }
+  },
+  "material_constraints": "Intermediate approval is an optional priority with a real timing tradeoff."
+}

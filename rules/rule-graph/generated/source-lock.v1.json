@@ -1,14 +1,14 @@
 {
-  "catalog_sha256": "e2efaf68607f267a0c5b94200ac9af030119aa10b47914834cc7d29f98116db5",
-  "compiler_sha256": "17e50f4eac31109e5433de9c455e45143835cbff5b672b784e9a80caa124b5b4",
-  "content_sha256": "d0151008f4ba88865ac44eceb80183b67ab2e2832dea5f5e055e9f89cf2496bc",
+  "catalog_sha256": "cd96719fa644c0a489d3796814423d86af0085db76d7643f0b74f37fe6e07b61",
+  "compiler_sha256": "f69a872718aa0823b1cda01f3d7099b2510046174517930ee7b28833820c6493",
+  "content_sha256": "81a5952c41321eab8294210a82c8b31940a3f67d651123c491222d386598825b",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
       "extracted_utf8_bytes": 268,
-      "git_blob_sha1": "8a5ad66fd030c971886e663ecbbbffa3de42a49a",
+      "git_blob_sha1": "d92598a8fd8685c9f2722b3882fe7eb52b2ee228",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "ee2eff37c055752526b775619b7bfcecd9aa73fc",
+      "repository_revision": "BLOB:d92598a8fd8685c9f2722b3882fe7eb52b2ee228",
       "rule_id": "uda.active-contract.boundary-binding",
       "selectors": [
         {
@@ -20,9 +20,9 @@
     {
       "extracted_sha256": "237c0fe902e6de5dd2efe5628b6023ac7e912a6b0b775480a73847c9463148b8",
       "extracted_utf8_bytes": 435,
-      "git_blob_sha1": "9ca5bdac1648252b67237dae31f589ae4b6c0d4c",
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
       "path": "AGENTS.md",
-      "repository_revision": "WORKTREE:9ca5bdac1648252b67237dae31f589ae4b6c0d4c",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
       "rule_id": "uda.bootstrap.live-root",
       "selectors": [
         {
@@ -36,7 +36,7 @@
       "extracted_utf8_bytes": 962,
       "git_blob_sha1": "92b83434c3fdcf5745777901dc081ec041b4c152",
       "path": "patterns/chat-work-execution-routing-threshold.md",
-      "repository_revision": "WORKTREE:92b83434c3fdcf5745777901dc081ec041b4c152",
+      "repository_revision": "BLOB:92b83434c3fdcf5745777901dc081ec041b4c152",
       "rule_id": "uda.chat-work.execution-separation",
       "selectors": [
         {
@@ -50,7 +50,7 @@
       "extracted_utf8_bytes": 224,
       "git_blob_sha1": "da3c76476991f68d20049344569059f2fe3428b3",
       "path": "patterns/codex-github-operating-system.md",
-      "repository_revision": "WORKTREE:da3c76476991f68d20049344569059f2fe3428b3",
+      "repository_revision": "BLOB:da3c76476991f68d20049344569059f2fe3428b3",
       "rule_id": "uda.continuation.open-outcome",
       "selectors": [
         {
@@ -62,9 +62,9 @@
     {
       "extracted_sha256": "437fdbbaa443fad34771227f636b210adac84c72be8d3e5ba1511356e467a895",
       "extracted_utf8_bytes": 1207,
-      "git_blob_sha1": "9ca5bdac1648252b67237dae31f589ae4b6c0d4c",
+      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
       "path": "AGENTS.md",
-      "repository_revision": "WORKTREE:9ca5bdac1648252b67237dae31f589ae4b6c0d4c",
+      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
       "rule_id": "uda.final.timestamp",
       "selectors": [
         {
@@ -86,7 +86,7 @@
       "extracted_utf8_bytes": 406,
       "git_blob_sha1": "ece240e3a7abba73eaa25ec24e20ea61cf8d7b52",
       "path": "patterns/owner-goal-followup-and-requirement-accretion.md",
-      "repository_revision": "ee2eff37c055752526b775619b7bfcecd9aa73fc",
+      "repository_revision": "BLOB:ece240e3a7abba73eaa25ec24e20ea61cf8d7b52",
       "rule_id": "uda.followup.owner-goal-rebind",
       "selectors": [
         {
@@ -106,9 +106,9 @@
     {
       "extracted_sha256": "20246d4cb4a4c9f5f46331555fae123081c44aa8fb779019e93784f7f4a0fd24",
       "extracted_utf8_bytes": 116,
-      "git_blob_sha1": "8a5ad66fd030c971886e663ecbbbffa3de42a49a",
+      "git_blob_sha1": "d92598a8fd8685c9f2722b3882fe7eb52b2ee228",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "ee2eff37c055752526b775619b7bfcecd9aa73fc",
+      "repository_revision": "BLOB:d92598a8fd8685c9f2722b3882fe7eb52b2ee228",
       "rule_id": "uda.owner-correction.reactivate",
       "selectors": [
         {
@@ -118,11 +118,25 @@
       ]
     },
     {
+      "extracted_sha256": "b5e06a1f9807cc621e98a87e95fc177ed7df7cef7db842efbdc2195a2f815dc2",
+      "extracted_utf8_bytes": 367,
+      "git_blob_sha1": "32461019f11cfa700425d1af382e9eb4cf14c94a",
+      "path": "patterns/reasoning-selection.md",
+      "repository_revision": "BLOB:32461019f11cfa700425d1af382e9eb4cf14c94a",
+      "rule_id": "uda.reasoning.dominated-alternative",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "When a user asks for an operational command, procedure, or practical method and one known route achieves the same requested outcome under the same material constraints with fewer steps and no compensating benefit, do not surface the dominated route as an alternative. If alternatives have materially different tradeoffs, surface only the decision-relevant difference."
+        }
+      ]
+    },
+    {
       "extracted_sha256": "8703d565eb4aa57f15c21a2bd998f5f89ebbfe85c20c95cb5e21f69f3bf37424",
       "extracted_utf8_bytes": 301,
       "git_blob_sha1": "da3c76476991f68d20049344569059f2fe3428b3",
       "path": "patterns/codex-github-operating-system.md",
-      "repository_revision": "WORKTREE:da3c76476991f68d20049344569059f2fe3428b3",
+      "repository_revision": "BLOB:da3c76476991f68d20049344569059f2fe3428b3",
       "rule_id": "uda.scope.explicit-no-change",
       "selectors": [
         {
@@ -136,7 +150,7 @@
       "extracted_utf8_bytes": 488,
       "git_blob_sha1": "97331f6e96de711249ada468e8de093579985280",
       "path": "patterns/worker-directive-delivery-and-chat-output-budget.md",
-      "repository_revision": "ee2eff37c055752526b775619b7bfcecd9aa73fc",
+      "repository_revision": "BLOB:97331f6e96de711249ada468e8de093579985280",
       "rule_id": "uda.worker-directive.same-turn-delivery",
       "selectors": [
         {

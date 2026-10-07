@@ -30,7 +30,7 @@
     ]
   },
   "directiveIssue": 317,
-  "taskLocalCheckpoint": "issue:317 until the branch-local checkpoint is created by the implementing worker",
+  "taskLocalCheckpoint": "state/tasks/task-b9300c3bb37d2641871132de22e95497f5e64eded9207d9a1b8665ce918ec034.md",
   "suspendedTaskSources": [
     "the previously completed tasks/ACTIVE-TASK.json task",
     "unrelated Mission Control issues and pull requests",

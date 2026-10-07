@@ -1,0 +1,5250 @@
+{
+  "schema_version": 1,
+  "status": "EXACT_INVENTORY_NOT_UNIVERSAL_ENFORCEMENT",
+  "scope": "One disposition for each pattern file and each root level-two section. Semantic admission remains incomplete in pass 1.",
+  "entries": [
+    {
+      "id": "AGENTS.md#authority",
+      "kind": "kernel_section",
+      "indexed": false,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "KERNEL_ALWAYS",
+        "detail": "Loaded with the root authority on every UDA-activated turn."
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "authority controlled boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "AGENTS.md",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P2",
+        "next_step": "Carry the explicit owner and repository precedence order into task-time scope decisions; reject conflicting derived or stale authority at action admission.",
+        "trigger_frequency": "EVERY_TURN"
+      }
+    },
+    {
+      "id": "AGENTS.md#code-review-rules",
+      "kind": "kernel_section",
+      "indexed": false,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "KERNEL_ALWAYS",
+        "detail": "Loaded with the root authority on every UDA-activated turn."
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "code-review-rules controlled boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "AGENTS.md",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P2",
+        "next_step": "Bind transfer rationale, evidence limits, provenance and blockers to review and promotion claims; reject unobserved controls reported as active.",
+        "trigger_frequency": "EVERY_TURN"
+      }
+    },
+    {
+      "id": "AGENTS.md#follow-up-goal-derivation-and-assistant-added-requirements",
+      "kind": "kernel_section",
+      "indexed": false,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "KERNEL_ALWAYS",
+        "detail": "Loaded with the root authority on every UDA-activated turn."
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "follow-up-goal-derivation-and-assistant-added-requirements controlled boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "AGENTS.md",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P1",
+        "next_step": "Bind the parent owner gap, requirement origin and strongest simpler alternative before accepting a consequential follow-up or mandatory prerequisite.",
+        "trigger_frequency": "EVERY_TURN"
+      }
+    },
+    {
+      "id": "AGENTS.md#instruction-composition",
+      "kind": "kernel_section",
+      "indexed": false,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "KERNEL_ALWAYS",
+        "detail": "Loaded with the root authority on every UDA-activated turn."
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "instruction-composition controlled boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "AGENTS.md",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P1",
+        "next_step": "Bind task classification and current index selection to pre-attempt activation; preserve canonical authority and exact applicable dependency closure.",
+        "trigger_frequency": "EVERY_TURN"
+      }
+    },
+    {
+      "id": "AGENTS.md#owner-facing-operational-references",
+      "kind": "kernel_section",
+      "indexed": false,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "KERNEL_ALWAYS",
+        "detail": "Loaded with the root authority on every UDA-activated turn."
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "owner-facing-operational-references controlled boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "AGENTS.md",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P1",
+        "next_step": "Bind plain-language referents, current exact link verification and complete usable artifact delivery to the literal owner-visible final payload.",
+        "trigger_frequency": "EVERY_TURN"
+      }
+    },
+    {
+      "id": "AGENTS.md#per-turn-bootstrap-invariants",
+      "kind": "kernel_section",
+      "indexed": false,
+      "disposition": "STRUCTURED_PARTIAL",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "KERNEL_ALWAYS",
+        "detail": "Loaded with the root authority on every UDA-activated turn."
+      },
+      "actors": [
+        "chat",
+        "codex",
+        "execution worker",
+        "reasoning agent",
+        "work"
+      ],
+      "phases": [
+        "final-delivery",
+        "pre-action",
+        "reasoning",
+        "retrieval"
+      ],
+      "destinations": [
+        "per-turn-bootstrap-invariants controlled boundary",
+        "current reasoning/execution turn",
+        "owner-visible-final"
+      ],
+      "enforcement_types": [
+        "mechanical",
+        "semantic"
+      ],
+      "task_time_records": [
+        "uda.final.timestamp",
+        "uda.bootstrap.live-root"
+      ],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "AGENTS.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "tests/test_uda_task_time_receipts.py",
+          "class": "ADMISSION"
+        }
+      ],
+      "migration": {
+        "priority": "P1",
+        "next_step": "Extend task-specific authority, clock-read cadence and output-budget delivery to their exact boundaries; preserve mechanical final checks and distinguish bootstrap assertions from observed retrieval evidence.",
+        "trigger_frequency": "EVERY_TURN"
+      },
+      "legacy_remainder": "Mechanical checks evaluate the outgoing timestamp and reported elapsed duration only. They do not prove the two-read cadence, actual live bootstrap, task-specific authority loading or long-output artifact delivery; the live-root obligation now accepts attributed receipts, but does not mechanically prove live retrieval. The other kernel obligations remain incompletely represented.",
+      "review_notes": ""
+    },
+    {
+      "id": "AGENTS.md#pre-final-continuation-invariant",
+      "kind": "kernel_section",
+      "indexed": false,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "KERNEL_ALWAYS",
+        "detail": "Loaded with the root authority on every UDA-activated turn."
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "pre-final-continuation-invariant controlled boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "AGENTS.md",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P1",
+        "next_step": "Bind the current root outcome and executable frontier before terminal delivery; reject stop claims when safe authorized work remains.",
+        "trigger_frequency": "EVERY_TURN"
+      }
+    },
+    {
+      "id": "AGENTS.md#universal-and-owner-specific-infrastructure-boundary",
+      "kind": "kernel_section",
+      "indexed": false,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "KERNEL_ALWAYS",
+        "detail": "Loaded with the root authority on every UDA-activated turn."
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "universal-and-owner-specific-infrastructure-boundary controlled boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "AGENTS.md",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P2",
+        "next_step": "Bind portable transfer and owner-deployment labels at persistence and publication; reject secrets, private locators and account identifiers in reusable artifacts.",
+        "trigger_frequency": "EVERY_TURN"
+      }
+    },
+    {
+      "id": "AGENTS.md#validation",
+      "kind": "kernel_section",
+      "indexed": false,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "KERNEL_ALWAYS",
+        "detail": "Loaded with the root authority on every UDA-activated turn."
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "validation controlled boundary"
+      ],
+      "enforcement_types": [
+        "none"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "AGENTS.md",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "exception_reason": "The Validation kernel section delegates release and merge certification to the exact test/audit commands declared in .github/codex-repository.json and the Deterministic repository audit workflow; it explicitly distinguishes iteration from that specialist repository release boundary."
+    },
+    {
+      "id": "AGENTS.md#workflow",
+      "kind": "kernel_section",
+      "indexed": false,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "KERNEL_ALWAYS",
+        "detail": "Loaded with the root authority on every UDA-activated turn."
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "workflow controlled boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "AGENTS.md",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P1",
+        "next_step": "Bind authorized coordination, owner-input continuation, minimal owner interruption and explicit operation commitments to execution and final stop admission.",
+        "trigger_frequency": "EVERY_TURN"
+      }
+    },
+    {
+      "id": "patterns/agent-to-agent-consultation.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "owner rule: when making a claim about another agent or resolving disagreement"
+      },
+      "actors": [
+        "chat",
+        "codex",
+        "consulted-agent",
+        "reviewer"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "final-delivery"
+      ],
+      "destinations": [
+        "decision or workflow design",
+        "consultation packet",
+        "task record or final answer"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/agent-to-agent-consultation.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_agent_to_agent_consultation_pattern.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Current owner rule. Consultation adds no authority. Exact invocation/surface, account/route, configuration/sandbox and paired-test evidence are required; requested settings do not prove effective model identity. Named tests primarily check prose presence.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register runtime-scoped capability-claim and disagreement predicates; bind same-runtime test, direct consultation or explicit unavailable receipt, one reconciliation ceiling, and runtime liveness evidence before a timeout claim.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/artifact-authority-promotion-and-supersession.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before treating an artifact as current authority or projecting its supersession"
+      },
+      "actors": [
+        "chat",
+        "work",
+        "codex",
+        "controller",
+        "downstream-consumer"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "persistence",
+        "handoff",
+        "final-delivery"
+      ],
+      "destinations": [
+        "current authority object",
+        "promotion/supersession record",
+        "derived indexes, dashboards and handoffs"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/artifact-authority-promotion-and-supersession.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Passing an evaluator, publication, freshness or a snapshot name never grants authority. No current task-time source record covers these semantics.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register artifact-promotion and current-artifact consumption triggers; require exact identity, authorized promotion event, later supersession resolution and unresolved-authority receipt before a derived view can label content current.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/canonical-design-os-bootstrap.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When work materially involves UI/UX or visual design"
+      },
+      "actors": [
+        "chat",
+        "work",
+        "codex",
+        "design-reviewer"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "current design task",
+        "specialist load record",
+        "design decisions and verification evidence"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "canonical-design-os-bootstrap",
+      "evidence": [
+        {
+          "path": "patterns/canonical-design-os-bootstrap.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Graph node gives dependency routing only. Specialist repository supplements owner/project authority; backend-only work is outside the trigger. Retrieval is required but absence may be explicitly recorded.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register the material-design predicate and specialist retrieval binding; require live design SKILL/read-order provenance or an explicit unavailable dependency, then bind relevant preservation, accessibility and bounded visual verification obligations.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/carrying-uda-into-standalone-projects.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "For a runtime outside this architecture"
+      },
+      "actors": [
+        "instruction-maintainer",
+        "chat",
+        "codex",
+        "runtime-agent",
+        "runtime-process"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "persistence",
+        "publication"
+      ],
+      "destinations": [
+        "project-native code/protocol",
+        "project import manifest",
+        "deliberate synchronization check and evaluation"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/carrying-uda-into-standalone-projects.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Current owner workflow with behavioral selection and adaptation duties; development rules stay references, runtime rules become code/protocol. Excludes owner-private deployment material and preserves project authority.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register standalone-runtime import work; bind named runtime, failure-based selection, project-native enforcement form, source commit/import location, deliberate sync and a test that fails without each imported control.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/chat-led-reasoning-codex-execution-separation.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When assigning reasoning and bounded execution across agent roles"
+      },
+      "actors": [
+        "chat",
+        "work",
+        "codex",
+        "reasoning-supervisor",
+        "execution-controller"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "versioned chat-authored directive",
+        "execution-only receipt",
+        "closed-loop reasoning handoff",
+        "supervision state"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "chat-led-reasoning-codex-execution-separation",
+      "evidence": [
+        {
+          "path": "patterns/chat-led-reasoning-codex-execution-separation.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_chat_led_reasoning_codex_execution.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "scripts/executor_handoff_state.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_executor_handoff_liveness.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        }
+      ],
+      "review_notes": "Active source with graph routing; current task-time routing separation is registered to routing-threshold, not this file. Existing handoff state-machine tests exercise narrower runtime behavior but do not cover all semantic role boundaries. Claude sessions explicitly reason and execute.",
+      "migration": {
+        "priority": "P3",
+        "next_step": "Register this source's nontrivial OpenAI execution and review-boundary triggers; bind source-authored directive, excluded reasoning authority, stop/review conditions, exactly-once durable handoff and automatic resumption after a validated response.",
+        "trigger_frequency": "SPECIALIST"
+      }
+    },
+    {
+      "id": "patterns/chat-work-execution-routing-threshold.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "STRUCTURED_PARTIAL",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When deciding whether Chat can perform an action directly or should hand bounded execution to Work/Codex"
+      },
+      "actors": [
+        "chat",
+        "codex",
+        "controller",
+        "reasoning-supervisor",
+        "work"
+      ],
+      "phases": [
+        "final-delivery",
+        "handoff",
+        "persistence",
+        "pre-action",
+        "reasoning",
+        "retrieval"
+      ],
+      "destinations": [
+        "Work-side preflight and receipt",
+        "Work/Codex directive",
+        "direct Chat action",
+        "source-chat backlink",
+        "work/codex directive"
+      ],
+      "enforcement_types": [
+        "semantic"
+      ],
+      "task_time_records": [
+        "uda.chat-work.execution-separation"
+      ],
+      "graph_node": "uda.chat-work.execution-separation",
+      "evidence": [
+        {
+          "path": "patterns/chat-work-execution-routing-threshold.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/rule-graph/task-time-metadata.v1.json",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "scripts/uda_rule_graph_task_time.py",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "scripts/uda_rule_graph_task_time.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "tests/test_chat_direct_execution_routing.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_task_time_receipts.py",
+          "class": "ADMISSION"
+        }
+      ],
+      "legacy_remainder": "Only uda.chat-work.execution-separation is currently source-bound and compiled from this file. It covers reasoning retained in Chat at work_handoff; the checker now accepts exact-candidate semantic receipts for that slice, with UNKNOWN when no matching receipt is present. Direct-tool discovery, exact provider/credential route, Claude exception, lineage/backlink, Work effort preflight, visible native surface, continuation recovery and other due boundaries remain prose-routed.",
+      "review_notes": "Graph registration and source-bound metadata are evidenced; compiled obligations are not a semantic PASS. Source scopes OpenAI separation while Claude both reasons and executes. Owner URLs and visible Work identity remain distinct from task names. Admission evidence checks fail-closed UNKNOWN and receipt binding, not semantic truth or complete source coverage.",
+      "migration": {
+        "priority": "P1",
+        "next_step": "Extend exact source-bound records beyond reasoning-stays-in-chat: direct current-turn capability discovery, residual execution justification, actual surface identity, lineage/backlink, minimum-sufficient setting preflight and automatic receipt return; exercise the new obligations with bound semantic receipts and adversarial fixtures.",
+        "trigger_frequency": "FREQUENT"
+      }
+    },
+    {
+      "id": "patterns/chatgpt-client-surface-capability-and-thread-recovery.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When recovering or continuing a ChatGPT thread"
+      },
+      "actors": [
+        "chat",
+        "work",
+        "codex",
+        "controller"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "final-delivery"
+      ],
+      "destinations": [
+        "recovered latest complete exchange",
+        "native destination surface",
+        "owner-facing capability/recovery claim"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/chatgpt-client-surface-capability-and-thread-recovery.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_system_capability_claims.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_chatgpt_multi_surface_thread_recovery.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Current owner rule; current tests assert source/requirement/fixture presence. UI success, titles, backing Codex records and transcripts do not prove a native Work surface, hidden model routing or sensory input.",
+      "migration": {
+        "priority": "P1",
+        "next_step": "Register capability-claim and thread-continuation predicates; bind exact layer/evidence class, all authorized metadata indexes, latest incoming/outgoing edge, surface-specific completion proof and privacy-limited retrieval receipts.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/chatgpt-developer-mcp-chat-lifecycle.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When using a developer-MCP tool across conversation lifecycle boundaries"
+      },
+      "actors": [
+        "chat",
+        "diagnostic-worker",
+        "controller"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "fresh post-registration smoke test",
+        "runtime capability diagnosis",
+        "durable project continuity"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/chatgpt-developer-mcp-chat-lifecycle.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Version-bounded observed product behavior. Explicit states separate schema visibility from successful execution; a fresh-chat failure reopens endpoint/auth/runtime diagnosis. No task-time metadata registration.",
+      "migration": {
+        "priority": "P3",
+        "next_step": "Register surfaced-but-not-executable developer-MCP diagnosis; require registration/time evidence and same-account fresh-chat read-only execution comparison before blaming or reconfiguring a verified working server.",
+        "trigger_frequency": "SPECIALIST"
+      }
+    },
+    {
+      "id": "patterns/chatgpt-work-cloud-dispatch.md",
+      "kind": "pattern",
+      "indexed": false,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "PARENT_PATTERN",
+        "detail": "patterns/chat-work-execution-routing-threshold.md"
+      },
+      "actors": [
+        "chat",
+        "work",
+        "controller",
+        "reasoning-supervisor"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "native chatgptWorkCloud thread",
+        "durable source-bound dispatch intent/result",
+        "privacy-safe receipt and reasoning return"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/chatgpt-work-cloud-dispatch.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "patterns/chat-work-execution-routing-threshold.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "patterns/chatgpt-client-surface-capability-and-thread-recovery.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "patterns/logic-failure-map.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Live unindexed source has exact full-path activation from indexed routing-threshold, client recovery and logic-failure-map. Runtime adapters are narrower external workflow controls, not task-time semantic compilation coverage.",
+      "migration": {
+        "priority": "P3",
+        "next_step": "Register owner-requested-native-Work predicates and exact destination binding; require source lineage, durable pre-mutation intent, directly verified native surface, nonreplayed ambiguous dispatch and receipt-bound automatic supervisor return.",
+        "trigger_frequency": "SPECIALIST"
+      }
+    },
+    {
+      "id": "patterns/codex-github-operating-standard.md",
+      "kind": "pattern",
+      "indexed": false,
+      "disposition": "NOT_ACTIVE",
+      "behavioral": false,
+      "activation_route": null,
+      "actors": [
+        "instruction-maintainer",
+        "historical-reader"
+      ],
+      "phases": [
+        "retrieval"
+      ],
+      "destinations": [
+        "historical provenance",
+        "current operating-system policy"
+      ],
+      "enforcement_types": [
+        "none"
+      ],
+      "task_time_records": [],
+      "graph_node": "codex-github-operating-standard",
+      "evidence": [
+        {
+          "path": "patterns/codex-github-operating-standard.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "docs/INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "not_active_reason": "Explicitly superseded as current policy on 2026-08-14; retained as earlier-rollout provenance.",
+      "superseded_by": "patterns/codex-github-operating-system.md",
+      "review_notes": "Both document banner and graph status mark superseded. No live behavioral obligations should be counted independently."
+    },
+    {
+      "id": "patterns/codex-github-operating-system.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "STRUCTURED_PARTIAL",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "For repository-governed development"
+      },
+      "actors": [
+        "chat",
+        "codex",
+        "controller",
+        "integrator",
+        "work"
+      ],
+      "phases": [
+        "final-delivery",
+        "handoff",
+        "persistence",
+        "pre-action",
+        "publication",
+        "reasoning",
+        "retrieval"
+      ],
+      "destinations": [
+        "actual final payload",
+        "current task frontier",
+        "repository/PR/hosted verification evidence",
+        "task contract/checkpoint",
+        "tool/repository mutation boundary"
+      ],
+      "enforcement_types": [
+        "semantic"
+      ],
+      "task_time_records": [
+        "uda.continuation.open-outcome",
+        "uda.scope.explicit-no-change"
+      ],
+      "graph_node": "uda.scope.explicit-no-change",
+      "evidence": [
+        {
+          "path": "patterns/codex-github-operating-system.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/rule-graph/task-time-metadata.v1.json",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "scripts/uda_rule_graph_task_time.py",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "scripts/uda_rule_graph_task_time.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "tests/test_continuation_stop_admission.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "scripts/audit_codex_github.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_task_time_receipts.py",
+          "class": "ADMISSION"
+        }
+      ],
+      "legacy_remainder": "uda.continuation.open-outcome and uda.scope.explicit-no-change are exact current source-bound task-time records. They compile to reasoning/pre-action obligations and now take bound semantic receipts; missing judgments stay UNKNOWN. Most governance, owner-interruption minimization, engineering-blocker recovery, durable checkpoints, validation assurance, visibility transition and publication obligations remain index/prose-routed; repository audits are narrower mechanical controls.",
+      "review_notes": "Broad active canonical source; graph supersedes historical standard. Admission exists but does not semantically certify action/stop evidence. Existing continuation tests protect prose/form, while task-time tests exercise trigger compilation and UNKNOWN behavior. Admission evidence checks fail-closed UNKNOWN and receipt binding, not semantic truth or complete source coverage.",
+      "migration": {
+        "priority": "P1",
+        "next_step": "Extend current continuation/scope slices with actual consumer invocation and explicit action/boundary evidence; register remaining authority, minimum-owner-choice, coordination, current-state and release/publication duties without moving pre-action gates to final output.",
+        "trigger_frequency": "FREQUENT"
+      }
+    },
+    {
+      "id": "patterns/codex-pro-supervision-mission-control.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When designing or operating supervised repository execution"
+      },
+      "actors": [
+        "controller",
+        "reasoning-supervisor",
+        "chat",
+        "work",
+        "codex",
+        "integrator"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "durable owner/task authority",
+        "evidence/review packets",
+        "typed frontier authorization",
+        "owner-facing dashboard and direction queue"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "codex-pro-supervision-mission-control",
+      "evidence": [
+        {
+          "path": "patterns/codex-pro-supervision-mission-control.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_mission_control_owner_worker_experiment_queue.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Active graph/index route despite Proposed reference architecture header. Historical Pro-only, manual transport and queued-feature language must be composed under later Chat-led/routing corrections; file contains broad semantic authority and continuation rules, so no blanket workflow exception.",
+      "migration": {
+        "priority": "P3",
+        "next_step": "Register supervision/current-frontier predicates; bind independent owner evidence, directive/current checkpoint, scoped blockers, typed action classes, distinct execution/judgment/completion states and current review identity before supervisory projection or dispatch.",
+        "trigger_frequency": "SPECIALIST"
+      }
+    },
+    {
+      "id": "patterns/codex-supervision-intelligence-routing-and-context-lifecycle.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When allocating supervision reasoning or managing related chat context"
+      },
+      "actors": [
+        "chat",
+        "reasoning-supervisor",
+        "controller",
+        "work",
+        "codex"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "decision-specific Pro request",
+        "current authority capsule/delta",
+        "versioned chat epoch and execution directive"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/codex-supervision-intelligence-routing-and-context-lifecycle.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Live companion; Pro need is decision-specific, Codex is never a reasoning tier, unavailable reasoning does not grant executor strategy authority. No exact task-time record covers this source.",
+      "migration": {
+        "priority": "P3",
+        "next_step": "Register decision-tier and supervision-context triggers; require named decision/value, current owner capsule, exact evidence boundary, context/independence rollover binding and a scoped degraded-route receipt that holds only dependent work.",
+        "trigger_frequency": "SPECIALIST"
+      }
+    },
+    {
+      "id": "patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When routing scarce execution resources"
+      },
+      "actors": [
+        "chat",
+        "reasoning-supervisor",
+        "controller",
+        "work",
+        "codex",
+        "browser-automation"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "resource/account routing receipt",
+        "cross-account capsule",
+        "owned-tab inventory/lease",
+        "scoped owner boundary report"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Active companion with version-bound platform examples; later Chat-direct capability rules supersede category-based Codex defaults. Runtime tab controls do not compile this entire behavioral source; narrower actual ceilings may have mechanical evidence.",
+      "migration": {
+        "priority": "P3",
+        "next_step": "Register exact capability/resource-boundary and managed-tab predicates; bind authority-preserving route selection, independently verified target account, restriction-vs-limit diagnosis, current capsule, tab ownership/lease and no speculative quota/effective-model claims.",
+        "trigger_frequency": "SPECIALIST"
+      }
+    },
+    {
+      "id": "patterns/codex-worker-permissions.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When initializing a worker or repairing its runtime permission boundary"
+      },
+      "actors": [
+        "work",
+        "codex",
+        "task-initializer",
+        "automatic-reviewer",
+        "chat"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "effective task-scoped permission profile",
+        "fresh-session validation evidence",
+        "minimum irreducible owner action"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/codex-worker-permissions.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Normative owner-choice, authorization and reporting behavior prevents a workflow-only exemption. Historical install probe results are bounded evidence, not proof of current client configuration. Platform/user security prompts cannot be self-approved.",
+      "migration": {
+        "priority": "P3",
+        "next_step": "Register task-init and routine-permission-repair predicates; require effective roots/profile/reviewer evidence, task-scoped existing authority, safe self-remediation and positive/negative fresh-session checks before broad access or zero-prompt claims.",
+        "trigger_frequency": "SPECIALIST"
+      }
+    },
+    {
+      "id": "patterns/consilience-and-expected-observability.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "For practical effectiveness claims"
+      },
+      "actors": [
+        "chat",
+        "researcher",
+        "recommendation-author",
+        "reviewer"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "frozen exact practical claim",
+        "independent evidence-lineage comparison",
+        "owner-facing effect confidence/ranking"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/consilience-and-expected-observability.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "New required owner rule, active lesson-index route. Reviews/forums diagnose discrepancies rather than causal incidence; silence is uninformative when exposure or observability fails. No fixed number of streams is imposed.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register practical-effectiveness and observability predicates; bind exact intervention/population/outcome/magnitude, evidence lineage independence, exposure/salience/access checks and discordance-aware verdict so one trial estimate cannot silently determine a recommendation.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/context-compaction-resilience.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When context is compacted"
+      },
+      "actors": [
+        "chat",
+        "work",
+        "codex",
+        "controller",
+        "receiving-agent"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "canonical repository memory",
+        "repository/task checkpoint",
+        "reactivated next unit of work"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/context-compaction-resilience.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_current_state_concision.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Current-state checkpoint is a recovery map, not authority over newer exact Git/artifact/owner evidence. Tiny one-shot work is exempt from a dedicated checkpoint; concurrent tasks use separate files.",
+      "migration": {
+        "priority": "P1",
+        "next_step": "Register multi-session recovery and checkpoint boundaries; bind actual repository reconciliation, preserved current owner locks/gates, completed-work inventory and next executable action, then require reactivation after compaction rather than accepting summary mentions.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/context-gated-symbolic-personality-synthesis-errata.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When applying symbolic personality synthesis or evaluating its timing claims"
+      },
+      "actors": [
+        "symbolic-profile-researcher",
+        "specialist-reviewer"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "final-delivery"
+      ],
+      "destinations": [
+        "specialist predictive/causal scores",
+        "phase-conditioned calibration questions"
+      ],
+      "enforcement_types": [
+        "none"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/context-gated-symbolic-personality-synthesis-errata.md",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "exception_reason": "Live normative errata confined to symbolic-profile/timing calibration; the general failure-map inventory explicitly excludes specialist-only symbolic-analysis methods. It corrects its specialist parent rather than imposing general task admission.",
+      "review_notes": "Entire live normative correction read; direct specialist index trigger now loads its causal/predictive and cognitive-phase corrections. This errata is not retired."
+    },
+    {
+      "id": "patterns/context-gated-symbolic-personality-synthesis.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When synthesizing a context-dependent symbolic personality profile"
+      },
+      "actors": [
+        "symbolic-profile-researcher",
+        "specialist-reviewer"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "frozen specialist behavioral target",
+        "calculation/configuration record",
+        "holdout/decoy evaluation and calibration output"
+      ],
+      "enforcement_types": [
+        "none"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/context-gated-symbolic-personality-synthesis.md",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "exception_reason": "Specialist hypothesis-generation and symbolic-profile evaluation workflow; it disclaims scientific validity and is explicitly outside the general failure-map symbolic-method inventory, so its domain pipeline is retained as a scoped workflow exception.",
+      "review_notes": "Live reusable source now has a direct specialist index trigger. Its residual-credit sentence is superseded by the live errata; the effective specialist workflow must compose that correction before scoring."
+    },
+    {
+      "id": "patterns/contextual-symbolic-prediction-causality-and-phase-controls.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When evaluating symbolic timing predictions or cognitive phase switching"
+      },
+      "actors": [
+        "symbolic-profile-researcher",
+        "specialist-reviewer"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "specialist event/prediction record",
+        "phase-conditioned question",
+        "fixed hashed holdout predictions and scores"
+      ],
+      "enforcement_types": [
+        "none"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/contextual-symbolic-prediction-causality-and-phase-controls.md",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "exception_reason": "Scoped specialist supplement for symbolic-profile/timing scoring and autobiographical holdout evaluation; general failure-map coverage explicitly excludes these specialist symbolic methods.",
+      "review_notes": "Live supplement, not explicitly superseded. It names the synthesis parent by full path but no indexed live parent currently names this supplement."
+    },
+    {
+      "id": "patterns/continuous-candidate-signature-ranking.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When ranking timestamp or location candidates against a multidimensional signature"
+      },
+      "actors": [
+        "candidate-ranking-researcher",
+        "specialist-implementation-worker"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "normalized candidate dataset",
+        "reproducible score/configuration record",
+        "deterministic ranking and sensitivity report"
+      ],
+      "enforcement_types": [
+        "none"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/continuous-candidate-signature-ranking.md",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "exception_reason": "Specialist deterministic candidate-transformation and template-scoring workflow, with explicit separation of computational astronomy from unvalidated behavioral-symbolic interpretation; excluded from the general symbolic-method inventory.",
+      "review_notes": "Live methodology, not general instruction-failure admission. No current index or exact full-path activating parent was found. Conventional scorer output must not be promoted into scientific validity."
+    },
+    {
+      "id": "patterns/conversational-prose-speakability.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When writing or editing conversational prose"
+      },
+      "actors": [
+        "chat",
+        "writer",
+        "editor",
+        "semantic-reviewer"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "literal prose candidate",
+        "owner-facing article or answer"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/conversational-prose-speakability.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Behavioral semantic editorial guidance, not a detector causal claim. Exceptions for functional fragments, passive focus, deliberate repetition and genuinely needed advice must remain represented.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register conversational authoring/rewrite predicates and candidate-bound semantic receipt; bind audible connective relations, meaningful fragments/repetition, clear antecedents and no functionless instructional tail before delivering the literal revised text.",
+        "trigger_frequency": "FREQUENT"
+      }
+    },
+    {
+      "id": "patterns/coverage-before-depth-in-selection.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "for a **broad comparison or landscape synthesis**"
+      },
+      "actors": [
+        "chat",
+        "researcher",
+        "selection-controller",
+        "reviewer"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "linked discovery/class/candidate/fingerprint ledger",
+        "separate coverage/depth/synthesis locks",
+        "bounded or broad final synthesis"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/coverage-before-depth-in-selection.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_coverage_before_depth_pattern.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Rich domain-neutral behavioral rule; externally implemented coverage controllers do not create task-time compilation coverage. Named universal tests assert prose/promotion markers and cannot certify semantic landscape completeness.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register broad landscape predicates and source-bound coverage obligations; bind normalized diversity/source independence, linked discovery and omission impact, authenticated contiguous retrieval evidence and separate synthesis locks before an owner-facing ranking.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/cross-family-reasoning-check.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "owner rule: when reasoning is heavy"
+      },
+      "actors": [
+        "reasoning supervisor",
+        "other-family reviewer"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "final-delivery"
+      ],
+      "destinations": [
+        "blind review packet",
+        "reviewer runtime/session",
+        "dependent conclusion/action",
+        "task review receipt or final answer"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "cross-family-reasoning-check",
+      "evidence": [
+        {
+          "path": "patterns/cross-family-reasoning-check.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "scripts/uda_rule_graph.py",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_cross_family_reasoning_check.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Graph resolve executed and dependency closure observed. Existing cross-family tests assert prose and graph fields, not an actual review. Same-family substitutes must remain explicitly unqualified. No exact task-time metadata record maps to this pattern; graph routing and other local admission code are supporting coverage, not structured semantic enforcement.",
+      "existing_coverage_limits": "Graph expands assurance-lane and independent-evaluation dependencies only. No task-time metadata or semantic receipt implements the central trigger, other-family/data-boundary check, actual blinding, reconciliation, liveness, or unavailable disposition.",
+      "migration": {
+        "priority": "P1",
+        "next_step": "Compile the three-part trigger and cheaper-check prerequisite into semantic obligations; admit use of the conclusion only from exact reviewer model/effort/route, frozen blind findings, one-round reconciliation, and runtime liveness/availability evidence.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/delegate-easy-work-to-cheaper-models.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "owner rule: when a high-tier agent faces easy"
+      },
+      "actors": [
+        "reasoning supervisor",
+        "bounded delegate",
+        "Codex/Work executor"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence"
+      ],
+      "destinations": [
+        "delegation decision",
+        "bounded self-contained directive",
+        "checked delegate result",
+        "task delegation record"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/delegate-easy-work-to-cheaper-models.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "CLAUDE.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_delegate_easy_work_pattern.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Direct startup import in CLAUDE.md and index routes exist; tests assert text/model bindings. No semantic delegation-decision or result-check admission record exists. Worker prohibition on launching delegates is operative.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Add trigger-bound obligations for cost/brief/check tradeoff, direct Chat capability, authorized provider boundary, lowest sufficient model, matched-trial exclusions, retained supervisor authority, and checked result receipt.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/development-assurance-lanes.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "For software/product development"
+      },
+      "actors": [
+        "reasoning supervisor",
+        "development executor",
+        "reviewer"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "active lane/checkpoint",
+        "validation action",
+        "iteration candidate",
+        "decision comparison",
+        "release boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "development-assurance-lanes",
+      "evidence": [
+        {
+          "path": "patterns/development-assurance-lanes.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "scripts/uda_rule_graph.py",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_declared_gates_not_waivable.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Graph resolve executed. Existing asserted gate/lane text is not proof that a worker selects proportional assurance or evaluates the owner endpoint. No exact task-time metadata record maps to this pattern; graph routing and other local admission code are supporting coverage, not structured semantic enforcement.",
+      "existing_coverage_limits": "Graph supplies trigger and broad phases only. Lane choice, current-decision evidence, meaningful comparison endpoint, optional provider independence, simplicity, and assurance-ratchet prevention remain prose-governed.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Encode lane selection and escalation with current decision, declared gates, targeted risk exceptions, deferred release debt, and provider independence; reject release-grade prerequisites added to a reversible candidate without authority.",
+        "trigger_frequency": "FREQUENT"
+      }
+    },
+    {
+      "id": "patterns/durable-chat-learning.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When saving or remembering an instruction or preference"
+      },
+      "actors": [
+        "reasoning supervisor",
+        "instruction maintainer",
+        "projection executor"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "handoff",
+        "persistence",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "project lesson ledger/index",
+        "universal promoted lesson",
+        "affected execution surfaces",
+        "portable transfer ledger",
+        "verified memory or Saved Instructions.md"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/durable-chat-learning.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "scripts/portable_checks.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_portable_checks.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "tests/test_saved_user_instructions.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Portable validation code and regressions were inspected, not run. Historical originating-project CI is provenance, not current UDA execution enforcement. Personal preferences must not be universally promoted by default. No exact task-time metadata record maps to this pattern; graph routing and other local admission code are supporting coverage, not structured semantic enforcement.",
+      "existing_coverage_limits": "Portable checker validates declared-app/pack/disposition/hash/anchor structure for a narrow projection slice. It does not establish substantive finding closeout, semantic transfer fitness, immediate correction activation, actual Memory/Library writes, runtime deployment, or live behavior.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Add obligations for exact finding disposition, scoped promotion authority, owner-declared public targets, per-surface projection and truthful lifecycle state; require actual persistence/readback evidence for memory or Library saving claims.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/durable-write-checkpoints.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When a repository mutation is ambiguous or unverified"
+      },
+      "actors": [
+        "repository writer",
+        "integration worker",
+        "coordinator"
+      ],
+      "phases": [
+        "pre-action",
+        "handoff",
+        "persistence",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "durable checkpoint store",
+        "unfinished-work marker",
+        "required remote ref/path or artifact",
+        "verified write receipt"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "durable-write-checkpoints",
+      "evidence": [
+        {
+          "path": "patterns/durable-write-checkpoints.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "scripts/uda_rule_graph.py",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Graph resolve executed. Checkpoint-store owner path remains explicitly non-universal. Local SHA provenance is expressly not delivery. No exact task-time metadata record maps to this pattern; graph routing and other local admission code are supporting coverage, not structured semantic enforcement.",
+      "existing_coverage_limits": "Graph routing depends on operating-system governance. No task-time checkpoint/retry/issue-marker or remote-content admission checks implement this pattern; local hash receipts elsewhere do not prove the required remote destination.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Compile write/retry/destination obligations and require exact intended-content checkpoint plus destination readback; preserve local and recreated remote identities, and reject local-only completion.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/dynamic-successor-discovery-for-monitoring.md",
+      "kind": "pattern",
+      "indexed": false,
+      "disposition": "NOT_ACTIVE",
+      "behavioral": false,
+      "activation_route": null,
+      "actors": [
+        "rule router",
+        "monitoring agent"
+      ],
+      "phases": [
+        "retrieval"
+      ],
+      "destinations": [
+        "canonical functional-neighborhood pattern"
+      ],
+      "enforcement_types": [
+        "none"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/dynamic-successor-discovery-for-monitoring.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_functional_neighborhood_discovery.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_logic_failure_map.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "not_active_reason": "The file explicitly declares a superseded compatibility path and contains no independent live rule.",
+      "superseded_by": "patterns/functional-neighborhood-discovery-for-monitoring.md",
+      "review_notes": "Entire compatibility file read. Logic-failure-map coverage tests explicitly exclude this superseded path."
+    },
+    {
+      "id": "patterns/editorial-authority-and-lossless-editing.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before editing owner-authored text or preparing it for publication"
+      },
+      "actors": [
+        "reasoning editor",
+        "artifact executor",
+        "source checker",
+        "publication approver"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "persistence",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "registered master and artifact family",
+        "lock/deletion/placement map",
+        "claim source anchors",
+        "publication/export receipt",
+        "owner-facing proposed edit"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/editorial-authority-and-lossless-editing.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_editorial_authority_pattern.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_claim_anchoring_review_integrity.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Local tests check route/prose/provenance. Originating joel-articles validator/causal regression references are historical external evidence, not locally installed semantic enforcement.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Add authority-family and edit-operation obligations with exact inspected version/anchor, protected functions, displaced-material disposition, point-of-insertion source check, and publication gate; require semantic receipts separately from hash/inventory checks.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/exact-git-write-handoff.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before handing off a bounded Git write"
+      },
+      "actors": [
+        "reasoning Chat",
+        "mechanical Git writer",
+        "independent remote verifier"
+      ],
+      "phases": [
+        "pre-action",
+        "handoff",
+        "persistence",
+        "publication"
+      ],
+      "destinations": [
+        "templates/EXACT-GIT-WRITE-MANIFEST.json",
+        "one-path staged mutation",
+        "local commit receipt",
+        "target remote ref/path"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/exact-git-write-handoff.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "patterns/logic-failure-map.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "scripts/git_exact_write.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "scripts/git_exact_manifest.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "scripts/git_exact_repo.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_git_exact_write.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        }
+      ],
+      "review_notes": "Experimental status is not supersession. The ordinary pre-write trigger is now directly indexed; LF-6.3 retains diagnosis provenance. Existing exact-write code/tests are narrower local admission evidence and do not replace task-time record mapping or remote publication proof.",
+      "existing_coverage_limits": "Concrete local script checks hash/bytes, clean tree, branch/base/blob, one-path staging and pre-commit restoration. Remote publication and independent remote readback remain unimplemented by this script; semantic admission still belongs to Chat.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register the parent-routed experimental pattern and bind manifest/local admission to a separate authorized remote publication/readback obligation; do not promote LOCAL_COMMIT_VERIFIED to VERIFIED_REMOTE.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/exclusive-active-task-locks.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before consequential multi-session work or resuming an active task"
+      },
+      "actors": [
+        "reasoning supervisor",
+        "repository executor",
+        "task authority resolver",
+        "integration coordinator"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "active-task lock",
+        "exact task-local checkpoint",
+        "current owner-source receipt",
+        "scoped blocker/wait admission",
+        "task acceptance/integration receipt"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/exclusive-active-task-locks.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "scripts/active_task_authority.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_active_task_authority.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "tests/test_exclusive_active_task_pattern.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Substantial real admission implementation exists independent of task-time graph metadata. Inspected hostile regressions include wrong branch, substituted checkpoint, owner stop, cross-task blocker leakage, and invalid wait; not run here. No exact task-time metadata record maps to this pattern; graph routing and other local admission code are supporting coverage, not structured semantic enforcement.",
+      "existing_coverage_limits": "Resolver mechanically validates supplied identities, owner-source receipt binding, blocker applicability, non-waivable gates, waits and frontiers. It does not prove the owner-source receipt is semantically correct, inspect every task deliverable, run live campaigns, or establish protected merge/readback completion.",
+      "migration": {
+        "priority": "P1",
+        "next_step": "Bind the active-task resolver to explicit compiled obligations for exact task/branch/source/checkpoint identity, competing-source suspension, current blocker causality, wait/lease timing, and artifact-based terminal claims; retain semantic owner-outcome acceptance separately.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/executable-frontier-coherence.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When designing or resuming a server-controlled multistage workflow"
+      },
+      "actors": [
+        "workflow controller",
+        "client adapter",
+        "reasoning supervisor",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "authoritative operation/frontier/projection",
+        "next capability",
+        "truthful transition receipt",
+        "wrapper-plus-worker output"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/executable-frontier-coherence.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_executable_frontier_coherence.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Current local tests assert the invariant and hostile cases in prose. AskRigor implementation references are historical source provenance, not current local behavioral execution coverage.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Compile explicit frontier/terminal obligations and test actual nonfinal/next-null/retry/independent-lane/restore transitions and wrapper contracts at the consumer boundary; require resulting-state evidence for completion receipts.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/existing-work-scan-and-scholarly-discovery.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When research-before-reinvention needs scholarly discovery"
+      },
+      "actors": [
+        "reasoning researcher",
+        "retrieval executor"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "persistence"
+      ],
+      "destinations": [
+        "independent-conception snapshot",
+        "terminology/prior-work map",
+        "primary-source claim anchors",
+        "reuse/adapt/compose/invent decision"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "existing-work-scan-and-scholarly-discovery",
+      "evidence": [
+        {
+          "path": "patterns/existing-work-scan-and-scholarly-discovery.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "scripts/uda_rule_graph.py",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_research_before_reinvention_contract.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Graph resolve executed; dependency observed. Referenced scholarly systems are discovery aids, not final authority; missing access must be recorded explicitly. No exact task-time metadata record maps to this pattern; graph routing and other local admission code are supporting coverage, not structured semantic enforcement.",
+      "existing_coverage_limits": "Graph requires research-before-reinvention and supplies retrieval/reasoning phases. It neither admits actual primary-source evidence nor validates scan breadth, terminology discovery, novelty/reuse judgment, or the chosen baseline.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Add semantic scan obligations for underlying-problem query coverage, available specialist routing, primary-source support, classified reusable remainder, and explicit baseline/reuse decision before further investment.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/external-evaluation-reproducibility.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before relying on a historical evaluation result as a current control"
+      },
+      "actors": [
+        "reasoning analyst",
+        "evaluation executor",
+        "evidence custodian"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "exact historical/current evaluation records",
+        "unchanged-control rerun receipt",
+        "causal attribution",
+        "current reproducible baseline"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/external-evaluation-reproducibility.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "No direct graph/task-time metadata or local controller admission identified. Historical detector labels and artifact hashes are provenance, not evidence of current reproducibility or evaluator authority.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Compile evidence-identity/control-rerun obligations and reject causal attribution when the unchanged control fails or provenance is missing; preserve both outcomes and distinguish nondeterministic repeat distributions.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/failed-strategy-lineage-and-negative-evidence-binding.md",
+      "kind": "pattern",
+      "indexed": false,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "PARENT_PATTERN",
+        "detail": "patterns/outcome-advancement-and-strategy-efficacy.md"
+      },
+      "actors": [
+        "reasoning planner",
+        "independent lineage evaluator",
+        "execution worker"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence"
+      ],
+      "destinations": [
+        "negative-evidence ledger",
+        "strategy fingerprint/comparison",
+        "independent lineage receipt",
+        "exact new-strategy directive",
+        "attention dashboard"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/failed-strategy-lineage-and-negative-evidence-binding.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "patterns/outcome-advancement-and-strategy-efficacy.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "patterns/logic-failure-map.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Unindexed but live required Mission Control companion. Parent outcome-advancement section 4B and LF-5.1 literally reference the full path. Current graph/task-time records do not encode this lineage rule; required tests listed in prose are not execution evidence.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register the live parent route and encode source-bound failed-family predicates, causal novelty proof, recurrence-triggered independent review, re-enable evidence and directive binding; block only the affected inadmissible strategy.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/fixed-target-symbolic-profile-fit-evaluation.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When evaluating descriptive fit against a fixed symbolic-profile target"
+      },
+      "actors": [
+        "specialist profile analyst"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "frozen behavioral profile",
+        "reproducible calculation assumptions",
+        "descriptive-fit comparison"
+      ],
+      "enforcement_types": [
+        "none"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/fixed-target-symbolic-profile-fit-evaluation.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_logic_failure_map.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "exception_reason": "This live specialist method defines the complete descriptive-fit workflow for symbolic profile comparisons (frozen target, calculation, hit/miss scoring, sensitivity and discrimination), rather than a general development/reasoning control. Route it explicitly when that specialist task is requested; retain its scientific-validation limitation.",
+      "review_notes": "Entire live specialist workflow read. Previously unindexed and excluded from the general failure-map inventory; now directly indexed for descriptive-fit tasks. Specialist exception preserves fixed-target, sensitivity and scientific-validation limits."
+    },
+    {
+      "id": "patterns/functional-neighborhood-discovery-for-monitoring.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "for recurring monitoring"
+      },
+      "actors": [
+        "monitoring researcher",
+        "retrieval executor",
+        "reasoning synthesizer"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "functional-neighborhood discovery frontier",
+        "candidate identity/evidence record",
+        "deduplicated monitoring brief"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/functional-neighborhood-discovery-for-monitoring.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_functional_neighborhood_discovery.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Text/routing checks and superseded-path assertions exist. They do not execute searches or prove that a monitoring pass preserves the owner latent function and discovers relevant alternatives.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Compile actual-outcome scope and six-direction relevance obligations; require source-bound identity/evidence roles and bounded expansion/stop receipts, and test missing adjunct/different-mechanism discovery without a displacement trigger.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/github-actions-pr-ref-namespace-safety.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": false,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When auditing pull-request refs or collecting logs inside GitHub Actions"
+      },
+      "actors": [
+        "workflow author",
+        "GitHub Actions job"
+      ],
+      "phases": [
+        "pre-action",
+        "persistence",
+        "publication"
+      ],
+      "destinations": [
+        "Git fetch refspec",
+        "Actions log inventory",
+        "hosted pull_request workflow evidence"
+      ],
+      "enforcement_types": [
+        "none"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/github-actions-pr-ref-namespace-safety.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "exception_reason": "This rule governs concrete Git refspec and workflow-log enumeration topology. Its two required effects are executable mechanical workflow predicates, rather than semantic reasoning receipts; workflow adoption must test actual namespace/current-run behavior.",
+      "review_notes": "The exception is limited to ref namespace collision and self-observation deadlock checks. Prose presence and one successful timing-dependent run do not prove hosted control activation."
+    },
+    {
+      "id": "patterns/github-first-agent-bootstrap.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When bootstrapping an agent or recovering canonical project state"
+      },
+      "actors": [
+        "reasoning agent",
+        "repository executor",
+        "bootstrap/installer maintainer"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence"
+      ],
+      "destinations": [
+        "actual actor load route",
+        "canonical index/current-state",
+        "reconciled task baseline",
+        "safe snapshot installer"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/github-first-agent-bootstrap.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Root live-bootstrap metadata covers one related AGENTS.md clause, not this entire pattern. No direct pattern task-time records govern recovery/current-state/package comparison; local authority is used here because parent reported network unavailable.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Compile canonical-current retrieval, read-order/task recovery and stale-package safeguards with explicit access-failure/pin state; bind the actor and current source identity rather than inferring activation from a repository URL.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/human-readable-operational-references.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When explaining owner-facing operational work or requesting a decision"
+      },
+      "actors": [
+        "reasoning communicator",
+        "artifact delivery executor"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "actual owner-facing payload",
+        "exact current link destination",
+        "authorized local Downloads or attachment/file link",
+        "complete companion artifact set"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/human-readable-operational-references.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "AGENTS.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_verified_outbound_links.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Tests assert link policy text on projections, not opening destinations or delivering files. Compact moved-root priority lacks the newer zero-click local first step; full current delivery section explicitly includes it and must remain authoritative.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Compile actual-payload obligations for semantic referents, current exact destination verification, authorized local/attachment delivery priority, all required companions, and owner usability; reject paths/branches as primary delivery substitutes.",
+        "trigger_frequency": "FREQUENT"
+      }
+    },
+    {
+      "id": "patterns/independent-evaluation-separation.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When independent evaluation can change a consequential judgment or delivery claim"
+      },
+      "actors": [
+        "drafter/reasoning supervisor",
+        "independent evaluator",
+        "source claim checker"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "blind evaluation packet",
+        "frozen initial findings",
+        "reconciliation dispositions",
+        "claim ledger and checked draft",
+        "owner-facing candidate"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "independent-evaluation-separation",
+      "evidence": [
+        {
+          "path": "patterns/independent-evaluation-separation.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "scripts/uda_rule_graph.py",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_claim_anchoring_review_integrity.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Graph resolve executed. Source-policy tests are static; no semantic receipts implement actual independent reviews. The key-condition recoverability experiment must not become an assurance ratchet or conversation-wide blocker. No exact task-time metadata record maps to this pattern; graph routing and other local admission code are supporting coverage, not structured semantic enforcement.",
+      "existing_coverage_limits": "Graph routes the general independent evaluator trigger but does not encode the additional claim-check delivery trigger, information firewall, frozen stages, actual checker identity, checked source anchors, or reconciliation authority.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Compile independence/context-disclosure/frozen-stage obligations and the qualified claim-check trigger with bounded evidence retrieval; require exact claim anchor results and repaired outgoing draft, while keeping key-condition recovery explicitly non-blocking experimental.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/instruction-composition-and-portable-intelligence.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When composing"
+      },
+      "actors": [
+        "instruction author",
+        "active-contract compiler",
+        "projection executor"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "publication"
+      ],
+      "destinations": [
+        "normative rule/consumer binding",
+        "actual actor injection route",
+        "preservation mapping",
+        "portable pack and transfer ledger",
+        "published self-contained instructions"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "instruction-composition-and-portable-intelligence",
+      "evidence": [
+        {
+          "path": "patterns/instruction-composition-and-portable-intelligence.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "scripts/uda_rule_graph.py",
+          "class": "ROUTING"
+        },
+        {
+          "path": "scripts/portable_checks.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "scripts/instruction_surface_audit.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_instruction_obligation_layering.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Graph resolve executed. Static layering test itself states it is not provider-behavior or runtime evidence. Candidate-implementation label does not supersede the active owner-approved maintenance rule. No exact task-time metadata record maps to this pattern; graph routing and other local admission code are supporting coverage, not structured semantic enforcement.",
+      "existing_coverage_limits": "Graph supplies dependency routing; surface audit checks chain structure/size and portable checker validates declared apps, hashes, dispositions and anchors. None establishes semantic equivalence after deduplication, actual runtime injection, public authority completeness, or live behavior.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Compile scope/authority/reachability and preservation obligations around proposed instruction edits; require exact old-to-new obligation coverage, transfer rationale/limits, public/internal separation and literal destination checks alongside structural ledger validation.",
+        "trigger_frequency": "FREQUENT"
+      }
+    },
+    {
+      "id": "patterns/interactive-shell-command-safety.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before delivering or executing interactive shell commands"
+      },
+      "actors": [
+        "command-authoring assistant",
+        "operator shell",
+        "diagnostic child process"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "final-delivery"
+      ],
+      "destinations": [
+        "actual setup/diagnostic command block",
+        "bounded child shell",
+        "preserved log and exit-status receipt"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/interactive-shell-command-safety.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "This is not a workflow-only exception: it governs commands actually delivered to a human and causal interpretation of terminal/child failures. No local output parser or runtime admission identified.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Add command-handoff obligations with declared interactive/script boundary, state-restoration contract, resolved setup prerequisites and child-status/log evidence; use parser/runtime checks for naked strict-mode leakage without replacing applicability judgment.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/interview-evidence-information-gain.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When eliciting or interpreting interview evidence"
+      },
+      "actors": [
+        "reasoning interviewer",
+        "protocol designer",
+        "human annotator",
+        "evidence coder"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "interview protocol",
+        "actual next question",
+        "role-tagged evidence record",
+        "versioned method",
+        "human-facing annotation interface"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/interview-evidence-information-gain.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_recovered_reasoning_patterns.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Current regressions assert recovered doctrine in text. They do not assess actual question value, recurrence evidence treatment, method revision, or human usability.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Compile evidence-role and next-question obligations for recurrence/denominator/exception handling, supplied-method retrieval, expected information gain and explicit mandatory-field exceptions; block known-defective precollection rules and require human usability at annotation delivery.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/living-mermaid-workflow-maps.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": false,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When maintaining a workflow with consequential stages or recovery paths"
+      },
+      "actors": [
+        "workflow architecture maintainer",
+        "documentation renderer"
+      ],
+      "phases": [
+        "reasoning",
+        "handoff",
+        "persistence",
+        "publication"
+      ],
+      "destinations": [
+        "canonical source-controlled overview/drill-down maps",
+        "project index route",
+        "actual graph rendering"
+      ],
+      "enforcement_types": [
+        "none"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/living-mermaid-workflow-maps.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "exception_reason": "The required Mermaid artifact is a maintained operational workflow diagram and its index/rendering path. Coverage belongs to documentation maintenance and topology review; the map never certifies the underlying workflow or overrides canonical prose.",
+      "review_notes": "Entire pattern read. Mermaid syntax success is structural evidence only; semantic arrow/stage fidelity still needs maintenance review. No renderer/adopter enforcement is installed merely by the pattern existing."
+    },
+    {
+      "id": "patterns/logic-failure-map.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When diagnosing"
+      },
+      "actors": [
+        "reasoning agent",
+        "instruction maintainer"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "failure diagnosis",
+        "active lesson contract",
+        "owner-facing report"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/logic-failure-map.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_logic_failure_map.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "The map contains mandatory classify-before-repair and causal-evidence behavior. Its completeness test checks citations and text, not application. Loaded rule whose check never reaches its destination fits LF-7.1; textual checks passed for wrong reason fit LF-7.2 and overclaiming coverage fits LF-7.3. LF-2.1 applies to missing/stale activation.",
+      "migration": {
+        "priority": "P1",
+        "next_step": "Register diagnosis-stage selection and causal-mechanism obligations; bind stage-6 and stage-9 checks to actual action/report destinations and preserve the map as routing, not a new gate.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/long-range-research-mission-supervision.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "for research spanning multiple sessions"
+      },
+      "actors": [
+        "reasoning supervisor",
+        "research worker",
+        "release reviewer"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "RESEARCH-MISSION.json",
+        "work-package directive",
+        "evidence frontier",
+        "research release",
+        "root mission closure"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/long-range-research-mission-supervision.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "docs/INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "templates/RESEARCH-MISSION.json",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_legacy_universal_reconciliation.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Current behavioral mission control: a child package or release must not close the invariant root. Templates and lifecycle prose do not demonstrate admission at actual closure.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register invariant-purpose and parent-open closure obligations; separately bind evidence-frontier, consent/data authority, and exact release checks to mission lifecycle transitions.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/mission-control-multi-host-submission-scheduling.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before browser relay submission"
+      },
+      "actors": [
+        "Mission Control transport scheduler",
+        "browser relay host",
+        "takeover operator"
+      ],
+      "phases": [
+        "pre-action",
+        "persistence"
+      ],
+      "destinations": [
+        "provider send primitive",
+        "durable queue/admission ledger",
+        "host failover lease",
+        "MC-only conversation target"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "mission-control-multi-host-submission-scheduling",
+      "evidence": [
+        {
+          "path": "patterns/mission-control-multi-host-submission-scheduling.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tools/codex-mission-control/restored/codex-mission-control/lib/provider-submission-authority.mjs",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tools/codex-mission-control/restored/codex-mission-control/tests/submission-authority-runtime.test.ts",
+          "class": "BEHAVIORAL_REGRESSION"
+        }
+      ],
+      "review_notes": "Pattern-level graph is routing-only. Local restored scheduler and behavioral test source show genuine bounded mechanical support, but no direct task-time record or live/deployment verification of every send path. Does not transfer semantic reasoning authority. Behavioral-regression evidence names existing local test source; this delegated inventory did not execute those tests.",
+      "migration": {
+        "priority": "P3",
+        "next_step": "Register per-send central admission, exact target/ownership, persisted boundary and fenced epoch/failover obligations; bind them to the existing scheduler and relay consumer.",
+        "trigger_frequency": "SPECIALIST"
+      }
+    },
+    {
+      "id": "patterns/mission-control-owner-discovered-supervision-escape-assurance.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When reviewing owner-discovered supervision failures or exercising terminal escape assurance"
+      },
+      "actors": [
+        "reasoning authority",
+        "deterministic evidence projector",
+        "Mission Control maintainer"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "supervision-escape record",
+        "bounded assurance window",
+        "dashboard",
+        "repair directive"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/mission-control-owner-discovered-supervision-escape-assurance.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "patterns/owner-marked-mission-control-failure-capture.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "patterns/logic-failure-map.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "templates/SUPERVISION-ESCAPE.json",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "templates/MISSION-CONTROL-ASSURANCE.json",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Live assurance source now has a direct operational index trigger and retains owner-marked failure/LF-7.1 provenance. Declared regressions and templates do not prove actual boundary adoption or semantic equivalence.",
+      "migration": {
+        "priority": "P3",
+        "next_step": "Register escape classification, evidence-ordering, repeat-family repair, and no-meta-recursion obligations; preserve REVIEW_REQUIRED and UNMEASURED until semantic evidence exists.",
+        "trigger_frequency": "SPECIALIST"
+      }
+    },
+    {
+      "id": "patterns/normality-base-rate-target-preservation.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "when the target is normality/commonness/prevalence"
+      },
+      "actors": [
+        "reasoning/writing agent"
+      ],
+      "phases": [
+        "reasoning",
+        "final-delivery"
+      ],
+      "destinations": [
+        "frequency target definition",
+        "evidence selection",
+        "final normality answer"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/normality-base-rate-target-preservation.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_recovered_reasoning_patterns.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Purely behavioral target discipline. Possibility, mechanism, benignity and inducibility are explicit non-substitutes. Regression descriptions and token assertions do not inspect a resulting answer.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register exact population/conditions/magnitude/timing/threshold target and frequency-first response obligations; require evidence matching that target or an explicit unknown base rate.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/outcome-advancement-and-strategy-efficacy.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "For substantive or iterative work"
+      },
+      "actors": [
+        "reasoning supervisor",
+        "bounded execution worker",
+        "evidence projector"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "outcome progress receipt",
+        "strategy/refinement history",
+        "execution directive",
+        "dashboard",
+        "root completion"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "outcome-advancement-and-strategy-efficacy",
+      "evidence": [
+        {
+          "path": "patterns/outcome-advancement-and-strategy-efficacy.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "templates/OUTCOME-PROGRESS-RECEIPT.json",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_outcome_advancement_pattern.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Graph node is routing-only. Local fixtures in test_outcome_advancement_pattern mostly assert expected constants or wording and do not execute strategy decisions. Existing local runtime projections are supporting scope only; no structured task-time record for this pattern.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register direct-vs-supporting evidence, repair-evidence ordering, diagnosis-before-replacement, lineage and continuation obligations; require source-bound target/baseline/current evidence at the due strategy and delivery boundaries.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/owner-goal-followup-and-requirement-accretion.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "STRUCTURED_PARTIAL",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "before a consequential follow-up task adds a new prerequisite"
+      },
+      "actors": [
+        "actual launch consumer",
+        "chat",
+        "codex",
+        "reasoning task author",
+        "work",
+        "worker accepting follow-up"
+      ],
+      "phases": [
+        "final-delivery",
+        "handoff",
+        "persistence",
+        "pre-action",
+        "reasoning"
+      ],
+      "destinations": [
+        "acceptance criteria",
+        "actual runnable configuration",
+        "follow-up acceptance criteria",
+        "follow-up task definition",
+        "operational owner-method contract",
+        "root closure"
+      ],
+      "enforcement_types": [
+        "semantic"
+      ],
+      "task_time_records": [
+        "uda.followup.owner-goal-rebind"
+      ],
+      "graph_node": "owner-goal-followup-and-requirement-accretion",
+      "evidence": [
+        {
+          "path": "patterns/owner-goal-followup-and-requirement-accretion.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/rule-graph/task-time-metadata.v1.json",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "scripts/uda_rule_graph_task_time.py",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "scripts/owner_method_admission.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_owner_method_admission.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "ADMISSION"
+        }
+      ],
+      "legacy_remainder": "The current selectors extract three framing sentences, not the complete root-state definitions, origin/necessity proof, simpler-alternative test, declared-gate preservation, inherited-rule flags, working-path restoration, operational-method launch comparison or closure checks. Semantic receipt admission is available, but it does not prove the framing judgment; actual consumer invocation and current facts remain unproven.",
+      "review_notes": "Direct task-time record uda.followup.owner-goal-rebind compiles two semantic obligations; semantic admission receipts are not implemented. A separate callable owner_method_admission helper has behavioral fixtures, but universal launcher adoption is not established. Behavioral-regression evidence names existing local test source; this delegated inventory did not execute those tests. Admission evidence checks fail-closed UNKNOWN and receipt binding, not semantic truth or complete source coverage.",
+      "migration": {
+        "priority": "P1",
+        "next_step": "Extend existing uda.followup.owner-goal-rebind source spans and applicability to launch/acceptance, requirement necessity and working-path revalidation; bind owner_method_admission to real launcher configuration and admitted semantic evidence.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/owner-marked-mission-control-failure-capture.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When the owner marks an assistant or Mission Control failure as an example"
+      },
+      "actors": [
+        "active reasoning Chat",
+        "failure recovery agent",
+        "authorized durable write consumer"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "persistence",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "feedback/mission-control artifact",
+        "authenticated runtime event ledger",
+        "owner saved-status claim"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/owner-marked-mission-control-failure-capture.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_root_instruction_nesting.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Current behavioral destination gate. A generic complaint grants no publication authority. NOT_DURABLE, CAPTURED_BRANCH_ONLY, CANONICAL and PARTIAL_RECOVERY remain distinct; templates or queued capture are non-substitutes.",
+      "migration": {
+        "priority": "P3",
+        "next_step": "Register explicit-intent/privacy admission, exact-vs-summary provenance and verified durable destination obligations; require capture truth state before final saved claims.",
+        "trigger_frequency": "SPECIALIST"
+      }
+    },
+    {
+      "id": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before defining task contracts"
+      },
+      "actors": [
+        "reasoning supervisor",
+        "task author",
+        "worker",
+        "terminal-state consumer"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "owner-outcome record",
+        "derived-contract coverage matrix",
+        "supervision packet",
+        "terminal comparator",
+        "dashboard"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "owner-outcome-invariant-and-contract-laundering-prevention",
+      "evidence": [
+        {
+          "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "templates/OBJECTIVE-RECONCILIATION.json",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "scripts/owner_method_admission.py",
+          "class": "ADMISSION"
+        }
+      ],
+      "review_notes": "Pattern-level graph is routing-only. Schemas and narrative comparator do not implement its full behavioral obligation. owner_method_admission supports a narrower exact-dimension/parent-closure comparison governed by follow-up pattern; no direct task-time record exists here.",
+      "migration": {
+        "priority": "P1",
+        "next_step": "Register independently recovered owner source, immutable epoch, backward traceability, no proxy completion and exact-candidate terminal evidence obligations; bind child-complete-parent-open semantics at closure.",
+        "trigger_frequency": "FREQUENT"
+      }
+    },
+    {
+      "id": "patterns/owner-questions-page.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "owner rule: when a workstream needs owner input"
+      },
+      "actors": [
+        "reasoning agent",
+        "workstream maintainer"
+      ],
+      "phases": [
+        "reasoning",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "single existing OWNER-QUESTIONS.md or published page",
+        "chat status/link",
+        "decided action record"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/owner-questions-page.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "docs/INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_owner_questions_page.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "An owner question existing only in chat does not satisfy the declared destination. Static tests preserve sections and routing but do not inspect actual question/page behavior. This page adds no new owner gate.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register one-page lookup/update, minimum-owner-choice admission and actionable question content; bind owner answer to same-turn action and page transition.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/paid-workflow-safety.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before running paid"
+      },
+      "actors": [
+        "workflow author",
+        "audit consumer",
+        "execution job",
+        "release/merge reviewer"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "persistence",
+        "publication"
+      ],
+      "destinations": [
+        "workflow registration stub",
+        "validation job",
+        "paid/privileged step",
+        "credential boundary",
+        "archive map"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/paid-workflow-safety.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "scripts/audit_codex_github.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_audit_codex_github.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "tests/test_paid_workflow_pattern.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "The repository audit has genuine mechanical checks for least privilege, privileged trigger/checkout, job timeout, concurrency and action pins. Those are bounded static support, not complete paid dispatch/secret/billing enforcement or a direct task-time record. Behavioral-regression evidence names existing local test source; this delegated inventory did not execute those tests.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register event/ref/actor/environment admission, validation-output integrity and late secret boundaries; bind static workflow checks and spend authorization to exact executable workflow artifacts.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/parallel-chat-write-isolation.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When concurrent agents or chats may write to the same repository"
+      },
+      "actors": [
+        "child writer",
+        "designated integrator",
+        "recovery agent"
+      ],
+      "phases": [
+        "retrieval",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "isolated child branch/worktree",
+        "branch-local lease",
+        "integration branch/runtime",
+        "retrievable worker result"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "parallel-chat-write-isolation",
+      "evidence": [
+        {
+          "path": "patterns/parallel-chat-write-isolation.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_mission_control_integration_owner.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Task selection and writer ownership are separate. Graph node is routing-only; existing repository-state tests cannot prove every writer applies a pre-write fence. Publication requires retrievability, not a local commit.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register branch ownership, active lease and expected-head pre-write fence plus serialized integration/recovery; bind publication truth states to the actual integrator handoff.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/persistent-browser-automation-hygiene.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When creating or privately registering a missing MC-only supervisor conversation through any surface"
+      },
+      "actors": [
+        "browser-control agent",
+        "relay controller",
+        "recovery agent"
+      ],
+      "phases": [
+        "retrieval",
+        "pre-action",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "verified browser surface",
+        "exact owned window/target",
+        "managed tab set",
+        "output artifact",
+        "action/recovery ledger"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/persistent-browser-automation-hygiene.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tools/codex-mission-control/vps-browser-relay/src/automation-owned-browser.mjs",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tools/codex-mission-control/vps-browser-relay/test/automation-owned-browser.test.mjs",
+          "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "tests/test_browser_control_surface_preflight.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Local automation-owned browser wrapper verifies exact window/target identity and telemetry. It is bounded mechanical support; broad browser-surface preflight, all application recovery rules and semantic output identity remain legacy. No direct task-time record. Behavioral-regression evidence names existing local test source; this delegated inventory did not execute those tests.",
+      "migration": {
+        "priority": "P3",
+        "next_step": "Register current-turn browser-surface discovery, exact ownership, bounded tabs, async artifact identity and recovery-before-repeat obligations; bind browser checks to actual controls and preserved state.",
+        "trigger_frequency": "SPECIALIST"
+      }
+    },
+    {
+      "id": "patterns/platform-native-deployment-before-new-infrastructure.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "before adding a host"
+      },
+      "actors": [
+        "reasoning/architecture agent"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action"
+      ],
+      "destinations": [
+        "incumbent-platform inventory",
+        "constant-product architecture comparison",
+        "deployment decision"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/platform-native-deployment-before-new-infrastructure.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Behavioral architecture selection rule, not a specialist workflow-only exception. Apps Script Web App is a default candidate, not an unconditional mandate. No direct task-time node or actual deployment admission check located in reviewed metadata.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register incumbent capability inventory and concrete unmet requirement before authorizing an added host/runtime/API/database; preserve native-path exceptions when real requirements justify separate hosting.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/portable-vs-owner-specific-deployment-data.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before transferring deployment guidance across projects or publishing portable patterns"
+      },
+      "actors": [
+        "instruction/code author",
+        "portable extraction agent",
+        "reviewer"
+      ],
+      "phases": [
+        "reasoning",
+        "persistence",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "portable patterns/templates/code",
+        "isolated NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT artifact",
+        "copyable repository"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/portable-vs-owner-specific-deployment-data.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "patterns/logic-failure-map.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Live portability rule now has a direct transfer/publication index trigger and retains LF-2.6 provenance. A secret scan alone cannot classify owner-specific topology or prove portable independence.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register exact owner-data classification, isolated extraction and example-removal independence; bind privacy and no-secret checks to actual outgoing repository artifacts.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/reasoning-selection.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "STRUCTURED_PARTIAL",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When selecting a reasoning method or evaluating a claim"
+      },
+      "actors": [
+        "reasoning/writing agent",
+        "task supervisor",
+        "chat",
+        "work",
+        "codex",
+        "claude"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "final-delivery"
+      ],
+      "destinations": [
+        "exact-target conclusion",
+        "evidence/source claims",
+        "capability edge",
+        "owner question",
+        "actual outgoing answer/action",
+        "owner-visible-final"
+      ],
+      "enforcement_types": [
+        "unobserved",
+        "semantic"
+      ],
+      "task_time_records": [
+        "uda.reasoning.dominated-alternative"
+      ],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/reasoning-selection.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_claim_and_argument_evaluation.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_minimum_owner_choice_rule.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_capability_edge_and_gate_rule.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_claim_anchoring_review_integrity.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_uda_dominated_route.py",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "tests/test_uda_dominated_route.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_dominated_route.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        }
+      ],
+      "review_notes": "Only dominated operational routes have exact-candidate semantic receipt admission here. Other reasoning obligations remain unstructured; receipts verify bindings and record assertions, never prove semantic judgment.",
+      "migration": {
+        "priority": "P1",
+        "next_step": "Register obligation-level target/predicate alignment, quantitative sanity, scope/provenance, claim evaluation, minimum-owner-choice and exact directional capability checks with semantic evidence at their actual due boundaries.",
+        "trigger_frequency": "FREQUENT"
+      },
+      "legacy_remainder": "Target and predicate alignment, quantitative sanity, provenance, claim evaluation, owner-choice admission, capability checks and the other operative reasoning obligations still rely on prose application."
+    },
+    {
+      "id": "patterns/recommendation-preflight-integrity.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "for owner-facing recommendations"
+      },
+      "actors": [
+        "reasoning/recommendation agent"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "internal candidate state",
+        "exact offer verification",
+        "paid-commitment fit statement",
+        "actual recommendation answer"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/recommendation-preflight-integrity.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_paid_commitment_recommendation_preflight.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_shopping_activation_protocol.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Only VERIFIED candidates may become RECOMMENDED; UNKNOWN caveats cannot rescue endorsement. Software entitlement/replacement/allowance/billing/reversibility gates are material and cannot be replaced by product feature presence. Text-presence regressions do not certify a real shortlist.",
+      "migration": {
+        "priority": "P1",
+        "next_step": "Register candidate-state admission and all materially decision-changing fit/price/orderability/identity/reliability gates; require exact live offer before outgoing endorsement and automatic replacement search when a leading offer fails.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/research-before-reinvention.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before substantial investment in a bespoke method"
+      },
+      "actors": [
+        "reasoning designer",
+        "research agent",
+        "task author"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "persistence"
+      ],
+      "destinations": [
+        "independent conception snapshot",
+        "existing-work ledger",
+        "reuse/adapt/compose/invent/experiment decision",
+        "external baseline"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "research-before-reinvention",
+      "evidence": [
+        {
+          "path": "patterns/research-before-reinvention.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "templates/PRIOR-WORK-SCAN.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_research_before_reinvention_contract.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Current behavioral selection/commitment rule. Graph node is routing-only; template fields and static tests do not establish that sources were searched or the chosen design follows the scan.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register commitment-triggered prior-work scan, source classes, decision map, external baseline and bounded research-debt trigger; link academic specialization without making trivial work pass a literature gate.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/rule-graph-activation-and-dependency-resolution.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "after ordinary task-trigger routing selects graph-covered rules"
+      },
+      "actors": [
+        "instruction maintainer",
+        "compiler/resolver",
+        "reasoning actor",
+        "existing consumer"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "source lock",
+        "Active Lesson Contract",
+        "actual actor delivery",
+        "literal action/output",
+        "legacy fallback"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "rule-graph-activation-and-dependency-resolution",
+      "evidence": [
+        {
+          "path": "patterns/rule-graph-activation-and-dependency-resolution.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/rule-graph/task-time-metadata.v1.json",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "scripts/uda_rule_graph.py",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "scripts/uda_rule_graph_task_time.py",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "tests/test_uda_rule_graph.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        }
+      ],
+      "review_notes": "Compiler/resolver code and exercised tests prove bounded routing, exact extraction and mechanical predicates. This pattern has no direct task-time record, so disposition remains LEGACY_UNSTRUCTURED. Representative Work profile/default SHADOW is not dynamic live per-task recompilation or universal application. Behavioral-regression evidence names existing local test source; this delegated inventory did not execute those tests.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register the graph pattern’s own exact-source, trusted-fact, dependency, semantic-UNKNOWN, actor-delivery and fallback obligations; keep routing/compilation distinct from admitted semantic application.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/runtime-chat-work-authority-admission-and-internal-routing.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When a controlled supervisory route may admit native Work execution"
+      },
+      "actors": [
+        "authenticated Work/Codex worker",
+        "Mission Control admission service",
+        "reasoning Chat",
+        "provider relay"
+      ],
+      "phases": [
+        "pre-action",
+        "handoff",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "authenticated admission request/result",
+        "exact Chat directive",
+        "durable supervisor packet",
+        "provider delivery receipt"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "runtime-chat-work-authority-admission-and-internal-routing",
+      "evidence": [
+        {
+          "path": "patterns/runtime-chat-work-authority-admission-and-internal-routing.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "rules/UDA-RULE-GRAPH.json",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tools/codex-mission-control/restored/codex-mission-control/lib/chat-work-authority-gate.ts",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tools/codex-mission-control/restored/codex-mission-control/lib/supervision-admission-runtime.ts",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tools/codex-mission-control/restored/codex-mission-control/tests/chat-work-authority-gate.test.ts",
+          "class": "BEHAVIORAL_REGRESSION"
+        }
+      ],
+      "review_notes": "Local runtime gate and regression source are genuine bounded mechanical support. Pattern-level graph remains routing-only; no direct task-time record exists. Queued packets are visibly undelivered until provider receipts; no live/deployment scope is claimed. Behavioral-regression evidence names existing local test source; this delegated inventory did not execute those tests.",
+      "migration": {
+        "priority": "P3",
+        "next_step": "Register authenticated producer/action class, source-bound bounded execution, zero-spend and internal-routing obligations plus maintenance exception; require mayExecute at the actual execution boundary.",
+        "trigger_frequency": "SPECIALIST"
+      }
+    },
+    {
+      "id": "patterns/self-updating-launcher-reexec.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "when a launcher updates its own controlling code"
+      },
+      "actors": [
+        "launcher implementer",
+        "running launcher",
+        "reviewer"
+      ],
+      "phases": [
+        "pre-action",
+        "persistence"
+      ],
+      "destinations": [
+        "update boundary",
+        "new process controlling code",
+        "restart marker",
+        "preserved diagnostic log"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/self-updating-launcher-reexec.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Current portable behavioral invariant. Embedded safe shell shape and originating external regression are not an installed runtime guard in this repository. Restart exceptions and supply-chain authority must remain intact.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register before/after identity, exactly-once restart, argument/log preservation and trusted transaction-aware boundary; bind it to each actual self-updating launcher consumer.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/shared-provider-submission-queue.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before coordinating browser submissions across sessions or workers sharing a provider"
+      },
+      "actors": [
+        "shared queue authority",
+        "send lease owner",
+        "relay controller",
+        "failover operator"
+      ],
+      "phases": [
+        "pre-action",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "global queue/lease",
+        "provider send boundary",
+        "append-only send ledger",
+        "pacing telemetry"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/shared-provider-submission-queue.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "patterns/logic-failure-map.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tools/codex-mission-control/restored/codex-mission-control/lib/provider-submission-authority.mjs",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tools/codex-mission-control/restored/codex-mission-control/tests/submission-authority-runtime.test.ts",
+          "class": "BEHAVIORAL_REGRESSION"
+        }
+      ],
+      "review_notes": "Live queue rule now has a direct pre-submission index trigger and retains LF-10.7 provenance. Local runtime tests support bounded mechanical evidence; no task-time mapping or live provider pacing is claimed.",
+      "migration": {
+        "priority": "P3",
+        "next_step": "Register task authority plus atomic mechanical lease, global boundary/cooldown, same-item retry, fencing and exact destination obligations; bind direct send primitives behind the existing queue.",
+        "trigger_frequency": "SPECIALIST"
+      }
+    },
+    {
+      "id": "patterns/shopping-research.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before substantive shopping research or recommending an exact offer"
+      },
+      "actors": [
+        "reasoning/shopping agent"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "Active Lesson Contract",
+        "product/offer identity",
+        "review evidence",
+        "landed-cost comparison",
+        "verified live buy option"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/shopping-research.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_shopping_research.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_shopping_activation_protocol.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Current owner module has mandatory behavior despite being a procedure. Static owner-text hash and token tests preserve source/routing, not actual shopping behavior. Full sections 1–9 and health-routing/access/spend limits must survive migration.",
+      "migration": {
+        "priority": "P1",
+        "next_step": "Register pre-search module activation/reactivation, breadth before depth, product/offer identity, offer-live check and replacement continuation; compose recommendation-preflight as sole candidate admission owner.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/source-interpretation-provenance.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When quoting"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "final-delivery"
+      ],
+      "destinations": [
+        "source-interpretation-provenance task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/source-interpretation-provenance.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_claim_anchoring_review_integrity.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_source_interpretation_provenance_pattern.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_claim_and_argument_evaluation.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P1",
+        "next_step": "Bind exact passage, polarity and source scope at each quotation or paraphrase boundary; reject unsupported attributions and propagate correction to dependent artifacts.",
+        "trigger_frequency": "FREQUENT"
+      }
+    },
+    {
+      "id": "patterns/structured-natal-chart-comparison.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When comparing natal charts or running blinded chart matching"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "final-delivery"
+      ],
+      "destinations": [
+        "structured-natal-chart-comparison task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "none"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/structured-natal-chart-comparison.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_logic_failure_map.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "exception_reason": "The natal chart comparison is a specialist Western Tropical calculation and blinded matching workflow; its declared calculation engine, synthesis and anti-leakage protocol govern this domain rather than general task-time development admission."
+    },
+    {
+      "id": "patterns/structured-output-failure-boundary.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When a structured evaluator artifact fails parsing or validation"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "pre-action",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "structured-output-failure-boundary task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "structured-output-failure-boundary",
+      "evidence": [
+        {
+          "path": "patterns/structured-output-failure-boundary.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_structured_output_failure_boundary.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P2",
+        "next_step": "Bind parser fingerprints, raw artifacts and directive-fixed retry ceilings at structured-artifact admission; block only dependent scoring until a valid artifact or new source authority exists.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/suggested-fix-queue.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "owner rule: before other fixes in a project"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "retrieval",
+        "persistence"
+      ],
+      "destinations": [
+        "suggested-fix-queue task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/suggested-fix-queue.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_suggested_fix_queue.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_owner_questions_page.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_root_instruction_nesting.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P2",
+        "next_step": "Bind project lane intake, owner-request disposition and ledger updates to session-start and cross-project suggestion persistence; reject owner-as-transport handoffs.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/supervision-assurance-planes-and-pro-meta-review.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When supervising worker alignment"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "handoff",
+        "publication",
+        "final-delivery"
+      ],
+      "destinations": [
+        "supervision-assurance-planes-and-pro-meta-review task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "supervision-assurance-planes-and-pro-meta-review",
+      "evidence": [
+        {
+          "path": "patterns/supervision-assurance-planes-and-pro-meta-review.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_supervision_assurance_planes_pattern.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P3",
+        "next_step": "Carry owner-source reconciliation, typed completion and independent assurance-plane obligations to supervisor and terminal admission; reject green worker claims that hide divergent owner outcomes.",
+        "trigger_frequency": "SPECIALIST"
+      }
+    },
+    {
+      "id": "patterns/targeted-artifact-edit-preservation.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before a targeted artifact edit"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "targeted-artifact-edit-preservation task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/targeted-artifact-edit-preservation.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "migration": {
+        "priority": "P2",
+        "next_step": "Bind the exact source, authorized delta and protected attributes before a targeted edit; require source-to-result comparison before accepting unintended changes.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/task-time-lesson-activation.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "STRUCTURED_PARTIAL",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before substantive work"
+      },
+      "actors": [
+        "chat",
+        "codex",
+        "execution worker",
+        "reasoning agent",
+        "work"
+      ],
+      "phases": [
+        "final-delivery",
+        "handoff",
+        "pre-action",
+        "reasoning",
+        "retrieval"
+      ],
+      "destinations": [
+        "active-lesson-contract",
+        "next substantive attempt",
+        "task-time-lesson-activation task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "semantic"
+      ],
+      "task_time_records": [
+        "uda.active-contract.boundary-binding",
+        "uda.owner-correction.reactivate"
+      ],
+      "graph_node": "uda.owner-correction.reactivate",
+      "evidence": [
+        {
+          "path": "patterns/task-time-lesson-activation.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_declared_gates_not_waivable.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_task_time_receipts.py",
+          "class": "ADMISSION"
+        }
+      ],
+      "legacy_remainder": "Only the boundary-binding and owner-correction slices are registered. Full activation provenance, literal application, active-set selection, refresh triggers, carry-through, capture and consumer invocation remain incompletely represented despite the generic receipt admission path.",
+      "migration": {
+        "priority": "P1",
+        "next_step": "Register the remaining activation, selection, refresh, capture and actual consumer-boundary obligations, with receipt evidence that remains distinct from independent verification and semantic truth.",
+        "trigger_frequency": "FREQUENT"
+      },
+      "review_notes": "Admission evidence checks fail-closed UNKNOWN and receipt binding, not semantic truth or complete source coverage."
+    },
+    {
+      "id": "patterns/terminal-response-admission-and-autonomous-continuation.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before an exclusive-task worker emits a terminal response"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "final-delivery"
+      ],
+      "destinations": [
+        "terminal-response-admission-and-autonomous-continuation task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_universal_next_step_rule.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P1",
+        "next_step": "Bind terminal response to the current task lock, exact remaining work and authoritative pause evidence; reject response closure whenever a safe authorized action remains.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/test-efficiency-and-verification-budget.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When repeated testing could materially affect task wall time"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "persistence"
+      ],
+      "destinations": [
+        "test-efficiency-and-verification-budget task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "test-efficiency-and-verification-budget",
+      "evidence": [
+        {
+          "path": "patterns/test-efficiency-and-verification-budget.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_root_instruction_nesting.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_test_efficiency_pattern.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P2",
+        "next_step": "Bind test scope, decision relevance, measurement and rerun reasons to test launch; reject redundant full or mutation runs without weakening declared repository gates.",
+        "trigger_frequency": "FREQUENT"
+      }
+    },
+    {
+      "id": "patterns/transformation-preservation-proof.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "Before accepting a consequential source-to-target transformation"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "transformation-preservation-proof task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/transformation-preservation-proof.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_transformation_preservation_proof_pattern.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P2",
+        "next_step": "Carry frozen authority, change whitelist and bidirectional obligation traceability to exact transformation admission; reject unexplained losses, additions and stale proof after rewrites.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/web-data-provider-escalation.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When ordinary search or fetch fails on a public page (block"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "retrieval",
+        "pre-action",
+        "persistence"
+      ],
+      "destinations": [
+        "web-data-provider-escalation task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/web-data-provider-escalation.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_root_instruction_nesting.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_web_data_provider_escalation.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P2",
+        "next_step": "Bind ordinary-tool failures, cost estimates, monthly usage and existing spending authority to provider launch; reject private content, unknown budgets and unauthorized paid use.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/whole-argument-reconstruction.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "before critiquing"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "final-delivery"
+      ],
+      "destinations": [
+        "whole-argument-reconstruction task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/whole-argument-reconstruction.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_claim_anchoring_review_integrity.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P2",
+        "next_step": "Bind source-wide reconstruction and scope-matched evidence before critique or editing; reject broadened paraphrases, false contradictions and revived owner-rejected flags.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/work-model-and-effort-routing.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When Chat admits and reduces a Work task"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "handoff",
+        "persistence"
+      ],
+      "destinations": [
+        "work-model-and-effort-routing task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "work-model-and-effort-routing",
+      "evidence": [
+        {
+          "path": "patterns/work-model-and-effort-routing.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_mission_control_supervisor_receipt_copier.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_work_model_and_effort_routing.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_legacy_universal_reconciliation.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_root_instruction_nesting.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_delegate_easy_work_pattern.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P3",
+        "next_step": "Bind current routing authority, task difficulty, exact setters and telemetry to Work handoff; reject unverified effective-model claims and unauthorized challenger escalation.",
+        "trigger_frequency": "SPECIALIST"
+      }
+    },
+    {
+      "id": "patterns/worker-directive-delivery-and-chat-output-budget.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "STRUCTURED_PARTIAL",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When any reusable long output or worker handoff is due"
+      },
+      "actors": [
+        "chat",
+        "execution worker",
+        "reasoning agent"
+      ],
+      "phases": [
+        "final-delivery",
+        "handoff"
+      ],
+      "destinations": [
+        "selected execution worker",
+        "worker-directive-delivery-and-chat-output-budget task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "semantic"
+      ],
+      "task_time_records": [
+        "uda.worker-directive.same-turn-delivery"
+      ],
+      "graph_node": "uda.worker-directive.same-turn-delivery",
+      "evidence": [
+        {
+          "path": "patterns/worker-directive-delivery-and-chat-output-budget.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_work_origin_chat_backlink.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_worker_self_remediation_before_owner_interruption.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_root_instruction_nesting.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_worker_directive_delivery_output_budget.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "tests/test_uda_rule_graph_task_time.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_task_time_receipts.py",
+          "class": "ADMISSION"
+        }
+      ],
+      "legacy_remainder": "Carry long-output budgeting, packaged entrypoint, same-turn runnable delivery and required companions to the exact outgoing artifact or handoff; reject path-only or deferred delivery. The listed semantic slice now accepts bound receipts; the other operative obligations above remain incompletely represented.",
+      "migration": {
+        "priority": "P1",
+        "next_step": "Carry long-output budgeting, packaged entrypoint, same-turn runnable delivery and required companions to the exact outgoing artifact or handoff; reject path-only or deferred delivery.",
+        "trigger_frequency": "FREQUENT"
+      },
+      "review_notes": "Admission evidence checks fail-closed UNKNOWN and receipt binding, not semantic truth or complete source coverage."
+    },
+    {
+      "id": "patterns/worker-github-publication-and-recovery.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "For integration-bound repository workers and the directives that launch them"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "pre-action",
+        "publication",
+        "handoff"
+      ],
+      "destinations": [
+        "worker-github-publication-and-recovery task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "worker-github-publication-and-recovery",
+      "evidence": [
+        {
+          "path": "patterns/worker-github-publication-and-recovery.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_root_instruction_nesting.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P2",
+        "next_step": "Bind publication destination, owned paths, authorized fallback and exact remote readback to integration handoff; reject local-only work as integration-ready.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/worker-self-remediation-before-owner-interruption.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "before assigning routine configuration"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "pre-action",
+        "handoff",
+        "final-delivery"
+      ],
+      "destinations": [
+        "worker-self-remediation-before-owner-interruption task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": "worker-self-remediation-before-owner-interruption",
+      "evidence": [
+        {
+          "path": "patterns/worker-self-remediation-before-owner-interruption.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_work_human_gate_assist.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_worker_self_remediation_before_owner_interruption.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_minimum_owner_choice_rule.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_web_data_provider_escalation.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P2",
+        "next_step": "Bind current capability and controlling runtime surface to owner interruption; execute authorized self-remedies before asking and preserve approval across equivalent retries.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
+      "id": "patterns/youtube-transcript-workflow.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When obtaining a transcript or subtitles from a YouTube URL"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "retrieval",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "youtube-transcript-workflow task artifact or action boundary"
+      ],
+      "enforcement_types": [
+        "none"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/youtube-transcript-workflow.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "exception_reason": "The YouTube transcript extraction workflow is governed by scripts/yt-transcript.sh and its caption-first, download and cloud-transcription fallback; provider setup and extraction-version checks remain specialist executable maintenance rather than a universal semantic admission rule."
+    }
+  ]
+}
