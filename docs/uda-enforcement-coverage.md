@@ -39,11 +39,11 @@ The systemic gap fits existing logic-map entries: LF-2.1 for unloaded/stale guid
 
 ## Current counts
 
-Inventory entries: 96
+Inventory entries: 98
 
-Indexed patterns: 82
+Indexed patterns: 84
 
-Migration backlog: 84
+Migration backlog: 86
 
 Task-time records: 10, sourced from 7 files, with 2 mechanical and 10 semantic obligations.
 
@@ -52,14 +52,14 @@ Task-time records: 10, sourced from 7 files, with 2 mechanical and 10 semantic o
 | STRUCTURED_ENFORCED | 0 |
 | STRUCTURED_PARTIAL | 7 |
 | WORKFLOW_ONLY | 10 |
-| LEGACY_UNSTRUCTURED | 77 |
+| LEGACY_UNSTRUCTURED | 79 |
 | NOT_ACTIVE | 2 |
 
-The seven partial sources are the bootstrap kernel section, task-time lesson activation, owner-goal follow-up, Chat/Work execution routing, the repository operating system, worker-directive/output delivery, and reasoning selection. The last now structures the dominated-route obligation; its other reasoning obligations remain in the legacy remainder. No whole source was newly fully structured in either pass. The pinned backlog has the same 84 identities, so shrinkage is zero. The report shows exact removed identities after migration.
+The seven partial sources are the bootstrap kernel section, task-time lesson activation, owner-goal follow-up, Chat/Work execution routing, the repository operating system, worker-directive/output delivery, and reasoning selection. The last now structures the dominated-route obligation; its other reasoning obligations remain in the legacy remainder. No whole source was newly fully structured in either pass. The pinned backlog keeps its 84 identities, so shrinkage is zero; the two lessons from the review-convergence change are the only additions (see Open policy change reconciliation). The report shows exact removed identities after migration.
 
 ## Exact migration backlog
 
-P1 is exactly the issue's 22 high-leverage identities that remain in backlog. Other general behavioral entries are P2 (47); mechanics specific to a project or infrastructure surface are P3 (15), including Mission Control supervision/relay, browser automation, worker permissions and Work cloud dispatch. Every P1 entry is behavioral, checked by the validator.
+P1 is exactly the issue's 22 high-leverage identities that remain in backlog. Other general behavioral entries are P2 (49); mechanics specific to a project or infrastructure surface are P3 (15), including Mission Control supervision/relay, browser automation, worker permissions and Work cloud dispatch. Every P1 entry is behavioral, checked by the validator.
 
 Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_TURN, FREQUENT, CONDITIONAL, SPECIALIST; use the id only to break ties. Frequency classes are declared routing estimates, not measured usage. Each entry retains its specific next step. The report uses this same order.
 
@@ -95,11 +95,13 @@ Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_
 | `patterns/human-readable-operational-references.md` | P2 | FREQUENT |
 | `patterns/instruction-composition-and-portable-intelligence.md` | P2 | FREQUENT |
 | `patterns/test-efficiency-and-verification-budget.md` | P2 | FREQUENT |
+| `patterns/agent-completable-merge-gates.md` | P2 | CONDITIONAL |
 | `patterns/agent-to-agent-consultation.md` | P2 | CONDITIONAL |
 | `patterns/artifact-authority-promotion-and-supersession.md` | P2 | CONDITIONAL |
 | `patterns/canonical-design-os-bootstrap.md` | P2 | CONDITIONAL |
 | `patterns/carrying-uda-into-standalone-projects.md` | P2 | CONDITIONAL |
 | `patterns/consilience-and-expected-observability.md` | P2 | CONDITIONAL |
+| `patterns/convergent-review-acceptance-gates.md` | P2 | CONDITIONAL |
 | `patterns/coverage-before-depth-in-selection.md` | P2 | CONDITIONAL |
 | `patterns/delegate-easy-work-to-cheaper-models.md` | P2 | CONDITIONAL |
 | `patterns/durable-chat-learning.md` | P2 | CONDITIONAL |
@@ -235,6 +237,8 @@ The twelve new direct routes use these leading clauses:
 ## Open policy change reconciliation
 
 The separate review-convergence policy change (draft/open PR #312, local snapshot 3ed51341b1f9221057c7b49c0f46402c5f878759) adds `patterns/agent-completable-merge-gates.md` and `patterns/convergent-review-acceptance-gates.md`. Both were read and are behavioral; neither exists in this branch, so neither is included as an extra inventory entry. This change does not depend on that policy change. Whichever integrates second must give both files exact dispositions and activation routes. It must structure their admission, supply a genuine specialist-workflow justification, or obtain explicit owner-authorized backlog additions. Their pre-existing open pull request does not silently exempt them from the no-growth gate. Reconcile the shared index and logic-map edits at that integration.
+
+That change integrated second, on 2026-10-07. Both files are `LEGACY_UNSTRUCTURED` (P2, `CONDITIONAL`) with `INDEX_TRIGGER` routes taken from their index entries, now 83 and 84 after renumbering; the logic-map rows LF-7.7 and LF-8.6 did not collide. Neither has structured records, and neither is a specialist workflow, so they enter the backlog only as `owner_authorized_additions`, pending the owner's authorization.
 
 ## Semantic receipt workflow and limits
 

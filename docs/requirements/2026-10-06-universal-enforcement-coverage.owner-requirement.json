@@ -131,16 +131,16 @@
     },
     {
       "finding_id": "pass-2-inventory",
-      "entry_count": 96,
-      "indexed_pattern_count": 82,
+      "entry_count": 98,
+      "indexed_pattern_count": 84,
       "identity_counts_by_disposition": {
-        "LEGACY_UNSTRUCTURED": 77,
+        "LEGACY_UNSTRUCTURED": 79,
         "STRUCTURED_PARTIAL": 7,
         "WORKFLOW_ONLY": 10,
         "NOT_ACTIVE": 2,
         "STRUCTURED_ENFORCED": 0
       },
-      "backlog_count": 84,
+      "backlog_count": 86,
       "baseline_shrinkage": 0,
       "root_owner_outcome": "OPEN",
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",

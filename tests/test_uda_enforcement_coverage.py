@@ -219,10 +219,11 @@ class EnforcementCoverageTests(unittest.TestCase):
             disposition="LEGACY_UNSTRUCTURED", behavioral=True,
             migration={"priority": "P2", "trigger_frequency": "CONDITIONAL", "next_step": "Carry the newly authorized behavioral obligations into exact records and admission fixtures."}))
         baseline = self.read(coverage.BASELINE)
+        existing = list(baseline.get("owner_authorized_additions", []))
         for quote in ("I authorize this exact existing workflow entry to enter the migration backlog for this test.",
                       "Approved for migration."):
             with self.subTest(owner_quote=quote):
-                baseline["owner_authorized_additions"] = [{"id": target, "date": "2026-10-06", "source": "test-only owner directive",
+                baseline["owner_authorized_additions"] = existing + [{"id": target, "date": "2026-10-06", "source": "test-only owner directive",
                     "owner_quote": quote}]
                 self.write(coverage.BASELINE, baseline)
                 self.assertEqual([], coverage.validate(self.root))

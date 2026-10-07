@@ -414,6 +414,60 @@
       }
     },
     {
+      "id": "patterns/agent-completable-merge-gates.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When a workstream will merge, release, or deploy through hosted gates"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "publication"
+      ],
+      "destinations": [
+        "workstream gate-capability check at start",
+        "owner questions page decision with recommendation",
+        "merge handoff to the owner"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/agent-completable-merge-gates.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "patterns/logic-failure-map.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_agent_completable_merge_gates.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P2",
+        "next_step": "At workstream start, record for each hosted merge gate whether the agent's actual permissions, including safety-layer refusals, can satisfy it; block a recurring per-change owner click unless one early owner decision with a recommendation is recorded.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
       "id": "patterns/agent-to-agent-consultation.md",
       "kind": "pattern",
       "indexed": true,
@@ -1574,6 +1628,59 @@
       ],
       "exception_reason": "Specialist deterministic candidate-transformation and template-scoring workflow, with explicit separation of computational astronomy from unvalidated behavioral-symbolic interpretation; excluded from the general symbolic-method inventory.",
       "review_notes": "Live methodology, not general instruction-failure admission. No current index or exact full-path activating parent was found. Conventional scorer output must not be promoted into scientific validity."
+    },
+    {
+      "id": "patterns/convergent-review-acceptance-gates.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When a pipeline accepts work units on a language-model reviewer's findings"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "persistence"
+      ],
+      "destinations": [
+        "acceptance gate design before the first run",
+        "repair loop re-review scope",
+        "per-cycle finding counts and owner escalation"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/convergent-review-acceptance-gates.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "patterns/logic-failure-map.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_convergent_review_acceptance_gates.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P2",
+        "next_step": "Before a model-reviewed gate runs at scale, require a recorded false-failure estimate, a fixed repair bound and re-review limited to earlier findings and changed items; reject a gate that needs a zero-finding report on every unit with no aggregate floor.",
+        "trigger_frequency": "CONDITIONAL"
+      }
     },
     {
       "id": "patterns/conversational-prose-speakability.md",
