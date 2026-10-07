@@ -412,6 +412,45 @@ class UsageWarningRefreshTests(unittest.TestCase):
         return tt.check_contract(contract, 'persistence', self.payload, receipts=receipts,
                                  destination=DESTINATION, current_facts=task['facts'])
 
+    def test_legacy_clis_do_not_require_facts_for_unselected_warning(self):
+        with tempfile.TemporaryDirectory() as directory:
+            contract_path = Path(directory) / 'contract.json'
+            for script in ('uda_rule_graph_task_time.py', 'uda_rule_graph.py'):
+                with self.subTest(script=script):
+                    command = [sys.executable, str(ROOT / 'scripts' / script)]
+                    compiled = subprocess.run(command + ['compile', '--task',
+                        str(ROOT / 'examples/rule-graph/work-handoff.json'), '--mode', 'legacy',
+                        '--output', str(contract_path)], capture_output=True, text=True, cwd=ROOT)
+                    self.assertEqual(compiled.returncode, 0, compiled.stderr or compiled.stdout)
+                    contract = json.loads(contract_path.read_text())
+                    self.assertNotIn('uda.continuity.usage-warning',
+                                     {r['rule_id'] for r in contract['selected_rules']})
+                    for destination, expected in ((None, 'ADMITTED'), (DESTINATION, 'NOT_EVALUATED')):
+                        with self.subTest(destination=destination):
+                            check = command + ['check', '--contract', str(contract_path),
+                                '--phase', 'persistence', '--payload',
+                                str(FIXTURE / 'step-checkpoint-compliant.txt')]
+                            if destination:
+                                check += ['--destination', destination]
+                            checked = subprocess.run(check, capture_output=True, text=True, cwd=ROOT)
+                            self.assertEqual(json.loads(checked.stdout)['admission'], expected,
+                                             checked.stderr or checked.stdout)
+                            self.assertEqual(checked.returncode, 0 if expected == 'ADMITTED' else 4)
+
+    def test_legacy_explicit_warning_keeps_refresh_guard(self):
+        task = copy.deepcopy(self.task)
+        task['legacy_rule_ids'].append('uda.continuity.usage-warning')
+        contract = self.compile(task, 'legacy')
+        receipts = bound_receipts(contract, 'persistence', self.payload, self.verdict)
+        missing = tt.check_contract(contract, 'persistence', self.payload, receipts=receipts,
+                                    destination=DESTINATION)
+        self.assertEqual(missing['admission'], 'BLOCKED')
+        self.assertEqual(self.check(contract, task, receipts)['admission'], 'ADMITTED')
+        task['facts']['usage_warning_visible']['value'] = True
+        changed = self.check(contract, task, receipts)
+        self.assertEqual(changed['admission'], 'BLOCKED')
+        self.assertIn('recompile', changed['reason'])
+
     def test_running_task_cannot_reuse_ordinary_receipt_after_warning_changes(self):
         for mode in ('flat', 'graph'):
             for initial in ({'state': 'KNOWN', 'value': False, 'provenance': 'below warning'},

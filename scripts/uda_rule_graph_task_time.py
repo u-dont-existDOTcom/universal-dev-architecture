@@ -371,10 +371,11 @@ def compile_contract(catalog: dict[str, Any], profile: dict[str, Any], envelope:
         if rule["status"] != "CURRENT":
             continue
         refresh = rule.get("refresh_on_facts", [])
-        # Retain the refresh guard even when a mutable trigger is currently false.
+        # Retain the guard for rules this mode can select, even with a false trigger.
         potential = {**envelope, "facts": {**envelope["facts"],
                      **{name: {"state": "UNKNOWN"} for name in refresh}}}
-        if refresh and applicability(rule, potential, profile) != FALSE:
+        if (refresh and (mode != "legacy" or rid in envelope.get("legacy_rule_ids", []))
+                and applicability(rule, potential, profile) != FALSE):
             observed = {name: {k: v for k, v in fact(envelope["facts"], name).items()
                               if k in {"state", "value"}} for name in refresh}
             for ob in rule["obligations"]:
