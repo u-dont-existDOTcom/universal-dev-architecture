@@ -16,6 +16,7 @@ import { validateOwnerResponseContinuation } from "./owner-response-continuation
 import { buildExecutionDirectiveFromGitHubDecision } from "./github-execution-directive";
 import { WORK_CLOUD_EXECUTION_RECEIPT_PREFIX } from "./chatgpt-work-cloud-autodispatch";
 import { buildPostWorkReasoningRouteEnvelope, POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID } from "./post-work-reasoning-route";
+import { recordOwnerMessage } from "./worker-channel";
 
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
 export const stagedSupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
@@ -23,6 +24,7 @@ export const legacySupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPER
 export const canonicalDecisionCommentPrefix = "MISSION_CONTROL_CANONICAL_DECISION_V1\n";
 export const capabilityReceiptCommentPrefix = "MISSION_CONTROL_CHAT_CAPABILITY_RECEIPT_V1\n";
 export const stageReceiptCommentPrefix = "MISSION_CONTROL_CHAT_STAGE_RECEIPT_V1\n";
+export const ownerDirectionReceiptCommentPrefix = "MISSION_CONTROL_OWNER_DIRECTION_V1\n";
 export const capabilityChallengeSummary = "MISSION_CONTROL_CHAT_CAPABILITY_CHALLENGE_V1";
 export const capabilityVerifiedSummary = "MISSION_CONTROL_CHAT_CAPABILITY_VERIFIED_V1";
 export const modeCapabilityVerifiedSummary = "MISSION_CONTROL_CHAT_MODE_CAPABILITY_VERIFIED_V1";
@@ -35,9 +37,11 @@ export const providerSessionModelSummary = "MISSION_CONTROL_PROVIDER_SESSION_MOD
 export const providerSessionMcpSummary = "MISSION_CONTROL_PROVIDER_SESSION_MCP_READ_V1";
 export const bindingCapsuleSummary = "MISSION_CONTROL_BINDING_CAPSULE_V1";
 export const bindingEnvelopeSummary = "MISSION_CONTROL_BINDING_ENVELOPE_V1";
+export const ownerDirectionReceiptSummary = "MISSION_CONTROL_GITHUB_OWNER_DIRECTION_V1";
 
 export const githubDecisionProducer: AuthenticatedProducer = { id: "system:github-decision-receipts", kind: "SYSTEM", workerScopes: ["*"], taskScopes: ["*"] };
 export const githubReceiptCollector: AuthenticatedProducer = { id: "collector:github-supervision-receipts", kind: "COLLECTOR", workerScopes: ["*"], taskScopes: ["*"] };
+const githubOwnerAuthority: AuthenticatedProducer = { id: "owner:github-attested", kind: "OWNER_AUTHORITY", workerScopes: ["*"], taskScopes: ["*"] };
 const postExecutionReasoningRouter: AuthenticatedProducer = { id: POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID, kind: "SYSTEM", workerScopes: ["*"], taskScopes: ["*"] };
 
 export interface GitHubReceiptPolicy {
@@ -46,6 +50,7 @@ export interface GitHubReceiptPolicy {
   capabilityIssueNumber: number;
   stageIssueNumber: number;
   authorizedWriterLogins: string[];
+  ownerDirectionWriterLogins?: string[];
   capabilityChallenges: CapabilityChallenge[];
   requestBound?: { enabled: boolean; relayProducerIds: string[] };
 }
@@ -82,6 +87,16 @@ interface CapabilityReceiptBody {
   schemaVersion: 1; challengeId: string; chatId: string; mcNonce: string; githubNonce: string;
   capabilities: ["MISSION_CONTROL_READ", "GITHUB_READ", "GITHUB_WRITE"];
 }
+export interface OwnerDirectionReceiptBody {
+  schemaVersion: 1;
+  worker: string;
+  decisionRef: string;
+  ownerOutcome: { id: string; epoch: number; sha256: string };
+  exactText: string;
+  exactTextSha256: string;
+  priority: "URGENT" | "HIGH" | "NORMAL" | "LOW";
+}
+
 export interface StageReceiptBody {
   schemaVersion: 2;
   requestId: string;
@@ -108,6 +123,17 @@ export function parseGitHubReceiptPolicy(raw = process.env.MISSION_CONTROL_GITHU
   const stageIssueNumber = positiveInteger(root.stageIssueNumber, "stageIssueNumber");
   if (!Array.isArray(root.authorizedWriterLogins) || root.authorizedWriterLogins.length === 0) throw new Error("GitHub receipt policy requires at least one authorizedWriterLogin.");
   const authorizedWriterLogins = root.authorizedWriterLogins.map((item, i) => requiredString(item, `authorizedWriterLogins[${i}]`).toLowerCase());
+  let ownerDirectionWriterLogins: string[] | undefined;
+  if (root.ownerDirectionWriterLogins !== undefined) {
+    if (!Array.isArray(root.ownerDirectionWriterLogins) || root.ownerDirectionWriterLogins.length === 0) {
+      throw new Error("ownerDirectionWriterLogins must be a non-empty array when owner-direction routing is enabled.");
+    }
+    ownerDirectionWriterLogins = [...new Set(root.ownerDirectionWriterLogins.map((item, i) =>
+      requiredString(item, `ownerDirectionWriterLogins[${i}]`).toLowerCase()))];
+    if (ownerDirectionWriterLogins.some((login) => !authorizedWriterLogins.includes(login))) {
+      throw new Error("Every ownerDirectionWriterLogin must also be an authorizedWriterLogin.");
+    }
+  }
   if (!Array.isArray(root.capabilityChallenges)) throw new Error("capabilityChallenges must be an array.");
   const capabilityChallenges = root.capabilityChallenges.map((item, i) => {
     const c = record(item, `capabilityChallenges[${i}]`);
@@ -138,7 +164,8 @@ export function parseGitHubReceiptPolicy(raw = process.env.MISSION_CONTROL_GITHU
       || (config.enabled && config.relayProducerIds.length === 0)) throw new Error("requestBound requires an explicit enabled flag and trusted relay producer IDs.");
     requestBound = { enabled: config.enabled, relayProducerIds: [...new Set(config.relayProducerIds as string[])] };
   }
-  return { repository, decisionIssueNumber, capabilityIssueNumber, stageIssueNumber, authorizedWriterLogins, capabilityChallenges, ...(requestBound ? { requestBound } : {}) };
+  return { repository, decisionIssueNumber, capabilityIssueNumber, stageIssueNumber, authorizedWriterLogins,
+    ...(ownerDirectionWriterLogins ? { ownerDirectionWriterLogins } : {}), capabilityChallenges, ...(requestBound ? { requestBound } : {}) };
 }
 
 export function validateConfiguredDecisionLocation(repository: string, issueNumber: number, policy: GitHubReceiptPolicy | null) {
@@ -204,6 +231,29 @@ export function parseCanonicalDecisionComment(body: string): CanonicalDecisionEn
   if (envelope.schema_version === 2 && sha256(canonicalJson(envelope.binding_capsule)) !== envelope.binding_capsule_sha256) throw new Error("Canonical binding capsule digest mismatch.");
   if (envelope.schema_version === 3 && sha256(canonicalJson(envelope.binding_envelope)) !== envelope.binding_envelope_sha256) throw new Error("Canonical binding envelope digest mismatch.");
   return envelope;
+}
+
+export function parseOwnerDirectionReceiptComment(body: string): OwnerDirectionReceiptBody {
+  if (!body.startsWith(ownerDirectionReceiptCommentPrefix)) throw new Error("Not an owner direction receipt.");
+  let parsed: unknown;
+  try { parsed = JSON.parse(body.slice(ownerDirectionReceiptCommentPrefix.length)); } catch { throw new Error("Owner direction receipt contains invalid JSON."); }
+  const root = record(parsed, "owner direction receipt");
+  if (root.schema_version !== 1) throw new Error("Owner direction receipt must use schema_version 1.");
+  const owner = record(root.owner_outcome, "owner_outcome");
+  const exactText = requiredString(root.exact_text, "exact_text");
+  if (exactText.length > 20_000) throw new Error("exact_text exceeds the owner direction size limit.");
+  const exactTextSha256 = requiredString(root.exact_text_sha256, "exact_text_sha256");
+  if (!/^[a-f0-9]{64}$/.test(exactTextSha256) || sha256(exactText) !== exactTextSha256) throw new Error("Owner direction exact_text digest mismatch.");
+  const ownerSha = requiredString(owner.sha256, "owner_outcome.sha256");
+  if (!/^[a-f0-9]{64}$/.test(ownerSha)) throw new Error("owner_outcome.sha256 must be a SHA-256 digest.");
+  return {
+    schemaVersion: 1,
+    worker: requiredString(root.worker, "worker"),
+    decisionRef: requiredString(root.decision_ref, "decision_ref"),
+    ownerOutcome: { id: requiredString(owner.id, "owner_outcome.id"), epoch: positiveInteger(owner.epoch, "owner_outcome.epoch"), sha256: ownerSha },
+    exactText, exactTextSha256,
+    priority: exactEnum(root.priority ?? "NORMAL", ["URGENT", "HIGH", "NORMAL", "LOW"] as const, "priority"),
+  };
 }
 
 export function parseCapabilityReceiptComment(body: string): CapabilityReceiptBody {
@@ -305,6 +355,53 @@ function ingestGitHubSupervisionCandidateFromEvents(
 ): StoredEvent[] {
   if (!policy) throw new Error("GitHub supervisory receipt policy is not configured.");
   assertAuthorizedWriter(candidate, policy);
+  if (candidate.body.startsWith(ownerDirectionReceiptCommentPrefix)) {
+    if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.decisionIssueNumber) {
+      throw new Error("Owner direction receipt arrived outside the configured private decision channel.");
+    }
+    if (!policy.ownerDirectionWriterLogins?.includes(candidate.authorLogin.toLowerCase())) {
+      throw new Error("GitHub writer is not authorized for owner directions.");
+    }
+    const direction = parseOwnerDirectionReceiptComment(candidate.body);
+    const currentOutcome = [...events].reverse().find((event) => event.worker === direction.worker && event.data.type === "owner_outcome_recorded")?.data;
+    if (currentOutcome?.type !== "owner_outcome_recorded"
+      || currentOutcome.owner_outcome_id !== direction.ownerOutcome.id
+      || currentOutcome.epoch !== direction.ownerOutcome.epoch
+      || currentOutcome.owner_outcome_sha256 !== direction.ownerOutcome.sha256) {
+      throw new Error("Owner direction receipt is stale against the current owner outcome.");
+    }
+    const priorReceipt = events.find((event) => event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === ownerDirectionReceiptSummary
+      && event.data.refs.includes(`github_comment:${candidate.immutableUrl}`));
+    if (priorReceipt?.data.type === "evidence_receipt_recorded") {
+      if (priorReceipt.data.refs.includes(`exact_text_sha256:${direction.exactTextSha256}`)) return [];
+      throw new Error("An immutable GitHub owner-direction identity was re-presented with changed content.");
+    }
+    const latestDirection = [...events].reverse().find((event) => event.worker === direction.worker
+      && event.data.type === "owner_message_recorded" && event.data.message_kind === "DIRECTION")?.data;
+    const suffix = sha256(candidate.immutableUrl).slice(0, 32);
+    const recorded = recordOwnerMessage(store, {
+      worker: direction.worker, missionId: "mission-control-live", kind: "DIRECTION", body: direction.exactText,
+      priority: direction.priority, scope: { kind: "WORKER", id: direction.worker },
+      supersedesDirectionId: latestDirection?.type === "owner_message_recorded" ? latestDirection.direction_id : null,
+      ownerOutcomeId: direction.ownerOutcome.id, ownerOutcomeSha256: direction.ownerOutcome.sha256, transport: "REMOTE_POLL",
+      now: candidate.createdAt, messageId: `message:github-owner:${suffix}`, directionId: `direction:github-owner:${suffix}`,
+      deliveryId: `delivery:github-owner:${suffix}`, ownerEventId: `owner-message:github-owner:${suffix}`,
+      deliveryEventId: `outbound-queued:github-owner:${suffix}`, supersedeDeliveryEventId: `outbound-superseded:github-owner:${suffix}`,
+    }, githubOwnerAuthority, events);
+    const observed = [...events, ...recorded.appended];
+    const provenance = store.append(evidenceEnvelope({
+      worker: direction.worker, receiptId: `github-owner-direction:${candidate.commentId}`, producer: githubReceiptCollector,
+      summary: ownerDirectionReceiptSummary, occurredAt: candidate.createdAt, verified: true,
+      refs: [
+        `github_comment:${candidate.immutableUrl}`, `decision_ref:${direction.decisionRef}`,
+        `owner_outcome:${direction.ownerOutcome.id}`, `owner_outcome_epoch:${direction.ownerOutcome.epoch}`,
+        `owner_outcome_sha256:${direction.ownerOutcome.sha256}`, `exact_text_sha256:${direction.exactTextSha256}`,
+        `direction:${recorded.directionId}`, `message:${recorded.messageId}`, "semantic_authority:OWNER",
+      ],
+    }), ingestedAt, githubReceiptCollector, observed);
+    return [...recorded.appended, provenance];
+  }
   if (candidate.body.startsWith(canonicalDecisionCommentPrefix)) {
     if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase() || candidate.issueNumber !== policy.decisionIssueNumber) throw new Error("Decision receipt arrived outside the configured GitHub decision channel.");
     const parsedDecision = parseCanonicalDecisionComment(candidate.body);
@@ -848,6 +945,7 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
       for (const value of comments) {
         const comment = record(value, "GitHub issue comment");
         if (typeof comment.body !== "string" || (!comment.body.startsWith(canonicalDecisionCommentPrefix)
+          && !comment.body.startsWith(ownerDirectionReceiptCommentPrefix)
           && !comment.body.startsWith(capabilityReceiptCommentPrefix)
           && !comment.body.startsWith(stageReceiptCommentPrefix)
           && !comment.body.startsWith(WORK_CLOUD_EXECUTION_RECEIPT_PREFIX))) continue;
@@ -908,7 +1006,7 @@ function reconstructGitHubReconciliationState(events: StoredEvent[], policy: Git
       continue;
     }
     if (event.data.type !== "evidence_receipt_recorded"
-      || ![capabilityVerifiedSummary, stageLivenessSummary].includes(event.data.summary)) continue;
+      || ![capabilityVerifiedSummary, stageLivenessSummary, ownerDirectionReceiptSummary].includes(event.data.summary)) continue;
     for (const ref of event.data.refs) {
       if (ref.startsWith("github_comment:")) accept(ref.slice("github_comment:".length), event.occurredAt);
     }
