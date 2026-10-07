@@ -25,7 +25,7 @@
       "kind": "chat",
       "relation": "SAME_AGENT"
     },
-    "obligation_id": "approval-survives-transport",
+    "obligation_id": "minimize-owner-choice",
     "non_substitute": "failed transport treated as consuming approval"
   }
 }

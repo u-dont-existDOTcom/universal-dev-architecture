@@ -25,7 +25,7 @@
       "kind": "chat",
       "relation": "SAME_AGENT"
     },
-    "obligation_id": "simpler-proof-insufficient",
+    "obligation_id": "rebind-before-author-launch-accept",
     "non_substitute": "extra reviewer required merely because it seems safer"
   }
 }

@@ -25,7 +25,7 @@
       "kind": "chat",
       "relation": "SAME_AGENT"
     },
-    "obligation_id": "metadata-not-meaning",
+    "obligation_id": "plain-language-first",
     "non_substitute": "bare identifier chain offered as an explanation"
   }
 }

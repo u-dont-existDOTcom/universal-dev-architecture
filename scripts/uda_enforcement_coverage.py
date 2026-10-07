@@ -312,13 +312,28 @@ def validate(root: Path | str) -> list[str]:
                                 for selector in record["source"].get("selectors", [])):
                             errors.append(prefix + "obligation_map sentence absent from record selectors")
                         binding = (rid, oid)
-                        if binding in mapped_obligations:
-                            errors.append(prefix + "duplicate obligation_map record obligation")
                         mapped_obligations.add(binding)
                     expected = {(rid, ob.get("obligation_id")) for rid in mapped
                                 for ob in by_record.get(rid, {}).get("obligations", [])}
                     if expected - mapped_obligations:
                         errors.append(prefix + "obligation_map omits record obligations")
+                    if disposition == "STRUCTURED_ENFORCED":
+                        # Several exact clauses may form one coherent behavior.
+                        # Removing one clause must still fail even if that
+                        # behavior retains other mappings.
+                        for rid in mapped:
+                            record = by_record.get(rid, {})
+                            clauses = [item["sentence"] for item in obligation_map
+                                       if item.get("record") == rid
+                                       and isinstance(item.get("sentence"), str)]
+                            for selector in record.get("source", {}).get("selectors", []):
+                                if selector.get("kind") != "exact_text":
+                                    continue
+                                remainder = selector.get("text", "")
+                                for clause in sorted(clauses, key=len, reverse=True):
+                                    remainder = remainder.replace(clause, "")
+                                if remainder.strip():
+                                    errors.append(prefix + "obligation_map omits selector sentence: " + rid)
             for rid in mapped:
                 claims[rid].append(eid)
                 record = by_record.get(rid)

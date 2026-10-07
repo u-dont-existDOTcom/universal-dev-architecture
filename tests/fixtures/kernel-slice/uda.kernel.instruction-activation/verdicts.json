@@ -25,7 +25,7 @@
       "kind": "chat",
       "relation": "SAME_AGENT"
     },
-    "obligation_id": "read-current-patterns",
+    "obligation_id": "open-index-every-task",
     "non_substitute": "index entries treated as loaded pattern content"
   }
 }

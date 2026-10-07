@@ -25,7 +25,7 @@
       "kind": "chat",
       "relation": "SAME_AGENT"
     },
-    "obligation_id": "chat-summary-of-file",
+    "obligation_id": "file-for-long-reusable-output",
     "non_substitute": "file created without a usable handoff"
   }
 }

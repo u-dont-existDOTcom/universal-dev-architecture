@@ -5,7 +5,7 @@
   "records": [
     {
       "rule_id": "uda.final.timestamp",
-      "revision": 5,
+      "revision": 6,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -80,12 +80,22 @@
       "obligations": [
         {
           "obligation_id": "final-first-line-timestamp",
-          "required_behavior": "Begin the literal final with date, time and timezone or UTC offset.",
+          "required_behavior": "Deliver and literally check the final first-line timestamp on every turn.",
           "due_phase": "final-delivery",
           "destination": "owner-visible-final",
-          "acceptance_evidence": "The literal first line supplies the required date/time/zone.",
+          "acceptance_evidence": "The delivered final opens with the second current-turn date/time/zone, including trivial or brief answers. Inspect the actual final after rewrites; prepend that reading without another read if needed. A missing stamp fails regardless of correct content.",
           "non_substitutes": [
-            "timestamp elsewhere in the answer"
+            "timestamp elsewhere in the answer",
+            "treating the stamp as a task-dependent suggestion",
+            "timestamp only in commentary",
+            "timestamp only in hidden reasoning",
+            "reusing the first intermediate timestamp",
+            "checking an earlier draft",
+            "repair by taking an extra clock reading",
+            "omitting the stamp on a one-line answer",
+            "brevity used to waive timestamp delivery",
+            "correct content treated as compensating for an absent stamp",
+            "opening with the first reading"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
@@ -96,172 +106,12 @@
         },
         {
           "obligation_id": "final-elapsed-time",
-          "required_behavior": "Report the total elapsed time for the current turn.",
+          "required_behavior": "Report total elapsed time from this turn’s readings.",
           "due_phase": "final-delivery",
           "destination": "owner-visible-final",
           "acceptance_evidence": "Both current-turn clock readings and their difference agree with the elapsed time reported in the final; verified unavailable clocks are honestly disclosed.",
           "non_substitutes": [
             "first-line timestamp alone"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "final-boundary-contract",
-          "required_behavior": "Treat timestamp delivery as a pre-answer contract on every governed turn.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "Final delivery is admitted only after checking the actual answer.",
-          "non_substitutes": [
-            "treating the stamp as a task-dependent suggestion"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "final-surface-timestamp",
-          "required_behavior": "Put the timestamp in the final content delivered to the user.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "The delivered final itself contains the timestamp.",
-          "non_substitutes": [
-            "timestamp only in commentary"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "intermediate-is-not-final",
-          "required_behavior": "Do not discharge final timestamp delivery in an intermediate surface.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "Final content carries the stamp after intermediate work.",
-          "non_substitutes": [
-            "timestamp only in hidden reasoning"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "second-reading-in-final",
-          "required_behavior": "Carry the second current-turn clock reading into the final.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "The final first line agrees with the second reading.",
-          "non_substitutes": [
-            "reusing the first intermediate timestamp"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "literal-final-check",
-          "required_behavior": "Inspect the literal outgoing first line before finalizing.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "An output check examined date, time and zone on the actual final.",
-          "non_substitutes": [
-            "checking an earlier draft"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "prepend-without-reread",
-          "required_behavior": "Repair a missing first-line stamp with the second reading without another read.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "The repaired candidate uses the existing second reading.",
-          "non_substitutes": [
-            "repair by taking an extra clock reading"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "trivial-turns-included",
-          "required_behavior": "Apply the final timestamp invariant to trivial and follow-up turns too.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "The actual brief answer still carries its current-turn stamp.",
-          "non_substitutes": [
-            "omitting the stamp on a one-line answer"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "no-brevity-waiver",
-          "required_behavior": "Do not waive the final invariant for brevity, low effort or tool avoidance.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "Brief final delivery preserves the timestamp requirement.",
-          "non_substitutes": [
-            "brevity used to waive timestamp delivery"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "classify-missing-stamp-failure",
-          "required_behavior": "Classify a missing final first-line timestamp as instruction failure despite correct task content.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "Admission blocks the otherwise correct unstamped answer.",
-          "non_substitutes": [
-            "correct content treated as compensating for an absent stamp"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "final-opens-with-second-reading",
-          "required_behavior": "Open the final answer with the second current-turn clock reading.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "The literal first line agrees with the second current-turn reading.",
-          "non_substitutes": [
-            "opening with the first reading"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
@@ -279,7 +129,7 @@
     },
     {
       "rule_id": "uda.bootstrap.live-root",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -326,43 +176,13 @@
       "obligations": [
         {
           "obligation_id": "live-root-refetch",
-          "required_behavior": "Retrieve the live default root in this turn before reasoning, composing or executing.",
+          "required_behavior": "Re-fetch the live default-branch root before substantive work each turn.",
           "due_phase": "retrieval",
           "destination": "current reasoning/execution turn",
-          "acceptance_evidence": "Current-turn live default-root retrieval precedes substantive work.",
+          "acceptance_evidence": "Current-turn live retrieval precedes reasoning, composition, execution and answering. Only tool discovery, current-clock checks and retrieval itself may precede it; prior reads, cached roots and remembered activation do not qualify.",
           "non_substitutes": [
-            "cached root"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "only-bootstrap-prerequisites",
-          "required_behavior": "Limit actions before retrieval to discovery, current clock checks and bootstrap retrieval.",
-          "due_phase": "retrieval",
-          "destination": "current reasoning/execution turn",
-          "acceptance_evidence": "Pre-retrieval actions are only the permitted prerequisites.",
-          "non_substitutes": [
-            "artifact composition before bootstrap"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "no-prior-activation-substitute",
-          "required_behavior": "Reject prior fetches, remembered summaries and earlier reasoning as current activation.",
-          "due_phase": "retrieval",
-          "destination": "current reasoning/execution turn",
-          "acceptance_evidence": "Current-turn retrieval evidence establishes activation.",
-          "non_substitutes": [
+            "cached root",
+            "artifact composition before bootstrap",
             "prior-turn root read"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
@@ -946,7 +766,7 @@
     },
     {
       "rule_id": "uda.kernel.clock-cadence",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -1008,27 +828,11 @@
       },
       "obligations": [
         {
-          "obligation_id": "two-read-cadence",
-          "required_behavior": "Use exactly the two prescribed readings, subject only to the stated failed/nonlater-read retry.",
-          "due_phase": "final-delivery",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "Clock-use evidence records prescribed readings and any permitted retry.",
-          "non_substitutes": [
-            "an extra mid-task clock read"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
           "obligation_id": "first-reading",
-          "required_behavior": "Use visible message sent time, or read as the first turn action.",
+          "required_behavior": "Use visible sent time or a clock read as the first turn action.",
           "due_phase": "retrieval",
           "destination": "current reasoning/execution turn",
-          "acceptance_evidence": "Evidence identifies the visible sent time or first-action reading.",
+          "acceptance_evidence": "Evidence identifies the visible message sent time or first-action reading, with honest capture provenance.",
           "non_substitutes": [
             "a later capture presented as message sent time"
           ],
@@ -1040,108 +844,19 @@
           "independent_review_required": false
         },
         {
-          "obligation_id": "second-reading",
-          "required_behavior": "Read immediately before writing the final.",
+          "obligation_id": "two-read-cadence",
+          "required_behavior": "Use and report the prescribed current-turn clock cadence.",
           "due_phase": "final-delivery",
           "destination": "owner-visible-final",
-          "acceptance_evidence": "The final-boundary reading precedes final composition.",
+          "acceptance_evidence": "Exactly two prescribed readings; second immediately before final writing. Use shell, current-time tool, then code clock in order; after a failed/nonlater read use the next source once. No mid-task reads or clock comparisons. Final provenance is current and honest; disclose if no clock answers.",
           "non_substitutes": [
-            "an earlier task-time reading used as the final reading"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "clock-priority-and-retry",
-          "required_behavior": "Use the ordered available clock sources for the prescribed readings.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "Clock-source availability establishes use of the first available source in the required order.",
-          "non_substitutes": [
-            "clock shopping for a preferred timestamp"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "no-midtask-comparison",
-          "required_behavior": "Do not compare clocks or read mid-task.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "The action evidence contains no cross-clock comparison or mid-task read.",
-          "non_substitutes": [
-            "a mid-task comparison of clock sources"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "current-turn-provenance",
-          "required_behavior": "Do not reuse a prior-turn timestamp.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "The final stamp is bound to this turn’s reading.",
-          "non_substitutes": [
-            "prior-turn timestamp reuse"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "unavailable-clock-disclosure",
-          "required_behavior": "Disclose unavailable clocks instead of inventing time.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "The final discloses verified clock unavailability when all clock routes fail.",
-          "non_substitutes": [
-            "fabricated time presented as a reading"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "single-failed-read-retry",
-          "required_behavior": "If a prescribed read fails or is not later, use the next source once.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "The read results establish any failure or nonlater reading and no more than one permitted retry.",
-          "non_substitutes": [
-            "repeated retries after the one permitted next read"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "honest-capture-provenance",
-          "required_behavior": "Do not present capture time as hidden provider sent time.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "Timestamp provenance labels a captured clock reading honestly.",
-          "non_substitutes": [
+            "an extra mid-task clock read",
+            "an earlier task-time reading used as the final reading",
+            "clock shopping for a preferred timestamp",
+            "a mid-task comparison of clock sources",
+            "prior-turn timestamp reuse",
+            "fabricated time presented as a reading",
+            "repeated retries after the one permitted next read",
             "captured time claimed as hidden provider sent time"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
@@ -1160,7 +875,7 @@
     },
     {
       "rule_id": "uda.kernel.output-budget",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -1195,27 +910,12 @@
       "obligations": [
         {
           "obligation_id": "file-for-long-reusable-output",
-          "required_behavior": "Put reusable output over approximately 8,000 characters in a file for every recipient.",
+          "required_behavior": "Deliver reusable output over ~8,000 characters in a file with a chat summary.",
           "due_phase": "handoff",
-          "destination": "intended-recipient-reusable-file",
-          "acceptance_evidence": "Long reusable content is materialized in a usable file delivered to its recipient.",
+          "destination": "recipient-file-and-chat-summary",
+          "acceptance_evidence": "For any recipient, materialize and deliver the usable reusable file; chat contains its summary.",
           "non_substitutes": [
-            "long reusable payload pasted into chat"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "chat-summary-of-file",
-          "required_behavior": "Give chat a concise summary of the file and apply the named delivery pattern.",
-          "due_phase": "handoff",
-          "destination": "chat-visible-summary",
-          "acceptance_evidence": "Chat contains the summary and the recipient can use the materialized output.",
-          "non_substitutes": [
+            "long reusable payload pasted into chat",
             "file created without a usable handoff"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
@@ -1234,7 +934,7 @@
     },
     {
       "rule_id": "uda.kernel.continuation",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -1284,92 +984,17 @@
       },
       "obligations": [
         {
-          "obligation_id": "apply-stop-admission",
-          "required_behavior": "Apply the current continuation/stop admission pattern before final delivery.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "Stop admission is checked against the literal current final.",
-          "non_substitutes": [
-            "only reading the rule without stop admission"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
           "obligation_id": "execute-open-frontier",
-          "required_behavior": "Execute the safe authorized next action now for an OPEN outcome.",
+          "required_behavior": "Apply stop admission and execute safe authorized work before final delivery.",
           "due_phase": "final-delivery",
           "destination": "owner-visible-final",
-          "acceptance_evidence": "Action evidence shows execution or an actual blocking boundary.",
+          "acceptance_evidence": "Check the actual final against parent authority and the current frontier. OPEN with an executable next action requires execution now; child scope/lease cannot cancel parent authority. Stop only with evidenced boundaries, after independent work, preserving owner restrictions and real access/spending/privacy/platform/irreversible gates.",
           "non_substitutes": [
-            "diagnostic summary instead of executable work"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "preserve-parent-authority",
-          "required_behavior": "Do not let self-authored scope or a completed lease cancel parent implementation authority.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "Parent authority and remaining work are preserved at stop admission.",
-          "non_substitutes": [
-            "child lease completion treated as root completion"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "evidenced-stop-boundary",
-          "required_behavior": "Stop only at an evidenced boundary in the actual final.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "The final stopping claim matches the current executable frontier.",
-          "non_substitutes": [
-            "a promise to continue later"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "finish-independent-work",
-          "required_behavior": "Finish independent authorized work before stopping.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "Independent executable work is completed before final delivery.",
-          "non_substitutes": [
-            "one blocked dependency used to stop all work"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "preserve-real-gates",
-          "required_behavior": "Preserve owner restrictions and real access, spending, privacy, platform and irreversible-action gates.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "The final and action evidence preserve all applicable restrictions.",
-          "non_substitutes": [
+            "only reading the rule without stop admission",
+            "diagnostic summary instead of executable work",
+            "child lease completion treated as root completion",
+            "a promise to continue later",
+            "one blocked dependency used to stop all work",
             "continuation used to bypass a real gate"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
@@ -1388,7 +1013,7 @@
     },
     {
       "rule_id": "uda.kernel.instruction-activation",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -1447,59 +1072,14 @@
       "obligations": [
         {
           "obligation_id": "open-index-every-task",
-          "required_behavior": "Open the current lesson index before every task.",
+          "required_behavior": "Load the index and current matching patterns under the activation lifecycle.",
           "due_phase": "retrieval",
           "destination": "current reasoning/execution turn",
-          "acceptance_evidence": "Index retrieval precedes handling even a brief task.",
+          "acceptance_evidence": "Before any task, including remembering a preference, retrieve the index, select by actual triggers and read current patterns. Apply the task-time activation pattern rather than a second ledger.",
           "non_substitutes": [
-            "brief task used to skip the index"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "select-matching-triggers",
-          "required_behavior": "Select entries by matching their task triggers.",
-          "due_phase": "retrieval",
-          "destination": "current reasoning/execution turn",
-          "acceptance_evidence": "Selection identifies matched triggers on declared task facts.",
-          "non_substitutes": [
-            "loading unrelated rules as a substitute for relevant selection"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "read-current-patterns",
-          "required_behavior": "Read the selected current patterns before handling the task.",
-          "due_phase": "retrieval",
-          "destination": "current reasoning/execution turn",
-          "acceptance_evidence": "Current selected pattern content reaches the actor.",
-          "non_substitutes": [
-            "index entries treated as loaded pattern content"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "activation-owner",
-          "required_behavior": "Use the canonical activation lifecycle.",
-          "due_phase": "retrieval",
-          "destination": "current reasoning/execution turn",
-          "acceptance_evidence": "Activation and contract evidence follow the current pattern.",
-          "non_substitutes": [
+            "brief task used to skip the index",
+            "loading unrelated rules as a substitute for relevant selection",
+            "index entries treated as loaded pattern content",
             "a second incompatible activation ledger"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
@@ -1511,66 +1091,21 @@
         },
         {
           "obligation_id": "resolve-covered-dependencies",
-          "required_behavior": "Resolve graph-covered dependencies with the graph tooling.",
+          "required_behavior": "Resolve graph-covered dependencies and retain authoritative index/prose routing.",
           "due_phase": "retrieval",
           "destination": "current reasoning/execution turn",
-          "acceptance_evidence": "Declared graph dependency closure is resolved.",
+          "acceptance_evidence": "Resolve declared graph closure via the rule graph/script; canonical prose remains authoritative. Route applicable unmapped rules and shopping through the lesson index.",
           "non_substitutes": [
-            "hand-selected rule list without declared dependency closure"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "canonical-prose-authority",
-          "required_behavior": "Keep canonical prose authoritative over routing metadata.",
-          "due_phase": "retrieval",
-          "destination": "current reasoning/execution turn",
-          "acceptance_evidence": "The decision follows canonical meaning and current authority.",
-          "non_substitutes": [
-            "graph metadata used to override prose"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "unmapped-index-routing",
-          "required_behavior": "Keep unmapped rules reachable through index routing.",
-          "due_phase": "retrieval",
-          "destination": "current reasoning/execution turn",
-          "acceptance_evidence": "Applicable unmapped patterns are selected through their index triggers.",
-          "non_substitutes": [
-            "graph absence treated as nonapplicability"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "shopping-index-routing",
-          "required_behavior": "Route shopping tasks through the current lesson index.",
-          "due_phase": "retrieval",
-          "destination": "current reasoning/execution turn",
-          "acceptance_evidence": "A shopping task follows its matched index route.",
-          "non_substitutes": [
+            "hand-selected rule list without declared dependency closure",
+            "graph metadata used to override prose",
+            "graph absence treated as nonapplicability",
             "a shopping task routed from memory"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
           "enforcement": "semantic",
           "mechanical_check": null,
-          "not_applicable_allowed": true,
+          "not_applicable_allowed": false,
           "independent_review_required": false
         }
       ],
@@ -1582,7 +1117,7 @@
     },
     {
       "rule_id": "uda.kernel.instruction-maintenance",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -1633,59 +1168,14 @@
       "obligations": [
         {
           "obligation_id": "maintenance-pattern-owner",
-          "required_behavior": "Apply the instruction composition pattern during maintenance.",
+          "required_behavior": "Maintain portable instruction ownership through patterns and index entries.",
           "due_phase": "persistence",
-          "destination": "instruction artifact",
-          "acceptance_evidence": "The maintenance diff preserves normative ownership and scope.",
+          "destination": "instruction-artifact",
+          "acceptance_evidence": "Apply the composition pattern, preserving normative ownership and scope. Task-specific rules live in patterns reached through the index; add both pattern and entry for a new rule, never a root line.",
           "non_substitutes": [
-            "lexical deduplication without ownership preservation"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "rules-in-patterns",
-          "required_behavior": "Put task-specific rules in patterns.",
-          "due_phase": "persistence",
-          "destination": "instruction artifact",
-          "acceptance_evidence": "The new task-specific rule is in its owning pattern.",
-          "non_substitutes": [
-            "task-specific requirement added at the root"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "rules-index-reachability",
-          "required_behavior": "Keep task-specific patterns reachable from the index.",
-          "due_phase": "persistence",
-          "destination": "instruction artifact",
-          "acceptance_evidence": "The pattern has a matching index entry.",
-          "non_substitutes": [
-            "orphan pattern without index reachability"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "new-rule-not-root",
-          "required_behavior": "Add a pattern and index entry for a new task rule; preserve the root.",
-          "due_phase": "persistence",
-          "destination": "instruction artifact",
-          "acceptance_evidence": "The diff adds the rule at the pattern/index boundary.",
-          "non_substitutes": [
+            "lexical deduplication without ownership preservation",
+            "task-specific requirement added at the root",
+            "orphan pattern without index reachability",
             "adding a root line for a task-specific rule"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
@@ -1704,7 +1194,7 @@
     },
     {
       "rule_id": "uda.kernel.coordination",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -1755,91 +1245,16 @@
       "obligations": [
         {
           "obligation_id": "choose-coordinated-route",
-          "required_behavior": "Choose the better coordinated authorized approach without routine owner mode selection.",
+          "required_behavior": "Choose the better-coordinated safe route within the same owner outcome.",
           "due_phase": "pre-action",
           "destination": "authorized execution boundary",
-          "acceptance_evidence": "Approach selection and coordination fit the same outcome and constraints.",
+          "acceptance_evidence": "Use isolated workspaces, durable plan/recovery, separable decision-relevant delegation plus independent review, and serialized shared writes. Do not ask the owner to select routine modes or expand authority; substantive owner decisions remain theirs.",
           "non_substitutes": [
-            "asking the owner to pick a routine execution mode"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "isolate-workspaces",
-          "required_behavior": "Use isolated workspaces under the section’s multiple-safe-approaches coordination trigger.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "Workspace isolation protects concurrent changes.",
-          "non_substitutes": [
-            "concurrent writers sharing mutable state"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "durable-plan-recovery",
-          "required_behavior": "Preserve a durable plan and recovery ledger.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "Task recovery can reconstruct the current frontier.",
-          "non_substitutes": [
-            "plan present only in disposable chat"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "separable-delegation-review",
-          "required_behavior": "Delegate safely separable decision-relevant work with independent review.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "Delegation/review evidence identifies separation and decision relevance, or its absence.",
-          "non_substitutes": [
-            "delegation presented as its own independent review"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "serialize-shared-state",
-          "required_behavior": "Serialize changes to shared mutable state.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "Mutation ordering protects the shared resource.",
-          "non_substitutes": [
-            "parallel writes to the same mutable resource"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "no-coordination-authority-expansion",
-          "required_behavior": "Coordination permission neither broadens authority nor replaces substantive owner decisions.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "The chosen route stays within owner authority.",
-          "non_substitutes": [
+            "asking the owner to pick a routine execution mode",
+            "concurrent writers sharing mutable state",
+            "plan present only in disposable chat",
+            "delegation presented as its own independent review",
+            "parallel writes to the same mutable resource",
             "coordination used to invent additional authority"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
@@ -1858,7 +1273,7 @@
     },
     {
       "rule_id": "uda.kernel.owner-input-continuation",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -1900,60 +1315,15 @@
       },
       "obligations": [
         {
-          "obligation_id": "owner-input-is-input",
-          "required_behavior": "Treat owner answers/corrections/uploads/clarifications as active task input, not completion.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "The task outcome remains open if required work remains.",
-          "non_substitutes": [
-            "owner correction acknowledged as task completion"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
           "obligation_id": "resume-after-input",
-          "required_behavior": "Incorporate owner input and automatically execute the next safe in-scope action while unfinished.",
+          "required_behavior": "Incorporate owner input and continue the determined safe in-scope action.",
           "due_phase": "pre-action",
           "destination": "authorized execution boundary",
-          "acceptance_evidence": "Action evidence follows incorporation of the input.",
+          "acceptance_evidence": "Answers, corrections, uploads and clarifications are task input. While unfinished, execute the next determined step without acknowledgment-only stops or routine questions. Pause only for a genuine owner/new-authority/risk/access/permission/credential/spend/publication boundary or explicit stop.",
           "non_substitutes": [
-            "acknowledgment without resumed action"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "no-determined-next-step-question",
-          "required_behavior": "Do not ask what comes next or return only acknowledgment when the next step is already determined.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "The known next step executes without routine owner prompting.",
-          "non_substitutes": [
-            "asking the owner what to do next despite a determined frontier"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "genuine-pause-only",
-          "required_behavior": "Pause only at a genuine owner/authority/risk/access/spending/publication gate or explicit stop.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "The pause claim has concrete applicable boundary evidence.",
-          "non_substitutes": [
+            "owner correction acknowledged as task completion",
+            "acknowledgment without resumed action",
+            "asking the owner what to do next despite a determined frontier",
             "inventing a permission request for routine work"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
@@ -1972,7 +1342,7 @@
     },
     {
       "rule_id": "uda.kernel.work-permissions",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -2005,27 +1375,12 @@
       "obligations": [
         {
           "obligation_id": "automatic-task-access-review",
-          "required_behavior": "Select authorized task-scoped access and the automatic reviewer without routine owner permission selection.",
+          "required_behavior": "Work selects authorized task access and automatic review without routine permission questions.",
           "due_phase": "pre-action",
           "destination": "authorized execution boundary",
-          "acceptance_evidence": "Authorized task access and automatic review are selected by Work.",
+          "acceptance_evidence": "Work selects scoped access/reviewer; it gains no semantic/spending/publication/representation/destructive/self-approval authority.",
           "non_substitutes": [
-            "asking the owner to choose routine permissions"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "no-added-authority",
-          "required_behavior": "Preserve existing semantic, spending, publication, representation, destructive and self-approval limits.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "The action does not exceed the permission scope.",
-          "non_substitutes": [
+            "asking the owner to choose routine permissions",
             "automatic review treated as self-approval authority"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
@@ -2044,7 +1399,7 @@
     },
     {
       "rule_id": "uda.kernel.owner-interaction",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -2110,156 +1465,36 @@
       },
       "obligations": [
         {
-          "obligation_id": "resolve-engineering-blockers",
-          "required_behavior": "Resolve routine engineering blockers; ask only for material tradeoffs or a required human gate with consequences and recommendation.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "Self-remediation precedes a minimal justified owner question.",
-          "non_substitutes": [
-            "routine engineering recovery assigned to the owner"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
           "obligation_id": "minimize-owner-choice",
-          "required_behavior": "Minimize routine owner choice during execution.",
+          "required_behavior": "Resolve engineering details and preserve valid authorization across retries.",
           "due_phase": "pre-action",
           "destination": "authorized execution boundary",
-          "acceptance_evidence": "The action resolves routine subordinate choices autonomously.",
+          "acceptance_evidence": "Resolve blockers and authorized subordinate choices autonomously. Same destination/data/scope/consequence approval survives retries, resumed execution and alternate transport; ask again only for material changes or a platform-required fresh gesture.",
           "non_substitutes": [
-            "routine execution options sent to the owner"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "resolve-authorized-details",
-          "required_behavior": "Resolve routine details and authorized subordinate actions without asking.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "Existing authority covers the subordinate action and it executes.",
-          "non_substitutes": [
-            "reconfirmation of an already-authorized detail"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "approval-survives-transport",
-          "required_behavior": "Retain confirmation for unchanged destination, data boundary, scope and consequence across retries and routes.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "Retry evidence preserves the original valid confirmation.",
-          "non_substitutes": [
-            "failed transport treated as consuming approval"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "fresh-approval-only-for-change",
-          "required_behavior": "Ask again only for material changes in those facts or a required fresh platform gesture.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "A repeated question identifies the changed fact or required gesture.",
-          "non_substitutes": [
+            "routine engineering recovery assigned to the owner",
+            "routine execution options sent to the owner",
+            "reconfirmation of an already-authorized detail",
+            "failed transport treated as consuming approval",
             "retry alone used to demand a new confirmation"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
           "enforcement": "semantic",
           "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "independent-preparation",
-          "required_behavior": "Complete independent preparation before the human gate.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "Independent work is complete before the owner must act.",
-          "non_substitutes": [
-            "asking before independent preparation is ready"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
+          "not_applicable_allowed": false,
           "independent_review_required": false
         },
         {
           "obligation_id": "consolidate-confirmations",
-          "required_behavior": "Consolidate exact dependent actions into the fewest permitted confirmations.",
+          "required_behavior": "Prepare a concrete minimal owner question at a genuine decision or human gate.",
           "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "The owner receives a concrete consolidated action set.",
+          "destination": "owner-visible-message",
+          "acceptance_evidence": "Finish independent preparation; consolidate dependent actions into the fewest permitted confirmations. State the material tradeoff with plain consequences, risk and mandatory gate reason; recommend a default, then resume automatically after the answer.",
           "non_substitutes": [
-            "separate routine confirmations for the same gate"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "explain-mandatory-risk",
-          "required_behavior": "Explain the downside and why the human gate is mandatory.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "The question contains concrete consequences and the gate authority.",
-          "non_substitutes": [
-            "an unexplained permission prompt"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "recommended-default",
-          "required_behavior": "Give a recommended default for the genuine choice.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "The owner question states a justified default.",
-          "non_substitutes": [
-            "opaque alternatives without recommendation"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "resume-after-human-answer",
-          "required_behavior": "Resume automatically when the human answer clears the gate.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "The cleared dependent action executes after the answer.",
-          "non_substitutes": [
+            "asking before independent preparation is ready",
+            "separate routine confirmations for the same gate",
+            "an unexplained permission prompt",
+            "opaque alternatives without recommendation",
             "cleared gate followed only by acknowledgment"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
@@ -2278,7 +1513,7 @@
     },
     {
       "rule_id": "uda.kernel.target-recovery",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -2333,107 +1568,17 @@
       "obligations": [
         {
           "obligation_id": "identity-and-topology-before-escalation",
-          "required_behavior": "Recover semantic target identity and authorized topology before declaring inaccessible or requesting target setup.",
+          "required_behavior": "Recover target identity and authorized routes before an accessibility claim or request.",
           "due_phase": "pre-action",
-          "destination": "target accessibility claim or recovery request",
-          "acceptance_evidence": "Target identity/topology evidence precedes the accessibility claim.",
+          "destination": "owner-visible-message",
+          "acceptance_evidence": "Scope connector failures to their route. Inspect connected endpoints, SSH/local/task/process/history mappings; bounded hostname/exact-path probes prove the same target. Use verified equivalent routes; explain meaning, never ask recognition of opaque IDs. Escalate only after plausible routes are exhausted or a human-only gate remains.",
           "non_substitutes": [
-            "opaque target handed to the owner after one failure"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "route-failure-scope",
-          "required_behavior": "Treat connector failure as route-specific rather than target-wide.",
-          "due_phase": "pre-action",
-          "destination": "target accessibility claim or recovery request",
-          "acceptance_evidence": "The failure claim is limited to the attempted route.",
-          "non_substitutes": [
-            "one route failure called target unavailability"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "inspect-endpoints-mappings",
-          "required_behavior": "Inspect connected endpoints and task-relevant local mappings, state, metadata and authorized history before escalation.",
-          "due_phase": "pre-action",
-          "destination": "target accessibility claim or recovery request",
-          "acceptance_evidence": "Current topology and task-relevant mapping inspection precede the unavailability claim.",
-          "non_substitutes": [
-            "unavailability claim without topology probes"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "equivalent-alternate-route",
-          "required_behavior": "Use an equivalent authorized alternate route when available.",
-          "due_phase": "pre-action",
-          "destination": "target accessibility claim or recovery request",
-          "acceptance_evidence": "Execution uses the verified equivalent route.",
-          "non_substitutes": [
-            "available alternate route ignored"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "no-opaque-recognition-request",
-          "required_behavior": "Do not ask the owner to recognize an opaque identifier merely after initial transport failure.",
-          "due_phase": "pre-action",
-          "destination": "target accessibility claim or recovery request",
-          "acceptance_evidence": "The handoff explains target meaning and exhausted routes.",
-          "non_substitutes": [
-            "asking the owner to identify an opaque handle"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "exhaust-routes-or-human-gate",
-          "required_behavior": "Escalate only after plausible authorized routes are exhausted or an actual human-only action remains.",
-          "due_phase": "pre-action",
-          "destination": "target accessibility claim or recovery request",
-          "acceptance_evidence": "Escalation evidence lists exhausted routes or a human-only gesture.",
-          "non_substitutes": [
-            "escalation after only the first failed route"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "bounded-identity-and-path-probes",
-          "required_behavior": "Use bounded read-only identity and exact-resource probes from an authorized healthy endpoint to prove route equivalence.",
-          "due_phase": "pre-action",
-          "destination": "target accessibility claim or recovery request",
-          "acceptance_evidence": "Probe evidence proves that the alternate route reaches the same semantic target.",
-          "non_substitutes": [
+            "opaque target handed to the owner after one failure",
+            "one route failure called target unavailability",
+            "unavailability claim without topology probes",
+            "available alternate route ignored",
+            "asking the owner to identify an opaque handle",
+            "escalation after only the first failed route",
             "route equivalence assumed without exact-resource probes"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
@@ -2452,7 +1597,7 @@
     },
     {
       "rule_id": "uda.kernel.operation-commitments",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -2495,59 +1640,14 @@
       "obligations": [
         {
           "obligation_id": "keep-promised-operation-open",
-          "required_behavior": "Keep substantive commitments open until executed, owner-superseded or evidenced invalid with disclosure.",
+          "required_behavior": "Keep explicit operation commitments open until their observable result exists.",
           "due_phase": "pre-action",
-          "destination": "active operation commitment ledger and method-switch boundary",
-          "acceptance_evidence": "Every commitment has execution, explicit supersession or disclosed invalidation evidence.",
+          "destination": "operation-commitment-ledger",
+          "acceptance_evidence": "Track execution, explicit owner supersession or disclosed evidence-based invalidation. Before switching/closing, verify each promised operation actually occurred; execute still-valid displaced steps before continuing.",
           "non_substitutes": [
-            "dropping a promised operation from the ledger"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "adjacent-work-not-completion",
-          "required_behavior": "Do not substitute analysis, planning, preparation or another method for a promised operation.",
-          "due_phase": "pre-action",
-          "destination": "active operation commitment ledger and method-switch boundary",
-          "acceptance_evidence": "Evidence demonstrates the promised operation itself.",
-          "non_substitutes": [
-            "adjacent preparation labeled as execution"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "observable-result-before-close",
-          "required_behavior": "Verify observable execution of every promise before switching methods or ending a pass.",
-          "due_phase": "pre-action",
-          "destination": "active operation commitment ledger and method-switch boundary",
-          "acceptance_evidence": "The closing/switching decision names each actual observable result.",
-          "non_substitutes": [
-            "method switch without checking outstanding commitments"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "execute-displaced-valid-step",
-          "required_behavior": "Execute a displaced still-valid promised step before continuing.",
-          "due_phase": "pre-action",
-          "destination": "active operation commitment ledger and method-switch boundary",
-          "acceptance_evidence": "The displaced promised step has actual execution evidence.",
-          "non_substitutes": [
+            "dropping a promised operation from the ledger",
+            "adjacent preparation labeled as execution",
+            "method switch without checking outstanding commitments",
             "later work silently displacing an outstanding promise"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
@@ -2566,7 +1666,7 @@
     },
     {
       "rule_id": "uda.kernel.followup-derivation",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -2657,219 +1757,21 @@
       "obligations": [
         {
           "obligation_id": "rebind-before-author-launch-accept",
-          "required_behavior": "Before consequential follow-up authoring, launch or acceptance, rebind the proposed work to the current parent owner outcome.",
+          "required_behavior": "Admit follow-ups against the current parent outcome and necessary requirements.",
           "due_phase": "reasoning",
           "destination": "current task decision",
-          "acceptance_evidence": "The follow-up derivation is bound before any author/launch/accept boundary.",
+          "acceptance_evidence": "Before authoring/launching/accepting, apply the follow-up pattern; classify OPEN/SATISFIED/SUPERSEDED/CANCELED/AUTHORITY_UNRESOLVED and exact gap. Attractive improvements stay optional. New requirements and stronger assurance declare origin, necessity, affected decision and why simpler evidence is insufficient. Unresolved inference/inherited choices stay bounded reversible experiments, never mandatory blockers or path disabling. Gate before executor handoff; faithful downstream work is insufficient.",
           "non_substitutes": [
-            "child goal authored without the parent binding"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "classify-root-and-gap",
-          "required_behavior": "Classify the current root outcome first using the declared outcome states.",
-          "due_phase": "reasoning",
-          "destination": "current task decision",
-          "acceptance_evidence": "The derivation begins with the recovered current root status.",
-          "non_substitutes": [
-            "useful improvement described as an unmet requirement"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "useful-is-not-unfinished",
-          "required_behavior": "Do not treat technical attractiveness as unfinished owner work.",
-          "due_phase": "reasoning",
-          "destination": "current task decision",
-          "acceptance_evidence": "Optional improvements remain optional under current authority.",
-          "non_substitutes": [
-            "an attractive improvement promoted to owner-required work"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "requirement-origin-necessity",
-          "required_behavior": "Declare origin and necessity for every newly mandatory requirement.",
-          "due_phase": "reasoning",
-          "destination": "current task decision",
-          "acceptance_evidence": "Each new condition has source, necessity and owner-outcome effect.",
-          "non_substitutes": [
-            "stronger requirement added without origin"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "unresolved-inference-experiment-only",
-          "required_behavior": "Keep unresolved inferred/inherited choices experiment-only; do not promote them to blockers, prerequisites, acceptance or disabling authority.",
-          "due_phase": "reasoning",
-          "destination": "current task decision",
-          "acceptance_evidence": "Unresolved conditions remain bounded reversible experiments.",
-          "non_substitutes": [
-            "unresolved inference promoted to a fail-closed blocker"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "assurance-is-accretion",
-          "required_behavior": "Treat stronger assurance affecting progress/completion as requirement accretion.",
-          "due_phase": "reasoning",
-          "destination": "current task decision",
-          "acceptance_evidence": "The raised proof standard receives an origin/necessity assessment.",
-          "non_substitutes": [
-            "extra assurance called neutral bookkeeping"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "simpler-proof-insufficient",
-          "required_behavior": "Before mandating extra controls, identify the affected current owner outcome and why simpler evidence is insufficient.",
-          "due_phase": "reasoning",
-          "destination": "current task decision",
-          "acceptance_evidence": "Decision-changing necessity is assessed against the simpler evidence standard.",
-          "non_substitutes": [
-            "extra reviewer required merely because it seems safer"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "revalidate-first-added-control",
-          "required_behavior": "When an added control degrades a working path, revalidate the first added requirement against the parent and strongest simpler alternative.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "The first control is revalidated before another compensating fix executes.",
-          "non_substitutes": [
-            "repairing around an unvalidated first blocker"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "restore-simpler-path",
-          "required_behavior": "Restore the simpler valid path when the first added requirement’s necessity is not established.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "The simpler owner-aligned working path is restored when necessity remains unestablished.",
-          "non_substitutes": [
-            "keeping the working path disabled while necessity remains unresolved"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "gate-at-authoring",
-          "required_behavior": "Run the derivation gate at authoring before handing off the framing.",
-          "due_phase": "reasoning",
-          "destination": "current task decision",
-          "acceptance_evidence": "The derivation is admitted before the executor receives the task.",
-          "non_substitutes": [
-            "deferring goal review to the executor"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "later-faithful-worker-too-late",
-          "required_behavior": "Do not substitute faithful downstream execution for pre-authoring goal admission.",
-          "due_phase": "reasoning",
-          "destination": "current task decision",
-          "acceptance_evidence": "Owner-goal validity is checked before downstream execution.",
-          "non_substitutes": [
-            "worker-to-contract success used to prove owner alignment"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "actual-runnable-method",
-          "required_behavior": "At experiment launch compare the operational owner-method contract with the actual runnable configuration.",
-          "due_phase": "pre-action",
-          "destination": "authorized execution boundary",
-          "acceptance_evidence": "The runnable configuration preserves the owner-authorized dimensions.",
-          "non_substitutes": [
-            "a second self-authored promise substituted for runnable configuration"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "apply-followup-pattern",
-          "required_behavior": "Apply the current follow-up derivation pattern before consequential authoring, launch or acceptance.",
-          "due_phase": "reasoning",
-          "destination": "current task decision",
-          "acceptance_evidence": "The current pattern was loaded and its derivation gate applied before the consequential boundary.",
-          "non_substitutes": [
-            "naming the follow-up pattern without applying its gate"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "state-exact-owner-gap",
-          "required_behavior": "State the exact remaining owner gap before deriving the follow-up.",
-          "due_phase": "reasoning",
-          "destination": "current task decision",
-          "acceptance_evidence": "The derivation identifies the exact current unmet owner result or no remaining gap.",
-          "non_substitutes": [
+            "child goal authored without the parent binding",
+            "useful improvement described as an unmet requirement",
+            "an attractive improvement promoted to owner-required work",
+            "stronger requirement added without origin",
+            "unresolved inference promoted to a fail-closed blocker",
+            "extra assurance called neutral bookkeeping",
+            "extra reviewer required merely because it seems safer",
+            "deferring goal review to the executor",
+            "worker-to-contract success used to prove owner alignment",
+            "naming the follow-up pattern without applying its gate",
             "a proxy improvement substituted for the current owner gap"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
@@ -2880,13 +1782,16 @@
           "independent_review_required": false
         },
         {
-          "obligation_id": "stop-compensating-chain",
-          "required_behavior": "Stop the compensating-fix chain when an added control degrades a working owner-aligned path.",
+          "obligation_id": "revalidate-first-added-control",
+          "required_behavior": "Revalidate the first regressing added control before compensating repairs.",
           "due_phase": "pre-action",
           "destination": "authorized execution boundary",
-          "acceptance_evidence": "No further compensating repair executes before first-requirement revalidation.",
+          "acceptance_evidence": "Stop the compensating-fix chain; compare the first added requirement to the parent and strongest materially simpler alternative. Preserve useful support and restore the simpler valid path when necessity is unestablished.",
           "non_substitutes": [
-            "another compensating fix launched before revalidation"
+            "repairing around an unvalidated first blocker",
+            "keeping the working path disabled while necessity remains unresolved",
+            "another compensating fix launched before revalidation",
+            "discarding useful support when removing the added blocker"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
@@ -2896,13 +1801,13 @@
           "independent_review_required": false
         },
         {
-          "obligation_id": "preserve-useful-support",
-          "required_behavior": "Preserve useful supporting work while restoring the simpler valid path.",
+          "obligation_id": "actual-runnable-method",
+          "required_behavior": "At launch check the owner-method contract against the actual runnable configuration.",
           "due_phase": "pre-action",
           "destination": "authorized execution boundary",
-          "acceptance_evidence": "Useful support survives first-control revalidation and path restoration.",
+          "acceptance_evidence": "Actual configuration preserves the owner-authorized method dimensions at experiment launch.",
           "non_substitutes": [
-            "discarding useful support when removing the added blocker"
+            "a second self-authored promise substituted for runnable configuration"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
@@ -2920,7 +1825,7 @@
     },
     {
       "rule_id": "uda.kernel.operational-references",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -2955,27 +1860,12 @@
       "obligations": [
         {
           "obligation_id": "plain-language-first",
-          "required_behavior": "Explain owner-facing objects in plain language before repository identifiers.",
+          "required_behavior": "Explain operational objects and relations plainly before locating metadata.",
           "due_phase": "pre-action",
-          "destination": "owner-visible message or question payload (any channel)",
-          "acceptance_evidence": "The literal outgoing owner-visible message or question payload names the function/object before locating metadata.",
+          "destination": "owner-visible-message",
+          "acceptance_evidence": "Inspect the literal owner-facing prose: object/function and substantive relations are explained first; PR/issue/branch/SHA/workflow/run/job identifiers serve only as locating metadata.",
           "non_substitutes": [
-            "opaque identifiers as the primary explanation"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "metadata-not-meaning",
-          "required_behavior": "Keep opaque references as locating metadata rather than semantic referents.",
-          "due_phase": "pre-action",
-          "destination": "owner-visible message or question payload (any channel)",
-          "acceptance_evidence": "Relations and substantive meaning are explained in ordinary prose.",
-          "non_substitutes": [
+            "opaque identifiers as the primary explanation",
             "bare identifier chain offered as an explanation"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
@@ -2994,7 +1884,7 @@
     },
     {
       "rule_id": "uda.kernel.outbound-links",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -3037,59 +1927,14 @@
       "obligations": [
         {
           "obligation_id": "exact-current-destination",
-          "required_behavior": "Immediately before delivery open the exact outbound destination, follow redirects and verify successful intended current content.",
+          "required_behavior": "Verify each exact current outbound destination immediately before surfacing it.",
           "due_phase": "pre-action",
-          "destination": "owner-visible message or question payload (any channel)",
-          "acceptance_evidence": "Current-turn exact destination evidence establishes usable current content after redirects.",
+          "destination": "owner-visible-message",
+          "acceptance_evidence": "Open the exact link, follow redirects and confirm intended current content succeeds; no error/404/dead/parked/stale page. Cached previews/snippets/remembered URLs/earlier checks do not count. Omit unverifiable links and broken recommendations.",
           "non_substitutes": [
-            "search snippets used as link verification"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "no-cached-verification",
-          "required_behavior": "Do not use cached previews, remembered URLs or earlier checks as verification.",
-          "due_phase": "pre-action",
-          "destination": "owner-visible message or question payload (any channel)",
-          "acceptance_evidence": "Verification covers the exact current destination now.",
-          "non_substitutes": [
-            "remembered URL treated as verified"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "withhold-unverified-link",
-          "required_behavior": "Withhold an outbound link that cannot be verified this turn.",
-          "due_phase": "pre-action",
-          "destination": "owner-visible message or question payload (any channel)",
-          "acceptance_evidence": "The literal outgoing owner-visible message or question payload omits the unverifiable destination.",
-          "non_substitutes": [
-            "unverified link surfaced with a caveat"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "no-broken-recommendation",
-          "required_behavior": "Do not recommend broken or unverified outbound links.",
-          "due_phase": "pre-action",
-          "destination": "owner-visible message or question payload (any channel)",
-          "acceptance_evidence": "Every recommended destination has current successful verification evidence.",
-          "non_substitutes": [
+            "search snippets used as link verification",
+            "remembered URL treated as verified",
+            "unverified link surfaced with a caveat",
             "broken link kept as a recommendation"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
@@ -3108,7 +1953,7 @@
     },
     {
       "rule_id": "uda.kernel.artifact-delivery",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -3147,43 +1992,13 @@
       "obligations": [
         {
           "obligation_id": "usable-delivery-before-completion",
-          "required_behavior": "Deliver usable output directly without making the owner navigate branches or repository paths.",
+          "required_behavior": "Deliver complete usable artifacts before claiming completion.",
           "due_phase": "handoff",
           "destination": "owner-required artifact and companion materials",
-          "acceptance_evidence": "The recipient receives the complete usable output by an available direct delivery route.",
+          "acceptance_evidence": "Before delivery load the compact delivery-priority/provenance/companions/pre-close usability rules. Deliver the artifact and required companions directly via the available priority route; the owner can use them without GitHub navigation or reconstructing pieces. Completion follows usable delivery.",
           "non_substitutes": [
-            "repository path only"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "load-compact-delivery-rules",
-          "required_behavior": "Before delivery load the current priority, provenance, companion-material and pre-close usability rules.",
-          "due_phase": "retrieval",
-          "destination": "current reasoning/execution turn",
-          "acceptance_evidence": "Current compact delivery rules are loaded before the output is delivered.",
-          "non_substitutes": [
-            "naming the delivery pattern without loading it"
-          ],
-          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
-          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": true,
-          "independent_review_required": false
-        },
-        {
-          "obligation_id": "delivery-is-completion",
-          "required_behavior": "Treat actual delivery as part of completion for owner-required output.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "The completion claim follows actual usable delivery.",
-          "non_substitutes": [
+            "repository path only",
+            "naming the delivery pattern without loading it",
             "completion claimed after creation without delivery"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",

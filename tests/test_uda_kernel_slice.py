@@ -183,6 +183,33 @@ class KernelSliceTests(unittest.TestCase):
                     else:
                         self.assertIn(item["exception"]["carrier"], doc)
 
+    def test_work_projection_budget_preserves_records_sources_and_behaviors(self):
+        task = tt.read_json(ROOT / coverage.WORK_TASK)
+        contract = tt.compile_contract(self.catalog, self.profile, task, "graph")
+        self.assertEqual(contract, tt.read_json(ROOT / coverage.WORK_CONTRACT))
+        rendered = contract["rendered_contract"]
+        self.assertLessEqual(len(rendered.encode("utf-8")), 24 * 1024)
+        for record in contract["selected_rules"]:
+            with self.subTest(record=record["rule_id"]):
+                self.assertEqual(1, rendered.count(record["source_text"]))
+                original = next(r for r in self.catalog["records"] if r["rule_id"] == record["rule_id"])
+                self.assertEqual(original["obligations"], record["obligations"])
+                for ob in record["obligations"]:
+                    for text in (ob["obligation_id"], ob["required_behavior"], ob["due_phase"],
+                                 ob["destination"], ob["carry_through"], ob["repair"],
+                                 *ob["non_substitutes"]):
+                        self.assertIn(text, rendered)
+
+    def test_same_artifact_has_one_destination_and_clock_cadence_is_final(self):
+        records = {r["rule_id"]: r for r in self.catalog["records"]}
+        for rid in ("uda.final.timestamp", "uda.kernel.clock-cadence", "uda.kernel.continuation"):
+            for ob in records[rid]["obligations"]:
+                if ob["due_phase"] == "final-delivery":
+                    self.assertEqual("owner-visible-final", ob["destination"])
+        for rid in ("uda.kernel.operational-references", "uda.kernel.outbound-links", "uda.kernel.target-recovery"):
+            self.assertEqual({"owner-visible-message"}, {o["destination"] for o in records[rid]["obligations"]})
+        self.assertEqual("owner-visible-message", records["uda.kernel.owner-interaction"]["obligations"][1]["destination"])
+
 
 class KernelCoverageMutations(unittest.TestCase):
     def setUp(self):
@@ -250,6 +277,17 @@ class KernelCoverageMutations(unittest.TestCase):
             (self.root / coverage.COVERAGE).write_text(original)
             self.mutate_json(coverage.COVERAGE, lambda d: mutation(next(e for e in d["entries"] if e["id"] == "AGENTS.md#workflow")))
             self.assertTrue(coverage.validate(self.root))
+
+    def test_consolidated_behavior_accepts_multiple_clauses_but_not_a_missing_clause(self):
+        inventory = tt.read_json(self.root / coverage.COVERAGE)
+        entry = next(e for e in inventory["entries"] if e["id"] == "AGENTS.md#workflow")
+        items = [i for i in entry["obligation_map"] if i["record"] == "uda.kernel.coordination"]
+        self.assertGreater(len(items), 1)
+        self.assertEqual(1, len({i["obligation_id"] for i in items}))
+        self.assertEqual([], coverage.validate(self.root))
+        entry["obligation_map"].remove(items[0])
+        (self.root / coverage.COVERAGE).write_text(json.dumps(inventory))
+        self.rejected("obligation_map omits selector sentence")
 
     def test_baseline_cannot_shrink_by_workflow_reclassification(self):
         self.mutate_json(coverage.COVERAGE, lambda d: next(e for e in d["entries"] if e["id"] == "AGENTS.md#workflow").update(disposition="WORKFLOW_ONLY"))

@@ -25,7 +25,7 @@
       "kind": "chat",
       "relation": "SAME_AGENT"
     },
-    "obligation_id": "separable-delegation-review",
+    "obligation_id": "choose-coordinated-route",
     "non_substitute": "delegation presented as its own independent review"
   }
 }

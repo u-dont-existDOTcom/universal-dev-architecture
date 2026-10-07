@@ -45,7 +45,7 @@ Indexed patterns: 82
 
 Migration backlog: 78
 
-Task-time records: 25, sourced from 7 files, with 0 mechanical and 111 semantic obligations.
+Task-time records: 25, sourced from 7 files, with 0 mechanical and 32 semantic obligations (23 consolidated kernel behaviors and 9 existing pattern obligations).
 
 | Disposition | Count |
 |---|---:|
@@ -61,164 +61,177 @@ The immutable baseline pins 84 identities. Current backlog is 78: six fully stru
 
 ## Kernel slice 1 obligation map
 
-Each row below matches the inventory's obligation_map exactly. Compound instructions are split where they impose distinct effects; repeated boundary reminders retain separate obligations. The 103 rows contain 102 structured obligations and one exception. These are declared source coverage and receipt-admission regressions, not proof of universal runtime invocation or semantic truth.
+Each row below matches the inventory's obligation_map exactly. One obligation covers each coherent behavior at its boundary. The 103 unchanged clause rows map to 23 structured behaviors and one unchanged exception; 102 clauses are structured. Detail remains in exact selectors, acceptance evidence and non-substitutes rather than requiring a receipt for each sentence. These are declared source coverage and receipt-admission regressions, not proof of universal runtime invocation or semantic truth.
 
 Records apply to chat, work, codex and claude unless the source limits the actor: the Work permission record applies only to work/codex. Every-turn records trigger on governance_required; the live-root record also needs owner_requires_live_root, and instruction maintenance needs the existing action_classes value instruction_maintenance. Unknown trigger facts remain unresolved and block. No new facts were introduced, so no new envelope declarations are required.
 
-Payload/action-dependent obligations remain selected with not_applicable_allowed: true. Their bound receipts must explain the absent condition, including outbound-link verification when no outbound link is sent. NOT_APPLICABLE is not an escape from an active payload obligation; its semantic correctness still requires review. Each obligation declares its actual retrieval, reasoning, pre-action, handoff, persistence or final-delivery boundary, destination, acceptance evidence, non-substitutes, carry-through and repair. Pre-action gates are not deferred to the final. Reusable output is checked at handoff to the intended recipient file and chat summary; owner-required artifacts and companions are checked at their actual handoff. Prose and outbound links are checked before surfacing any owner-visible message or question payload, including commentary. Completion claims and explicit final-only duties remain at final-delivery.
+Payload/action-dependent obligations remain selected with not_applicable_allowed: true. Their bound receipts must explain the absent condition, including outbound-link verification when no outbound link is sent. NOT_APPLICABLE is not an escape from an active payload obligation; its semantic correctness still requires review. Each obligation declares its actual retrieval, reasoning, pre-action, handoff, persistence or final-delivery boundary, destination, acceptance evidence, non-substitutes, carry-through and repair. Pre-action gates are not deferred to the final. Reusable output is checked at handoff to recipient-file-and-chat-summary; owner-required artifacts and companions are checked at their actual handoff. Prose and outbound links are checked before surfacing any owner-visible message or question payload, including commentary. Completion claims and explicit final-only duties remain at final-delivery to owner-visible-final.
 
 The prior timestamp predicates checked a particular serialization (an ISO-shaped timestamp and a fixed Elapsed time phrase). Those are useful built-in predicates, but the root does not prescribe those complete formats: a compliant duration can use different wording, and a shape match cannot prove clock provenance or a valid time. Slice 1 makes the source timestamp/elapsed obligations semantic, with exact-candidate evidence covering the readings and final. The unchanged built-in predicates are tested independently in narrowly scoped test contracts; receipts cannot override their PASS or FAIL results. No new predicate kind or fixed-format owner requirement was added.
+
+
+The representative rendered Work handoff is 24,297 UTF-8 bytes (23.73 KiB), below the 24 KiB (24,576-byte) test cap; the first slice draft was 79,386 bytes. The renderer emits each selected record's exact source once, compact behavior/boundary/non-substitute rows and shared lifecycle text. Full acceptance evidence, source hashes and authority remain in the structured projection. No records, selectors or enumerated clauses were removed.
+
+| Section | Before structured obligations | After consolidated obligations | Preserved map clauses | Exceptions |
+|---|---:|---:|---:|---:|
+| Follow-up derivation | 16 | 3 | 16 | 0 |
+| Instruction composition | 12 | 3 | 12 | 0 |
+| Operational references | 9 | 3 | 9 | 0 |
+| Bootstrap | 26 | 6 | 27 | 1 |
+| Continuation | 6 | 1 | 6 | 0 |
+| Workflow | 33 | 7 | 33 | 0 |
+| Total | 102 | 23 | 103 | 1 |
 
 ### Obligation-level exceptions
 
 An obligation that cannot be checked inside activated UDA may carry an exception instead of a record only for BOOTSTRAP_NOT_LOADED or OWNER_SETTINGS_CHANGE. Each exception contains the exact owning sentence, a specific reason and a named, resolvable carrier. Difficulty of semantic checking is not an exception. A loaded-root fetch duty stays structured; the duty to disclose failure when the required bootstrap never loaded is carried by the owner-side minimal bootstrap below. There are no owner-settings-change exceptions in this slice and no owner settings were changed.
 
-Validation requires every map sentence to occur exactly once in its owning section; every mapped record/obligation to exist and belong to that section; every mapped sentence to occur in that record's exact-text selectors; every selected record obligation to be mapped; and every exception to have one of the two allowed kinds, a specific reason and an existing carrier/anchor. Complete maps and both evidence classes admit STRUCTURED_ENFORCED; partial sections retain their exact operative legacy_remainder. Human review still owns completeness against the prose. The report lists the exceptions separately, and the backlog validator prohibits removing a baseline identity by reclassifying it as workflow-only or inactive.
+Validation requires every map sentence to occur exactly once in its owning section; every mapped record/obligation to exist and belong to that section; every mapped sentence to occur in that record's exact-text selectors; every selected record obligation to be mapped (several clauses may share it); every exact selector clause to remain represented; and every exception to have one of the two allowed kinds, a specific reason and an existing carrier/anchor. Complete maps and both evidence classes admit STRUCTURED_ENFORCED; partial sections retain their exact operative legacy_remainder. Human review still owns completeness against the prose. The report lists the exceptions separately, and the backlog validator prohibits removing a baseline identity by reclassifying it as workflow-only or inactive.
 
 ### AGENTS.md#follow-up-goal-derivation-and-assistant-added-requirements
 
-Found 16; structured 16; excepted 0; remaining 0.
+Clauses 16; consolidated obligations 3; structured clauses 16; excepted 0; remaining 0.
 
 | Exact sentence or clause | Record / obligation or exception carrier |
 |---|---|
 | Before authoring, launching, or accepting a consequential follow-up task, re-bind the proposed work to the current parent owner outcome | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
-| and follow `patterns/owner-goal-followup-and-requirement-accretion.md`. | uda.kernel.followup-derivation / apply-followup-pattern |
-| First classify the root outcome as `OPEN`, `SATISFIED`, `SUPERSEDED`, `CANCELED`, or `AUTHORITY_UNRESOLVED`, | uda.kernel.followup-derivation / classify-root-and-gap |
-| and state the exact remaining owner gap. | uda.kernel.followup-derivation / state-exact-owner-gap |
-| A useful improvement is not unfinished owner work merely because it is technically attractive. | uda.kernel.followup-derivation / useful-is-not-unfinished |
-| Every new mandatory requirement that was not already present in the owner outcome must declare its origin and necessity. | uda.kernel.followup-derivation / requirement-origin-necessity |
-| An `ASSISTANT_INFERENCE` or inherited choice (not a declared gate) with unresolved necessity may be only a bounded reversible experiment; it may not become a fail-closed blocker, architecture prerequisite, root acceptance criterion, stronger assurance gate, or reason to disable a previously working owner-aligned path. | uda.kernel.followup-derivation / unresolved-inference-experiment-only |
-| Treat stronger assurance as requirement accretion when it changes whether work may proceed or count as complete. | uda.kernel.followup-derivation / assurance-is-accretion |
-| Independent readback, provider attestation, extra reviewers, new trust boundaries, and similar controls must identify the current owner decision/outcome they materially change and why a simpler evidence standard is insufficient before becoming mandatory. | uda.kernel.followup-derivation / simpler-proof-insufficient |
-| If a newly added control blocks or degrades a previously working owner-aligned path, stop the compensating-fix chain | uda.kernel.followup-derivation / stop-compensating-chain |
+| and follow `patterns/owner-goal-followup-and-requirement-accretion.md`. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| First classify the root outcome as `OPEN`, `SATISFIED`, `SUPERSEDED`, `CANCELED`, or `AUTHORITY_UNRESOLVED`, | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| and state the exact remaining owner gap. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| A useful improvement is not unfinished owner work merely because it is technically attractive. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| Every new mandatory requirement that was not already present in the owner outcome must declare its origin and necessity. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| An `ASSISTANT_INFERENCE` or inherited choice (not a declared gate) with unresolved necessity may be only a bounded reversible experiment; it may not become a fail-closed blocker, architecture prerequisite, root acceptance criterion, stronger assurance gate, or reason to disable a previously working owner-aligned path. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| Treat stronger assurance as requirement accretion when it changes whether work may proceed or count as complete. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| Independent readback, provider attestation, extra reviewers, new trust boundaries, and similar controls must identify the current owner decision/outcome they materially change and why a simpler evidence standard is insufficient before becoming mandatory. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| If a newly added control blocks or degrades a previously working owner-aligned path, stop the compensating-fix chain | uda.kernel.followup-derivation / revalidate-first-added-control |
 | and revalidate the first added requirement against the parent outcome and the strongest materially simpler alternative. | uda.kernel.followup-derivation / revalidate-first-added-control |
-| Preserve useful supporting work, | uda.kernel.followup-derivation / preserve-useful-support |
-| but restore the simpler valid path when necessity is not established. | uda.kernel.followup-derivation / restore-simpler-path |
-| This gate runs at follow-up-task authoring, before the new framing is handed to Work or another executor. | uda.kernel.followup-derivation / gate-at-authoring |
-| A later worker faithfully executing a substituted goal is too late. | uda.kernel.followup-derivation / later-faithful-worker-too-late |
+| Preserve useful supporting work, | uda.kernel.followup-derivation / revalidate-first-added-control |
+| but restore the simpler valid path when necessity is not established. | uda.kernel.followup-derivation / revalidate-first-added-control |
+| This gate runs at follow-up-task authoring, before the new framing is handed to Work or another executor. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
+| A later worker faithfully executing a substituted goal is too late. | uda.kernel.followup-derivation / rebind-before-author-launch-accept |
 | At experiment launch, apply the operational owner-method contract to the actual runnable configuration. | uda.kernel.followup-derivation / actual-runnable-method |
 
 ### AGENTS.md#instruction-composition
 
-Found 12; structured 12; excepted 0; remaining 0.
+Clauses 12; consolidated obligations 3; structured clauses 12; excepted 0; remaining 0.
 
 | Exact sentence or clause | Record / obligation or exception carrier |
 |---|---|
 | Before handling any task, including a brief request to remember a preference, open `LESSON-INDEX.md`, | uda.kernel.instruction-activation / open-index-every-task |
-| select entries whose triggers match, | uda.kernel.instruction-activation / select-matching-triggers |
-| and read their current patterns. | uda.kernel.instruction-activation / read-current-patterns |
+| select entries whose triggers match, | uda.kernel.instruction-activation / open-index-every-task |
+| and read their current patterns. | uda.kernel.instruction-activation / open-index-every-task |
 | Instruction maintenance uses `patterns/instruction-composition-and-portable-intelligence.md`; | uda.kernel.instruction-maintenance / maintenance-pattern-owner |
-| activation uses `patterns/task-time-lesson-activation.md`. | uda.kernel.instruction-activation / activation-owner |
+| activation uses `patterns/task-time-lesson-activation.md`. | uda.kernel.instruction-activation / open-index-every-task |
 | Resolve graph-covered dependencies via `rules/UDA-RULE-GRAPH.json`/`scripts/uda_rule_graph.py`; | uda.kernel.instruction-activation / resolve-covered-dependencies |
-| canonical prose remains authoritative; | uda.kernel.instruction-activation / canonical-prose-authority |
-| unmapped rules stay index-routed; | uda.kernel.instruction-activation / unmapped-index-routing |
-| shopping routes through `LESSON-INDEX.md`. | uda.kernel.instruction-activation / shopping-index-routing |
-| Task-specific rules live in patterns | uda.kernel.instruction-maintenance / rules-in-patterns |
-| and are reached through `LESSON-INDEX.md`; | uda.kernel.instruction-maintenance / rules-index-reachability |
-| a new task rule adds a pattern and an index entry, never a root line. | uda.kernel.instruction-maintenance / new-rule-not-root |
+| canonical prose remains authoritative; | uda.kernel.instruction-activation / resolve-covered-dependencies |
+| unmapped rules stay index-routed; | uda.kernel.instruction-activation / resolve-covered-dependencies |
+| shopping routes through `LESSON-INDEX.md`. | uda.kernel.instruction-activation / resolve-covered-dependencies |
+| Task-specific rules live in patterns | uda.kernel.instruction-maintenance / maintenance-pattern-owner |
+| and are reached through `LESSON-INDEX.md`; | uda.kernel.instruction-maintenance / maintenance-pattern-owner |
+| a new task rule adds a pattern and an index entry, never a root line. | uda.kernel.instruction-maintenance / maintenance-pattern-owner |
 
 ### AGENTS.md#owner-facing-operational-references
 
-Found 9; structured 9; excepted 0; remaining 0.
+Clauses 9; consolidated obligations 3; structured clauses 9; excepted 0; remaining 0.
 
 | Exact sentence or clause | Record / obligation or exception carrier |
 |---|---|
 | In user-facing prose, never make repository identifiers the primary explanation. | uda.kernel.operational-references / plain-language-first |
-| Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, and similar opaque references are locating metadata, not semantic referents. | uda.kernel.operational-references / metadata-not-meaning |
+| Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, and similar opaque references are locating metadata, not semantic referents. | uda.kernel.operational-references / plain-language-first |
 | Immediately before surfacing any outbound link to the owner, open the exact destination, follow redirects, and verify that the final page resolves successfully to the intended current content—not an error, 404, dead, parked, or stale page. | uda.kernel.outbound-links / exact-current-destination |
-| Search snippets, cached previews, remembered URLs, and earlier checks do not count as verification. | uda.kernel.outbound-links / no-cached-verification |
-| If the exact link cannot be verified in the current turn, do not surface it. | uda.kernel.outbound-links / withhold-unverified-link |
-| Never present a broken or unverified link as a recommendation. | uda.kernel.outbound-links / no-broken-recommendation |
-| **Delivery is part of completion.** | uda.kernel.artifact-delivery / delivery-is-completion |
+| Search snippets, cached previews, remembered URLs, and earlier checks do not count as verification. | uda.kernel.outbound-links / exact-current-destination |
+| If the exact link cannot be verified in the current turn, do not surface it. | uda.kernel.outbound-links / exact-current-destination |
+| Never present a broken or unverified link as a recommendation. | uda.kernel.outbound-links / exact-current-destination |
+| **Delivery is part of completion.** | uda.kernel.artifact-delivery / usable-delivery-before-completion |
 | When the owner needs to use a file, packet, handoff, protocol, report, generated artifact, or other output, do not make them navigate GitHub branches or repository paths to obtain it. | uda.kernel.artifact-delivery / usable-delivery-before-completion |
-| Before delivering that output, load the delivery-priority, provenance, companion-material, and pre-close usability rules: `patterns/human-readable-operational-references.md` → **Compact rules moved from root `AGENTS.md`**. | uda.kernel.artifact-delivery / load-compact-delivery-rules |
+| Before delivering that output, load the delivery-priority, provenance, companion-material, and pre-close usability rules: `patterns/human-readable-operational-references.md` → **Compact rules moved from root `AGENTS.md`**. | uda.kernel.artifact-delivery / usable-delivery-before-completion |
 
 ### AGENTS.md#per-turn-bootstrap-invariants
 
-Found 27; structured 26; excepted 1; remaining 0.
+Clauses 27; consolidated obligations 6; structured clauses 26; excepted 1; remaining 0.
 
 | Exact sentence or clause | Record / obligation or exception carrier |
 |---|---|
 | For **every assistant turn** governed by this architecture, the **first line of the final user-visible assistant answer MUST be an explicit date-and-time stamp including a timezone or UTC offset**. | uda.final.timestamp / final-first-line-timestamp |
-| This is a final-output contract and a pre-answer invariant, not a task-dependent recommendation. | uda.final.timestamp / final-boundary-contract |
-| The timestamp must appear in the final answer/message content delivered to the user on every assistant turn. | uda.final.timestamp / final-surface-timestamp |
-| A timestamp written only in hidden reasoning, visible thinking/reasoning UI, analysis, tool-call commentary, scratch work, or any intermediate channel **does not satisfy this requirement**. | uda.final.timestamp / intermediate-is-not-final |
-| An earlier timestamp in reasoning or an intermediate step does not satisfy the final-output contract; use the second reading in the final answer. | uda.final.timestamp / second-reading-in-final |
+| This is a final-output contract and a pre-answer invariant, not a task-dependent recommendation. | uda.final.timestamp / final-first-line-timestamp |
+| The timestamp must appear in the final answer/message content delivered to the user on every assistant turn. | uda.final.timestamp / final-first-line-timestamp |
+| A timestamp written only in hidden reasoning, visible thinking/reasoning UI, analysis, tool-call commentary, scratch work, or any intermediate channel **does not satisfy this requirement**. | uda.final.timestamp / final-first-line-timestamp |
+| An earlier timestamp in reasoning or an intermediate step does not satisfy the final-output contract; use the second reading in the final answer. | uda.final.timestamp / final-first-line-timestamp |
 | Two clock readings per turn, no others (owner, 2026-09-30). | uda.kernel.clock-cadence / two-read-cadence |
 | First: the message's sent time if the surface shows it, else a read as the turn's first action. | uda.kernel.clock-cadence / first-reading |
-| Second: a read right before writing the final answer. | uda.kernel.clock-cadence / second-reading |
-| Read with `date -u` in a shell tool, else the current-time tool, else the code tool's clock; | uda.kernel.clock-cadence / clock-priority-and-retry |
-| if a read fails or isn't later than the first, use the next one once. | uda.kernel.clock-cadence / single-failed-read-retry |
-| Never compare clocks or read mid-task. | uda.kernel.clock-cadence / no-midtask-comparison |
-| The final answer opens with the second reading | uda.final.timestamp / final-opens-with-second-reading |
+| Second: a read right before writing the final answer. | uda.kernel.clock-cadence / two-read-cadence |
+| Read with `date -u` in a shell tool, else the current-time tool, else the code tool's clock; | uda.kernel.clock-cadence / two-read-cadence |
+| if a read fails or isn't later than the first, use the next one once. | uda.kernel.clock-cadence / two-read-cadence |
+| Never compare clocks or read mid-task. | uda.kernel.clock-cadence / two-read-cadence |
+| The final answer opens with the second reading | uda.final.timestamp / final-first-line-timestamp |
 | and says how long the turn took in total. | uda.final.timestamp / final-elapsed-time |
-| Don't reuse a prior-turn timestamp | uda.kernel.clock-cadence / current-turn-provenance |
-| or present capture time as hidden provider sent time. | uda.kernel.clock-cadence / honest-capture-provenance |
-| If no clock answers, say so rather than inventing a time. | uda.kernel.clock-cadence / unavailable-clock-disclosure |
-| Before finalizing every assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form. | uda.final.timestamp / literal-final-check |
-| If it does not, prepend the second reading; the check needs no further reading. | uda.final.timestamp / prepend-without-reread |
-| Apply it on every turn even for trivial arithmetic, greetings, smoke tests, follow-up acknowledgments, corrections, status updates, or prompts that otherwise warrant a direct one-line answer. | uda.final.timestamp / trivial-turns-included |
-| Simple answers, low-effort reasoning, tool avoidance, brevity, and shallow repository reads **must not waive this invariant**. | uda.final.timestamp / no-brevity-waiver |
+| Don't reuse a prior-turn timestamp | uda.kernel.clock-cadence / two-read-cadence |
+| or present capture time as hidden provider sent time. | uda.kernel.clock-cadence / two-read-cadence |
+| If no clock answers, say so rather than inventing a time. | uda.kernel.clock-cadence / two-read-cadence |
+| Before finalizing every assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form. | uda.final.timestamp / final-first-line-timestamp |
+| If it does not, prepend the second reading; the check needs no further reading. | uda.final.timestamp / final-first-line-timestamp |
+| Apply it on every turn even for trivial arithmetic, greetings, smoke tests, follow-up acknowledgments, corrections, status updates, or prompts that otherwise warrant a direct one-line answer. | uda.final.timestamp / final-first-line-timestamp |
+| Simple answers, low-effort reasoning, tool avoidance, brevity, and shallow repository reads **must not waive this invariant**. | uda.final.timestamp / final-first-line-timestamp |
 | When current owner instructions require the canonical GitHub bootstrap, **re-fetch the live default-branch root `AGENTS.md` on every user turn before task reasoning, artifact composition, task execution, or answering**. | uda.bootstrap.live-root / live-root-refetch |
-| Tool discovery, current-clock checks, and the bootstrap retrieval itself are permitted prerequisites. | uda.bootstrap.live-root / only-bootstrap-prerequisites |
-| A prior-turn fetch, cached copy, remembered summary, or earlier reasoning does not satisfy per-turn activation. | uda.bootstrap.live-root / no-prior-activation-substitute |
-| If required GitHub/bootstrap access is unavailable, the final answer must still begin with the timestamp and then state the access failure explicitly rather than pretending the bootstrap occurred. | EXCEPTION BOOTSTRAP_NOT_LOADED; docs/uda-enforcement-coverage.md#minimal-always-on-owner-bootstrap-replacement; This disclosure applies when required GitHub bootstrap cannot load, so no activated UDA contract exists to admit that turn. |
-| Treat failure to emit the timestamp as the first line of the final user-visible answer on any assistant turn as an instruction-following failure even when the timestamp appeared during thinking or the underlying task answer is otherwise correct. | uda.final.timestamp / classify-missing-stamp-failure |
+| Tool discovery, current-clock checks, and the bootstrap retrieval itself are permitted prerequisites. | uda.bootstrap.live-root / live-root-refetch |
+| A prior-turn fetch, cached copy, remembered summary, or earlier reasoning does not satisfy per-turn activation. | uda.bootstrap.live-root / live-root-refetch |
+| If required GitHub/bootstrap access is unavailable, the final answer must still begin with the timestamp and then state the access failure explicitly rather than pretending the bootstrap occurred. | BOOTSTRAP_NOT_LOADED / docs/uda-enforcement-coverage.md#minimal-always-on-owner-bootstrap-replacement |
+| Treat failure to emit the timestamp as the first line of the final user-visible answer on any assistant turn as an instruction-following failure even when the timestamp appeared during thinking or the underlying task answer is otherwise correct. | uda.final.timestamp / final-first-line-timestamp |
 | **Every turn:** reusable output over ~8,000 characters goes in a file, for any recipient; | uda.kernel.output-budget / file-for-long-reusable-output |
-| chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`. | uda.kernel.output-budget / chat-summary-of-file |
+| chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`. | uda.kernel.output-budget / file-for-long-reusable-output |
 
 ### AGENTS.md#pre-final-continuation-invariant
 
-Found 6; structured 6; excepted 0; remaining 0.
+Clauses 6; consolidated obligations 1; structured clauses 6; excepted 0; remaining 0.
 
 | Exact sentence or clause | Record / obligation or exception carrier |
 |---|---|
-| Before final delivery, apply `patterns/codex-github-operating-system.md` → **Continuation and stop admission**. | uda.kernel.continuation / apply-stop-admission |
+| Before final delivery, apply `patterns/codex-github-operating-system.md` → **Continuation and stop admission**. | uda.kernel.continuation / execute-open-frontier |
 | An OPEN task with a safe authorized executable next action requires doing it now, not just diagnosing or planning it. | uda.kernel.continuation / execute-open-frontier |
-| A self-authored scope or completed lease cannot cancel parent implementation authority. | uda.kernel.continuation / preserve-parent-authority |
-| Check the actual final output: stop only at an evidenced boundary, | uda.kernel.continuation / evidenced-stop-boundary |
-| finish independent work, | uda.kernel.continuation / finish-independent-work |
-| and preserve explicit owner restrictions and real access, spending, privacy, platform, and irreversible-action gates. | uda.kernel.continuation / preserve-real-gates |
+| A self-authored scope or completed lease cannot cancel parent implementation authority. | uda.kernel.continuation / execute-open-frontier |
+| Check the actual final output: stop only at an evidenced boundary, | uda.kernel.continuation / execute-open-frontier |
+| finish independent work, | uda.kernel.continuation / execute-open-frontier |
+| and preserve explicit owner restrictions and real access, spending, privacy, platform, and irreversible-action gates. | uda.kernel.continuation / execute-open-frontier |
 
 ### AGENTS.md#workflow
 
-Found 33; structured 33; excepted 0; remaining 0.
+Clauses 33; consolidated obligations 7; structured clauses 33; excepted 0; remaining 0.
 
 | Exact sentence or clause | Record / obligation or exception carrier |
 |---|---|
 | When multiple safe in-scope execution approaches achieve the same outcome, choose the better-coordinated approach without asking the owner to select an execution mode: | uda.kernel.coordination / choose-coordinated-route |
-| use isolated workspaces, | uda.kernel.coordination / isolate-workspaces |
-| a durable plan and recovery ledger, | uda.kernel.coordination / durable-plan-recovery |
-| delegation plus independent review when safely separable and decision-relevant, | uda.kernel.coordination / separable-delegation-review |
-| and serialize shared mutable state. | uda.kernel.coordination / serialize-shared-state |
-| This standing permission does not broaden task authority and does not replace substantive owner decisions. | uda.kernel.coordination / no-coordination-authority-expansion |
-| An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event. | uda.kernel.owner-input-continuation / owner-input-is-input |
+| use isolated workspaces, | uda.kernel.coordination / choose-coordinated-route |
+| a durable plan and recovery ledger, | uda.kernel.coordination / choose-coordinated-route |
+| delegation plus independent review when safely separable and decision-relevant, | uda.kernel.coordination / choose-coordinated-route |
+| and serialize shared mutable state. | uda.kernel.coordination / choose-coordinated-route |
+| This standing permission does not broaden task authority and does not replace substantive owner decisions. | uda.kernel.coordination / choose-coordinated-route |
+| An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event. | uda.kernel.owner-input-continuation / resume-after-input |
 | After incorporating it, continue automatically to the next safe in-scope action while the stated goal remains unfinished. | uda.kernel.owner-input-continuation / resume-after-input |
-| Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step. | uda.kernel.owner-input-continuation / no-determined-next-step-question |
-| Pause only for a genuine missing owner decision, new authority, destructive or irreversible risk, unavailable permission or credential, spending, publication, or access, or an explicit request to stop. | uda.kernel.owner-input-continuation / genuine-pause-only |
+| Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step. | uda.kernel.owner-input-continuation / resume-after-input |
+| Pause only for a genuine missing owner decision, new authority, destructive or irreversible risk, unavailable permission or credential, spending, publication, or access, or an explicit request to stop. | uda.kernel.owner-input-continuation / resume-after-input |
 | Work selects authorized task-scoped access and the automatic reviewer; do not ask the owner to choose routine permissions. | uda.kernel.work-permissions / automatic-task-access-review |
-| This adds no semantic, spending, publication, representation, destructive, or self-approval authority. | uda.kernel.work-permissions / no-added-authority |
-| Resolve engineering blockers; ask only about a material tradeoff, with plain consequences and a recommendation, or a required human gate. | uda.kernel.owner-interaction / resolve-engineering-blockers |
+| This adds no semantic, spending, publication, representation, destructive, or self-approval authority. | uda.kernel.work-permissions / automatic-task-access-review |
+| Resolve engineering blockers; ask only about a material tradeoff, with plain consequences and a recommendation, or a required human gate. | uda.kernel.owner-interaction / minimize-owner-choice |
 | Minimize owner choice as an execution invariant. | uda.kernel.owner-interaction / minimize-owner-choice |
-| Resolve routine implementation details and already-authorized subordinate actions without asking. | uda.kernel.owner-interaction / resolve-authorized-details |
-| A confirmation for the same destination, data boundary, scope, and consequence remains valid across retries, resumed execution, or an alternate authorized transport path; a failed tool or transport does not consume that approval. | uda.kernel.owner-interaction / approval-survives-transport |
-| Ask again only if those facts materially change or the platform requires a fresh human gesture. | uda.kernel.owner-interaction / fresh-approval-only-for-change |
-| If owner interaction is genuinely required, finish independent preparation, | uda.kernel.owner-interaction / independent-preparation |
+| Resolve routine implementation details and already-authorized subordinate actions without asking. | uda.kernel.owner-interaction / minimize-owner-choice |
+| A confirmation for the same destination, data boundary, scope, and consequence remains valid across retries, resumed execution, or an alternate authorized transport path; a failed tool or transport does not consume that approval. | uda.kernel.owner-interaction / minimize-owner-choice |
+| Ask again only if those facts materially change or the platform requires a fresh human gesture. | uda.kernel.owner-interaction / minimize-owner-choice |
+| If owner interaction is genuinely required, finish independent preparation, | uda.kernel.owner-interaction / consolidate-confirmations |
 | consolidate the exact dependent actions into the fewest confirmations permitted, | uda.kernel.owner-interaction / consolidate-confirmations |
-| explain the concrete downside or risk and why the gate is mandatory, | uda.kernel.owner-interaction / explain-mandatory-risk |
-| give a recommended default, | uda.kernel.owner-interaction / recommended-default |
-| and resume automatically after the answer. | uda.kernel.owner-interaction / resume-after-human-answer |
+| explain the concrete downside or risk and why the gate is mandatory, | uda.kernel.owner-interaction / consolidate-confirmations |
+| give a recommended default, | uda.kernel.owner-interaction / consolidate-confirmations |
+| and resume automatically after the answer. | uda.kernel.owner-interaction / consolidate-confirmations |
 | Before declaring a host, device, service, session, or other target inaccessible—or asking the owner to identify, restart, reconnect, or configure an opaque machine-generated target—recover its semantic identity and the authorized access topology first. | uda.kernel.target-recovery / identity-and-topology-before-escalation |
-| Treat a failed connector/device transport as a route-specific failure, not proof that the underlying target is unavailable. | uda.kernel.target-recovery / route-failure-scope |
-| Inspect current connected endpoints plus task-relevant local mappings such as SSH config/aliases, durable task state, service/process metadata, and recent authorized execution history; | uda.kernel.target-recovery / inspect-endpoints-mappings |
-| from a healthy authorized endpoint, use bounded read-only probes such as `hostname` and exact target-path existence/read checks to prove which route reaches the same target. | uda.kernel.target-recovery / bounded-identity-and-path-probes |
-| Use an equivalent authorized alternate route when one exists. | uda.kernel.target-recovery / equivalent-alternate-route |
-| Never ask the owner to recognize an opaque identifier merely because the first transport failed. | uda.kernel.target-recovery / no-opaque-recognition-request |
-| Escalate only after plausible authorized routes are exhausted or a genuinely human-only action remains. | uda.kernel.target-recovery / exhaust-routes-or-human-gate |
+| Treat a failed connector/device transport as a route-specific failure, not proof that the underlying target is unavailable. | uda.kernel.target-recovery / identity-and-topology-before-escalation |
+| Inspect current connected endpoints plus task-relevant local mappings such as SSH config/aliases, durable task state, service/process metadata, and recent authorized execution history; | uda.kernel.target-recovery / identity-and-topology-before-escalation |
+| from a healthy authorized endpoint, use bounded read-only probes such as `hostname` and exact target-path existence/read checks to prove which route reaches the same target. | uda.kernel.target-recovery / identity-and-topology-before-escalation |
+| Use an equivalent authorized alternate route when one exists. | uda.kernel.target-recovery / identity-and-topology-before-escalation |
+| Never ask the owner to recognize an opaque identifier merely because the first transport failed. | uda.kernel.target-recovery / identity-and-topology-before-escalation |
+| Escalate only after plausible authorized routes are exhausted or a genuinely human-only action remains. | uda.kernel.target-recovery / identity-and-topology-before-escalation |
 | When you explicitly commit to a substantive operation, method, comparison, audit, experiment, or artifact, keep it as an open obligation until it is actually executed, I explicitly supersede it, or new evidence makes it invalid and you say so. | uda.kernel.operation-commitments / keep-promised-operation-open |
-| Adjacent analysis, planning, preparation, or a different method does not count as completion. | uda.kernel.operation-commitments / adjacent-work-not-completion |
-| Before switching methods, declaring progress complete, or ending a substantial pass, verify what observable result proves each promised operation actually occurred. | uda.kernel.operation-commitments / observable-result-before-close |
-| If a still-valid promised step was displaced by later work, execute it before continuing. | uda.kernel.operation-commitments / execute-displaced-valid-step |
+| Adjacent analysis, planning, preparation, or a different method does not count as completion. | uda.kernel.operation-commitments / keep-promised-operation-open |
+| Before switching methods, declaring progress complete, or ending a substantial pass, verify what observable result proves each promised operation actually occurred. | uda.kernel.operation-commitments / keep-promised-operation-open |
+| If a still-valid promised step was displaced by later work, execute it before continuing. | uda.kernel.operation-commitments / keep-promised-operation-open |
 
 ## Exact migration backlog
 

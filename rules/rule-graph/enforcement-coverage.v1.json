@@ -131,47 +131,47 @@
         {
           "sentence": "and follow `patterns/owner-goal-followup-and-requirement-accretion.md`.",
           "record": "uda.kernel.followup-derivation",
-          "obligation_id": "apply-followup-pattern"
+          "obligation_id": "rebind-before-author-launch-accept"
         },
         {
           "sentence": "First classify the root outcome as `OPEN`, `SATISFIED`, `SUPERSEDED`, `CANCELED`, or `AUTHORITY_UNRESOLVED`,",
           "record": "uda.kernel.followup-derivation",
-          "obligation_id": "classify-root-and-gap"
+          "obligation_id": "rebind-before-author-launch-accept"
         },
         {
           "sentence": "and state the exact remaining owner gap.",
           "record": "uda.kernel.followup-derivation",
-          "obligation_id": "state-exact-owner-gap"
+          "obligation_id": "rebind-before-author-launch-accept"
         },
         {
           "sentence": "A useful improvement is not unfinished owner work merely because it is technically attractive.",
           "record": "uda.kernel.followup-derivation",
-          "obligation_id": "useful-is-not-unfinished"
+          "obligation_id": "rebind-before-author-launch-accept"
         },
         {
           "sentence": "Every new mandatory requirement that was not already present in the owner outcome must declare its origin and necessity.",
           "record": "uda.kernel.followup-derivation",
-          "obligation_id": "requirement-origin-necessity"
+          "obligation_id": "rebind-before-author-launch-accept"
         },
         {
           "sentence": "An `ASSISTANT_INFERENCE` or inherited choice (not a declared gate) with unresolved necessity may be only a bounded reversible experiment; it may not become a fail-closed blocker, architecture prerequisite, root acceptance criterion, stronger assurance gate, or reason to disable a previously working owner-aligned path.",
           "record": "uda.kernel.followup-derivation",
-          "obligation_id": "unresolved-inference-experiment-only"
+          "obligation_id": "rebind-before-author-launch-accept"
         },
         {
           "sentence": "Treat stronger assurance as requirement accretion when it changes whether work may proceed or count as complete.",
           "record": "uda.kernel.followup-derivation",
-          "obligation_id": "assurance-is-accretion"
+          "obligation_id": "rebind-before-author-launch-accept"
         },
         {
           "sentence": "Independent readback, provider attestation, extra reviewers, new trust boundaries, and similar controls must identify the current owner decision/outcome they materially change and why a simpler evidence standard is insufficient before becoming mandatory.",
           "record": "uda.kernel.followup-derivation",
-          "obligation_id": "simpler-proof-insufficient"
+          "obligation_id": "rebind-before-author-launch-accept"
         },
         {
           "sentence": "If a newly added control blocks or degrades a previously working owner-aligned path, stop the compensating-fix chain",
           "record": "uda.kernel.followup-derivation",
-          "obligation_id": "stop-compensating-chain"
+          "obligation_id": "revalidate-first-added-control"
         },
         {
           "sentence": "and revalidate the first added requirement against the parent outcome and the strongest materially simpler alternative.",
@@ -181,22 +181,22 @@
         {
           "sentence": "Preserve useful supporting work,",
           "record": "uda.kernel.followup-derivation",
-          "obligation_id": "preserve-useful-support"
+          "obligation_id": "revalidate-first-added-control"
         },
         {
           "sentence": "but restore the simpler valid path when necessity is not established.",
           "record": "uda.kernel.followup-derivation",
-          "obligation_id": "restore-simpler-path"
+          "obligation_id": "revalidate-first-added-control"
         },
         {
           "sentence": "This gate runs at follow-up-task authoring, before the new framing is handed to Work or another executor.",
           "record": "uda.kernel.followup-derivation",
-          "obligation_id": "gate-at-authoring"
+          "obligation_id": "rebind-before-author-launch-accept"
         },
         {
           "sentence": "A later worker faithfully executing a substituted goal is too late.",
           "record": "uda.kernel.followup-derivation",
-          "obligation_id": "later-faithful-worker-too-late"
+          "obligation_id": "rebind-before-author-launch-accept"
         },
         {
           "sentence": "At experiment launch, apply the operational owner-method contract to the actual runnable configuration.",
@@ -228,7 +228,7 @@
       ],
       "destinations": [
         "current reasoning/execution turn",
-        "instruction artifact"
+        "instruction-artifact"
       ],
       "enforcement_types": [
         "semantic"
@@ -257,12 +257,12 @@
         {
           "sentence": "select entries whose triggers match,",
           "record": "uda.kernel.instruction-activation",
-          "obligation_id": "select-matching-triggers"
+          "obligation_id": "open-index-every-task"
         },
         {
           "sentence": "and read their current patterns.",
           "record": "uda.kernel.instruction-activation",
-          "obligation_id": "read-current-patterns"
+          "obligation_id": "open-index-every-task"
         },
         {
           "sentence": "Instruction maintenance uses `patterns/instruction-composition-and-portable-intelligence.md`;",
@@ -272,7 +272,7 @@
         {
           "sentence": "activation uses `patterns/task-time-lesson-activation.md`.",
           "record": "uda.kernel.instruction-activation",
-          "obligation_id": "activation-owner"
+          "obligation_id": "open-index-every-task"
         },
         {
           "sentence": "Resolve graph-covered dependencies via `rules/UDA-RULE-GRAPH.json`/`scripts/uda_rule_graph.py`;",
@@ -282,32 +282,32 @@
         {
           "sentence": "canonical prose remains authoritative;",
           "record": "uda.kernel.instruction-activation",
-          "obligation_id": "canonical-prose-authority"
+          "obligation_id": "resolve-covered-dependencies"
         },
         {
           "sentence": "unmapped rules stay index-routed;",
           "record": "uda.kernel.instruction-activation",
-          "obligation_id": "unmapped-index-routing"
+          "obligation_id": "resolve-covered-dependencies"
         },
         {
           "sentence": "shopping routes through `LESSON-INDEX.md`.",
           "record": "uda.kernel.instruction-activation",
-          "obligation_id": "shopping-index-routing"
+          "obligation_id": "resolve-covered-dependencies"
         },
         {
           "sentence": "Task-specific rules live in patterns",
           "record": "uda.kernel.instruction-maintenance",
-          "obligation_id": "rules-in-patterns"
+          "obligation_id": "maintenance-pattern-owner"
         },
         {
           "sentence": "and are reached through `LESSON-INDEX.md`;",
           "record": "uda.kernel.instruction-maintenance",
-          "obligation_id": "rules-index-reachability"
+          "obligation_id": "maintenance-pattern-owner"
         },
         {
           "sentence": "a new task rule adds a pattern and an index entry, never a root line.",
           "record": "uda.kernel.instruction-maintenance",
-          "obligation_id": "new-rule-not-root"
+          "obligation_id": "maintenance-pattern-owner"
         }
       ],
       "legacy_remainder": ""
@@ -329,16 +329,12 @@
         "work"
       ],
       "phases": [
-        "final-delivery",
         "handoff",
-        "pre-action",
-        "retrieval"
+        "pre-action"
       ],
       "destinations": [
-        "current reasoning/execution turn",
         "owner-required artifact and companion materials",
-        "owner-visible message or question payload (any channel)",
-        "owner-visible-final"
+        "owner-visible-message"
       ],
       "enforcement_types": [
         "semantic"
@@ -368,7 +364,7 @@
         {
           "sentence": "Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, and similar opaque references are locating metadata, not semantic referents.",
           "record": "uda.kernel.operational-references",
-          "obligation_id": "metadata-not-meaning"
+          "obligation_id": "plain-language-first"
         },
         {
           "sentence": "Immediately before surfacing any outbound link to the owner, open the exact destination, follow redirects, and verify that the final page resolves successfully to the intended current content—not an error, 404, dead, parked, or stale page.",
@@ -378,22 +374,22 @@
         {
           "sentence": "Search snippets, cached previews, remembered URLs, and earlier checks do not count as verification.",
           "record": "uda.kernel.outbound-links",
-          "obligation_id": "no-cached-verification"
+          "obligation_id": "exact-current-destination"
         },
         {
           "sentence": "If the exact link cannot be verified in the current turn, do not surface it.",
           "record": "uda.kernel.outbound-links",
-          "obligation_id": "withhold-unverified-link"
+          "obligation_id": "exact-current-destination"
         },
         {
           "sentence": "Never present a broken or unverified link as a recommendation.",
           "record": "uda.kernel.outbound-links",
-          "obligation_id": "no-broken-recommendation"
+          "obligation_id": "exact-current-destination"
         },
         {
           "sentence": "**Delivery is part of completion.**",
           "record": "uda.kernel.artifact-delivery",
-          "obligation_id": "delivery-is-completion"
+          "obligation_id": "usable-delivery-before-completion"
         },
         {
           "sentence": "When the owner needs to use a file, packet, handoff, protocol, report, generated artifact, or other output, do not make them navigate GitHub branches or repository paths to obtain it.",
@@ -403,7 +399,7 @@
         {
           "sentence": "Before delivering that output, load the delivery-priority, provenance, companion-material, and pre-close usability rules: `patterns/human-readable-operational-references.md` → **Compact rules moved from root `AGENTS.md`**.",
           "record": "uda.kernel.artifact-delivery",
-          "obligation_id": "load-compact-delivery-rules"
+          "obligation_id": "usable-delivery-before-completion"
         }
       ],
       "legacy_remainder": ""
@@ -427,15 +423,12 @@
       "phases": [
         "final-delivery",
         "handoff",
-        "pre-action",
         "retrieval"
       ],
       "destinations": [
-        "authorized execution boundary",
-        "chat-visible-summary",
         "current reasoning/execution turn",
-        "intended-recipient-reusable-file",
-        "owner-visible-final"
+        "owner-visible-final",
+        "recipient-file-and-chat-summary"
       ],
       "enforcement_types": [
         "semantic"
@@ -468,22 +461,22 @@
         {
           "sentence": "This is a final-output contract and a pre-answer invariant, not a task-dependent recommendation.",
           "record": "uda.final.timestamp",
-          "obligation_id": "final-boundary-contract"
+          "obligation_id": "final-first-line-timestamp"
         },
         {
           "sentence": "The timestamp must appear in the final answer/message content delivered to the user on every assistant turn.",
           "record": "uda.final.timestamp",
-          "obligation_id": "final-surface-timestamp"
+          "obligation_id": "final-first-line-timestamp"
         },
         {
           "sentence": "A timestamp written only in hidden reasoning, visible thinking/reasoning UI, analysis, tool-call commentary, scratch work, or any intermediate channel **does not satisfy this requirement**.",
           "record": "uda.final.timestamp",
-          "obligation_id": "intermediate-is-not-final"
+          "obligation_id": "final-first-line-timestamp"
         },
         {
           "sentence": "An earlier timestamp in reasoning or an intermediate step does not satisfy the final-output contract; use the second reading in the final answer.",
           "record": "uda.final.timestamp",
-          "obligation_id": "second-reading-in-final"
+          "obligation_id": "final-first-line-timestamp"
         },
         {
           "sentence": "Two clock readings per turn, no others (owner, 2026-09-30).",
@@ -498,27 +491,27 @@
         {
           "sentence": "Second: a read right before writing the final answer.",
           "record": "uda.kernel.clock-cadence",
-          "obligation_id": "second-reading"
+          "obligation_id": "two-read-cadence"
         },
         {
           "sentence": "Read with `date -u` in a shell tool, else the current-time tool, else the code tool's clock;",
           "record": "uda.kernel.clock-cadence",
-          "obligation_id": "clock-priority-and-retry"
+          "obligation_id": "two-read-cadence"
         },
         {
           "sentence": "if a read fails or isn't later than the first, use the next one once.",
           "record": "uda.kernel.clock-cadence",
-          "obligation_id": "single-failed-read-retry"
+          "obligation_id": "two-read-cadence"
         },
         {
           "sentence": "Never compare clocks or read mid-task.",
           "record": "uda.kernel.clock-cadence",
-          "obligation_id": "no-midtask-comparison"
+          "obligation_id": "two-read-cadence"
         },
         {
           "sentence": "The final answer opens with the second reading",
           "record": "uda.final.timestamp",
-          "obligation_id": "final-opens-with-second-reading"
+          "obligation_id": "final-first-line-timestamp"
         },
         {
           "sentence": "and says how long the turn took in total.",
@@ -528,37 +521,37 @@
         {
           "sentence": "Don't reuse a prior-turn timestamp",
           "record": "uda.kernel.clock-cadence",
-          "obligation_id": "current-turn-provenance"
+          "obligation_id": "two-read-cadence"
         },
         {
           "sentence": "or present capture time as hidden provider sent time.",
           "record": "uda.kernel.clock-cadence",
-          "obligation_id": "honest-capture-provenance"
+          "obligation_id": "two-read-cadence"
         },
         {
           "sentence": "If no clock answers, say so rather than inventing a time.",
           "record": "uda.kernel.clock-cadence",
-          "obligation_id": "unavailable-clock-disclosure"
+          "obligation_id": "two-read-cadence"
         },
         {
           "sentence": "Before finalizing every assistant turn, perform a literal output check: the first user-visible line of the final answer must match a date + time + timezone/UTC-offset form.",
           "record": "uda.final.timestamp",
-          "obligation_id": "literal-final-check"
+          "obligation_id": "final-first-line-timestamp"
         },
         {
           "sentence": "If it does not, prepend the second reading; the check needs no further reading.",
           "record": "uda.final.timestamp",
-          "obligation_id": "prepend-without-reread"
+          "obligation_id": "final-first-line-timestamp"
         },
         {
           "sentence": "Apply it on every turn even for trivial arithmetic, greetings, smoke tests, follow-up acknowledgments, corrections, status updates, or prompts that otherwise warrant a direct one-line answer.",
           "record": "uda.final.timestamp",
-          "obligation_id": "trivial-turns-included"
+          "obligation_id": "final-first-line-timestamp"
         },
         {
           "sentence": "Simple answers, low-effort reasoning, tool avoidance, brevity, and shallow repository reads **must not waive this invariant**.",
           "record": "uda.final.timestamp",
-          "obligation_id": "no-brevity-waiver"
+          "obligation_id": "final-first-line-timestamp"
         },
         {
           "sentence": "When current owner instructions require the canonical GitHub bootstrap, **re-fetch the live default-branch root `AGENTS.md` on every user turn before task reasoning, artifact composition, task execution, or answering**.",
@@ -568,12 +561,12 @@
         {
           "sentence": "Tool discovery, current-clock checks, and the bootstrap retrieval itself are permitted prerequisites.",
           "record": "uda.bootstrap.live-root",
-          "obligation_id": "only-bootstrap-prerequisites"
+          "obligation_id": "live-root-refetch"
         },
         {
           "sentence": "A prior-turn fetch, cached copy, remembered summary, or earlier reasoning does not satisfy per-turn activation.",
           "record": "uda.bootstrap.live-root",
-          "obligation_id": "no-prior-activation-substitute"
+          "obligation_id": "live-root-refetch"
         },
         {
           "sentence": "If required GitHub/bootstrap access is unavailable, the final answer must still begin with the timestamp and then state the access failure explicitly rather than pretending the bootstrap occurred.",
@@ -586,7 +579,7 @@
         {
           "sentence": "Treat failure to emit the timestamp as the first line of the final user-visible answer on any assistant turn as an instruction-following failure even when the timestamp appeared during thinking or the underlying task answer is otherwise correct.",
           "record": "uda.final.timestamp",
-          "obligation_id": "classify-missing-stamp-failure"
+          "obligation_id": "final-first-line-timestamp"
         },
         {
           "sentence": "**Every turn:** reusable output over ~8,000 characters goes in a file, for any recipient;",
@@ -596,7 +589,7 @@
         {
           "sentence": "chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`.",
           "record": "uda.kernel.output-budget",
-          "obligation_id": "chat-summary-of-file"
+          "obligation_id": "file-for-long-reusable-output"
         }
       ]
     },
@@ -643,7 +636,7 @@
         {
           "sentence": "Before final delivery, apply `patterns/codex-github-operating-system.md` → **Continuation and stop admission**.",
           "record": "uda.kernel.continuation",
-          "obligation_id": "apply-stop-admission"
+          "obligation_id": "execute-open-frontier"
         },
         {
           "sentence": "An OPEN task with a safe authorized executable next action requires doing it now, not just diagnosing or planning it.",
@@ -653,22 +646,22 @@
         {
           "sentence": "A self-authored scope or completed lease cannot cancel parent implementation authority.",
           "record": "uda.kernel.continuation",
-          "obligation_id": "preserve-parent-authority"
+          "obligation_id": "execute-open-frontier"
         },
         {
           "sentence": "Check the actual final output: stop only at an evidenced boundary,",
           "record": "uda.kernel.continuation",
-          "obligation_id": "evidenced-stop-boundary"
+          "obligation_id": "execute-open-frontier"
         },
         {
           "sentence": "finish independent work,",
           "record": "uda.kernel.continuation",
-          "obligation_id": "finish-independent-work"
+          "obligation_id": "execute-open-frontier"
         },
         {
           "sentence": "and preserve explicit owner restrictions and real access, spending, privacy, platform, and irreversible-action gates.",
           "record": "uda.kernel.continuation",
-          "obligation_id": "preserve-real-gates"
+          "obligation_id": "execute-open-frontier"
         }
       ],
       "legacy_remainder": ""
@@ -764,14 +757,12 @@
         "work"
       ],
       "phases": [
-        "final-delivery",
         "pre-action"
       ],
       "destinations": [
-        "active operation commitment ledger and method-switch boundary",
         "authorized execution boundary",
-        "owner-visible-final",
-        "target accessibility claim or recovery request"
+        "operation-commitment-ledger",
+        "owner-visible-message"
       ],
       "enforcement_types": [
         "semantic"
@@ -804,32 +795,32 @@
         {
           "sentence": "use isolated workspaces,",
           "record": "uda.kernel.coordination",
-          "obligation_id": "isolate-workspaces"
+          "obligation_id": "choose-coordinated-route"
         },
         {
           "sentence": "a durable plan and recovery ledger,",
           "record": "uda.kernel.coordination",
-          "obligation_id": "durable-plan-recovery"
+          "obligation_id": "choose-coordinated-route"
         },
         {
           "sentence": "delegation plus independent review when safely separable and decision-relevant,",
           "record": "uda.kernel.coordination",
-          "obligation_id": "separable-delegation-review"
+          "obligation_id": "choose-coordinated-route"
         },
         {
           "sentence": "and serialize shared mutable state.",
           "record": "uda.kernel.coordination",
-          "obligation_id": "serialize-shared-state"
+          "obligation_id": "choose-coordinated-route"
         },
         {
           "sentence": "This standing permission does not broaden task authority and does not replace substantive owner decisions.",
           "record": "uda.kernel.coordination",
-          "obligation_id": "no-coordination-authority-expansion"
+          "obligation_id": "choose-coordinated-route"
         },
         {
           "sentence": "An owner answer, correction, upload, or requested clarification is input to the active task, not a completion event.",
           "record": "uda.kernel.owner-input-continuation",
-          "obligation_id": "owner-input-is-input"
+          "obligation_id": "resume-after-input"
         },
         {
           "sentence": "After incorporating it, continue automatically to the next safe in-scope action while the stated goal remains unfinished.",
@@ -839,12 +830,12 @@
         {
           "sentence": "Do not return only an acknowledgment or ask the owner what to do next when repository state, the task plan, or the request already determines that step.",
           "record": "uda.kernel.owner-input-continuation",
-          "obligation_id": "no-determined-next-step-question"
+          "obligation_id": "resume-after-input"
         },
         {
           "sentence": "Pause only for a genuine missing owner decision, new authority, destructive or irreversible risk, unavailable permission or credential, spending, publication, or access, or an explicit request to stop.",
           "record": "uda.kernel.owner-input-continuation",
-          "obligation_id": "genuine-pause-only"
+          "obligation_id": "resume-after-input"
         },
         {
           "sentence": "Work selects authorized task-scoped access and the automatic reviewer; do not ask the owner to choose routine permissions.",
@@ -854,12 +845,12 @@
         {
           "sentence": "This adds no semantic, spending, publication, representation, destructive, or self-approval authority.",
           "record": "uda.kernel.work-permissions",
-          "obligation_id": "no-added-authority"
+          "obligation_id": "automatic-task-access-review"
         },
         {
           "sentence": "Resolve engineering blockers; ask only about a material tradeoff, with plain consequences and a recommendation, or a required human gate.",
           "record": "uda.kernel.owner-interaction",
-          "obligation_id": "resolve-engineering-blockers"
+          "obligation_id": "minimize-owner-choice"
         },
         {
           "sentence": "Minimize owner choice as an execution invariant.",
@@ -869,22 +860,22 @@
         {
           "sentence": "Resolve routine implementation details and already-authorized subordinate actions without asking.",
           "record": "uda.kernel.owner-interaction",
-          "obligation_id": "resolve-authorized-details"
+          "obligation_id": "minimize-owner-choice"
         },
         {
           "sentence": "A confirmation for the same destination, data boundary, scope, and consequence remains valid across retries, resumed execution, or an alternate authorized transport path; a failed tool or transport does not consume that approval.",
           "record": "uda.kernel.owner-interaction",
-          "obligation_id": "approval-survives-transport"
+          "obligation_id": "minimize-owner-choice"
         },
         {
           "sentence": "Ask again only if those facts materially change or the platform requires a fresh human gesture.",
           "record": "uda.kernel.owner-interaction",
-          "obligation_id": "fresh-approval-only-for-change"
+          "obligation_id": "minimize-owner-choice"
         },
         {
           "sentence": "If owner interaction is genuinely required, finish independent preparation,",
           "record": "uda.kernel.owner-interaction",
-          "obligation_id": "independent-preparation"
+          "obligation_id": "consolidate-confirmations"
         },
         {
           "sentence": "consolidate the exact dependent actions into the fewest confirmations permitted,",
@@ -894,17 +885,17 @@
         {
           "sentence": "explain the concrete downside or risk and why the gate is mandatory,",
           "record": "uda.kernel.owner-interaction",
-          "obligation_id": "explain-mandatory-risk"
+          "obligation_id": "consolidate-confirmations"
         },
         {
           "sentence": "give a recommended default,",
           "record": "uda.kernel.owner-interaction",
-          "obligation_id": "recommended-default"
+          "obligation_id": "consolidate-confirmations"
         },
         {
           "sentence": "and resume automatically after the answer.",
           "record": "uda.kernel.owner-interaction",
-          "obligation_id": "resume-after-human-answer"
+          "obligation_id": "consolidate-confirmations"
         },
         {
           "sentence": "Before declaring a host, device, service, session, or other target inaccessible—or asking the owner to identify, restart, reconnect, or configure an opaque machine-generated target—recover its semantic identity and the authorized access topology first.",
@@ -914,32 +905,32 @@
         {
           "sentence": "Treat a failed connector/device transport as a route-specific failure, not proof that the underlying target is unavailable.",
           "record": "uda.kernel.target-recovery",
-          "obligation_id": "route-failure-scope"
+          "obligation_id": "identity-and-topology-before-escalation"
         },
         {
           "sentence": "Inspect current connected endpoints plus task-relevant local mappings such as SSH config/aliases, durable task state, service/process metadata, and recent authorized execution history;",
           "record": "uda.kernel.target-recovery",
-          "obligation_id": "inspect-endpoints-mappings"
+          "obligation_id": "identity-and-topology-before-escalation"
         },
         {
           "sentence": "from a healthy authorized endpoint, use bounded read-only probes such as `hostname` and exact target-path existence/read checks to prove which route reaches the same target.",
           "record": "uda.kernel.target-recovery",
-          "obligation_id": "bounded-identity-and-path-probes"
+          "obligation_id": "identity-and-topology-before-escalation"
         },
         {
           "sentence": "Use an equivalent authorized alternate route when one exists.",
           "record": "uda.kernel.target-recovery",
-          "obligation_id": "equivalent-alternate-route"
+          "obligation_id": "identity-and-topology-before-escalation"
         },
         {
           "sentence": "Never ask the owner to recognize an opaque identifier merely because the first transport failed.",
           "record": "uda.kernel.target-recovery",
-          "obligation_id": "no-opaque-recognition-request"
+          "obligation_id": "identity-and-topology-before-escalation"
         },
         {
           "sentence": "Escalate only after plausible authorized routes are exhausted or a genuinely human-only action remains.",
           "record": "uda.kernel.target-recovery",
-          "obligation_id": "exhaust-routes-or-human-gate"
+          "obligation_id": "identity-and-topology-before-escalation"
         },
         {
           "sentence": "When you explicitly commit to a substantive operation, method, comparison, audit, experiment, or artifact, keep it as an open obligation until it is actually executed, I explicitly supersede it, or new evidence makes it invalid and you say so.",
@@ -949,17 +940,17 @@
         {
           "sentence": "Adjacent analysis, planning, preparation, or a different method does not count as completion.",
           "record": "uda.kernel.operation-commitments",
-          "obligation_id": "adjacent-work-not-completion"
+          "obligation_id": "keep-promised-operation-open"
         },
         {
           "sentence": "Before switching methods, declaring progress complete, or ending a substantial pass, verify what observable result proves each promised operation actually occurred.",
           "record": "uda.kernel.operation-commitments",
-          "obligation_id": "observable-result-before-close"
+          "obligation_id": "keep-promised-operation-open"
         },
         {
           "sentence": "If a still-valid promised step was displaced by later work, execute it before continuing.",
           "record": "uda.kernel.operation-commitments",
-          "obligation_id": "execute-displaced-valid-step"
+          "obligation_id": "keep-promised-operation-open"
         }
       ],
       "legacy_remainder": ""

@@ -25,7 +25,7 @@
       "kind": "chat",
       "relation": "SAME_AGENT"
     },
-    "obligation_id": "adjacent-work-not-completion",
+    "obligation_id": "keep-promised-operation-open",
     "non_substitute": "adjacent preparation labeled as execution"
   }
 }

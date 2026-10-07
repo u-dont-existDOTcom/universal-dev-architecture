@@ -25,7 +25,7 @@
       "kind": "chat",
       "relation": "SAME_AGENT"
     },
-    "obligation_id": "rules-index-reachability",
+    "obligation_id": "maintenance-pattern-owner",
     "non_substitute": "orphan pattern without index reachability"
   }
 }

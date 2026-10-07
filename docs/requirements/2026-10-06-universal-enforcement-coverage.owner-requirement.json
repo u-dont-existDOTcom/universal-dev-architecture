@@ -168,15 +168,18 @@
       },
       "backlog_count": 78,
       "baseline_shrinkage": 6,
-      "obligations_found": 103,
-      "structured": 102,
       "excepted": 1,
       "remaining_in_six_sections": 0,
       "new_records": 15,
       "root_owner_outcome": "OPEN",
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
-      "implemented": "Six root sections mapped without prose edits; bound candidate regressions and explicit bootstrap-failure carrier. Remaining P1 patterns require later slices."
+      "implemented": "Six sections, 103 clauses, one exception, 23 behaviors and a budget-tested projection. Later slices remain.",
+      "clauses_found": 103,
+      "structured_clauses": 102,
+      "consolidated_obligations": 23,
+      "rendered_work_utf8_bytes": 24297,
+      "rendered_work_budget_bytes": 24576
     }
   ],
   "learning_state_at_merge": [
