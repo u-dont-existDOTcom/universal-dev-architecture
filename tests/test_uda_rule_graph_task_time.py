@@ -101,11 +101,17 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
                 checked = task_time.check_contract(contract, "final-delivery", payload)
                 self.assertEqual(checked["admission"], "BLOCKED")
                 self.assertEqual(next(x for x in checked["results"] if x["obligation_id"] == "final-elapsed-time")["status"], "UNKNOWN")
-            admitted = task_time.check_contract(
+            checked = task_time.check_contract(
                 contract, "final-delivery", "2026-09-30 09:42 UTC\nElapsed time: 2 minutes",
                 clock_start="2026-09-30T09:40:00+00:00", clock_end="2026-09-30T09:42:00+00:00",
             )
-            self.assertEqual(admitted["admission"], "ADMITTED")
+            self.assertEqual(next(x for x in checked["results"] if x["obligation_id"] == "final-elapsed-time")["status"], "PASS")
+            if contract is generated:
+                # Valid clocks do not discharge the OPEN task's durable handoff.
+                self.assertEqual(checked["admission"], "BLOCKED")
+                self.assertEqual(next(x for x in checked["results"] if x["obligation_id"] == "save-turn-end-handoff")["status"], "UNKNOWN")
+            else:
+                self.assertEqual(checked["admission"], "ADMITTED")
 
     def test_final_delivery_validates_clock_readings_and_reported_elapsed_time(self):
         contract = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
@@ -141,9 +147,13 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
                 wrong = task_time.check_contract(
                     contract, "final-delivery", payload, destination="another-surface", **readings,
                 )
-                self.assertEqual(wrong["admission"], "BLOCKED")
-                self.assertTrue(all(result["status"] == "UNKNOWN" for result in wrong["results"]))
-                self.assertTrue(all("destination" in result["reason"] for result in wrong["results"]))
+                self.assertEqual(wrong["admission"], "NOT_EVALUATED")
+                self.assertEqual(wrong["destination"], "another-surface")
+                self.assertEqual(wrong["results"], [])
+                self.assertEqual({result["obligation_id"] for result in wrong["out_of_scope"]},
+                                 {"final-first-line-timestamp", "final-elapsed-time"})
+                self.assertTrue(all(result["destination"] == "owner-visible-final"
+                                    for result in wrong["out_of_scope"]))
 
     def test_final_delivery_accepts_fractional_readings_at_reported_precision(self):
         contract = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
@@ -162,8 +172,9 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
                 self.assertEqual(checked["admission"], "ADMITTED")
 
     def test_final_delivery_cli_admits_valid_readings(self):
-        correction = json.loads((ROOT / "examples/rule-graph/owner-correction.json").read_text())
-        contract = task_time.compile_contract(self.catalog, self.profile, correction, "graph")
+        # The instruction-only fixture isolates mechanical final-output checks.
+        # OPEN implementation also requires a semantic durable checkpoint receipt.
+        contract = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
         with tempfile.TemporaryDirectory() as directory:
             contract_path = Path(directory) / "contract.json"
             payload_path = Path(directory) / "final.txt"

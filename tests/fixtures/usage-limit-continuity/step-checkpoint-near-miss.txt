@@ -1,0 +1,3 @@
+Completed step: normalized the input.
+I described all details in chat and promise to push and write the checkpoint once usage reaches 98%.
+The next worker can read this chat summary.

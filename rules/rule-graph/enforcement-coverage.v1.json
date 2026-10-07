@@ -1366,7 +1366,7 @@
       "id": "patterns/context-compaction-resilience.md",
       "kind": "pattern",
       "indexed": true,
-      "disposition": "LEGACY_UNSTRUCTURED",
+      "disposition": "STRUCTURED_PARTIAL",
       "behavioral": true,
       "activation_route": {
         "kind": "INDEX_TRIGGER",
@@ -1377,7 +1377,8 @@
         "work",
         "codex",
         "controller",
-        "receiving-agent"
+        "receiving-agent",
+        "claude"
       ],
       "phases": [
         "retrieval",
@@ -1390,12 +1391,18 @@
       "destinations": [
         "canonical repository memory",
         "repository/task checkpoint",
-        "reactivated next unit of work"
+        "reactivated next unit of work",
+        "durable-task-checkpoint"
       ],
       "enforcement_types": [
-        "unobserved"
+        "unobserved",
+        "semantic"
       ],
-      "task_time_records": [],
+      "task_time_records": [
+        "uda.continuity.step-checkpoint",
+        "uda.continuity.turn-end-handoff",
+        "uda.continuity.usage-warning"
+      ],
       "graph_node": null,
       "evidence": [
         {
@@ -1409,14 +1416,35 @@
         {
           "path": "tests/test_current_state_concision.py",
           "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "rules/rule-graph/task-time-metadata.v1.json",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "scripts/uda_rule_graph_task_time.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_usage_limit_continuity.py",
+          "class": "COMPILATION"
+        },
+        {
+          "path": "tests/test_uda_usage_limit_continuity.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_usage_limit_continuity.py",
+          "class": "BEHAVIORAL_REGRESSION"
         }
       ],
-      "review_notes": "Current-state checkpoint is a recovery map, not authority over newer exact Git/artifact/owner evidence. Tiny one-shot work is exempt from a dedicated checkpoint; concurrent tasks use separate files.",
+      "review_notes": "The three continuity records bind semantic judgments to actual durable checkpoint bytes at persistence/final-delivery, not to chat summaries. The table-driven regression covers violating, compliant and non-substitute candidates, trigger exclusions, unresolved warning facts and receipt replay/rewrites. Binding verification does not prove pushes, private-store reachability, semantic truth or universal live behavior.",
       "migration": {
         "priority": "P1",
-        "next_step": "Register multi-session recovery and checkpoint boundaries; bind actual repository reconciliation, preserved current owner locks/gates, completed-work inventory and next executable action, then require reactivation after compaction rather than accepting summary mentions.",
+        "next_step": "Register the older §1–§7 recovery/reconciliation and completion obligations listed in legacy_remainder, including actual Git-state reconciliation and reactivation; integrate per-task consumer invocation without claiming global enforcement.",
         "trigger_frequency": "CONDITIONAL"
-      }
+      },
+      "legacy_remainder": "Only §3 Usage limits and account switches is structured. §1 still routes durable decisions, constraints, discoveries, architecture choices and blockers out of chat; §2 still requires an obvious canonical recovery entry point, separate concurrent-task checkpoints and all minimum goal/baseline/decision/gate/completed/current/remaining/blocker/evidence/dirty-state/next-action fields. The earlier §3 milestone, owner-change, blocker, migration, handoff and completion checkpoint boundaries remain prose-routed. §4 still requires actual repository/working-tree/bootstrap/index/commit/artifact inspection, reconciliation, stale-state repair, gate reactivation and resumption without repeated work. §5 still distinguishes durable decision outcomes from hidden reasoning; §6 still requires recovery by a fresh worker without the old transcript; §7 still requires completion evidence, current final state and lesson closeout. The limits on stale authority, secrets, raw-log duplication, tiny one-shot exemptions and equivalent machine-readable stores remain prose-routed."
     },
     {
       "id": "patterns/context-gated-symbolic-personality-synthesis-errata.md",

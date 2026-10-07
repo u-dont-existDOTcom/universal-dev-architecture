@@ -45,7 +45,7 @@ class DominatedRouteRegressionTests(unittest.TestCase):
         task['facts']['request_kind']['value'] = 'conceptual_explanation'
         self.assertEqual(fixture_contract(task)['selected_rules'], [])
 
-    def test_unknown_request_kind_remains_unresolved_and_blocks(self):
+    def test_unknown_request_kind_remains_unresolved_and_cannot_admit(self):
         for value in ({'state': 'UNKNOWN', 'provenance': 'not yet classified'}, None):
             task = copy.deepcopy(self.task)
             if value is None:
@@ -55,7 +55,13 @@ class DominatedRouteRegressionTests(unittest.TestCase):
             contract = fixture_contract(task)
             self.assertEqual(contract['unresolved'], [{'rule_id': RULE, 'reason': 'UNKNOWN_APPLICABILITY'}])
             self.assertFalse(contract['usable'])
-            self.assertEqual(self.check('repaired-final.txt', 'repaired.receipts.json', contract)['admission'], 'BLOCKED')
+            scoped = self.check('repaired-final.txt', 'repaired.receipts.json', contract)
+            self.assertEqual(scoped['admission'], 'NOT_EVALUATED')
+            self.assertEqual(scoped['results'], [])
+            self.assertEqual(scoped['out_of_scope'], [])
+            unscoped = tt.check_contract(contract, 'final-delivery',
+                                         (FIXTURE / 'repaired-final.txt').read_bytes())
+            self.assertEqual(unscoped['admission'], 'BLOCKED')
 
     def test_old_final_with_golden_fail_receipt_blocks(self):
         result = self.check('old-final.txt', 'old.receipts.json')

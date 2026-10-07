@@ -1,4 +1,4 @@
-# UDA enforcement coverage — first integration, passes 1 and 2
+# UDA enforcement coverage — first integration and usage-limit continuity
 
 Rules can be readable and easy to find without ever changing an answer or blocking an action. This inventory makes that gap visible. It checks declared coverage, not the semantic truth of an agent's judgment or live enforcement across every consumer. The owner outcome remains OPEN.
 
@@ -45,17 +45,17 @@ Indexed patterns: 82
 
 Migration backlog: 84
 
-Task-time records: 10, sourced from 7 files, with 2 mechanical and 10 semantic obligations.
+Task-time records: 13, sourced from 8 files, with 2 mechanical and 13 semantic obligations.
 
 | Disposition | Count |
 |---|---:|
 | STRUCTURED_ENFORCED | 0 |
-| STRUCTURED_PARTIAL | 7 |
+| STRUCTURED_PARTIAL | 8 |
 | WORKFLOW_ONLY | 10 |
-| LEGACY_UNSTRUCTURED | 77 |
+| LEGACY_UNSTRUCTURED | 76 |
 | NOT_ACTIVE | 2 |
 
-The seven partial sources are the bootstrap kernel section, task-time lesson activation, owner-goal follow-up, Chat/Work execution routing, the repository operating system, worker-directive/output delivery, and reasoning selection. The last now structures the dominated-route obligation; its other reasoning obligations remain in the legacy remainder. No whole source was newly fully structured in either pass. The pinned backlog has the same 84 identities, so shrinkage is zero. The report shows exact removed identities after migration.
+The eight partial sources are the bootstrap kernel section, task-time lesson activation, owner-goal follow-up, Chat/Work execution routing, the repository operating system, worker-directive/output delivery, reasoning selection, and context-compaction resilience. Reasoning selection structures the dominated-route obligation; context-compaction resilience now structures only §3 Usage limits and account switches. Their older obligations remain in the exact legacy remainders. No whole source was newly fully structured. The pinned backlog has the same 84 identities, so shrinkage is zero. The report shows exact removed identities after migration.
 
 The 2026-10-07 maintainer-handoff addition in `patterns/suggested-fix-queue.md` remains text-only coverage within its existing `LEGACY_UNSTRUCTURED` identity. Its tests protect step 9, the `uda-lane` label and README/index routing; they do not enforce live handoff, maintainer check-ins or filing-agent edit restrictions. The inventory records those limits and the migration work; the backlog remains 84 identities.
 
@@ -250,7 +250,9 @@ python3 scripts/uda_rule_graph_task_time.py check --contract contract.json --pha
 
 The skeleton contains a receipt for each semantic obligation due in that phase. Fill `verdict` with PASS, FAIL or NOT_APPLICABLE; give short `evidence` about the literal candidate, the asserting actor's `id`, `kind` and `relation` (SAME_AGENT or INDEPENDENT), and an ISO date/time with timezone in `issued_at`. For NOT_APPLICABLE, also give `not_applicable_reason`; it is accepted only when the obligation explicitly sets `not_applicable_allowed: true`. The blank skeleton itself cannot admit work. This CLI and the `scripts/uda_rule_graph.py` facade support the same receipt and check commands.
 
-Every receipt binds `contract_sha256` to the compiled contract's `content_sha256`, plus `rule_id`, `obligation_id`, `phase`, `destination` and `payload_sha256`. Payload hashing uses the exact file bytes: UTF-8 characters, CRLF, whitespace and the final newline all matter. Check verifies the contract's content hash too. Optional `--destination` binds the check's target; when omitted each receipt must still match its obligation's declared destination. Supply the existing `--clock-start` and `--clock-end` arguments for mechanical elapsed-time obligations; receipts do not replace mechanical predicates or change their result format.
+Every receipt binds `contract_sha256` to the compiled contract's `content_sha256`, plus `rule_id`, `obligation_id`, `phase`, `destination` and `payload_sha256`. Payload hashing uses the exact file bytes: UTF-8 characters, CRLF, whitespace and the final newline all matter. Check verifies the contract's content hash too. Optional `--destination` evaluates only obligations due at that destination and lists the others under `out_of_scope`; no due match returns NOT_EVALUATED. Without it, every due obligation is evaluated and each receipt must match its declared destination. Supply the existing `--clock-start` and `--clock-end` arguments for mechanical elapsed-time obligations; receipts do not replace mechanical predicates or change their result format.
+
+A phase with several destinations is admitted when each destination's scoped check is ADMITTED with its own payload: the final answer for `owner-visible-final`, the checkpoint text for `durable-task-checkpoint`.
 
 Missing, malformed, unbound, mismatched, stale or duplicate matching receipts leave the semantic obligation UNKNOWN and block admission. A matching FAIL blocks. An improper NOT_APPLICABLE blocks. `independent_review_required: true` rejects SAME_AGENT judgments. An owner correction requires recompilation and fresh receipts; a final rewrite, however small, requires a new receipt for its changed bytes. Unresolved applicability still blocks even if supplied receipts say PASS.
 
@@ -281,6 +283,44 @@ This is an owner-side instruction draft; this repository change does not edit ow
 The fixtures in `tests/fixtures/dominated-route/` use abstract inputs/outputs. The old final presents a two-command route, then the same transform command's direct-output option, and calls the latter preferable: its golden FAIL receipt blocks. The repaired one-command final's PASS receipt admits and stays one line (under 160 characters). Replaying a PASS receipt for the old payload or rewriting the final without a new receipt blocks. When intermediate approval before output is a real material tradeoff, both alternatives remain and the golden PASS receipt admits them. These fixtures pin source provenance to the exact source blob for commit-independent golden bindings; production compilation preserves repository-revision provenance. The isolated regression checks the dominated-route slice; the existing mechanical suites separately check timestamps and elapsed time.
 
 Both passes of the first integration are implemented. This establishes inventory, activation-state reporting, semantic binding admission and a behavioral regression; it does not establish universal live behavioral enforcement. The parent owner outcome remains OPEN with 84 partial/legacy identities. Later passes migrate coherent slices in the corrected priority order. The backlog pin remains unchanged, with zero added identities and zero fully removed identities.
+
+## Usage-limit continuity slice
+
+The direct owner request dated 2026-10-07 requires no lost work and a one-line way to continue in another account. `docs/requirements/2026-10-07-usage-limit-continuity.owner-requirement.json` preserves the verbatim request and separates OWNER_REQUIRED outcome from the supplied ASSISTANT_INFERENCE mechanism. Context-compaction resilience §3 now requires continuous completed-step checkpoints and a current turn-end handoff; an optional visible early warning supplements saving rather than deferring it to a threshold or a helper at the limit.
+
+All three records use exact-text selectors within that subsection and semantic receipt admission at `durable-task-checkpoint`. The two continuous-save records also bind the tiny one-shot exemption in the pattern's Limits section. Their source-bound acceptance evidence, non-substitutes, carry-through and repair are in the task-time metadata.
+
+| Task-time record | Trigger | Due phase | Destination |
+|---|---|---|---|
+| `uda.continuity.step-checkpoint` | OPEN outcome; task mode outside INSTRUCTION_ONLY, DIAGNOSTIC_ONLY, NO_CHANGE and STOP; `continuity_required = true` | persistence, each completed step | durable-task-checkpoint |
+| `uda.continuity.turn-end-handoff` | Same OPEN implementation and continuity-scope trigger | final-delivery, before ending the turn | durable-task-checkpoint |
+| `uda.continuity.usage-warning` | OPEN implementation AND `usage_warning_visible = true` | persistence, immediately at the warning | durable-task-checkpoint |
+
+Declare `continuity_required` from the actual task scope: true for multi-step, multi-session or long-running work needing durable recovery, false for a tiny one-shot task. False excludes both continuous-save records and their semantic receipts; missing or UNKNOWN scope remains unresolved on otherwise applicable work. A visible usage warning retains its immediate-save trigger independently of that scope fact.
+
+Every example envelope explicitly declares the warning false or ABSENT. Missing or UNKNOWN warning facts remain unresolved on otherwise applicable work and block admission; false/ABSENT warning facts never cancel the other two checkpoints. The fixtures distinguish this from instruction-only, diagnostic, no-change, stop and non-OPEN tasks, which do not select these records.
+
+Persistence checks require current task facts through `check --task task.json`, including when compilation omitted the warning rule. A changed `usage_warning_visible` state/value blocks the stale contract until recompilation; the refreshed warning contract then requires a receipt for the immediate save and small, restartable next action. Fresh explicit ABSENT observations remain valid. Fact provenance and semantic judgments remain assertions rather than independent observation of a provider usage indicator.
+
+| Record | Violating candidate | Compliant candidate | Near-miss non-substitute |
+|---|---|---|---|
+| Step checkpoint | Session-only completed work: BLOCKED | Pushed work and saved done/next/exact action: ADMITTED | Chat summary and promise to save at 98%: BLOCKED |
+| Turn-end handoff | Prior-turn checkpoint, inaccessible account state: BLOCKED | Current checkpoint, reachable private handoff, account-bound recreation list and one-line resume: ADMITTED | Correct chat final with stale durable checkpoint: BLOCKED |
+| Usage warning | Visible warning followed by one long unsaved step: BLOCKED | Immediate save and a small restartable step: ADMITTED | Separate helper reserved for the limit: BLOCKED |
+
+The nine domain-neutral candidates and hash-free verdict files live in `tests/fixtures/usage-limit-continuity/`. `tests/test_uda_usage_limit_continuity.py` binds receipts to the compiled contract and actual candidate bytes at test time. The regressions exercise these cases, actor/trigger selection, one-shot final admission without checkpoint receipts, unknown scope/warning facts, no-receipt/destination failures, checkpoint rewrites, owner-correction replay, requirement provenance, separate final/checkpoint payloads and running-task warning refresh in both CLI entrypoints. Golden semantic verdicts are assertions: the checker verifies binding and reports `judgment_proved: false`, rather than inferring semantic correctness, a push or private-store reachability from prose.
+
+The report now counts the following evidence classes. An entry may occur in several classes, so these counts do not sum to the universe and do not imply universal enforcement.
+
+| Evidence class | Inventory entries |
+|---|---:|
+| TEXT_PRESENCE | 96 |
+| ROUTING | 80 |
+| COMPILATION | 9 |
+| ADMISSION | 19 |
+| BEHAVIORAL_REGRESSION | 15 |
+
+This slice changes one LEGACY_UNSTRUCTURED entry to STRUCTURED_PARTIAL. The universe remains 96 entries and 82 indexed patterns, with 84 backlog identities (P1 22, P2 47, P3 15), zero additions and zero removals. No baseline pin was changed. The source lock and representative Work handoff projection are regenerated; Mission Control runtime and owner settings are untouched. A worker that never loaded UDA remains outside its protection, and an optional status-line warning remains surface-specific.
 
 ## Review judgment limits
 

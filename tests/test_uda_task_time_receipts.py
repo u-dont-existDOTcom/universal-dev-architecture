@@ -50,8 +50,14 @@ class SemanticReceiptTests(unittest.TestCase):
                 self.assertEqual(result['admission'], 'BLOCKED')
                 self.assertEqual(result['results'][0]['status'], 'UNKNOWN')
 
-    def test_check_destination_mismatch_blocks(self):
-        self.assertEqual(self.check([self.receipt], destination='another-surface')['admission'], 'BLOCKED')
+    def test_check_destination_mismatch_cannot_admit(self):
+        result = self.check([self.receipt], destination='another-surface')
+        self.assertEqual(result['admission'], 'NOT_EVALUATED')
+        self.assertEqual(result['destination'], 'another-surface')
+        self.assertEqual(result['results'], [])
+        self.assertEqual(result['out_of_scope'], [
+            {'rule_id': self.receipt['rule_id'], 'obligation_id': self.receipt['obligation_id'],
+             'destination': self.receipt['destination']}])
 
     def test_malformed_or_unbound_receipts_stay_unknown(self):
         variants = [None, {}, [], 'not a receipt', {'receipts': 'wrong-type'}]

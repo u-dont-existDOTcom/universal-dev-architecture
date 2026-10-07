@@ -26,10 +26,34 @@ The result must include `uda.owner-correction.reactivate` and its dependency clo
 
 ```bash
 printf '2026-09-22 15:12 UTC\nElapsed time: 2 minutes\nResult\n' > /tmp/final.txt
-python3 scripts/uda_rule_graph.py check --contract /tmp/corrected-contract.json --phase final-delivery --payload /tmp/final.txt --clock-start 2026-09-22T15:10:00+00:00 --clock-end 2026-09-22T15:12:00+00:00
+python3 scripts/uda_rule_graph.py check --contract /tmp/corrected-contract.json --phase final-delivery --destination owner-visible-final --payload /tmp/final.txt --clock-start 2026-09-22T15:10:00+00:00 --clock-end 2026-09-22T15:12:00+00:00
 ```
 
 Supply the two current-turn readings as ISO 8601 timestamps with UTC offsets. The first line must match the end reading, and `Elapsed time` must equal their difference. Missing readings or a timestamp only on a later line block admission.
+
+## Durable checkpoint check
+
+The continuity-enabled contract also requires a separate check of the saved checkpoint. This runnable example uses an illustrative fixture and assertion; for real work, use the current durable checkpoint and judge its exact bytes before filling the receipt. A final-answer check alone does not admit the whole phase.
+
+```bash
+cp tests/fixtures/usage-limit-continuity/turn-end-handoff-compliant.txt /tmp/checkpoint.txt
+python3 scripts/uda_rule_graph.py receipt --contract /tmp/corrected-contract.json --phase final-delivery --payload /tmp/checkpoint.txt --output /tmp/checkpoint-receipts.json
+python3 - <<'PY'
+import json
+from pathlib import Path
+path = Path('/tmp/checkpoint-receipts.json')
+receipts = json.loads(path.read_text())
+for receipt in receipts['receipts']:
+    receipt.update(verdict='PASS',
+                   evidence='Fixture records done/next, reachable private state, account-bound recreation and one-line resume.',
+                   actor={'id': 'example-author', 'kind': 'fixture', 'relation': 'SAME_AGENT'},
+                   issued_at='2026-09-22T15:12:00+00:00')
+path.write_text(json.dumps(receipts))
+PY
+python3 scripts/uda_rule_graph.py check --contract /tmp/corrected-contract.json --phase final-delivery --destination durable-task-checkpoint --payload /tmp/checkpoint.txt --receipts /tmp/checkpoint-receipts.json
+```
+
+Both scoped checks must be ADMITTED. The receipt check verifies binding, not the semantic judgment or actual persistence; a blank, missing or mismatched receipt blocks the checkpoint check.
 
 ## Stale graph recovery
 

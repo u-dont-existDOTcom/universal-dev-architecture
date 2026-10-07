@@ -35,7 +35,9 @@ Strengthen shopping/recommendation admission for B2B marketplaces and high-risk 
    - `in stock` + Import Export Code + 'contact supplier' qualifies only as an exporter lead.
    - It does not qualify as a verified consumer buy option without exact destination quote/order path, seller risk review, and product provenance.
 
-## Evidence from the current regression
+## Why
+
+### Evidence from the current regression
 
 The BR. Herbals Health Garden IndiaMART page presented:
 - seller-level `4.2 (1356)`, TrustSEAL, payment-protection and response-rate metadata;
@@ -54,7 +56,9 @@ This does not mathematically prove the headline `1356` count is false; it proves
 
 The seller also lists Vimax-branded male-enhancement products. The U.S. FDA has a public notification that a product sold as **Vimax** for sexual enhancement contained undeclared tadalafil (2014 notice, updated 2015). This is enough to trigger provenance escalation for a seller marketing Vimax-branded 'herbal/natural' male-enhancement inventory, but it is **not** enough to claim the seller's exact current Vimax SKU or every Vimax lot contains tadalafil without exact identity/lot confirmation.
 
-## Regression
+## Check first
+
+### Regression
 
 Given:
 - target product = SAVA Herbals MUSSK;
