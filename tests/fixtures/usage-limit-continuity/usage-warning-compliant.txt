@@ -1,0 +1,7 @@
+Visible usage warning: 92%.
+Immediate checkpoint by the worker holding the context: current input and partial artifact pushed to the task branch; this checkpoint records the current done and next state.
+Done: inputs normalized; first artifact segment saved.
+Next: assemble only the second segment; restart from the saved first segment if interrupted.
+Exact next action: build-artifact --input artifacts/input.json --segment second --resume artifacts/first.json --output artifacts/second.json
+Continue saving at each completed step, even without a visible warning; no helper is launched.
+If only a model-specific weekly limit is reached, a different model family in the same account can continue from this checkpoint.

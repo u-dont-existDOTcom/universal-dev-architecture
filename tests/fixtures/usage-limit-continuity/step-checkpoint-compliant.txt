@@ -1,0 +1,6 @@
+Task outcome: OPEN; assembly and validation remain.
+Completed step / done: normalized input saved as artifacts/input.json and pushed to the task branch.
+Checkpoint writer: the worker holding the current context; no helper.
+Next: assemble one result from the saved input.
+Exact next action: build-artifact --input artifacts/input.json --output artifacts/result.json
+This checkpoint is saved at task/checkpoint.md at the completed-step boundary; no usage threshold is required.

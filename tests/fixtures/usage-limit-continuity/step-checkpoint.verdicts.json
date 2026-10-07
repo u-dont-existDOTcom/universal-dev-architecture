@@ -1,0 +1,20 @@
+[
+  {
+    "case": "violating",
+    "payload": "step-checkpoint-violating.txt",
+    "verdict": "FAIL",
+    "evidence": "The completed normalization exists only in the session; no pushed work or saved done/next/exact action can be recovered by a successor."
+  },
+  {
+    "case": "compliant",
+    "payload": "step-checkpoint-compliant.txt",
+    "verdict": "PASS",
+    "evidence": "The saved checkpoint identifies the pushed normalized input, completed work, remaining assembly and exact next command; the context-bearing worker saved it at the step boundary."
+  },
+  {
+    "case": "near-miss",
+    "payload": "step-checkpoint-near-miss.txt",
+    "verdict": "FAIL",
+    "evidence": "A chat-only summary and a promise to save at 98% do not supply pushed work or a durable checkpoint at the completed step."
+  }
+]

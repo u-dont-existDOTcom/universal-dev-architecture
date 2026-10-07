@@ -1,0 +1,7 @@
+Turn outcome: OPEN; validation remains.
+Done this turn: input normalized and result assembled; both artifacts pushed to the task branch and this checkpoint refreshed.
+Next: validate the saved result.
+Exact next action: validate-artifact --input artifacts/result.json
+Owner-private supervisor state: saved through the authorized private handoff store; the successor has verified access to the current private capsule and its resume entrypoint. No private contents are in this public checkpoint.
+Account-bound items to recreate: scheduled check-in after validation and saved memory about the output preference; their instructions are in that private capsule.
+One-line resume: Load current project authority and task/checkpoint.md, reconcile the task branch and private capsule, recreate the listed account-bound items, then run validate-artifact --input artifacts/result.json.

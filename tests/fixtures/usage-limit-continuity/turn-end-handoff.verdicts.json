@@ -1,0 +1,20 @@
+[
+  {
+    "case": "violating",
+    "payload": "turn-end-handoff-violating.txt",
+    "verdict": "FAIL",
+    "evidence": "The durable entry is from an earlier turn, omits this turn's normalization and supplies neither reachable private state nor account-bound recreation duties or a one-line resume."
+  },
+  {
+    "case": "compliant",
+    "payload": "turn-end-handoff-compliant.txt",
+    "verdict": "PASS",
+    "evidence": "The durable handoff reflects this turn, names validation and its exact action, includes a one-line resume and identifies reachable private supervisor state and check-in/memory recreation."
+  },
+  {
+    "case": "near-miss",
+    "payload": "turn-end-handoff-near-miss.txt",
+    "verdict": "FAIL",
+    "evidence": "A correct chat final is a non-substitute for refreshing the durable checkpoint; it also leaves private state and account-bound recreation duties behind."
+  }
+]

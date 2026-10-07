@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "task_id": "continuity:multi-step-artifact",
+  "bootstrap": {
+    "state": "LOADED",
+    "source": "current canonical root loaded for this illustrative task"
+  },
+  "request": "Prepare a durable artifact in several steps and allow a fresh session in another account to resume from the saved state alone.",
+  "facts": {
+    "role": {
+      "state": "KNOWN",
+      "value": "universal_internal",
+      "provenance": "task authority"
+    },
+    "actor": {
+      "state": "KNOWN",
+      "value": "chat",
+      "provenance": "context-bearing worker"
+    },
+    "owner_outcome_status": {
+      "state": "KNOWN",
+      "value": "OPEN",
+      "provenance": "artifact still needs assembly and validation"
+    },
+    "task_mode": {
+      "state": "KNOWN",
+      "value": "IMPLEMENTATION",
+      "provenance": "owner authorized multi-step work"
+    },
+    "usage_warning_visible": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "no warning signal exposed in this illustrative session"
+    },
+    "continuity_required": {
+      "state": "KNOWN",
+      "value": true,
+      "provenance": "multi-step work requires durable recovery across turns or sessions"
+    }
+  }
+}
