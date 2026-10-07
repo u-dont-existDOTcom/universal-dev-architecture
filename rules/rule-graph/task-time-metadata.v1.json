@@ -893,7 +893,7 @@
     },
     {
       "rule_id": "uda.continuity.usage-warning",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/context-compaction-resilience.md",
@@ -921,6 +921,7 @@
           "claude"
         ]
       },
+      "refresh_on_facts": ["usage_warning_visible"],
       "trigger": {
         "all": [
           {

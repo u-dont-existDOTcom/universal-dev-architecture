@@ -1,14 +1,14 @@
 {
-  "catalog_sha256": "5ef0ace7a0b112dcaf18a03d8ac83fd35429b0c4a72cb057570b31761c9c0c37",
-  "compiler_sha256": "a44851bede02b3a03bfe56fa60449b236e6137dc8e674f91be85380cac7f0baf",
-  "content_sha256": "ed911aa8854240ae6be8a0d9c869b9f29eedeb0dd121fd16c152a9cfdecc7be1",
+  "catalog_sha256": "04d53194fa0ee95d6f7c1724b7f5b10d97e13555ef578356fbd21c36b716d13c",
+  "compiler_sha256": "ac20f87816133187b9585a22fd89d52ac25cc42e732324a32db142fc6260fea0",
+  "content_sha256": "c602cc7dc1d2e989852b41501e7fbe8a0a138675cc2856fd62d31462378164c6",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
       "extracted_utf8_bytes": 268,
-      "git_blob_sha1": "b855dcc0bd873fbe0256c5c85503b5cf6cc55012",
+      "git_blob_sha1": "2872251dd654683dd4f3cc0a1e425cb6c91e3538",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:b855dcc0bd873fbe0256c5c85503b5cf6cc55012",
+      "repository_revision": "BLOB:2872251dd654683dd4f3cc0a1e425cb6c91e3538",
       "rule_id": "uda.active-contract.boundary-binding",
       "selectors": [
         {
@@ -164,9 +164,9 @@
     {
       "extracted_sha256": "20246d4cb4a4c9f5f46331555fae123081c44aa8fb779019e93784f7f4a0fd24",
       "extracted_utf8_bytes": 116,
-      "git_blob_sha1": "b855dcc0bd873fbe0256c5c85503b5cf6cc55012",
+      "git_blob_sha1": "2872251dd654683dd4f3cc0a1e425cb6c91e3538",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:b855dcc0bd873fbe0256c5c85503b5cf6cc55012",
+      "repository_revision": "BLOB:2872251dd654683dd4f3cc0a1e425cb6c91e3538",
       "rule_id": "uda.owner-correction.reactivate",
       "selectors": [
         {

@@ -204,6 +204,8 @@ A receipt binds contract_sha256 (the compiled content_sha256), rule_id, obligati
 
 A destination-scoped check evaluates only obligations due there, lists the others under `out_of_scope`, and returns NOT_EVALUATED if none match. A phase with several destinations is admitted when each destination's scoped check is ADMITTED with its own payload: the final answer for `owner-visible-final`, the checkpoint text for `durable-task-checkpoint`. Unscoped checks still evaluate every due obligation.
 
+Mutable trigger facts can declare `refresh_on_facts` in task-time metadata. The compiled contract retains a refresh boundary even when the fact currently omits the rule. At that phase/destination, supply the current task envelope with `check --task task.json` (or `current_facts` in `check_contract`). Missing current facts block admission; a changed fact state/value requires recompilation and new contract-bound receipts. In particular, refresh `usage_warning_visible` at persistence so a warning that appears during work activates the immediate checkpoint and small-step obligation. Explicit ABSENT remains a valid observation; the checker verifies declared facts, not an unseen provider signal.
+
 Results state RECEIPT_BINDING_VERIFIED and identify who asserted the judgment, with judgment_proved false. SAME_AGENT is application evidence, never independent verification; INDEPENDENT is an independent-review assertion. The code verifies bindings and receipt shape, not semantic truth, identity authentication or actual reviewer independence. A well-formed but mistaken PASS assertion can admit a violating candidate. Do not turn this admission path into a claim of universal behavioral proof or use receipts to substitute for mechanical checks.
 
 

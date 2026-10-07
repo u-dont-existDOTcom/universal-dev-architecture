@@ -21,7 +21,7 @@ DEFAULT_PROFILE = ROOT / "scripts" / "instruction-layering-profile.json"
 PHASES = ["retrieval", "reasoning", "pre-action", "handoff", "persistence", "publication", "final-delivery"]
 CONTRACT_CONTENT_FIELDS = ("schema_version", "catalog_schema_version", "mode", "task_id",
                            "task_envelope_sha256", "uda_activation", "uda_protection",
-                           "selected_rules", "unresolved", "rendered_contract")
+                           "selected_rules", "unresolved", "refresh_boundaries", "rendered_contract")
 
 
 class RuleGraphError(RuntimeError):
@@ -183,6 +183,10 @@ def validate(catalog: dict[str, Any], profile: dict[str, Any], *, root: Path | N
         if rule.get("status") not in {"CANDIDATE", "CURRENT", "HISTORICAL"} or not isinstance(rule.get("revision"), int):
             raise RuleGraphError("INVALID_RULE_STATE", rid)
         validate_trigger(rule.get("trigger"), rid)
+        refresh = rule.get("refresh_on_facts", [])
+        if (not isinstance(refresh, list) or any(not isinstance(name, str) or not name for name in refresh)
+                or len(set(refresh)) != len(refresh)):
+            raise RuleGraphError("INVALID_REFRESH_FACTS", rid)
         for role in rule.get("applies_to", {}).get("roles", []):
             if role not in roles:
                 raise RuleGraphError("UNKNOWN_RULE_ROLE", f"{rid}:{role}")
@@ -312,7 +316,8 @@ def order_rules(selected: set[str], by_id: dict[str, dict[str, Any]]) -> list[st
     return ordered
 
 
-def render(envelope: dict[str, Any], rules: list[dict[str, Any]], unresolved: list[dict[str, Any]]) -> str:
+def render(envelope: dict[str, Any], rules: list[dict[str, Any]], unresolved: list[dict[str, Any]],
+           refresh_boundaries: list[dict[str, Any]]) -> str:
     lines = [
         "# Active Lesson Contract — graph projection",
         "",
@@ -343,6 +348,12 @@ def render(envelope: dict[str, Any], rules: list[dict[str, Any]], unresolved: li
                 f"  - Repair: {ob['repair']}",
                 f"  - Enforcement: {ob['enforcement']}",
             ]
+    if refresh_boundaries:
+        lines += ["", "## Contract refresh boundaries"]
+        for boundary in refresh_boundaries:
+            lines.append(f"- Before {boundary['phase']} -> {boundary['destination']}, supply current task facts "
+                         f"for {', '.join(boundary['facts'])}. Recompile if their state/value changed, "
+                         f"even when {boundary['rule_id']} was omitted at compilation.")
     if unresolved:
         lines += ["", "## Unresolved applicability", json.dumps(unresolved, sort_keys=True)]
     return "\n".join(lines).rstrip() + "\n"
@@ -355,10 +366,20 @@ def compile_contract(catalog: dict[str, Any], profile: dict[str, Any], envelope:
         raise RuleGraphError("INVALID_TASK_ENVELOPE", "schema_version=1 and facts required")
     bootstrap = envelope.get("bootstrap", {})
     loaded = isinstance(bootstrap, dict) and bootstrap.get("state") == "LOADED"
-    evaluations, direct, unresolved = {}, set(), []
+    evaluations, direct, unresolved, refresh_boundaries = {}, set(), [], []
     for rid, rule in sorted(by_id.items()):
         if rule["status"] != "CURRENT":
             continue
+        refresh = rule.get("refresh_on_facts", [])
+        # Retain the refresh guard even when a mutable trigger is currently false.
+        potential = {**envelope, "facts": {**envelope["facts"],
+                     **{name: {"state": "UNKNOWN"} for name in refresh}}}
+        if refresh and applicability(rule, potential, profile) != FALSE:
+            observed = {name: {k: v for k, v in fact(envelope["facts"], name).items()
+                              if k in {"state", "value"}} for name in refresh}
+            for ob in rule["obligations"]:
+                refresh_boundaries.append({"rule_id": rid, "phase": ob["due_phase"],
+                                           "destination": ob["destination"], "facts": observed})
         value = applicability(rule, envelope, profile)
         evaluations[rid] = value
         if value == TRUE:
@@ -417,7 +438,7 @@ def compile_contract(catalog: dict[str, Any], profile: dict[str, Any], envelope:
             "obligations": rule["obligations"],
             "explanation": reasons.get(rid, []),
         })
-    rendered = render(envelope, out_rules, unresolved)
+    rendered = render(envelope, out_rules, unresolved, refresh_boundaries)
     deterministic = {
         "schema_version": 1,
         "catalog_schema_version": catalog["schema_version"],
@@ -430,6 +451,7 @@ def compile_contract(catalog: dict[str, Any], profile: dict[str, Any], envelope:
         "uda_protection": "UDA_GOVERNED" if loaded else "OUTSIDE_UDA",
         "selected_rules": out_rules,
         "unresolved": sorted(unresolved, key=canonical),
+        "refresh_boundaries": refresh_boundaries,
         "rendered_contract": rendered,
     }
     return {
@@ -546,7 +568,8 @@ def semantic_result(contract: dict[str, Any], rule: dict[str, Any], ob: dict[str
 
 def check_contract(contract: dict[str, Any] | None, phase: str, payload: str | bytes,
                    clock_start: str | None = None, clock_end: str | None = None,
-                   receipts: Any = None, destination: str | None = None) -> dict[str, Any]:
+                   receipts: Any = None, destination: str | None = None,
+                   current_facts: dict[str, Any] | None = None) -> dict[str, Any]:
     scope_result = {"destination": destination, "out_of_scope": []} if destination is not None else {}
     if (not isinstance(contract, dict) or contract.get("uda_protection") != "UDA_GOVERNED"
             or not isinstance(contract.get("uda_activation"), dict)
@@ -558,6 +581,18 @@ def check_contract(contract: dict[str, Any] | None, phase: str, payload: str | b
     if len(content) != len(CONTRACT_CONTENT_FIELDS) or sha256(canonical(content).encode()) != contract.get("content_sha256"):
         return {**scope_result, "schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
                 "reason": "contract content hash mismatch"}
+    for boundary in contract["refresh_boundaries"]:
+        if boundary["phase"] != phase or (destination is not None and boundary["destination"] != destination):
+            continue
+        if not isinstance(current_facts, dict):
+            return {**scope_result, "schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
+                    "reason": "current task facts required at contract refresh boundary"}
+        observed = {name: {k: v for k, v in fact(current_facts, name).items() if k in {"state", "value"}}
+                    for name in boundary["facts"]}
+        if observed != boundary["facts"]:
+            return {**scope_result, "schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
+                    "reason": "task facts changed; recompile contract before checking",
+                    "rule_id": boundary["rule_id"]}
     payload_bytes = payload if isinstance(payload, bytes) else payload.encode("utf-8")
     payload = payload_bytes.decode("utf-8")
     results = []
@@ -658,7 +693,7 @@ def main() -> int:
     v = sub.add_parser("validate"); v.add_argument("--write-lock")
     for name in ["compile", "explain"]:
         p = sub.add_parser(name); p.add_argument("--task", required=True); p.add_argument("--mode", choices=["legacy", "flat", "graph"], default="graph"); p.add_argument("--output")
-    c = sub.add_parser("check"); c.add_argument("--contract"); c.add_argument("--phase", choices=PHASES, required=True); c.add_argument("--payload", required=True); c.add_argument("--clock-start"); c.add_argument("--clock-end"); c.add_argument("--receipts"); c.add_argument("--destination"); c.add_argument("--output")
+    c = sub.add_parser("check"); c.add_argument("--contract"); c.add_argument("--phase", choices=PHASES, required=True); c.add_argument("--payload", required=True); c.add_argument("--clock-start"); c.add_argument("--clock-end"); c.add_argument("--receipts"); c.add_argument("--destination"); c.add_argument("--task", help="current task envelope for contract refresh boundaries"); c.add_argument("--output")
     r = sub.add_parser("receipt"); r.add_argument("--contract", required=True); r.add_argument("--phase", choices=PHASES, required=True); r.add_argument("--payload", required=True); r.add_argument("--output")
     i = sub.add_parser("impact"); i.add_argument("paths", nargs="+"); i.add_argument("--output")
     x = sub.add_parser("compare"); x.add_argument("--task", required=True); x.add_argument("--output")
@@ -687,7 +722,8 @@ def main() -> int:
     if args.command == "check":
         result = check_contract(read_json(Path(args.contract)) if args.contract else None, args.phase,
                                 Path(args.payload).read_bytes(), args.clock_start, args.clock_end,
-                                read_receipts(args.receipts), args.destination)
+                                read_receipts(args.receipts), args.destination,
+                                read_json(Path(args.task)).get("facts") if args.task else None)
         emit(args.output, result)
         return 0 if result["admission"] == "ADMITTED" else 4
     if args.command == "receipt":
