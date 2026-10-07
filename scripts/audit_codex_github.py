@@ -1855,10 +1855,12 @@ def audit_repository(
     workflows = _workflow_files(root_path)
     _audit_workflows(root_path, workflows, findings)
 
-    # The required kind preserves kernel identity even if its marker is damaged.
-    # Keep explicit marker activation compatible with existing kernel profiles.
-    if profile is not None and (
-        profile.get("repository_kind") == "uda-kernel" or profile.get("uda_kernel") is True
+    # The versioned identity marker survives profile rewrites and archive export.
+    # Keep profile activation compatible with kernels lacking that marker.
+    if (root_path / ".github/uda-kernel").exists() or (
+        profile is not None and (
+            profile.get("repository_kind") == "uda-kernel" or profile.get("uda_kernel") is True
+        )
     ):
         for error in validate_enforcement_coverage(root_path):
             findings.append(finding(
