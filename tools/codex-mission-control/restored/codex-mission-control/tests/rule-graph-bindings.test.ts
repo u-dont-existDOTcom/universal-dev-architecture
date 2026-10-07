@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-// This adapter has only built-in dependencies and runs on Node's native TS runner.
-const { ruleGraphPromptBlock, workHandoffRuleGraphProjection } = await import(
-  new URL("../lib/rule-graph-contract.ts", import.meta.url).href
-);
+import { ruleGraphPromptBlock, workHandoffRuleGraphProjection } from "../lib/rule-graph-contract";
 const contract = JSON.parse(readFileSync(new URL("../generated/rule-graph/work-handoff-contract.json", import.meta.url), "utf8"));
 
 test("graph prompt delivers acceptance evidence, authority and exact source bindings for every rule", () => {
