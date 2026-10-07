@@ -4,6 +4,8 @@ import json
 import re
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 from tests.root_migration_assertions import assert_routed_rule
 
 
@@ -166,9 +168,9 @@ class SuggestedFixQueueTests(unittest.TestCase):
         self.assertIn(f"`docs/requirements/{requirement.name}`", PATTERN.read_text(encoding="utf-8"))
         self.assertTrue(data["nonclaims"])
 
-    def test_readme_lists_every_lane_and_carries_the_wiring_section(self) -> None:
+    def test_readme_lists_wired_projects_and_carries_the_wiring_section(self) -> None:
         readme = README.read_text(encoding="utf-8")
-        lanes = sorted(path.name for path in LANES.iterdir() if path.is_dir())
+        lanes = re.findall(r"(?m)^\| `([^`]+)/` \|", readme)
         self.assertTrue(lanes)
         for lane in lanes:
             with self.subTest(lane=lane):
@@ -182,6 +184,19 @@ class SuggestedFixQueueTests(unittest.TestCase):
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, readme)
+
+    def test_readme_allows_an_unwired_lane_before_table_enrollment(self) -> None:
+        with TemporaryDirectory() as tmp:
+            lanes = Path(tmp) / "suggested-fixes"
+            (lanes / "pending-project").mkdir(parents=True)
+            readme = lanes / "README.md"
+            readme.write_text(README.read_text(encoding="utf-8"), encoding="utf-8")
+            with patch(__name__ + ".LANES", lanes), patch(__name__ + ".README", readme):
+                result = unittest.TestResult()
+                SuggestedFixQueueTests(
+                    "test_readme_lists_wired_projects_and_carries_the_wiring_section"
+                ).run(result)
+            self.assertTrue(result.wasSuccessful(), result.failures + result.errors)
 
     def test_every_item_follows_the_format(self) -> None:
         items = lane_items()
