@@ -26,6 +26,7 @@ class AgentCompletableMergeGatesTests(unittest.TestCase):
             "from current settings evidence, not from repository files",
             "the permission or safety layer's own refusals, which can block an action the platform allows",
             "Check the exact action, not a neighboring one",
+            "never by creating a hosted object just to probe",
             "Record can or cannot for each gate in the task checkpoint.",
             "**If the agent cannot complete a gate, raise one owner decision early.**",
             "at the start, not at the first merge",
@@ -50,7 +51,10 @@ class AgentCompletableMergeGatesTests(unittest.TestCase):
 
     def test_owner_decision_offers_the_substance_check_and_owner_approved_automation(self) -> None:
         for phrase in (
-            "**Replace the gate with a check the agent can run that verifies substance** (the recommendation).",
+            "**Replace the gate with a check the agent can run that verifies substance** (the recommendation for a clerical gate; never offered for an approval gate).",
+            "An approval gate exists for independent human authorization",
+            "an agent-run check cannot stand in for that separation",
+            "**Keep the gate and the clicks,** (the recommendation for an approval gate)",
             "the latest review of the exact head commit reports nothing open",
             "every earlier finding maps to a fix commit or to a written reason it was not changed",
             "the required status checks pass",
