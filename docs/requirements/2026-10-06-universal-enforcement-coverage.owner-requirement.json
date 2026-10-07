@@ -155,6 +155,28 @@
         "patterns/convergent-review-acceptance-gates.md"
       ],
       "required_second_merge_action": "Both are behavioral. Whichever integrates second must add exact universe entries and activation routes. Structured records/admission or a genuine specialist-workflow reason are needed; legacy backlog additions require explicit owner authorization. No preclassification for absent files and no automatic grandfathering."
+    },
+    {
+      "finding_id": "slice-1-kernel",
+      "date": "2026-10-07",
+      "identity_counts_by_disposition": {
+        "STRUCTURED_ENFORCED": 6,
+        "STRUCTURED_PARTIAL": 6,
+        "WORKFLOW_ONLY": 10,
+        "LEGACY_UNSTRUCTURED": 72,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 78,
+      "baseline_shrinkage": 6,
+      "obligations_found": 103,
+      "structured": 102,
+      "excepted": 1,
+      "remaining_in_six_sections": 0,
+      "new_records": 15,
+      "root_owner_outcome": "OPEN",
+      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "Six root sections mapped without prose edits; bound candidate regressions and explicit bootstrap-failure carrier. Remaining P1 patterns require later slices."
     }
   ],
   "learning_state_at_merge": [

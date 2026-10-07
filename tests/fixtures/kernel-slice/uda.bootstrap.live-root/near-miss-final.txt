@@ -1,0 +1,2 @@
+A cached root supplied activation; no current-turn live root was retrieved.
+Committed substitute: cached root.

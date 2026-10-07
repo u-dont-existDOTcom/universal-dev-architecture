@@ -1,0 +1,31 @@
+{
+  "compliant-final.txt": {
+    "verdict": "PASS",
+    "evidence": "Before handling even the brief task, the actor opened the current index, selected matching triggers and read the current selected patterns. The canonical activation lifecycle was used. Declared graph dependencies were resolved, prose retained authority and unmapped applicable rules followed their index routes. This synthetic task includes shopping, so that route also came from the current index.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "The task was handled without opening the current index or selected patterns.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "The index was opened, but its entries were treated as loaded pattern content.\nCommitted substitute: index entries treated as loaded pattern content.\n",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "read-current-patterns",
+    "non_substitute": "index entries treated as loaded pattern content"
+  }
+}

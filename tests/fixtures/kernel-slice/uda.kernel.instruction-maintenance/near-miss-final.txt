@@ -1,0 +1,2 @@
+The pattern was added but left orphaned without index reachability.
+Committed substitute: orphan pattern without index reachability.

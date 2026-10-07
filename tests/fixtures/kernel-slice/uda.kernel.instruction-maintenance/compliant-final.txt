@@ -1,0 +1,1 @@
+The current composition and preservation rules were applied during maintenance. The new task-specific rule was placed in its owning pattern and linked by a matching index entry. The root gained no task-specific line.

@@ -1,0 +1,1 @@
+A new task-specific rule was placed at the root without a pattern or index entry.

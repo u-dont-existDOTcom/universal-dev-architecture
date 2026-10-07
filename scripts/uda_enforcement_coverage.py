@@ -253,6 +253,72 @@ def validate(root: Path | str) -> list[str]:
                     errors.append(prefix + "structured disposition needs records and ADMISSION or BEHAVIORAL_REGRESSION evidence")
             elif mapped:
                 errors.append(prefix + "only structured dispositions may claim task-time records")
+            obligation_map = entry.get("obligation_map")
+            if disposition == "STRUCTURED_ENFORCED":
+                if not isinstance(obligation_map, list) or not obligation_map:
+                    errors.append(prefix + "enforced disposition needs a complete obligation_map")
+                if not {"ADMISSION", "BEHAVIORAL_REGRESSION"}.issubset(evidence_classes):
+                    errors.append(prefix + "enforced disposition needs both ADMISSION and BEHAVIORAL_REGRESSION evidence")
+            mapped_obligations = set()
+            if obligation_map is not None:
+                if not isinstance(obligation_map, list) or not obligation_map:
+                    errors.append(prefix + "obligation_map must be a nonempty list")
+                else:
+                    sentences = set()
+                    for item in obligation_map:
+                        if not isinstance(item, dict):
+                            errors.append(prefix + "invalid obligation_map item")
+                            continue
+                        sentence = item.get("sentence")
+                        if (not isinstance(sentence, str) or not sentence.strip()
+                                or not source or source["source"].count(sentence) != 1):
+                            errors.append(prefix + "obligation_map sentence missing or ambiguous in owning section")
+                        elif sentence in sentences:
+                            errors.append(prefix + "duplicate obligation_map sentence")
+                        else:
+                            sentences.add(sentence)
+                        if "exception" in item:
+                            exception = item["exception"]
+                            if "record" in item or "obligation_id" in item:
+                                errors.append(prefix + "obligation exception cannot also map a record")
+                            if not isinstance(exception, dict):
+                                errors.append(prefix + "invalid obligation exception")
+                                continue
+                            if exception.get("kind") not in {"BOOTSTRAP_NOT_LOADED", "OWNER_SETTINGS_CHANGE"}:
+                                errors.append(prefix + "obligation exception must be bootstrap-not-loaded or owner-settings-change")
+                            if not specific_reason(exception.get("reason")):
+                                errors.append(prefix + "obligation exception needs a specific reason")
+                            carrier = exception.get("carrier")
+                            try:
+                                if not isinstance(carrier, str) or not carrier.strip():
+                                    raise ValueError("obligation exception needs a named carrier")
+                                path, _, anchor = carrier.partition("#")
+                                body = file_at(root, path).read_text(encoding="utf-8")
+                                if anchor and anchor not in {slug(h) for h in re.findall(r"^#{1,6} (.+)$", body, re.M)}:
+                                    raise ValueError("obligation exception carrier anchor does not exist")
+                            except ValueError as exc:
+                                errors.append(prefix + str(exc))
+                            continue
+                        rid, oid = item.get("record"), item.get("obligation_id")
+                        record = by_record.get(rid) if isinstance(rid, str) else None
+                        if (rid not in mapped or not record
+                                or not isinstance(oid, str)
+                                or not any(o.get("obligation_id") == oid for o in record.get("obligations", []))):
+                            errors.append(prefix + "obligation_map references missing record obligation")
+                            continue
+                        if not isinstance(sentence, str) or not any(
+                                selector.get("kind") == "exact_text"
+                                and sentence in selector.get("text", "")
+                                for selector in record["source"].get("selectors", [])):
+                            errors.append(prefix + "obligation_map sentence absent from record selectors")
+                        binding = (rid, oid)
+                        if binding in mapped_obligations:
+                            errors.append(prefix + "duplicate obligation_map record obligation")
+                        mapped_obligations.add(binding)
+                    expected = {(rid, ob.get("obligation_id")) for rid in mapped
+                                for ob in by_record.get(rid, {}).get("obligations", [])}
+                    if expected - mapped_obligations:
+                        errors.append(prefix + "obligation_map omits record obligations")
             for rid in mapped:
                 claims[rid].append(eid)
                 record = by_record.get(rid)
@@ -331,6 +397,9 @@ def validate(root: Path | str) -> list[str]:
                 errors.append("baseline identities must be exact")
         for eid in sorted(e["id"] for e in entries if e.get("disposition") in BACKLOG and e["id"] not in allowed):
             errors.append("unauthorized backlog growth: " + eid)
+        for eid in pinned:
+            if eid not in by_id or by_id[eid].get("disposition") not in BACKLOG | {"STRUCTURED_ENFORCED"}:
+                errors.append("baseline backlog may shrink only through STRUCTURED_ENFORCED: " + eid)
         # Compare complete regenerated content, not just IDs or a self-declared
         # checksum. Regeneration stays in memory and uses the audited root.
         profile = task_time.read_json(file_at(root, "scripts/instruction-layering-profile.json"))
@@ -370,6 +439,9 @@ def report(root: Path | str) -> dict[str, Any]:
         "backlog_counts_by_priority": dict(sorted(Counter(e["priority"] for e in backlog).items())),
         "baseline_backlog_count": len(baseline["backlog_ids"]),
         "removed_since_baseline": sorted(set(baseline["backlog_ids"]) - current),
+        "obligation_exceptions": [{"id": e["id"], "sentence": item["sentence"], **item["exception"]}
+                                  for e in entries for item in e.get("obligation_map", [])
+                                  if "exception" in item],
         "entries_by_evidence_class": {c: sorted(e["id"] for e in entries if any(x["class"] == c for x in e["evidence"])) for c in EVIDENCE_CLASSES},
     }
 

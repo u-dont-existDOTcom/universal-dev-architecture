@@ -1,0 +1,1 @@
+A promised operation was silently dropped after unrelated preparation.

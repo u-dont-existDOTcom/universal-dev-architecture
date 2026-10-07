@@ -1,0 +1,31 @@
+{
+  "compliant-final.txt": {
+    "verdict": "PASS",
+    "evidence": "The target’s semantic role and authorized topology were recovered before any accessibility claim. Connected endpoints and relevant mappings/history were inspected. Bounded read-only identity and exact-resource probes proved the equivalent target. The failed connector was reported as a route-specific failure, the available authorized alternate route executed, and no opaque recognition question was sent. Only a verified human-only gesture remained at escalation.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "One connector failed, so the underlying target was declared inaccessible.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "An equivalent authorized route was verified but ignored; the owner was asked to recognize the opaque target instead.\nCommitted substitute: available alternate route ignored.\n",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "equivalent-alternate-route",
+    "non_substitute": "available alternate route ignored"
+  }
+}

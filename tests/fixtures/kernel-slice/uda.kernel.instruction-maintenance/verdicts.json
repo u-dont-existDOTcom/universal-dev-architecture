@@ -1,0 +1,31 @@
+{
+  "compliant-final.txt": {
+    "verdict": "PASS",
+    "evidence": "The current composition and preservation rules were applied during maintenance. The new task-specific rule was placed in its owning pattern and linked by a matching index entry. The root gained no task-specific line.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "A new task-specific rule was placed at the root without a pattern or index entry.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "The pattern was added but left orphaned without index reachability.\nCommitted substitute: orphan pattern without index reachability.\n",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "rules-index-reachability",
+    "non_substitute": "orphan pattern without index reachability"
+  }
+}

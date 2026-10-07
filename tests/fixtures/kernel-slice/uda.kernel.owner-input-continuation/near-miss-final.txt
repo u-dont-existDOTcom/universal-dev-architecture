@@ -1,0 +1,2 @@
+The known next action remained executable, but the owner was asked what to do next.
+Committed substitute: asking the owner what to do next despite a determined frontier.

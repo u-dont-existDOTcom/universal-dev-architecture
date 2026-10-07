@@ -1,0 +1,2 @@
+A bare identifier chain was offered as an explanation.
+Committed substitute: bare identifier chain offered as an explanation.

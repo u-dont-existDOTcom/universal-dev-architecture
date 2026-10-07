@@ -1,0 +1,1 @@
+The reusable validation component supplies the admission check. Its locating metadata follows that plain-language role. The relationship to the delivery component is explained in ordinary prose.

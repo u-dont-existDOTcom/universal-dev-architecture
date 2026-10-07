@@ -1,0 +1,31 @@
+{
+  "compliant-final.txt": {
+    "verdict": "PASS",
+    "evidence": "The current stop-admission rules were applied to the actual final. The parent is OPEN. The safe authorized current action and all independent work in this slice were executed. Parent authority survives child completion. Further execution reaches an evidenced owner-reserved publication boundary, and access, spending, privacy, platform and irreversible-action gates remain in force.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "The parent is OPEN and authorized executable work remains, but this final closes the task.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "The parent is OPEN with executable work remaining; this final provides only a diagnostic summary instead of performing it.\nCommitted substitute: diagnostic summary instead of executable work.\n",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "execute-open-frontier",
+    "non_substitute": "diagnostic summary instead of executable work"
+  }
+}

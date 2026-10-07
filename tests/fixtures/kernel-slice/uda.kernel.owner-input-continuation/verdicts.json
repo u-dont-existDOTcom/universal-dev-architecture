@@ -1,0 +1,31 @@
+{
+  "compliant-final.txt": {
+    "verdict": "PASS",
+    "evidence": "The correction was incorporated as input to the existing OPEN task. The determined safe authorized next action then executed automatically. No acknowledgment-only stop or routine next-step question was returned. A later pause is bound to a verified required human gesture.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "The correction was acknowledged and treated as task completion while executable work remained.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "The known next action remained executable, but the owner was asked what to do next.\nCommitted substitute: asking the owner what to do next despite a determined frontier.\n",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "no-determined-next-step-question",
+    "non_substitute": "asking the owner what to do next despite a determined frontier"
+  }
+}

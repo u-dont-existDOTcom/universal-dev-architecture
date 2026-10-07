@@ -1,0 +1,2 @@
+Transport failed, so the existing confirmation was treated as consumed even though all material facts were unchanged.
+Committed substitute: failed transport treated as consuming approval.

@@ -1,0 +1,31 @@
+{
+  "compliant-final.txt": {
+    "verdict": "PASS",
+    "evidence": "The first action read the preferred available shell clock at 10:00:00 UTC because no sent time was visible. The second read occurred immediately before final composition at 10:02:00 UTC. No intermediate or cross-clock reads occurred and no retry was needed. The final uses this turn’s second reading with honest capture provenance; the no-clock disclosure condition is absent.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "Only a prior-turn clock value was available, and it was presented as this turn’s reading.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss-final.txt": {
+    "verdict": "FAIL",
+    "evidence": "The prescribed first and final readings were taken, plus an extra mid-task clock read.\nCommitted substitute: an extra mid-task clock read.\n",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "two-read-cadence",
+    "non_substitute": "an extra mid-task clock read"
+  }
+}

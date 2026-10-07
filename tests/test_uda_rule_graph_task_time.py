@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scripts import uda_rule_graph_task_time as task_time
+from uda_test_helpers import pass_receipts, predicate_catalog
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -16,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class UdaRuleGraphTaskTimeTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.catalog = json.loads((ROOT / "rules/rule-graph/task-time-metadata.v1.json").read_text())
+        cls.catalog = predicate_catalog(json.loads((ROOT / "rules/rule-graph/task-time-metadata.v1.json").read_text()))
         cls.profile = json.loads((ROOT / "scripts/instruction-layering-profile.json").read_text())
         cls.work = json.loads((ROOT / "examples/rule-graph/work-handoff.json").read_text())
         cls.instruction = json.loads((ROOT / "examples/rule-graph/instruction-only.json").read_text())
@@ -96,7 +97,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
             elapsed = next(x for x in timestamp["obligations"] if x["obligation_id"] == "final-elapsed-time")
             self.assertIn("elapsed", elapsed["required_behavior"].lower())
             self.assertIn("clock readings", elapsed["acceptance_evidence"].lower())
-            self.assertEqual(elapsed["enforcement"], "mechanical")
+            self.assertEqual(elapsed["enforcement"], "mechanical" if contract is compiled else "semantic")
             for payload in ("2026-09-30 09:40 UTC\nDone.", "2026-09-30 09:40 UTC\nElapsed: 2 minutes. Done."):
                 checked = task_time.check_contract(contract, "final-delivery", payload)
                 self.assertEqual(checked["admission"], "BLOCKED")
@@ -104,6 +105,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
             admitted = task_time.check_contract(
                 contract, "final-delivery", "2026-09-30 09:42 UTC\nElapsed time: 2 minutes",
                 clock_start="2026-09-30T09:40:00+00:00", clock_end="2026-09-30T09:42:00+00:00",
+                receipts=pass_receipts(task_time, contract, "final-delivery", "2026-09-30 09:42 UTC\nElapsed time: 2 minutes"),
             )
             self.assertEqual(admitted["admission"], "ADMITTED")
 

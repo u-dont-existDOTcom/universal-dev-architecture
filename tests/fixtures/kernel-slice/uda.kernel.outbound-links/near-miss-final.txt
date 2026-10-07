@@ -1,0 +1,2 @@
+Search snippets were used as link verification, and the unchecked destination was recommended.
+Committed substitute: search snippets used as link verification.
