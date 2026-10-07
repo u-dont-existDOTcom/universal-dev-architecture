@@ -21,6 +21,8 @@ import {
   githubDecisionCandidateFromWebhook,
   ingestGitHubSupervisionCandidate,
   modeCapabilityVerifiedSummary,
+  ownerDirectionReceiptCommentPrefix,
+  ownerDirectionReceiptSummary,
   parseCanonicalDecisionComment,
   parseStageReceiptComment,
   pendingDecisionRequests,
@@ -94,6 +96,63 @@ test("central policy rejects worker-selected repository/issue and unauthorized w
   assert.throws(() => validateConfiguredDecisionLocation(p.repository, 999, p), /centrally configured/);
   assert.throws(() => buildGitHubDecisionReceiptEnvelope(escalatedEvents(), { ...candidate(), repository: "evil/repo" }, p), /GitHub repository|configured/);
   assert.throws(() => ingestGitHubSupervisionCandidate(fakeStore(escalatedEvents()), { ...candidate(), authorLogin: "other-user" }, p), /not authorized/);
+});
+
+test("authorized private GitHub owner direction becomes one durable owner message plus queued worker delivery", () => {
+  const p = policy();
+  const store = fakeStore(pendingEvents());
+  const exactText = "5A";
+  const commentId = 9300;
+  const immutableUrl = `https://github.com/${p.repository}/issues/${p.decisionIssueNumber}#issuecomment-${commentId}`;
+  const body = `${ownerDirectionReceiptCommentPrefix}${JSON.stringify({
+    schema_version: 1,
+    worker: "mission-control-live-slice",
+    decision_ref: "owner-question:5",
+    owner_outcome: { id: "owner-outcome-1", epoch: 7, sha256: outcomeSha },
+    exact_text: exactText,
+    exact_text_sha256: sha256(exactText),
+    priority: "HIGH",
+  })}`;
+  const receipt: GitHubDecisionCandidate = {
+    repository: p.repository, issueNumber: p.decisionIssueNumber, commentId, immutableUrl,
+    createdAt: "2026-09-02T00:03:00.000Z", authorLogin: "u-dont-existDOTcom",
+    deliveryId: null, body, ingestionMethod: "RECONCILIATION_POLL",
+  };
+
+  const appended = ingestGitHubSupervisionCandidate(store, receipt, p, "2026-09-02T00:03:01.000Z");
+  assert.equal(appended.length, 3);
+  const ownerMessage = appended.find((event) => event.data.type === "owner_message_recorded");
+  const queued = appended.find((event) => event.data.type === "outbound_delivery_lifecycle_recorded");
+  const provenance = appended.find((event) => event.data.type === "evidence_receipt_recorded");
+  assert.ok(ownerMessage?.data.type === "owner_message_recorded");
+  assert.equal(ownerMessage.data.body, exactText);
+  assert.equal(ownerMessage.data.owner_outcome_id, "owner-outcome-1");
+  assert.equal(ownerMessage.data.owner_outcome_sha256, outcomeSha);
+  assert.equal(ownerMessage.data.priority, "HIGH");
+  assert.equal(ownerMessage.producerKind, "OWNER_AUTHORITY");
+  assert.ok(queued?.data.type === "outbound_delivery_lifecycle_recorded");
+  assert.equal(queued.data.status, "QUEUED");
+  assert.equal(queued.producerKind, "SYSTEM");
+  assert.ok(provenance?.data.type === "evidence_receipt_recorded");
+  assert.equal(provenance.data.summary, ownerDirectionReceiptSummary);
+  assert.ok(provenance.data.refs.includes(`github_comment:${immutableUrl}`));
+  assert.ok(provenance.data.refs.includes(`exact_text_sha256:${sha256(exactText)}`));
+
+  assert.deepEqual(ingestGitHubSupervisionCandidate(store, receipt, p, "2026-09-02T00:03:02.000Z"), []);
+  const stale = { ...receipt, commentId: 9301, immutableUrl: `https://github.com/${p.repository}/issues/${p.decisionIssueNumber}#issuecomment-9301`,
+    body: `${ownerDirectionReceiptCommentPrefix}${JSON.stringify({
+      schema_version: 1, worker: "mission-control-live-slice", decision_ref: "owner-question:5",
+      owner_outcome: { id: "owner-outcome-1", epoch: 8, sha256: outcomeSha },
+      exact_text: exactText, exact_text_sha256: sha256(exactText), priority: "HIGH",
+    })}` };
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, stale, p), /stale against the current owner outcome/);
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, { ...receipt, commentId: 9302,
+    immutableUrl: `https://github.com/${p.repository}/issues/${p.decisionIssueNumber}#issuecomment-9302`,
+    authorLogin: "untrusted-writer" }, p), /not authorized/);
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, { ...receipt, commentId: 9303,
+    immutableUrl: `https://github.com/${p.repository}/issues/${p.decisionIssueNumber}#issuecomment-9303`,
+    authorLogin: "askrigor-lesson-submitter[bot]" }, p), /not authorized for owner directions/);
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, receipt, { ...p, ownerDirectionWriterLogins: undefined }), /not authorized for owner directions/);
 });
 
 test("capability challenge exposes MC nonce, GitHub nonce hash/location, and stage target", () => {
@@ -841,7 +900,8 @@ function policy(): GitHubReceiptPolicy {
     decisionIssueNumber: 59,
     capabilityIssueNumber: 60,
     stageIssueNumber: 61,
-    authorizedWriterLogins: ["u-dont-existDOTcom"],
+    authorizedWriterLogins: ["u-dont-existDOTcom", "askrigor-lesson-submitter[bot]"],
+    ownerDirectionWriterLogins: ["u-dont-existdotcom"],
     capabilityChallenges: [{
       challengeId: "challenge-spec", supervisorId, chatId: bootstrapChatId, worker: "mission-control-live-slice",
       mcNonce: "mc-nonce", githubNonce: "github-only-nonce", expiresAt: "2026-09-03T00:00:00.000Z",
@@ -1203,6 +1263,9 @@ function fakeStore(initial: StoredEvent[]) {
   };
   return {
     allEvents: () => events,
+    workerEvents: (worker: string) => events.filter((event) => event.worker === worker),
+    eventByEventId: (eventId: string) => events.find((event) => event.eventId === eventId),
+    latestSequence: () => sequence,
     append,
     appendMany: (items: Array<{ event: unknown; receivedAt?: string; producer?: AuthenticatedProducer }>) => items.map((item) => append(item.event, item.receivedAt, item.producer)),
   } as unknown as EventStore;
