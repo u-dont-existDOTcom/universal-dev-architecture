@@ -64,6 +64,49 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                 self.assertEqual(contract['unresolved'], [])
                 self.assertTrue(contract['usable'])
 
+    def test_tiny_one_shot_task_does_not_require_checkpoint_receipts(self):
+        catalog = json.loads((ROOT / 'rules/rule-graph/task-time-metadata.v1.json').read_text())
+        profile = json.loads((ROOT / 'scripts/instruction-layering-profile.json').read_text())
+        task = json.loads((ROOT / 'examples/rule-graph/work-handoff.json').read_text())
+        task['facts']['continuity_required'] = {
+            'state': 'KNOWN', 'value': False, 'provenance': 'tiny one-shot change; no recovery handoff needed'}
+        payload = b'2026-10-07 00:02:00 UTC\nElapsed time: 2 minutes\nChange ready.\n'
+        for mode in ('flat', 'graph'):
+            with self.subTest(mode=mode):
+                contract = tt.compile_contract(catalog, profile, task, mode)
+                self.assertFalse(set(RULES) & {r['rule_id'] for r in contract['selected_rules']})
+                self.assertEqual(contract['unresolved'], [])
+                self.assertTrue(contract['usable'])
+                self.assertEqual(tt.receipt_skeleton(contract, 'final-delivery', payload)['receipts'], [])
+                checked = tt.check_contract(
+                    contract, 'final-delivery', payload,
+                    clock_start='2026-10-07T00:00:00Z', clock_end='2026-10-07T00:02:00Z')
+                self.assertEqual(checked['admission'], 'ADMITTED')
+
+    def test_unknown_or_missing_continuity_scope_remains_unresolved(self):
+        for fact in ({'state': 'UNKNOWN', 'provenance': 'duration not classified'}, None):
+            task = copy.deepcopy(self.task)
+            if fact is None:
+                task['facts'].pop('continuity_required', None)
+            else:
+                task['facts']['continuity_required'] = fact
+            with self.subTest(fact=fact):
+                contract = fixture_contract(task)
+                self.assertEqual({r['rule_id'] for r in contract['unresolved']},
+                                 {'uda.continuity.step-checkpoint', 'uda.continuity.turn-end-handoff'})
+                self.assertFalse(contract['usable'])
+                self.assertEqual(tt.check_contract(contract, 'final-delivery', b'No checkpoint.')['admission'],
+                                 'BLOCKED')
+
+    def test_one_shot_exemption_does_not_suppress_visible_usage_warning(self):
+        task = self.record_task('uda.continuity.usage-warning')
+        task['facts']['continuity_required'] = {
+            'state': 'KNOWN', 'value': False, 'provenance': 'tiny one-shot change'}
+        contract = fixture_contract(task)
+        self.assertEqual({r['rule_id'] for r in contract['selected_rules']},
+                         {'uda.continuity.usage-warning'})
+        self.assertEqual(contract['unresolved'], [])
+
     def test_instruction_diagnostic_no_change_and_stop_modes_do_not_select(self):
         for mode in ('INSTRUCTION_ONLY', 'DIAGNOSTIC_ONLY', 'NO_CHANGE', 'STOP'):
             task = self.record_task('uda.continuity.usage-warning')
@@ -154,7 +197,10 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                 rule = contract['selected_rules'][0]
                 self.assertEqual(rule['source']['path'], 'patterns/context-compaction-resilience.md')
                 for paragraph in rule['source_text'].split('\n\n'):
-                    self.assertIn(paragraph, subsection)
+                    if paragraph == '- Tiny one-shot tasks do not need a dedicated current-state file.':
+                        self.assertIn(paragraph, source.split('## Limits\n', 1)[1])
+                    else:
+                        self.assertIn(paragraph, subsection)
                 self.assertEqual(len(rule['obligations']), 1)
                 obligation = rule['obligations'][0]
                 self.assertEqual(obligation['obligation_id'], obligation_id)

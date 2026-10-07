@@ -60,6 +60,11 @@
       "state": "KNOWN",
       "value": false,
       "provenance": "illustrative task exposes no usage warning; continuous checkpoints still apply"
+    },
+    "continuity_required": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "instruction-only one-shot task; no durable recovery handoff needed"
     }
   },
   "legacy_rule_ids": [

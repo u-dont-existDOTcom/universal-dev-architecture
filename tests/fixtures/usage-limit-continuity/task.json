@@ -31,6 +31,11 @@
       "state": "KNOWN",
       "value": false,
       "provenance": "no warning signal exposed in this illustrative session"
+    },
+    "continuity_required": {
+      "state": "KNOWN",
+      "value": true,
+      "provenance": "multi-step work requires durable recovery across turns or sessions"
     }
   }
 }

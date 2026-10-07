@@ -286,13 +286,15 @@ Both passes of the first integration are implemented. This establishes inventory
 
 The direct owner request dated 2026-10-07 requires no lost work and a one-line way to continue in another account. `docs/requirements/2026-10-07-usage-limit-continuity.owner-requirement.json` preserves the verbatim request and separates OWNER_REQUIRED outcome from the supplied ASSISTANT_INFERENCE mechanism. Context-compaction resilience §3 now requires continuous completed-step checkpoints and a current turn-end handoff; an optional visible early warning supplements saving rather than deferring it to a threshold or a helper at the limit.
 
-All three records use exact-text selectors within that subsection and semantic receipt admission at `durable-task-checkpoint`. Their source-bound acceptance evidence, non-substitutes, carry-through and repair are in the task-time metadata.
+All three records use exact-text selectors within that subsection and semantic receipt admission at `durable-task-checkpoint`. The two continuous-save records also bind the tiny one-shot exemption in the pattern's Limits section. Their source-bound acceptance evidence, non-substitutes, carry-through and repair are in the task-time metadata.
 
 | Task-time record | Trigger | Due phase | Destination |
 |---|---|---|---|
-| `uda.continuity.step-checkpoint` | OPEN outcome; task mode outside INSTRUCTION_ONLY, DIAGNOSTIC_ONLY, NO_CHANGE and STOP | persistence, each completed step | durable-task-checkpoint |
-| `uda.continuity.turn-end-handoff` | Same OPEN implementation trigger | final-delivery, before ending the turn | durable-task-checkpoint |
-| `uda.continuity.usage-warning` | Same OPEN implementation trigger AND `usage_warning_visible = true` | persistence, immediately at the warning | durable-task-checkpoint |
+| `uda.continuity.step-checkpoint` | OPEN outcome; task mode outside INSTRUCTION_ONLY, DIAGNOSTIC_ONLY, NO_CHANGE and STOP; `continuity_required = true` | persistence, each completed step | durable-task-checkpoint |
+| `uda.continuity.turn-end-handoff` | Same OPEN implementation and continuity-scope trigger | final-delivery, before ending the turn | durable-task-checkpoint |
+| `uda.continuity.usage-warning` | OPEN implementation AND `usage_warning_visible = true` | persistence, immediately at the warning | durable-task-checkpoint |
+
+Declare `continuity_required` from the actual task scope: true for multi-step, multi-session or long-running work needing durable recovery, false for a tiny one-shot task. False excludes both continuous-save records and their semantic receipts; missing or UNKNOWN scope remains unresolved on otherwise applicable work. A visible usage warning retains its immediate-save trigger independently of that scope fact.
 
 Every example envelope explicitly declares the warning false or ABSENT. Missing or UNKNOWN warning facts remain unresolved on otherwise applicable work and block admission; false/ABSENT warning facts never cancel the other two checkpoints. The fixtures distinguish this from instruction-only, diagnostic, no-change, stop and non-OPEN tasks, which do not select these records.
 
@@ -302,7 +304,7 @@ Every example envelope explicitly declares the warning false or ABSENT. Missing 
 | Turn-end handoff | Prior-turn checkpoint, inaccessible account state: BLOCKED | Current checkpoint, reachable private handoff, account-bound recreation list and one-line resume: ADMITTED | Correct chat final with stale durable checkpoint: BLOCKED |
 | Usage warning | Visible warning followed by one long unsaved step: BLOCKED | Immediate save and a small restartable step: ADMITTED | Separate helper reserved for the limit: BLOCKED |
 
-The nine domain-neutral candidates and hash-free verdict files live in `tests/fixtures/usage-limit-continuity/`. `tests/test_uda_usage_limit_continuity.py` binds receipts to the compiled contract and actual candidate bytes at test time. Eighteen tests exercise these cases, actor/trigger selection, unknown facts, no-receipt/destination failures, checkpoint rewrites, owner-correction replay, requirement provenance and separate final/checkpoint payloads in both CLI entrypoints. Golden semantic verdicts are assertions: the checker verifies binding and reports `judgment_proved: false`, rather than inferring semantic correctness, a push or private-store reachability from prose.
+The nine domain-neutral candidates and hash-free verdict files live in `tests/fixtures/usage-limit-continuity/`. `tests/test_uda_usage_limit_continuity.py` binds receipts to the compiled contract and actual candidate bytes at test time. Twenty-one tests exercise these cases, actor/trigger selection, one-shot final admission without checkpoint receipts, unknown scope/warning facts, no-receipt/destination failures, checkpoint rewrites, owner-correction replay, requirement provenance and separate final/checkpoint payloads in both CLI entrypoints. Golden semantic verdicts are assertions: the checker verifies binding and reports `judgment_proved: false`, rather than inferring semantic correctness, a push or private-store reachability from prose.
 
 The report now counts the following evidence classes. An entry may occur in several classes, so these counts do not sum to the universe and do not imply universal enforcement.
 
