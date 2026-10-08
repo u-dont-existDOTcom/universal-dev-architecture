@@ -5,7 +5,7 @@
 - Task ID: `review-follow-ups-20261008-0400`.
 - Branch: `codex/review-follow-ups-20261008-0400`.
 - Owner outcome: check every deferred finding from issues #329 and #337 against this branch; fix applicable findings with regression coverage, record each outcome, and leave changes for the runner to commit and push.
-- Root outcome: SATISFIED at the authorized local working-tree handoff boundary; both findings applied and are repaired with the requested outcomes recorded. Unfiltered CI validation and runner integration remain separate.
+- Root outcome: SATISFIED; both findings and their recorded outcomes are committed in `b18bf22f`. No integration of the original repairs remains; unfiltered CI validation remains separate.
 
 ## Authority / baseline
 
@@ -35,8 +35,8 @@
 
 ## Current checkpoint
 
-- Current step: changes are ready for the runner's working-tree handoff; both scoped repairs, socket-free tests, audit and diff review pass.
-- Last verified durable boundary: baseline commit plus the four-file working-tree candidate; no task changes committed or pushed.
+- Current step: original repairs are committed; inspect CI results and reconcile only subsequent authorized changes.
+- Last verified durable boundary: `b18bf22f` contains the four original handoff files; the audit identity repair followed in `9327d6ee`.
 - Completion claim: ARTIFACT_READY; the requested local result is complete, with no live deployment or publication claim.
 
 ## Finding outcomes
@@ -51,7 +51,7 @@
 
 ## Remaining
 
-- No local implementation remains. CI retains its unfiltered gates; the runner owns committing and pushing the four scoped changed files.
+- No original repair implementation or integration remains. CI retains its unfiltered gates; later review corrections are a separate handoff.
 
 ## Blockers / unresolved
 
@@ -76,8 +76,8 @@
 
 ## Next safe action
 
-- The runner reconciles the four-file working-tree diff, commits and pushes it under its authority; CI runs the socket and child-process tests. Do not repeat the committed historical lane repair.
+- Resume the current review correction from `state/tasks/task-0ca2b0bd2d1f231f4c4169fe83295438e620729d7044ce6f6348e48b6b21773d.md`; CI owns socket and child-process validation. Do not repeat the committed original repairs.
 
 ## Continuation and stop admission
 
-- Parent local outcome SATISFIED: both findings checked and fixed, regression failure/pass observed, outcomes grouped by issue, authorized local tests and audit pass. No remaining safe local implementation action; committing/pushing is explicitly reserved to the runner and the two environment-dependent tests to CI. Final delivery supplies this checkpoint directly, with no unfiltered-suite or live-runtime claim.
+- Original local outcome SATISFIED: both findings and their verification are committed; no original integration remains. Later authorized review work follows the current correction checkpoint above; the two environment-dependent tests remain with CI. No unfiltered-suite, merge or live-runtime claim.
