@@ -58,7 +58,7 @@
     },
     "patterns/convergent-review-acceptance-gates.md": {
       "clause_count": 70,
-      "clauses_sha256": "322c68899b88ffe62945f789f2200eb16b1d459408d218943bacc682c14d6037",
+      "clauses_sha256": "a9e2f4899a94d0c971cd270866767ef02279d4dfb281af58f1b86f5a6bde57e8",
       "pre_section_sha256": "9fe60d56872542596f2a1f2ebb7b393edf56ad0f5ea351c95cf8e3d871c3adaa",
       "sections": {
         "status": {
@@ -73,8 +73,8 @@
         },
         "rules": {
           "clause_count": 35,
-          "clauses_sha256": "8833a478742a0bb30a07c1aaba1586887c0a540a0927690ff7bb2603f7445692",
-          "source_sha256": "86c0303e293dfc4537b88c9d3f4b907caa268303672ad14e1224cab61bc70e8b"
+          "clauses_sha256": "22eab38aaff16e4f3436c6e9a31750c5add30ef91f0b2334ef89f1f4d96a747a",
+          "source_sha256": "99dd899bb8375b10357dddec8e837d984f7f18cf80e3392322f73b3e211786e1"
         },
         "bounds": {
           "clause_count": 9,
@@ -83,8 +83,8 @@
         },
         "failure-condition-and-repair": {
           "clause_count": 5,
-          "clauses_sha256": "168907e422f3d49562b82e52f9d4ce33f3896800ada8cb0f474a3be09681ffeb",
-          "source_sha256": "d93b652d4b4adad01d92209650206c66ee5cdb0e18ea05709eaf4ea070a7a3eb"
+          "clauses_sha256": "70af7cd1692e7b0b0fa4faa9c937e9f6d04654cae15c6eb76bba48e6285f27ef",
+          "source_sha256": "f9b5278ca0015231851c0fbc3f3da351f4f703b129986c769bd1554e9653f04b"
         },
         "relationship-to-other-patterns": {
           "classification": "NON_OPERATIVE",
@@ -98,8 +98,8 @@
         },
         "transfer-rationale-and-limits": {
           "clause_count": 10,
-          "clauses_sha256": "860e8561f708deb663c7782aa282332e8d69597d0ea7e0e6128f98a406f15505",
-          "source_sha256": "b0746de024fade376b087e04f71278948a62194c9cb72070becf163441e4e8af"
+          "clauses_sha256": "a0f9284464ef4e50e39f7bfff49fcca77e4868b92c82160da92475dd5f7344b5",
+          "source_sha256": "d2ef4273a4f94ea77d65dc6d3664daa37df4e71eca7c00f90faa9874e811a11f"
         }
       }
     },

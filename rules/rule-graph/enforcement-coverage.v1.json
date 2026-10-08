@@ -2587,22 +2587,22 @@
           "obligation_id": "change-scope-at-boundary"
         },
         {
-          "sentence": "Give each item a stable ID when it is first produced, and match items to their earlier verdicts mechanically, by ID and exact content (a hash is enough), never by asking the reviewer.",
+          "sentence": "Give each item a stable ID when it is first produced, and match items to their earlier verdicts mechanically, by ID, exact content and the complete evaluator configuration (reviewer prompt, rubric, model/version, sampling settings and frozen reference; hashes are enough), never by asking the reviewer.",
           "record": "uda.review.change-scope",
           "obligation_id": "change-scope-at-boundary"
         },
         {
-          "sentence": "An item whose ID or content does not match counts as changed.",
+          "sentence": "An item whose ID, content or evaluator configuration does not match counts as changed; a configuration change counts every affected item as changed and requires re-review before aggregate acceptance.",
           "record": "uda.review.change-scope",
           "obligation_id": "change-scope-at-boundary"
         },
         {
-          "sentence": "a repair cycle re-reviews items that passed and did not change;",
+          "sentence": "a repair cycle re-reviews items that passed and did not change under the same evaluator configuration, or carries a verdict across an evaluator configuration change;",
           "record": "uda.review.change-scope",
           "obligation_id": "change-scope-at-boundary"
         },
         {
-          "sentence": "Carrying an item forward assumes its verdict depends only on that item and the frozen reference.",
+          "sentence": "Carrying an item forward assumes its verdict depends only on that item, the frozen reference and the bound evaluator configuration.",
           "record": "uda.review.change-scope",
           "obligation_id": "change-scope-at-boundary"
         },

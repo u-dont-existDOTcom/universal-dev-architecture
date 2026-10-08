@@ -203,6 +203,22 @@ class ReviewMergeSliceTests(unittest.TestCase):
         self.assertIn("an empirical pass rate extrapolated without a confidence bound",
                       obligation["non_substitutes"])
 
+    def test_change_scope_contract_invalidates_verdicts_on_configuration_drift(self):
+        _, _, _, _, contract = next(case for case in self.cases()
+                                    if case[1]["rule_id"] == "uda.review.change-scope")
+        obligation = contract["selected_rules"][0]["obligations"][0]
+        for phrase in (
+            "complete evaluator configuration", "reviewer prompt", "rubric",
+            "model/version", "sampling settings", "frozen reference",
+            "match earlier verdicts mechanically", "ID/content/configuration mismatch",
+            "configuration change invalidates every affected carried verdict",
+            "re-review before aggregate acceptance",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, obligation["acceptance_evidence"])
+        self.assertIn("carried verdict from a different evaluator configuration",
+                      obligation["non_substitutes"])
+
     def test_requirement_slice_summary_matches_enforced_clause_maps(self):
         requirement = tt.read_json(ROOT / coverage.REQUIREMENT)
         summary = next(f["implemented"] for f in requirement["related_findings"]

@@ -1,7 +1,7 @@
 {
-  "catalog_sha256": "b6a727ff06b8bc61776a05b37313fdc3d1581c07164fa823199aa03484a08dbe",
+  "catalog_sha256": "1fe982fe1e38c49728dd6dde505b6ecbf6bab6c45ae41289ecd5d51270457ff1",
   "compiler_sha256": "e526ae1e706c6ff97d74d00302c55d0a7e49aafc2df41df09f703520f7e9997a",
-  "content_sha256": "7f2b795b588af5da91373379785b3c8bc3829bc32a6e3faccca3da24ce01eb7c",
+  "content_sha256": "2e02c8aa7871887f5e8d68effb8b58643c4e00edfccea30398987821e3a36e9b",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
@@ -1026,9 +1026,9 @@
     {
       "extracted_sha256": "76b4dd7362e3bde038b7673c23f2307b68cd08a8d58fd93422160b7ce0ec39cb",
       "extracted_utf8_bytes": 965,
-      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "git_blob_sha1": "e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "repository_revision": "BLOB:e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "rule_id": "uda.review.acceptance-floors",
       "selectors": [
         {
@@ -1066,11 +1066,11 @@
       ]
     },
     {
-      "extracted_sha256": "2c52ee44a7cd47f87b7b1d2ec891b2c8142282c0c08b76a0abe01aa72ae9c570",
-      "extracted_utf8_bytes": 776,
-      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "extracted_sha256": "a4bcc2d17730492dd2c173345237c52fcad8c6c28182966e6efabb7e677404a0",
+      "extracted_utf8_bytes": 1170,
+      "git_blob_sha1": "e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "repository_revision": "BLOB:e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "rule_id": "uda.review.change-scope",
       "selectors": [
         {
@@ -1083,19 +1083,19 @@
         },
         {
           "kind": "exact_text",
-          "text": "Give each item a stable ID when it is first produced, and match items to their earlier verdicts mechanically, by ID and exact content (a hash is enough), never by asking the reviewer."
+          "text": "Give each item a stable ID when it is first produced, and match items to their earlier verdicts mechanically, by ID, exact content and the complete evaluator configuration (reviewer prompt, rubric, model/version, sampling settings and frozen reference; hashes are enough), never by asking the reviewer."
         },
         {
           "kind": "exact_text",
-          "text": "An item whose ID or content does not match counts as changed."
+          "text": "An item whose ID, content or evaluator configuration does not match counts as changed; a configuration change counts every affected item as changed and requires re-review before aggregate acceptance."
         },
         {
           "kind": "exact_text",
-          "text": "a repair cycle re-reviews items that passed and did not change;"
+          "text": "a repair cycle re-reviews items that passed and did not change under the same evaluator configuration, or carries a verdict across an evaluator configuration change;"
         },
         {
           "kind": "exact_text",
-          "text": "Carrying an item forward assumes its verdict depends only on that item and the frozen reference."
+          "text": "Carrying an item forward assumes its verdict depends only on that item, the frozen reference and the bound evaluator configuration."
         },
         {
           "kind": "exact_text",
@@ -1110,9 +1110,9 @@
     {
       "extracted_sha256": "e9906a5e3786af1c90aa253b4e82b42e3987fedfa61ae72f195cd3af50a1e5b4",
       "extracted_utf8_bytes": 490,
-      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "git_blob_sha1": "e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "repository_revision": "BLOB:e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "rule_id": "uda.review.cycle-escalation",
       "selectors": [
         {
@@ -1136,9 +1136,9 @@
     {
       "extracted_sha256": "3f616d735d636efbba1f81975f5f8c03edb45f605a657db6f8089107a2349064",
       "extracted_utf8_bytes": 855,
-      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "git_blob_sha1": "e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "repository_revision": "BLOB:e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "rule_id": "uda.review.declared-authority",
       "selectors": [
         {
@@ -1178,9 +1178,9 @@
     {
       "extracted_sha256": "16294aa2651f0a6d13d25bc3fd7514b127b08a64c42783fc098d1b79f8c31441",
       "extracted_utf8_bytes": 279,
-      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "git_blob_sha1": "e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "repository_revision": "BLOB:e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "rule_id": "uda.review.failure-repair",
       "selectors": [
         {
@@ -1192,9 +1192,9 @@
     {
       "extracted_sha256": "73b1769d4420792c0a9e944609b7f655b3d193509ad46190acd1a9da0fb231c4",
       "extracted_utf8_bytes": 3487,
-      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "git_blob_sha1": "e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "repository_revision": "BLOB:e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "rule_id": "uda.review.false-failure",
       "selectors": [
         {
@@ -1310,9 +1310,9 @@
     {
       "extracted_sha256": "d41588f149d477b287d172983a1d12cc4aaa58942727638334c2e8a3fb3038af",
       "extracted_utf8_bytes": 660,
-      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "git_blob_sha1": "e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "repository_revision": "BLOB:e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "rule_id": "uda.review.item-degradation",
       "selectors": [
         {
@@ -1340,9 +1340,9 @@
     {
       "extracted_sha256": "702fa5d805d8d2efc05946ab787a4d34f5fb2b8ff8dcb57201d505f03143d715",
       "extracted_utf8_bytes": 769,
-      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "git_blob_sha1": "e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
+      "repository_revision": "BLOB:e689dafcadfb800db8dcd6a027a52ba1e1236cb6",
       "rule_id": "uda.review.repair-bound",
       "selectors": [
         {

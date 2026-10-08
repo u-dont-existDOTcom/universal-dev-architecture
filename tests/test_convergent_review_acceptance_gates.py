@@ -26,7 +26,8 @@ class ConvergentReviewAcceptanceGatesTests(unittest.TestCase):
             "**Re-review the change, not the whole unit.**",
             "send the reviewer only the earlier findings and the items the repair changed",
             "Carry forward every item that passed and did not change.",
-            "by ID and exact content (a hash is enough), never by asking the reviewer",
+            "by ID, exact content and the complete evaluator configuration",
+            "never by asking the reviewer",
             "**Bound the repairs and degrade by item.**",
             "Fix the number of repair cycles before the first cycle runs.",
             "withhold only the items still flagged and mark them for review",
@@ -58,6 +59,18 @@ class ConvergentReviewAcceptanceGatesTests(unittest.TestCase):
             self.pattern.index("5. **Track findings per cycle and stop early when they do not fall.**"),
         ]
         self.assertEqual(order, sorted(order))
+
+    def test_carried_verdicts_bind_the_complete_evaluator_configuration(self) -> None:
+        rule = self.pattern.split("1. **", 1)[1].split("\n2. **", 1)[0]
+        for phrase in (
+            "by ID, exact content and the complete evaluator configuration",
+            "reviewer prompt", "rubric", "model/version", "sampling settings",
+            "frozen reference", "hashes are enough",
+            "configuration change counts every affected item as changed",
+            "requires re-review before aggregate acceptance",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, rule)
 
     def test_stated_arithmetic_matches_the_formulas(self) -> None:
         # (1 - p)^n for p = 0.05 and n = 27, and q^N for q = 0.99 and N = 162.

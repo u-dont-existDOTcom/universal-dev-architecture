@@ -426,10 +426,10 @@ Source: `patterns/convergent-review-acceptance-gates.md`. All clauses below are 
 |---|---|
 | After a repair, send the reviewer only the earlier findings and the items the repair changed. | uda.review.change-scope / change-scope-at-boundary |
 | Carry forward every item that passed and did not change. | uda.review.change-scope / change-scope-at-boundary |
-| Give each item a stable ID when it is first produced, and match items to their earlier verdicts mechanically, by ID and exact content (a hash is enough), never by asking the reviewer. | uda.review.change-scope / change-scope-at-boundary |
-| An item whose ID or content does not match counts as changed. | uda.review.change-scope / change-scope-at-boundary |
-| a repair cycle re-reviews items that passed and did not change; | uda.review.change-scope / change-scope-at-boundary |
-| Carrying an item forward assumes its verdict depends only on that item and the frozen reference. | uda.review.change-scope / change-scope-at-boundary |
+| Give each item a stable ID when it is first produced, and match items to their earlier verdicts mechanically, by ID, exact content and the complete evaluator configuration (reviewer prompt, rubric, model/version, sampling settings and frozen reference; hashes are enough), never by asking the reviewer. | uda.review.change-scope / change-scope-at-boundary |
+| An item whose ID, content or evaluator configuration does not match counts as changed; a configuration change counts every affected item as changed and requires re-review before aggregate acceptance. | uda.review.change-scope / change-scope-at-boundary |
+| a repair cycle re-reviews items that passed and did not change under the same evaluator configuration, or carries a verdict across an evaluator configuration change; | uda.review.change-scope / change-scope-at-boundary |
+| Carrying an item forward assumes its verdict depends only on that item, the frozen reference and the bound evaluator configuration. | uda.review.change-scope / change-scope-at-boundary |
 | When a verdict depends on other items (order, duplicates, consistency across items), declare the dependency and count a change to the other item as a change to this one. | uda.review.change-scope / change-scope-at-boundary |
 | Re-review the change, not the whole unit. | uda.review.change-scope / change-scope-at-boundary |
 | Fix the number of repair cycles before the first cycle runs. | uda.review.repair-bound / repair-bound-at-boundary |
