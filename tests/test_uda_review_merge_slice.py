@@ -175,7 +175,7 @@ class ReviewMergeSliceTests(unittest.TestCase):
         self.assertEqual(78, report["backlog_count"])
         self.assertEqual(6, len(report["removed_since_baseline"]))
         self.assertFalse(set(SOURCES).intersection(report["removed_since_baseline"]))
-        for source, expected in zip(SOURCES, (60, 58)):
+        for source, expected in zip(SOURCES, (65, 58)):
             entry = next(e for e in self.inventory["entries"] if e["id"] == source)
             self.assertEqual("STRUCTURED_ENFORCED", entry["disposition"])
             self.assertEqual(expected, len(entry["obligation_map"]))
@@ -254,12 +254,23 @@ class ReviewMergeCoverageMutations(unittest.TestCase):
                 self.regenerate()
                 self.rejected("section needs mapped clauses or explicit non-operative classification: additional-obligation")
 
+    def test_added_clause_in_mapped_section_blocks_even_after_regeneration(self):
+        for source, entry, rid in self.targets():
+            with self.subTest(source=source):
+                path = self.root / source
+                path.write_text(path.read_text().replace(
+                    "## Rules\n", "## Rules\n\n"
+                    "The executor must obtain a second approval before every repair.\n", 1))
+                self.regenerate()
+                self.rejected("obligation_map differs from independent section clause manifests")
+
     def test_non_operative_section_requires_explicit_reason_and_content_pin(self):
         source = SOURCES[0]
         section = "reference-notes"
         body = "\n\nHistorical examples explain the origin of this pattern.\n"
         path = self.root / source
-        path.write_text(path.read_text() + "\n## Reference notes" + body)
+        # Preserve the preceding section's complete pinned body.
+        path.write_text(path.read_text() + "## Reference notes" + body)
         pin = {"classification": "NON_OPERATIVE",
                "reason": "These historical examples provide context without adding any behavioral rule.",
                "source_sha256": hashlib.sha256(body.encode()).hexdigest()}

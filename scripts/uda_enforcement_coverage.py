@@ -272,8 +272,8 @@ def validate(root: Path | str) -> list[str]:
                         errors.append(prefix + "obligation_map differs from independent source clause manifest")
                     if entry.get("kind") == "pattern" and source:
                         # Whole-pattern pins protect the identity; section pins
-                        # classify every section independently. Non-operative
-                        # declarations pin the body so edits require review.
+                        # classify every section independently and pin its full
+                        # body so new prose, even beside mapped clauses, requires review.
                         section_pins = {}
                         section_manifest = manifest.get("sections")
                         headings = list(re.finditer(r"^## (.+)$", source["source"], re.M))
@@ -285,7 +285,8 @@ def validate(root: Path | str) -> list[str]:
                             owned = sorted(c for c in clauses if body.count(c) == 1)
                             if owned:
                                 section_pins[section] = {
-                                    "clause_count": len(owned), "clauses_sha256": canonical_hash(owned)}
+                                    "clause_count": len(owned), "clauses_sha256": canonical_hash(owned),
+                                    "source_sha256": hashlib.sha256(body.encode()).hexdigest()}
                             else:
                                 declared = section_manifest.get(section) if isinstance(section_manifest, dict) else None
                                 reason = declared.get("reason") if isinstance(declared, dict) else None

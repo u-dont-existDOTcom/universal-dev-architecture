@@ -2664,7 +2664,7 @@
     },
     {
       "rule_id": "uda.review.false-failure",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/convergent-review-acceptance-gates.md",
@@ -2736,6 +2736,26 @@
           {
             "kind": "exact_text",
             "text": "Estimate the false-failure rate before running at scale."
+          },
+          {
+            "kind": "exact_text",
+            "text": "For a recall floor r over n known-correct reference items, the allowed misses are k = n - ceil(r*n)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Under the same independence and constant-p model, the false-failure probability is P(Binomial(n, p) > k) = sum from j = k + 1 to n of C(n, j) p^j (1 - p)^(n - j), where C(n, j) counts combinations."
+          },
+          {
+            "kind": "exact_text",
+            "text": "With k = 0 this reduces to the zero-miss formula above."
+          },
+          {
+            "kind": "exact_text",
+            "text": "For example, r = 0.95, n = 100 and p = 0.01 allow k = 5 misses and give about 0.0535% false failures, versus about 63.4% for zero allowed misses."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Apply the binomial tail to each aggregate, per-unit and per-stratum floor using its own n, p and allowed misses k, or measure that floor's false-failure rate on independently known-correct work."
           }
         ]
       },
@@ -2778,11 +2798,12 @@
           "required_behavior": "Estimate false failures before scale, including each hard floor, and redesign when rejection would change the decision.",
           "due_phase": "pre-action",
           "destination": "review-scale-gate-design",
-          "acceptance_evidence": "Estimate unit/run acceptance and each hard floor with the source formulas. Derive p only from independently known-correct pilot or earlier-cycle items with findings adjudicated false; divide false flags by all eligible reviewed items, including unflagged items. Exclude genuine defects and unadjudicated records, and label p as a guess when these labels are unavailable. Independence/constant-rate assumptions are planning limits; prefer measured known-correct pass rates. Redesign via change scope, bounded item degradation and aggregate floors before scale when material. Missed real defects require another reviewer or deterministic check. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "acceptance_evidence": "Estimate unit/run acceptance and each aggregate, per-unit and per-stratum floor with its own n, p and allowed misses k. For recall floor r, k = n - ceil(r*n); use P(Binomial(n, p) > k), or measure that floor's known-correct false-failure rate. The zero-miss formula applies only when k = 0. Derive p only from independently known-correct pilot or earlier-cycle items with findings adjudicated false; divide false flags by all eligible reviewed items, including unflagged items. Exclude genuine defects and unadjudicated records, and label p as a guess when these labels are unavailable. Independence/constant-rate assumptions are planning limits; prefer measured known-correct pass rates. Redesign via change scope, bounded item degradation and aggregate floors before scale when material. Missed real defects require another reviewer or deterministic check. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
           "non_substitutes": [
             "a false-failure estimate made only after the scale run",
             "a guessed p presented as a measured pilot",
-            "raw cycle findings presented as measured false positives"
+            "raw cycle findings presented as measured false positives",
+            "a zero-miss calculation applied to a floor that allows misses"
           ],
           "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import unittest
+from math import ceil, comb
 from pathlib import Path
 
 from tests.root_migration_assertions import assert_routed_rule
@@ -71,6 +72,34 @@ class ConvergentReviewAcceptanceGatesTests(unittest.TestCase):
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, self.pattern)
+
+    def test_nonzero_miss_floors_use_the_binomial_tail_and_threshold(self) -> None:
+        problem = self.pattern.split("## Problem", 1)[1].split("## Rules", 1)[0]
+        for phrase in (
+            "k = n - ceil(r*n)",
+            "P(Binomial(n, p) > k)",
+            "sum from j = k + 1 to n of C(n, j) p^j (1 - p)^(n - j)",
+            "With k = 0 this reduces to the zero-miss formula above.",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, problem)
+        example = re.search(
+            r"r = ([\d.]+), n = (\d+) and p = ([\d.]+) allow k = (\d+) misses "
+            r"and give about ([\d.]+)% false failures, versus about ([\d.]+)% for zero allowed misses",
+            problem,
+        )
+        self.assertIsNotNone(example)
+        r, n, p, k, tail_percent, zero_percent = map(float, example.groups())
+        n, k = int(n), int(k)
+        self.assertEqual(n - ceil(r * n), k)
+        tail = sum(comb(n, j) * p**j * (1 - p)**(n - j) for j in range(k + 1, n + 1))
+        self.assertAlmostEqual(tail * 100, tail_percent, places=4)
+        self.assertAlmostEqual((1 - (1 - p)**n) * 100, zero_percent, places=1)
+        rule = self.pattern.split("4. **", 1)[1].split("\n5. **", 1)[0]
+        self.assertIn("each aggregate, per-unit and per-stratum floor", rule)
+        self.assertIn("its own n, p and allowed misses k", rule)
+        self.assertIn("binomial tail", rule)
+        self.assertIn("independently known-correct", rule)
 
     def test_declared_gates_and_directive_ceilings_stay_hard(self) -> None:
         for phrase in (

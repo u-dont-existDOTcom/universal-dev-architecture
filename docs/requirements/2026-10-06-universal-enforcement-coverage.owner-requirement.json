@@ -57,28 +57,33 @@
       "clauses_sha256": "0296f83c29eb4a6e0aa59c0ad74785f72224a331282c461d1b92757531d1d6b1"
     },
     "patterns/convergent-review-acceptance-gates.md": {
-      "clause_count": 60,
-      "clauses_sha256": "20ab5018a25298f4d108899bc38072619d97d0f477d41fafc49fd38f4b0533ad",
+      "clause_count": 65,
+      "clauses_sha256": "0529aca45d9fd9f05e97868987d0677ae16188f7e6954bac78cb2108d5eb318f",
       "sections": {
         "status": {
           "clause_count": 1,
-          "clauses_sha256": "99691207cdcb42ba76934779fd05b47ae0426353331fdfce550f571c979d6670"
+          "clauses_sha256": "99691207cdcb42ba76934779fd05b47ae0426353331fdfce550f571c979d6670",
+          "source_sha256": "b3a790aa896331444e0e38c0e98ab5ed9d0176ac78af8fdb5e2079d14a148ef9"
         },
         "problem": {
-          "clause_count": 5,
-          "clauses_sha256": "4d6b0053430c72bb704dfd71909da8e6a9782c0fdefccd31a31cdecc818c1a1d"
+          "clause_count": 9,
+          "clauses_sha256": "ee8e19e972aeac77549d5ca0e209a7ec01056d88f2db071d8c4b5321c44d9f1b",
+          "source_sha256": "947dc48385b2bfe4fed663beb0ad4af12cbcdd78a6672778c7e269942d330a0d"
         },
         "rules": {
-          "clause_count": 29,
-          "clauses_sha256": "578d64bca603dfd57a3f75c85ea892069ab7f350d512d8dbd02e9e1eafbfbc4b"
+          "clause_count": 30,
+          "clauses_sha256": "e92bc828cfca2520b33ed6104b68698465df21414c3062f0c92ad69bd6fbc16a",
+          "source_sha256": "3d5af5e114b12902dd659f00fdb61f419ce99581ace6685b496604a889a8404e"
         },
         "bounds": {
           "clause_count": 9,
-          "clauses_sha256": "069bf44d4581a7b44adab98c765c9def7cebf77e8f7d74331cace9b311678686"
+          "clauses_sha256": "069bf44d4581a7b44adab98c765c9def7cebf77e8f7d74331cace9b311678686",
+          "source_sha256": "484bd03865c5787421eac322254994fb02efd5e9557e188193f80ddf05b312f9"
         },
         "failure-condition-and-repair": {
           "clause_count": 5,
-          "clauses_sha256": "168907e422f3d49562b82e52f9d4ce33f3896800ada8cb0f474a3be09681ffeb"
+          "clauses_sha256": "168907e422f3d49562b82e52f9d4ce33f3896800ada8cb0f474a3be09681ffeb",
+          "source_sha256": "d93b652d4b4adad01d92209650206c66ee5cdb0e18ea05709eaf4ea070a7a3eb"
         },
         "relationship-to-other-patterns": {
           "classification": "NON_OPERATIVE",
@@ -87,11 +92,13 @@
         },
         "requirement-accretion-declaration": {
           "clause_count": 1,
-          "clauses_sha256": "2b1979a568bf0415afa9c01d79679ab63f8dea074ad3297c10240a5f1665f248"
+          "clauses_sha256": "2b1979a568bf0415afa9c01d79679ab63f8dea074ad3297c10240a5f1665f248",
+          "source_sha256": "96c3d964f0cb553b44ffbf01cf4085980636cca1281f712001cf28f02bc80d0a"
         },
         "transfer-rationale-and-limits": {
           "clause_count": 10,
-          "clauses_sha256": "6d9e61ea020a3c694c18e092ee84e819ce25191c8453f182c7763935a3dda150"
+          "clauses_sha256": "6d9e61ea020a3c694c18e092ee84e819ce25191c8453f182c7763935a3dda150",
+          "source_sha256": "350e60aa83b152b0f537fc03cc434476e3865694a46cd98723f7f1c67528d6e4"
         }
       }
     },
@@ -101,7 +108,8 @@
       "sections": {
         "status": {
           "clause_count": 1,
-          "clauses_sha256": "2b196683168c52671ec211051d15409c471edef216bafebdffcd09a942dbba5a"
+          "clauses_sha256": "2b196683168c52671ec211051d15409c471edef216bafebdffcd09a942dbba5a",
+          "source_sha256": "582ea3d7b9cdc2fc096a74dd2947d48f4778f8e2030f63be08d5507f59040554"
         },
         "problem": {
           "classification": "NON_OPERATIVE",
@@ -110,15 +118,18 @@
         },
         "rules": {
           "clause_count": 36,
-          "clauses_sha256": "98e2b44582bb49d3a6e98db847be0370e8910f5ece763822b96914a7ee6bedcd"
+          "clauses_sha256": "98e2b44582bb49d3a6e98db847be0370e8910f5ece763822b96914a7ee6bedcd",
+          "source_sha256": "7e57b16b5b571bdeff18cce8f9307c0c15422338960d9fd1788b421fb2387e16"
         },
         "bounds": {
           "clause_count": 9,
-          "clauses_sha256": "75d77060b04deb83cd50915169eddfd82d769817652d23c173a5531bfe170b26"
+          "clauses_sha256": "75d77060b04deb83cd50915169eddfd82d769817652d23c173a5531bfe170b26",
+          "source_sha256": "5dac31f27fa7cfc8ed9eb312741de5d98ce4ff077192814979a1f02232e2783f"
         },
         "failure-condition-and-repair": {
           "clause_count": 5,
-          "clauses_sha256": "3a431c2d184330cd504b47cff803b73cc05d21b9fa0ab3044cc05a2c008dd009"
+          "clauses_sha256": "3a431c2d184330cd504b47cff803b73cc05d21b9fa0ab3044cc05a2c008dd009",
+          "source_sha256": "c4c2c69afd3592b396103b3315bc406d66099f5d86be295c7ba0c373fdc1c10d"
         },
         "relationship-to-other-patterns": {
           "classification": "NON_OPERATIVE",
@@ -127,11 +138,13 @@
         },
         "requirement-accretion-declaration": {
           "clause_count": 1,
-          "clauses_sha256": "426884de5ffda68860f667d44258f21c44f2155aaa4852cd046c0477305a6a90"
+          "clauses_sha256": "426884de5ffda68860f667d44258f21c44f2155aaa4852cd046c0477305a6a90",
+          "source_sha256": "87be2b60b888b6f3cd8fe98f4fe5dc3edd904c22fd654509e1c34812387d6075"
         },
         "transfer-rationale-and-limits": {
           "clause_count": 6,
-          "clauses_sha256": "ebeae1cb4231f26f5e17f0ed8879cb8167ec3418890ecbe02e54ab1e562c5d17"
+          "clauses_sha256": "ebeae1cb4231f26f5e17f0ed8879cb8167ec3418890ecbe02e54ab1e562c5d17",
+          "source_sha256": "e508398fb79e213562e4c53668bbecd6f013c200061661ba9cea2b3a7fd891ef"
         }
       }
     }
@@ -298,7 +311,7 @@
       "baseline_shrinkage": 6,
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
-      "implemented": "Two new identities structured: 60 review clauses / 8 obligations; 58 merge clauses / 8 obligations; 14 new records, no exceptions or backlog additions."
+      "implemented": "Two new identities structured: 65 review clauses / 8 obligations; 58 merge clauses / 8 obligations; 14 new records, no exceptions or backlog additions."
     }
   ],
   "learning_state_at_merge": [

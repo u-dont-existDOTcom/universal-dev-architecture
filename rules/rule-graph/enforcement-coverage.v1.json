@@ -2875,6 +2875,31 @@
           "sentence": "Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; and put the counts on the owner questions page.",
           "record": "uda.review.failure-repair",
           "obligation_id": "failure-repair-at-boundary"
+        },
+        {
+          "sentence": "For a recall floor r over n known-correct reference items, the allowed misses are k = n - ceil(r*n).",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Under the same independence and constant-p model, the false-failure probability is P(Binomial(n, p) > k) = sum from j = k + 1 to n of C(n, j) p^j (1 - p)^(n - j), where C(n, j) counts combinations.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "With k = 0 this reduces to the zero-miss formula above.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "For example, r = 0.95, n = 100 and p = 0.01 allow k = 5 misses and give about 0.0535% false failures, versus about 63.4% for zero allowed misses.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Apply the binomial tail to each aggregate, per-unit and per-stratum floor using its own n, p and allowed misses k, or measure that floor's false-failure rate on independently known-correct work.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
         }
       ]
     },
