@@ -227,6 +227,40 @@ class EnforcementCoverageTests(unittest.TestCase):
                 self.write(coverage.BASELINE, baseline)
                 self.assertEqual([], coverage.validate(self.root))
 
+    def test_promoted_baseline_entries_cannot_regress_without_owner_authorization(self):
+        original = self.read(coverage.COVERAGE)
+        promoted = self.read(coverage.REQUIREMENT)["source_clause_manifest"]
+        self.assertTrue(promoted)
+        for target in promoted:
+            with self.subTest(target=target):
+                self.write(coverage.COVERAGE, original)
+                self.change(lambda entries: next(e for e in entries if e["id"] == target).update(
+                    disposition="STRUCTURED_PARTIAL",
+                    legacy_remainder="Some operative obligations remain outside the exact task-time admission path.",
+                    migration={"priority": "P1", "trigger_frequency": "EVERY_TURN",
+                               "next_step": "Restore complete task-time admission coverage for the remaining operative obligations."}))
+                self.rejected("unauthorized promoted coverage regression")
+
+    def test_explicit_owner_authorization_can_return_a_promoted_entry_to_backlog(self):
+        target = next(iter(self.read(coverage.REQUIREMENT)["source_clause_manifest"]))
+        self.change(lambda entries: next(e for e in entries if e["id"] == target).update(
+            disposition="STRUCTURED_PARTIAL",
+            legacy_remainder="Some operative obligations remain outside the exact task-time admission path.",
+            migration={"priority": "P1", "trigger_frequency": "EVERY_TURN",
+                       "next_step": "Restore complete task-time admission coverage for the remaining operative obligations."}))
+        baseline = self.read(coverage.BASELINE)
+        for addition in (
+                {"id": target, "date": "2026-10-07", "owner_quote": "Approved.", "source": "test-only owner directive"},
+                {"id": target, "date": "2026-10-07", "owner_quote": "Approved."},
+                {"id": "patterns/another-entry.md", "date": "2026-10-07", "owner_quote": "Approved.", "source": "test-only owner directive"}):
+            with self.subTest(addition=addition):
+                baseline["owner_authorized_additions"] = [addition]
+                self.write(coverage.BASELINE, baseline)
+                if addition.get("source") and addition["id"] == target:
+                    self.assertEqual([], coverage.validate(self.root))
+                else:
+                    self.rejected("unauthorized promoted coverage regression")
+
     def test_missing_exception_reason_fails(self):
         self.change(lambda entries: self.workflow(entries).pop("exception_reason"))
         self.rejected("missing or generic exception_reason")
