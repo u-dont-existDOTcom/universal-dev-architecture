@@ -112,24 +112,32 @@ class CurrentStateConcisionTests(unittest.TestCase):
             with mock.patch.dict(globals(), {"TASK_STATES": task_states}):
                 self.test_pr_297_recovery_checkpoints_route_past_published_repair()
 
-    def test_pr_340_recovery_checkpoints_route_past_committed_handoff(self) -> None:
-        for name in (
-            "task-5e54bcd1e5766e40fe276c2f61bbb571a2ee3bb0febddf6b7a2a44309fc30f0b.md",
-            "task-bb6e46e5581cf4d85c63d1e63cbd675d51203ca44658f9b15a187af662aedc7c.md",
-        ):
-            text = (TASK_STATES / name).read_text(encoding="utf-8")
-            with self.subTest(path=name, section="Current checkpoint"):
-                current = text.split("## Current checkpoint", 1)[1].split("\n## ", 1)[0]
-                self.assertRegex(current, r"(?i)\bcommitted\b")
-                self.assertNotRegex(
-                    current,
-                    r"(?i)\buncommitted\b|\bno\b[^\n]*\bcommitted\b|\bworking.tree (?:candidate|handoff)\b",
+    def test_retained_recovery_checkpoints_can_be_rewritten(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            task_states = root / "state" / "tasks"
+            task_states.mkdir(parents=True)
+            current_state = root / "state" / "CURRENT-STATE.md"
+            current_state.write_text(CURRENT_STATE.read_text(encoding="utf-8"), encoding="utf-8")
+            for path in sorted(TASK_STATES.glob("*.md")):
+                text = re.sub(
+                    r"(?ms)^(## (?:Current checkpoint|Remaining|Next safe action))\n.*?(?=^## |\Z)",
+                    r"\1\n\n- Recover from the latest available repository state.\n\n",
+                    path.read_text(encoding="utf-8"),
                 )
-            for heading in ("Remaining", "Next safe action"):
-                with self.subTest(path=name, section=heading):
-                    section = text.split(f"## {heading}", 1)[1].split("\n## ", 1)[0]
-                    self.assertNotRegex(section, r"(?i)\brunner\b[^\n]*\b(?:commit\w*|push\w*)\b")
-                    self.assertIn("CI", section)
+                (task_states / path.name).write_text(text, encoding="utf-8")
+            loader = unittest.TestLoader()
+            suite = unittest.TestSuite(
+                type(self)(name)
+                for name in loader.getTestCaseNames(type(self))
+                if name != self._testMethodName
+            )
+            with mock.patch.dict(
+                globals(), {"ROOT": root, "CURRENT_STATE": current_state, "TASK_STATES": task_states}
+            ):
+                result = unittest.TestResult()
+                suite.run(result)
+            self.assertTrue(result.wasSuccessful(), result.failures + result.errors)
 
 if __name__ == "__main__":
     unittest.main()
