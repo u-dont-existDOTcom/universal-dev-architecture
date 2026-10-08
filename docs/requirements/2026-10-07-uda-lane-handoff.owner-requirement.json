@@ -1,0 +1,68 @@
+{
+  "requirement_id": "2026-10-07-uda-lane-handoff",
+  "date": "2026-10-07",
+  "source": "Owner request of 2026-10-07, supplied verbatim in the maintainer-handoff task instruction.",
+  "owner_statement": "you need to make sure that everyone knows how to send you theiir fix proposals because it seems like currently they don't understand.",
+  "second_owner_request": {
+    "date": "2026-10-07",
+    "source": "Second owner request for pull request #327, supplied verbatim in the universal-lane task instruction.",
+    "owner_statement": "can we universalize this fix so that any project that's using UDA rules has a lane for suggestions from elsewhere that it checks?",
+    "required_behavior": [
+      "Every project using this architecture's rules has a suggested-fix lane; its folder is created when the first item is filed, and agents check it before other fixes whether or not the folder exists yet.",
+      "The project's AGENTS.md carries the wiring section unless its agents load this repository's root AGENTS.md every turn. When a project starts using these rules, the agent carrying them in adds the wiring.",
+      "For an existing unwired project, one pull request adds only the wiring section, because an unwired project cannot read its lane.",
+      "Root project bootstrap templates carry the README wiring section with <repository> left as the placeholder; carrying UDA into standalone projects includes adding it.",
+      "The README table lists projects whose agents are wired, not every project entitled to a lane.",
+      "Regression tests protect the every-project rule and template wiring; the enforcement backlog must not grow."
+    ],
+    "scope": "Portable rules, bootstrap templates, README, requirement provenance, regression tests, coverage limits and this PR's checkpoint in this repository; no edits to other repositories, Mission Control runtime, AskRigor, state/CURRENT-STATE.md, or other projects' lanes and AGENTS.md.",
+    "origin": {
+      "classification": "OWNER",
+      "admission": "OWNER_DIRECT"
+    }
+  },
+  "problem": "Another agent correctly filed two universal lessons as a pull request here. Nothing marked the pull request as handed over, so the maintainer did not know it was waiting and the filing agent kept working on it for days. Both searched chats, handoff folders and Mission Control for a handoff.",
+  "required_behavior": [
+    "An agent with a change for this architecture opens a pull request here; a draft is fine.",
+    "The filing agent adds the uda-lane label and leaves one comment saying what remains, such as an owner decision it could not get.",
+    "The label hands the pull request to this repository's maintainer lane, which lists labeled pull requests at each check-in, then reviews and merges them.",
+    "After handing over, the filing agent changes the pull request only if the maintainer asks.",
+    "Chats, handoff folders and files are not a handoff channel.",
+    "Keep the existing suggested-fix lane rules intact; add README and lesson-index routing and a regression test for the step and label."
+  ],
+  "scope": "Changes to this architecture repository itself; existing other-project lanes and repository gates retain their authority.",
+  "origin": {
+    "classification": "OWNER",
+    "admission": "OWNER_DIRECT",
+    "notes": "The owner supplied the handoff procedure and requested the bounded documentation, provenance and regression-test changes."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/suggested-fix-queue.md step 9, suggested-fixes/README.md and LESSON-INDEX.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "tests/test_suggested_fix_queue.py",
+      "disposition": "TESTED_TEXT_ONLY"
+    },
+    {
+      "surface": "patterns/suggested-fix-queue.md steps 1, 4 and 7; patterns/carrying-uda-into-standalone-projects.md step 3; suggested-fixes/README.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "templates/AGENTS-UNIVERSAL-BOOTSTRAP.md, templates/AGENTS-CODEX.md and templates/PROJECT-AGENTS.md",
+      "disposition": "PROJECTED"
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED",
+    "TESTED_TEXT_ONLY"
+  ],
+  "nonclaims": [
+    "Text-presence tests protect the documented step and label; they do not prove that an agent labels a pull request, stops editing it, or that the maintainer lists, reviews or merges it.",
+    "This change does not implement or validate a live maintainer polling service or alter Mission Control runtime behavior.",
+    "Template and rule text tests do not prove downstream adoption, lane checks or wiring in existing unwired projects; no other repository or lane item is edited by this PR."
+  ]
+}

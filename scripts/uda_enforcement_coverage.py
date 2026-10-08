@@ -421,6 +421,7 @@ def validate(root: Path | str) -> list[str]:
                 or anchors[0].get("backlog_ids_sha256") != canonical_hash(pinned)):
             errors.append("baseline backlog_ids drift from the captured owner requirement; use owner_authorized_additions for growth")
         allowed = set(pinned)
+        authorized_additions = set()
         for addition in baseline.get("owner_authorized_additions", []):
             try:
                 date.fromisoformat(addition["date"])
@@ -430,6 +431,7 @@ def validate(root: Path | str) -> list[str]:
                         or any(c in addition["id"] for c in "*?[")):
                     raise ValueError("incomplete authorization")
                 allowed.add(addition["id"])
+                authorized_additions.add(addition["id"])
             except (KeyError, TypeError, ValueError):
                 errors.append("owner_authorized_addition needs exact id, owner_quote, date and source")
         for eid in pinned:
@@ -440,6 +442,12 @@ def validate(root: Path | str) -> list[str]:
         for eid in pinned:
             if eid not in by_id or by_id[eid].get("disposition") not in BACKLOG | {"STRUCTURED_ENFORCED"}:
                 errors.append("baseline backlog may shrink only through STRUCTURED_ENFORCED: " + eid)
+        # Independent clause manifests persist completed promotions. Original
+        # baseline membership cannot authorize putting those entries back.
+        for eid in requirement.get("source_clause_manifest", {}):
+            disposition = by_id.get(eid, {}).get("disposition")
+            if disposition != "STRUCTURED_ENFORCED" and not (disposition in BACKLOG and eid in authorized_additions):
+                errors.append("unauthorized promoted coverage regression: " + eid)
         # Compare complete regenerated content, not just IDs or a self-declared
         # checksum. Regeneration stays in memory and uses the audited root.
         profile = task_time.read_json(file_at(root, "scripts/instruction-layering-profile.json"))
