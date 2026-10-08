@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The visible warning triggered an immediate contextual save and a small restartable next action. Continuous saving continues. Only a model-specific weekly limit permits continuation by another model family in the same account.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The visible warning was followed by one large unsaved action.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The visible warning triggered an immediate contextual save and a small restartable next action. Continuous saving continues. Only a model-specific weekly limit permits continuation by another model family in the same account. The claimed evidence instead relies on waiting until 98% to save.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "checkpoint-visible-usage-warning",
+    "non_substitute": "waiting until 98% to save"
+  }
+}

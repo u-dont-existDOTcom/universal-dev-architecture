@@ -1,0 +1,1 @@
+Other branches, worktrees, historical handoffs, future roadmaps and unrelated blockers remain intact. Each competing source is explicitly suspended from next-task selection while the lock is active.

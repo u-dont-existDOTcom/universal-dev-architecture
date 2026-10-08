@@ -1,0 +1,1 @@
+Durable memory holds decisions and reasons, useful rejected approaches, invariants, constraints, evidence, validation, uncertainty and next action. Private reasoning and exploratory thought transcripts are excluded.

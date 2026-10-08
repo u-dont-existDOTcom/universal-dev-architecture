@@ -1,0 +1,1 @@
+Required nonmock campaign and comparison artifacts are missing, but a prose report declares acceptance.

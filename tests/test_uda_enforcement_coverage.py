@@ -335,10 +335,9 @@ class EnforcementCoverageTests(unittest.TestCase):
         }
         report = coverage.report(self.root)
         backlog = report["backlog"]
-        migrated_kernel = {e["id"] for e in self.read(coverage.COVERAGE)["entries"]
-                           if e["kind"] == "kernel_section" and e["disposition"] == "STRUCTURED_ENFORCED"}
-        self.assertEqual(expected, {e["id"] for e in backlog if e["priority"] == "P1"} | migrated_kernel)
-        self.assertEqual(migrated_kernel, set(report["removed_since_baseline"]))
+        migrated_baseline = set(report["removed_since_baseline"])
+        self.assertEqual(expected, {e["id"] for e in backlog if e["priority"] == "P1"} | migrated_baseline)
+        self.assertEqual(9, len(migrated_baseline))
 
     def test_report_orders_priority_then_estimated_trigger_frequency(self):
         report = coverage.report(self.root)
@@ -373,9 +372,9 @@ class EnforcementCoverageTests(unittest.TestCase):
         baseline_ids = set(self.read(coverage.BASELINE)["backlog_ids"])
         removed = sorted(e["id"] for e in entries if e["disposition"] == "STRUCTURED_ENFORCED" and e["id"] in baseline_ids)
         self.assertEqual(removed, report["removed_since_baseline"])
-        self.assertEqual(6, len(removed))
+        self.assertEqual(9, len(removed))
         self.assertEqual(84, report["baseline_backlog_count"])
-        self.assertEqual(78, report["backlog_count"])
+        self.assertEqual(75, report["backlog_count"])
 
     def test_documented_counts_match_report(self):
         report = coverage.report(self.root)

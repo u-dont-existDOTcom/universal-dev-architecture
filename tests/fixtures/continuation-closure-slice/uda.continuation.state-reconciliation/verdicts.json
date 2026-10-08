@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Before the response, current owner correction, exact branch lock, checkpoint, live evidence and queue, controller comparator and blockers, and current supervisor directive with routed handoff were reconciled. No stale facts remain.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The response relies on an old checkpoint; the current queue and owner correction were not inspected.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Before the response, current owner correction, exact branch lock, checkpoint, live evidence and queue, controller comparator and blockers, and current supervisor directive with routed handoff were reconciled. No stale facts remain. The claimed evidence instead relies on a checkpoint alone.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "state-reconciliation-at-boundary",
+    "non_substitute": "a checkpoint alone"
+  }
+}

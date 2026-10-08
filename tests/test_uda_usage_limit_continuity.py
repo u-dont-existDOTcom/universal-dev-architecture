@@ -289,6 +289,7 @@ class DestinationScopedContinuityTests(unittest.TestCase):
         catalog = predicate_catalog(json.loads((ROOT / 'rules/rule-graph/task-time-metadata.v1.json').read_text()))
         profile = json.loads((ROOT / 'scripts/instruction-layering-profile.json').read_text())
         task = json.loads((ROOT / 'examples/rule-graph/work-handoff.json').read_text())
+        task['facts']['continuity_required'].update(value=True, provenance='multistep destination-scoping regression')
         cls.contract = tt.compile_contract(catalog, profile, task, 'graph')
         cls.final = b'2026-10-07 00:02:00 UTC\nElapsed time: 2 minutes\nWork saved.\n'
         cls.readings = {'clock_start': '2026-10-07T00:00:00Z',
@@ -409,6 +410,7 @@ class UsageWarningRefreshTests(unittest.TestCase):
         cls.catalog = json.loads((ROOT / 'rules/rule-graph/task-time-metadata.v1.json').read_text())
         cls.profile = json.loads((ROOT / 'scripts/instruction-layering-profile.json').read_text())
         cls.task = json.loads((ROOT / 'examples/rule-graph/work-handoff.json').read_text())
+        cls.task['facts']['continuity_required'].update(value=True, provenance='multistep running-task warning regression')
         cls.payload = (FIXTURE / 'step-checkpoint-compliant.txt').read_bytes()
         cls.verdict = json.loads((FIXTURE / 'step-checkpoint.verdicts.json').read_text())[1]
 
@@ -524,11 +526,11 @@ class UsageWarningRefreshTests(unittest.TestCase):
             paths['checkpoint.txt'].write_bytes(self.payload)
             paths['receipts.json'].write_text(json.dumps(receipts))
             for script in ('uda_rule_graph_task_time.py', 'uda_rule_graph.py'):
-                for warning, supply_task, expected in ((False, True, 'ADMITTED'),
+                for warning, supply_task, expected in ((False, True, 'NOT_EVALUATED'),
                                                        (True, True, 'BLOCKED'),
                                                        (False, False, 'BLOCKED')):
                     with self.subTest(script=script, warning=warning, supply_task=supply_task):
-                        task = copy.deepcopy(self.task)
+                        task = json.loads((ROOT / 'examples/rule-graph/work-handoff.json').read_text())
                         task['facts']['usage_warning_visible']['value'] = warning
                         paths['task.json'].write_text(json.dumps(task))
                         command = [sys.executable, str(ROOT / 'scripts' / script), 'check',

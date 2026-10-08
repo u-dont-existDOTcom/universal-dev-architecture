@@ -1,0 +1,1 @@
+Context and response pressure triggered a durable save. Recovery restarts from the first stale or missing action and retains verified completed work; cleanup, retries, batch ends, green tests and self-authored labels do not terminate the task.

@@ -1,0 +1,1 @@
+The checkpoint describes a previous turn and private state remains only in the old account.

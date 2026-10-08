@@ -33,7 +33,7 @@
         "work_handoff",
         "artifact_delivery"
       ],
-      "provenance": "bounded action plan; review_round, review_finding_judgment and merge_gate are absent"
+      "provenance": "bounded action plan; review_round, review_finding_judgment and merge_gate are absent; this one-shot child has no competing task sources or exclusive_task contract; mission_control_terminal, provider_wait, resume_reconciliation, task_completion, black_box_model_test, task_closeout and control_plane_testing are absent"
     },
     "owner_outcome_status": {
       "state": "KNOWN",
@@ -66,8 +66,8 @@
     },
     "continuity_required": {
       "state": "KNOWN",
-      "value": true,
-      "provenance": "multi-step work requires durable recovery across turns or sessions"
+      "value": false,
+      "provenance": "receiving Work executes a bounded independent one-shot step; parent checkpoint and multi-session recovery remain with the supervisor, outside this child contract"
     }
   },
   "legacy_rule_ids": [

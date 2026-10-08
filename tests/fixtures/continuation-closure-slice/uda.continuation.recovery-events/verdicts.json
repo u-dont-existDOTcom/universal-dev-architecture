@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Context and response pressure triggered a durable save. Recovery restarts from the first stale or missing action and retains verified completed work; cleanup, retries, batch ends, green tests and self-authored labels do not terminate the task.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "Browser cleanup and a checkpoint commit are treated as permission to stop despite a known next batch.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Context and response pressure triggered a durable save. Recovery restarts from the first stale or missing action and retains verified completed work; cleanup, retries, batch ends, green tests and self-authored labels do not terminate the task. The claimed evidence instead relies on a checkpoint treated as terminal permission.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "recovery-events-at-boundary",
+    "non_substitute": "a checkpoint treated as terminal permission"
+  }
+}

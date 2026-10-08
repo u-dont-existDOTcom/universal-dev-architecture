@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The bootstrap names one recovery entry and separate concurrent-task checkpoints. The concise task checkpoint records goal, baseline, decisions, owner constraints, bootstrap and blocking gates, completed work, current durable boundary, remaining work, questions, evidence and relevant dirty state, with an exact safe resume action.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The checkpoint omits the directive-established blocking gate and the next executable action.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The bootstrap names one recovery entry and separate concurrent-task checkpoints. The concise task checkpoint records goal, baseline, decisions, owner constraints, bootstrap and blocking gates, completed work, current durable boundary, remaining work, questions, evidence and relevant dirty state, with an exact safe resume action. The claimed evidence instead relies on a transcript dump as a recovery map.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "recovery-checkpoint-at-boundary",
+    "non_substitute": "a transcript dump as a recovery map"
+  }
+}

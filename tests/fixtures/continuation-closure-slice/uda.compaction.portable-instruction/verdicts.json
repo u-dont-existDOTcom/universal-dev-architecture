@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The adopted instruction preserves temporary conversation and durable repository state, all checkpoint fields, completed-step saves without thresholds, current OPEN-turn and reachable private handoff, account recreation list, one-line resume, contextual writer, immediate warning save with small steps and reconciliation after every restart or switch. Real publication gates are preserved.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The adopted instruction defers saves to a usage threshold and drops private-state recovery.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The adopted instruction preserves temporary conversation and durable repository state, all checkpoint fields, completed-step saves without thresholds, current OPEN-turn and reachable private handoff, account recreation list, one-line resume, contextual writer, immediate warning save with small steps and reconciliation after every restart or switch. Real publication gates are preserved. The claimed evidence instead relies on a portable instruction omitting the turn-end resume line.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "portable-instruction-at-boundary",
+    "non_substitute": "a portable instruction omitting the turn-end resume line"
+  }
+}

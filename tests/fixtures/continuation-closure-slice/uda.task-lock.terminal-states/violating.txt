@@ -1,0 +1,1 @@
+A provider timeout is called model rejection and a blocked live campaign is called COMPLETE.

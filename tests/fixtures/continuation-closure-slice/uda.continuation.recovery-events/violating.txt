@@ -1,0 +1,1 @@
+Browser cleanup and a checkpoint commit are treated as permission to stop despite a known next batch.

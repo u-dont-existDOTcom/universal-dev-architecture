@@ -1,0 +1,1 @@
+The contextual worker saved each completed step to the authorized task branch and updated done, next and the exact resume action. Any account can resume without the old chat. Saving is continuous and never waits for a usage threshold or helper.

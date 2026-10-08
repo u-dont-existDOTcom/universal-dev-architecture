@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The task-specific acceptance command checks every declared actual durable deliverable and required provenance, comparisons, nonmock evidence and integration boundary. Missing artifacts fail closed with structured findings; passing prose and ordinary tests do not substitute.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "Required nonmock campaign and comparison artifacts are missing, but a prose report declares acceptance.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The task-specific acceptance command checks every declared actual durable deliverable and required provenance, comparisons, nonmock evidence and integration boundary. Missing artifacts fail closed with structured findings; passing prose and ordinary tests do not substitute. The claimed evidence instead relies on completion inferred from a PR body.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "artifact-acceptance-at-boundary",
+    "non_substitute": "completion inferred from a PR body"
+  }
+}

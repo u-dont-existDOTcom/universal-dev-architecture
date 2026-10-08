@@ -1,0 +1,1 @@
+Before this OPEN turn ends, the checkpoint reflects the current done, next and exact action and includes a one-line resume instruction. Private supervisor state is reachable in an authorized private durable store. Account-bound items and how to recreate them are listed, explicitly none when absent. The claimed evidence instead relies on a promise to save later.

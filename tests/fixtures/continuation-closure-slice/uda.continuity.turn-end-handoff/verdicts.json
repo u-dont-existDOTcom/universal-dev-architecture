@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Before this OPEN turn ends, the checkpoint reflects the current done, next and exact action and includes a one-line resume instruction. Private supervisor state is reachable in an authorized private durable store. Account-bound items and how to recreate them are listed, explicitly none when absent.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The checkpoint describes a previous turn and private state remains only in the old account.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Before this OPEN turn ends, the checkpoint reflects the current done, next and exact action and includes a one-line resume instruction. Private supervisor state is reachable in an authorized private durable store. Account-bound items and how to recreate them are listed, explicitly none when absent. The claimed evidence instead relies on a promise to save later.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "save-turn-end-handoff",
+    "non_substitute": "a promise to save later"
+  }
+}

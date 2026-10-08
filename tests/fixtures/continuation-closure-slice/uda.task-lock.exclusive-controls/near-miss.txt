@@ -1,0 +1,1 @@
+The consequential multistep task uses an exclusive source-controlled branch-bound machine lock, identity preflight, actual-artifact acceptance command and distinct incomplete, blocked, ready and complete states. Task recovery comes from durable repository state. The claimed evidence instead relies on a long prompt used as the task lock.

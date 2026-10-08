@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The bounded execution reached its genuine reasoning-review stop. Its exact factual receipt was automatically routed after the current stop; no safe independent authorized action remains. The root stays open.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The root remains open and a safe authorized next action is ready, but the worker ends because the response is long.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The bounded execution reached its genuine reasoning-review stop. Its exact factual receipt was automatically routed after the current stop; no safe independent authorized action remains. The root stays open. The claimed evidence instead relies on ending a response treated as completion.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "terminal-admission-at-boundary",
+    "non_substitute": "ending a response treated as completion"
+  }
+}

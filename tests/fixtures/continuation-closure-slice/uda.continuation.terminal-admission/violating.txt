@@ -1,0 +1,1 @@
+The root remains open and a safe authorized next action is ready, but the worker ends because the response is long.

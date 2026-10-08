@@ -176,7 +176,11 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
     def test_elapsed_time_cannot_be_certified_from_final_payload_alone(self):
         compiled = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
         generated = json.loads((ROOT / "tools/codex-mission-control/restored/codex-mission-control/generated/rule-graph/work-handoff-contract.json").read_text())
-        for contract in (compiled, generated):
+        multi_task = copy.deepcopy(self.work)
+        multi_task["facts"]["continuity_required"].update(value=True, provenance="multistep receipt regression")
+        multistep = task_time.compile_contract(self.catalog, self.profile, multi_task, "graph")
+        self.assertIn("uda.continuity.turn-end-handoff", self.ids(multistep))
+        for contract in (compiled, generated, multistep):
             timestamp = next(x for x in contract["selected_rules"] if x["rule_id"] == "uda.final.timestamp")
             elapsed = next(x for x in timestamp["obligations"] if x["obligation_id"] == "final-elapsed-time")
             self.assertIn("elapsed", elapsed["required_behavior"].lower())
@@ -193,7 +197,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
                                        exclude_rules=("uda.continuity.",)),
             )
             self.assertEqual(next(x for x in checked["results"] if x["obligation_id"] == "final-elapsed-time")["status"], "PASS")
-            if contract is generated:
+            if contract is multistep:
                 # Valid clocks do not discharge the OPEN task's durable handoff.
                 self.assertEqual(checked["admission"], "BLOCKED")
                 self.assertEqual(next(x for x in checked["results"] if x["obligation_id"] == "save-turn-end-handoff")["status"], "UNKNOWN")

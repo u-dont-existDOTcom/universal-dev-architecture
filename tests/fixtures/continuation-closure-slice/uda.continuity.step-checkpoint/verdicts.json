@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The contextual worker saved each completed step to the authorized task branch and updated done, next and the exact resume action. Any account can resume without the old chat. Saving is continuous and never waits for a usage threshold or helper.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "Completed work remains in one session with no durable save or exact next action.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The contextual worker saved each completed step to the authorized task branch and updated done, next and the exact resume action. Any account can resume without the old chat. Saving is continuous and never waits for a usage threshold or helper. The claimed evidence instead relies on a promise to save later.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "save-completed-step",
+    "non_substitute": "a promise to save later"
+  }
+}

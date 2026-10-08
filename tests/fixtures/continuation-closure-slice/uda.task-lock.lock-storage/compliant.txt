@@ -1,0 +1,1 @@
+The parsed target-branch lock records schema, task identity, active status, exclusivity, required branch, applicable review reference, preflight and acceptance commands and suspended sources. It grants no new owner, safety, access, spending, publication or irreversible authority.

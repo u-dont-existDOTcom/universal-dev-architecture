@@ -1,0 +1,1 @@
+Selection and completion use the executable current lock and artifact gate. Long prompts, hidden chat memory, generic continue, competing roadmaps, wrong-branch state, green CI, misleading progress, unperformed comparisons and deleting worktrees do not substitute. The claimed evidence instead relies on conversational promise instead of per-case artifacts.

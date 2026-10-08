@@ -1,0 +1,1 @@
+A successor recovered the correct state using repository access alone, preserved all important constraints and resumed without repeating completed work. Missing continuity was repaired before handoff. The claimed evidence instead relies on old chat transcript required to recover.

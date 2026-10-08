@@ -32,7 +32,7 @@
       "value": [
         "benchmark_authoring"
       ],
-      "provenance": "planned follow-up experiment; review_round, review_finding_judgment and merge_gate are absent"
+      "provenance": "planned follow-up experiment; review_round, review_finding_judgment and merge_gate are absent; exclusive_task, mission_control_terminal, provider_wait, resume_reconciliation, task_completion, black_box_model_test, task_closeout and control_plane_testing are absent"
     },
     "owner_outcome_status": {
       "state": "KNOWN",

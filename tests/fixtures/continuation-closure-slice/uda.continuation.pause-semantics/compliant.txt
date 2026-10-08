@@ -1,0 +1,1 @@
+ALLOW_REASONING_HANDOFF_PAUSE describes this execution-turn pause: the exact factual handoff is durably routed after the current stop receipt. Root closure and cancellation require their own current source evidence; other pauses leave the root open.

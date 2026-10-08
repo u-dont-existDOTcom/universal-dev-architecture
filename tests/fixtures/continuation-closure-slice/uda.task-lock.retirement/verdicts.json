@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "After protected merge, source and merged identities, required check results and immutable readback receipt were recorded. The lock was completed or archived, canonical checkpoint updated and only then roadmap selection resumed. New work creates a new task identity.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The old lock is silently repurposed and roadmap selection resumes before integration readback.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "After protected merge, source and merged identities, required check results and immutable readback receipt were recorded. The lock was completed or archived, canonical checkpoint updated and only then roadmap selection resumed. New work creates a new task identity. The claimed evidence instead relies on roadmap selection restored before closeout.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "retirement-at-boundary",
+    "non_substitute": "roadmap selection restored before closeout"
+  }
+}

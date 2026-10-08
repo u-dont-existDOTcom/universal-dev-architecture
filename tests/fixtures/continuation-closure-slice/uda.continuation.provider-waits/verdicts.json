@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The provider wait names the changing condition, admitted horizon and bounded checks. Independent work advanced. Once the condition cleared, the blocked frontier resumed automatically. Terminal pause is allowed only with durable controller evidence that every remaining authorized action is blocked without a workaround.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The worker asks the owner what to do during a cooldown while an independent safe action is ready.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The provider wait names the changing condition, admitted horizon and bounded checks. Independent work advanced. Once the condition cleared, the blocked frontier resumed automatically. Terminal pause is allowed only with durable controller evidence that every remaining authorized action is blocked without a workaround. The claimed evidence instead relies on a cooldown presented as an owner decision.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "provider-waits-at-boundary",
+    "non_substitute": "a cooldown presented as an owner decision"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The checkpoint prominently names task, exact branch and applicable review reference, first preflight and acceptance commands, partial progress, remaining acceptance, suspended sources and tests as prerequisites. Historical compliance state remains subordinate with its next action suspended. Newer authorized policy change supersedes obsolete prohibitions.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "An old checkpoint next action is still controlling above the active lock.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The checkpoint prominently names task, exact branch and applicable review reference, first preflight and acceptance commands, partial progress, remaining acceptance, suspended sources and tests as prerequisites. Historical compliance state remains subordinate with its next action suspended. Newer authorized policy change supersedes obsolete prohibitions. The claimed evidence instead relies on an older next action left active above the lock.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "checkpoint-mirror-at-boundary",
+    "non_substitute": "an older next action left active above the lock"
+  }
+}

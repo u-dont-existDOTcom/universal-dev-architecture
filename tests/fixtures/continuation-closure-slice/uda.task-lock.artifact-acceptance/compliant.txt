@@ -1,0 +1,1 @@
+The task-specific acceptance command checks every declared actual durable deliverable and required provenance, comparisons, nonmock evidence and integration boundary. Missing artifacts fail closed with structured findings; passing prose and ordinary tests do not substitute.

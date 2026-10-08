@@ -2268,42 +2268,47 @@
       "id": "patterns/context-compaction-resilience.md",
       "kind": "pattern",
       "indexed": true,
-      "disposition": "STRUCTURED_PARTIAL",
+      "disposition": "STRUCTURED_ENFORCED",
       "behavioral": true,
       "activation_route": {
-        "kind": "INDEX_TRIGGER",
-        "detail": "When context is compacted"
+        "kind": "STRUCTURED_TRIGGER",
+        "detail": "Declared governance, continuity scope or exclusive_task action facts, plus named event actions; unknown facts block."
       },
       "actors": [
         "chat",
         "work",
         "codex",
-        "controller",
-        "receiving-agent",
         "claude"
       ],
       "phases": [
-        "retrieval",
-        "reasoning",
-        "pre-action",
-        "handoff",
         "persistence",
-        "final-delivery"
+        "final-delivery",
+        "pre-action",
+        "handoff"
       ],
       "destinations": [
-        "canonical repository memory",
-        "repository/task checkpoint",
-        "reactivated next unit of work",
-        "durable-task-checkpoint"
+        "durable-task-checkpoint",
+        "canonical-repository-memory",
+        "verified-resume-state",
+        "repository-recovery-handoff",
+        "project-instruction"
       ],
       "enforcement_types": [
-        "unobserved",
         "semantic"
       ],
       "task_time_records": [
         "uda.continuity.step-checkpoint",
         "uda.continuity.turn-end-handoff",
-        "uda.continuity.usage-warning"
+        "uda.continuity.usage-warning",
+        "uda.compaction.durable-memory",
+        "uda.compaction.recovery-checkpoint",
+        "uda.compaction.durable-boundaries",
+        "uda.compaction.resume-reconciliation",
+        "uda.compaction.reasoning-outcomes",
+        "uda.compaction.fresh-worker-recovery",
+        "uda.compaction.completion-closeout",
+        "uda.compaction.portable-instruction",
+        "uda.compaction.recovery-limits"
       ],
       "graph_node": null,
       "evidence": [
@@ -2338,15 +2343,465 @@
         {
           "path": "tests/test_uda_usage_limit_continuity.py",
           "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "tests/test_uda_continuation_closure_slice.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_continuation_closure_slice.py",
+          "class": "BEHAVIORAL_REGRESSION"
         }
       ],
-      "review_notes": "The three continuity records bind semantic judgments to actual durable checkpoint bytes at persistence/final-delivery, not to chat summaries. The table-driven regression covers violating, compliant and non-substitute candidates, trigger exclusions, unresolved warning facts and receipt replay/rewrites. Binding verification does not prove pushes, private-store reachability, semantic truth or universal live behavior.",
-      "migration": {
-        "priority": "P1",
-        "next_step": "Register the older §1–§7 recovery/reconciliation and completion obligations listed in legacy_remainder, including actual Git-state reconciliation and reactivation; integrate per-task consumer invocation without claiming global enforcement.",
-        "trigger_frequency": "CONDITIONAL"
-      },
-      "legacy_remainder": "Only §3 Usage limits and account switches is structured. §1 still routes durable decisions, constraints, discoveries, architecture choices and blockers out of chat; §2 still requires an obvious canonical recovery entry point, separate concurrent-task checkpoints and all minimum goal/baseline/decision/gate/completed/current/remaining/blocker/evidence/dirty-state/next-action fields. The earlier §3 milestone, owner-change, blocker, migration, handoff and completion checkpoint boundaries remain prose-routed. §4 still requires actual repository/working-tree/bootstrap/index/commit/artifact inspection, reconciliation, stale-state repair, gate reactivation and resumption without repeated work. §5 still distinguishes durable decision outcomes from hidden reasoning; §6 still requires recovery by a fresh worker without the old transcript; §7 still requires completion evidence, current final state and lesson closeout. The limits on stale authority, secrets, raw-log duplication, tiny one-shot exemptions and equivalent machine-readable stores remain prose-routed."
+      "review_notes": "Complete exact source-clause map and independent whole-pattern/per-section pins. Bound semantic admission and hostile candidate/replay/mutation regressions verify preservation/binding, not semantic truth, actual gate invocation or universal runtime adoption.",
+      "legacy_remainder": "",
+      "obligation_map": [
+        {
+          "sentence": "A project must therefore be designed so that losing old chat detail does not mean losing project state.",
+          "record": "uda.compaction.durable-memory",
+          "obligation_id": "durable-memory-at-boundary"
+        },
+        {
+          "sentence": "Use this hierarchy:",
+          "record": "uda.compaction.durable-memory",
+          "obligation_id": "durable-memory-at-boundary"
+        },
+        {
+          "sentence": "- **conversation/context = working RAM**;",
+          "record": "uda.compaction.durable-memory",
+          "obligation_id": "durable-memory-at-boundary"
+        },
+        {
+          "sentence": "- **canonical repository = durable project memory**;",
+          "record": "uda.compaction.durable-memory",
+          "obligation_id": "durable-memory-at-boundary"
+        },
+        {
+          "sentence": "- **Git history = durable audit trail and rollback path**;",
+          "record": "uda.compaction.durable-memory",
+          "obligation_id": "durable-memory-at-boundary"
+        },
+        {
+          "sentence": "- **current-state/checkpoint file = recovery entry point**;",
+          "record": "uda.compaction.durable-memory",
+          "obligation_id": "durable-memory-at-boundary"
+        },
+        {
+          "sentence": "- **exact project artifacts/evidence = authority for factual implementation state**.",
+          "record": "uda.compaction.durable-memory",
+          "obligation_id": "durable-memory-at-boundary"
+        },
+        {
+          "sentence": "Any decision, constraint, discovery, architecture choice, completed step, or unresolved blocker that would matter after a new thread or context compaction must be written into the canonical repository rather than left only in chat.",
+          "record": "uda.compaction.durable-memory",
+          "obligation_id": "durable-memory-at-boundary"
+        },
+        {
+          "sentence": "For any project with multi-step, multi-session, or long autonomous work, maintain a concise canonical recovery file such as `CURRENT-STATE.md`, `state/CURRENT-STATE.md`, or an equivalent machine-readable state file chosen by the project.",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "The exact filename may vary, but there must be one obvious current recovery entry point referenced by the project's main index/bootstrap.",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "With concurrent branches, keep that entry point for repository-level state and give each task its own checkpoint.",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "Per-task files avoid merge conflicts while the recovery entry point stays obvious.",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "At minimum, the state checkpoint should record:",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "- current goal / task;",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "- authoritative baseline or relevant commit/ref;",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "- important active decisions and owner constraints;",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "- bootstrap requirements and blocking gates that the task directive or handoff established, so they stay active after compaction;",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "- completed work that must not be repeated;",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "- current step / last durable checkpoint;",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "- remaining work;",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "- blockers or unresolved questions;",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "- relevant artifacts, evidence, tests, logs, branches, and commits;",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "- uncommitted/dirty-working-tree status when relevant;",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "- the next safe resume action or command.",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "Keep this file concise and operational.",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "It is a recovery map, not a transcript dump.",
+          "record": "uda.compaction.recovery-checkpoint",
+          "obligation_id": "recovery-checkpoint-at-boundary"
+        },
+        {
+          "sentence": "Plan usage limits, like context limits, can end a turn without warning.",
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
+        },
+        {
+          "sentence": "Never defer saving to a usage threshold.",
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
+        },
+        {
+          "sentence": "At each completed step, push the work to the task branch (work-in-progress commits are fine) and update the checkpoint's done, next, and exact next action.",
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
+        },
+        {
+          "sentence": "A fresh session in any account must be able to resume from durable state alone.",
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
+        },
+        {
+          "sentence": "The worker that holds the context writes the checkpoint; do not launch a separate helper at the limit to save work.",
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
+        },
+        {
+          "sentence": "- Tiny one-shot tasks do not need a dedicated current-state file.",
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
+        },
+        {
+          "sentence": "Before ending a turn on OPEN work, make the durable checkpoint reflect that turn's state and include a one-line resume instruction.",
+          "record": "uda.continuity.turn-end-handoff",
+          "obligation_id": "save-turn-end-handoff"
+        },
+        {
+          "sentence": "Keep owner-private supervisor state that cannot go in a public repository in a private durable store the successor can reach.",
+          "record": "uda.continuity.turn-end-handoff",
+          "obligation_id": "save-turn-end-handoff"
+        },
+        {
+          "sentence": "List anything bound to one account that the successor must recreate, such as scheduled check-ins and memory.",
+          "record": "uda.continuity.turn-end-handoff",
+          "obligation_id": "save-turn-end-handoff"
+        },
+        {
+          "sentence": "When a usage signal is visible at or above a warning level (about 90%), checkpoint immediately and take only small, restartable steps.",
+          "record": "uda.continuity.usage-warning",
+          "obligation_id": "checkpoint-visible-usage-warning"
+        },
+        {
+          "sentence": "This warning supplements continuous checkpoints and never replaces them.",
+          "record": "uda.continuity.usage-warning",
+          "obligation_id": "checkpoint-visible-usage-warning"
+        },
+        {
+          "sentence": "If only a model-specific weekly limit is reached, switching model family in the same account is a valid way to continue.",
+          "record": "uda.continuity.usage-warning",
+          "obligation_id": "checkpoint-visible-usage-warning"
+        },
+        {
+          "sentence": "Update the current-state file whenever losing the current chat would otherwise create ambiguity or rework, especially:",
+          "record": "uda.compaction.durable-boundaries",
+          "obligation_id": "durable-boundaries-at-boundary"
+        },
+        {
+          "sentence": "- after a meaningful implementation/research/editorial milestone;",
+          "record": "uda.compaction.durable-boundaries",
+          "obligation_id": "durable-boundaries-at-boundary"
+        },
+        {
+          "sentence": "- after a consequential owner decision or constraint change;",
+          "record": "uda.compaction.durable-boundaries",
+          "obligation_id": "durable-boundaries-at-boundary"
+        },
+        {
+          "sentence": "- after discovering a blocker or falsifying an approach;",
+          "record": "uda.compaction.durable-boundaries",
+          "obligation_id": "durable-boundaries-at-boundary"
+        },
+        {
+          "sentence": "- before/after risky migrations or long autonomous runs;",
+          "record": "uda.compaction.durable-boundaries",
+          "obligation_id": "durable-boundaries-at-boundary"
+        },
+        {
+          "sentence": "- before handing work to another agent/thread;",
+          "record": "uda.compaction.durable-boundaries",
+          "obligation_id": "durable-boundaries-at-boundary"
+        },
+        {
+          "sentence": "- before claiming a multi-step task complete.",
+          "record": "uda.compaction.durable-boundaries",
+          "obligation_id": "durable-boundaries-at-boundary"
+        },
+        {
+          "sentence": "Do not wait for the model to detect that compaction is imminent.",
+          "record": "uda.compaction.durable-boundaries",
+          "obligation_id": "durable-boundaries-at-boundary"
+        },
+        {
+          "sentence": "Context limits are implementation details and may not be visible to the worker.",
+          "record": "uda.compaction.durable-boundaries",
+          "obligation_id": "durable-boundaries-at-boundary"
+        },
+        {
+          "sentence": "After interruption, a new thread, a model switch, or suspected context loss:",
+          "record": "uda.compaction.resume-reconciliation",
+          "obligation_id": "resume-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "1. inspect the canonical repository and working tree;",
+          "record": "uda.compaction.resume-reconciliation",
+          "obligation_id": "resume-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "2. read the project bootstrap/index and current-state checkpoint;",
+          "record": "uda.compaction.resume-reconciliation",
+          "obligation_id": "resume-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "3. inspect recent relevant Git commits and durable artifacts;",
+          "record": "uda.compaction.resume-reconciliation",
+          "obligation_id": "resume-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "4. reconcile the checkpoint against actual repository state;",
+          "record": "uda.compaction.resume-reconciliation",
+          "obligation_id": "resume-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "5. identify exactly what survived and what remains;",
+          "record": "uda.compaction.resume-reconciliation",
+          "obligation_id": "resume-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "6. update stale checkpoint data before continuing;",
+          "record": "uda.compaction.resume-reconciliation",
+          "obligation_id": "resume-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "7. resume from the latest verified durable boundary without repeating completed work.",
+          "record": "uda.compaction.resume-reconciliation",
+          "obligation_id": "resume-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "Re-activating the task's gates is part of resuming.",
+          "record": "uda.compaction.resume-reconciliation",
+          "obligation_id": "resume-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "A summary that names a rule does not make it active; reload the rule and its enforcement point (see `patterns/task-time-lesson-activation.md`).",
+          "record": "uda.compaction.resume-reconciliation",
+          "obligation_id": "resume-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "The checkpoint is a routing document, not higher authority than the repository itself.",
+          "record": "uda.compaction.resume-reconciliation",
+          "obligation_id": "resume-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "If it conflicts with exact Git state, current artifacts, tests, or newer owner instructions, the newer verified evidence wins and the checkpoint must be repaired.",
+          "record": "uda.compaction.resume-reconciliation",
+          "obligation_id": "resume-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "Do not attempt to preserve private model reasoning or every exploratory thought.",
+          "record": "uda.compaction.reasoning-outcomes",
+          "obligation_id": "reasoning-outcomes-at-boundary"
+        },
+        {
+          "sentence": "Persist the user-relevant engineering/research outcomes needed for continuity:",
+          "record": "uda.compaction.reasoning-outcomes",
+          "obligation_id": "reasoning-outcomes-at-boundary"
+        },
+        {
+          "sentence": "- decisions and why they were chosen;",
+          "record": "uda.compaction.reasoning-outcomes",
+          "obligation_id": "reasoning-outcomes-at-boundary"
+        },
+        {
+          "sentence": "- rejected approaches when repeating them would waste time or recreate a known failure;",
+          "record": "uda.compaction.reasoning-outcomes",
+          "obligation_id": "reasoning-outcomes-at-boundary"
+        },
+        {
+          "sentence": "- invariants and constraints;",
+          "record": "uda.compaction.reasoning-outcomes",
+          "obligation_id": "reasoning-outcomes-at-boundary"
+        },
+        {
+          "sentence": "- evidence pointers;",
+          "record": "uda.compaction.reasoning-outcomes",
+          "obligation_id": "reasoning-outcomes-at-boundary"
+        },
+        {
+          "sentence": "- test/validation results;",
+          "record": "uda.compaction.reasoning-outcomes",
+          "obligation_id": "reasoning-outcomes-at-boundary"
+        },
+        {
+          "sentence": "- unresolved uncertainty;",
+          "record": "uda.compaction.reasoning-outcomes",
+          "obligation_id": "reasoning-outcomes-at-boundary"
+        },
+        {
+          "sentence": "- next action.",
+          "record": "uda.compaction.reasoning-outcomes",
+          "obligation_id": "reasoning-outcomes-at-boundary"
+        },
+        {
+          "sentence": "A robust project should tolerate starting a completely fresh agent conversation at any time.",
+          "record": "uda.compaction.fresh-worker-recovery",
+          "obligation_id": "fresh-worker-recovery-at-boundary"
+        },
+        {
+          "sentence": "The test is:",
+          "record": "uda.compaction.fresh-worker-recovery",
+          "obligation_id": "fresh-worker-recovery-at-boundary"
+        },
+        {
+          "sentence": "> Could a competent new worker, with repository access but without the old chat transcript, recover the correct current state and continue without repeating completed work or silently losing important constraints?",
+          "record": "uda.compaction.fresh-worker-recovery",
+          "obligation_id": "fresh-worker-recovery-at-boundary"
+        },
+        {
+          "sentence": "If not, project state is insufficiently durable.",
+          "record": "uda.compaction.fresh-worker-recovery",
+          "obligation_id": "fresh-worker-recovery-at-boundary"
+        },
+        {
+          "sentence": "For substantive long-running work, completion requires both:",
+          "record": "uda.compaction.completion-closeout",
+          "obligation_id": "completion-closeout-at-boundary"
+        },
+        {
+          "sentence": "- the project's normal implementation/test/research gates; and",
+          "record": "uda.compaction.completion-closeout",
+          "obligation_id": "completion-closeout-at-boundary"
+        },
+        {
+          "sentence": "- a current durable checkpoint or final state that accurately records what was completed, remaining follow-up, and relevant evidence/commits.",
+          "record": "uda.compaction.completion-closeout",
+          "obligation_id": "completion-closeout-at-boundary"
+        },
+        {
+          "sentence": "Transferable lessons discovered during the work must still pass the normal lesson-closeout/disposition process.",
+          "record": "uda.compaction.completion-closeout",
+          "obligation_id": "completion-closeout-at-boundary"
+        },
+        {
+          "sentence": "The current-state file is not a substitute for durable lesson promotion.",
+          "record": "uda.compaction.completion-closeout",
+          "obligation_id": "completion-closeout-at-boundary"
+        },
+        {
+          "sentence": "Use or adapt this invariant:",
+          "record": "uda.compaction.portable-instruction",
+          "obligation_id": "portable-instruction-at-boundary"
+        },
+        {
+          "sentence": "> Treat chat context as disposable working memory.",
+          "record": "uda.compaction.portable-instruction",
+          "obligation_id": "portable-instruction-at-boundary"
+        },
+        {
+          "sentence": "Maintain project continuity in Git.",
+          "record": "uda.compaction.portable-instruction",
+          "obligation_id": "portable-instruction-at-boundary"
+        },
+        {
+          "sentence": "For long-running or multi-session work, keep one canonical current-state checkpoint containing goal, decisions, completed work, current step, remaining work, blockers, evidence/commits, and next safe action.",
+          "record": "uda.compaction.portable-instruction",
+          "obligation_id": "portable-instruction-at-boundary"
+        },
+        {
+          "sentence": "Push work and update the checkpoint at each completed step; never wait for a usage threshold.",
+          "record": "uda.compaction.portable-instruction",
+          "obligation_id": "portable-instruction-at-boundary"
+        },
+        {
+          "sentence": "Before ending a turn on OPEN work, save that turn's state, reachable private supervisor state, account-bound items to recreate, and a one-line resume instruction.",
+          "record": "uda.compaction.portable-instruction",
+          "obligation_id": "portable-instruction-at-boundary"
+        },
+        {
+          "sentence": "The worker holding the context saves it; a visible usage warning calls for an immediate checkpoint and small, restartable steps.",
+          "record": "uda.compaction.portable-instruction",
+          "obligation_id": "portable-instruction-at-boundary"
+        },
+        {
+          "sentence": "On any new thread, interruption, context compaction, model switch, or account switch, reconcile the checkpoint against actual repository state and resume from the latest verified checkpoint without repeating completed work.",
+          "record": "uda.compaction.portable-instruction",
+          "obligation_id": "portable-instruction-at-boundary"
+        },
+        {
+          "sentence": "- Do not treat a stale `CURRENT-STATE` file as more authoritative than actual Git state or newer owner instructions.",
+          "record": "uda.compaction.recovery-limits",
+          "obligation_id": "recovery-limits-at-boundary"
+        },
+        {
+          "sentence": "- Do not store secrets, credentials, tokens, or private chain-of-thought in recovery files.",
+          "record": "uda.compaction.recovery-limits",
+          "obligation_id": "recovery-limits-at-boundary"
+        },
+        {
+          "sentence": "- Do not duplicate large logs or raw evidence into the checkpoint; link to their canonical locations.",
+          "record": "uda.compaction.recovery-limits",
+          "obligation_id": "recovery-limits-at-boundary"
+        },
+        {
+          "sentence": "- Projects may use a machine-readable ledger/database instead of Markdown if it provides the same recovery guarantees.",
+          "record": "uda.compaction.recovery-limits",
+          "obligation_id": "recovery-limits-at-boundary"
+        }
+      ]
     },
     {
       "id": "patterns/context-gated-symbolic-personality-synthesis-errata.md",
@@ -3506,38 +3961,61 @@
       "id": "patterns/exclusive-active-task-locks.md",
       "kind": "pattern",
       "indexed": true,
-      "disposition": "LEGACY_UNSTRUCTURED",
+      "disposition": "STRUCTURED_ENFORCED",
       "behavioral": true,
       "activation_route": {
-        "kind": "INDEX_TRIGGER",
-        "detail": "Before consequential multi-session work or resuming an active task"
+        "kind": "STRUCTURED_TRIGGER",
+        "detail": "Declared governance, continuity scope or exclusive_task action facts, plus named event actions; unknown facts block."
       },
       "actors": [
-        "reasoning supervisor",
-        "repository executor",
-        "task authority resolver",
-        "integration coordinator"
+        "chat",
+        "work",
+        "codex",
+        "claude"
       ],
       "phases": [
-        "retrieval",
-        "reasoning",
         "pre-action",
-        "handoff",
         "persistence",
-        "publication",
-        "final-delivery"
+        "final-delivery",
+        "handoff"
       ],
       "destinations": [
-        "active-task lock",
-        "exact task-local checkpoint",
-        "current owner-source receipt",
-        "scoped blocker/wait admission",
-        "task acceptance/integration receipt"
+        "task-lock-preflight",
+        "active-task-lock",
+        "task-selection-state",
+        "durable-task-checkpoint",
+        "task-authority-resolution",
+        "scoped-blocker-admission",
+        "wait-admission",
+        "task-acceptance-evidence",
+        "owner-visible-final",
+        "model-facing-input",
+        "task-lock-closeout",
+        "control-plane-test-evidence",
+        "project-instruction",
+        "execution-authority"
       ],
       "enforcement_types": [
-        "unobserved"
+        "semantic"
       ],
-      "task_time_records": [],
+      "task_time_records": [
+        "uda.task-lock.exclusive-controls",
+        "uda.task-lock.lock-storage",
+        "uda.task-lock.competing-sources",
+        "uda.task-lock.preflight",
+        "uda.task-lock.checkpoint-mirror",
+        "uda.task-lock.authority-resolution",
+        "uda.task-lock.blocker-scope",
+        "uda.task-lock.wait-admission",
+        "uda.task-lock.artifact-acceptance",
+        "uda.task-lock.terminal-states",
+        "uda.task-lock.model-input-separation",
+        "uda.task-lock.retirement",
+        "uda.task-lock.control-plane-regressions",
+        "uda.task-lock.anti-substitutes",
+        "uda.task-lock.portable-instruction",
+        "uda.task-lock.scope-authority"
+      ],
       "graph_node": null,
       "evidence": [
         {
@@ -3559,15 +4037,736 @@
         {
           "path": "tests/test_exclusive_active_task_pattern.py",
           "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_uda_continuation_closure_slice.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_continuation_closure_slice.py",
+          "class": "BEHAVIORAL_REGRESSION"
         }
       ],
-      "review_notes": "Substantial real admission implementation exists independent of task-time graph metadata. Inspected hostile regressions include wrong branch, substituted checkpoint, owner stop, cross-task blocker leakage, and invalid wait; not run here. No exact task-time metadata record maps to this pattern; graph routing and other local admission code are supporting coverage, not structured semantic enforcement.",
+      "review_notes": "Complete exact source-clause map and independent whole-pattern/per-section pins. Bound semantic admission and hostile candidate/replay/mutation regressions verify preservation/binding, not semantic truth, actual gate invocation or universal runtime adoption.",
       "existing_coverage_limits": "Resolver mechanically validates supplied identities, owner-source receipt binding, blocker applicability, non-waivable gates, waits and frontiers. It does not prove the owner-source receipt is semantically correct, inspect every task deliverable, run live campaigns, or establish protected merge/readback completion.",
-      "migration": {
-        "priority": "P1",
-        "next_step": "Bind the active-task resolver to explicit compiled obligations for exact task/branch/source/checkpoint identity, competing-source suspension, current blocker causality, wait/lease timing, and artifact-based terminal claims; retain semantic owner-outcome acceptance separately.",
-        "trigger_frequency": "CONDITIONAL"
-      }
+      "obligation_map": [
+        {
+          "sentence": "For consequential multi-session work in a repository with competing task sources, make the active task **exclusive, source-controlled, branch-bound, and machine-gated**.",
+          "record": "uda.task-lock.exclusive-controls",
+          "obligation_id": "exclusive-controls-at-boundary"
+        },
+        {
+          "sentence": "Use four distinct controls:",
+          "record": "uda.task-lock.exclusive-controls",
+          "obligation_id": "exclusive-controls-at-boundary"
+        },
+        {
+          "sentence": "1. a machine-readable active-task lock;",
+          "record": "uda.task-lock.exclusive-controls",
+          "obligation_id": "exclusive-controls-at-boundary"
+        },
+        {
+          "sentence": "2. a preflight that verifies task and branch identity;",
+          "record": "uda.task-lock.exclusive-controls",
+          "obligation_id": "exclusive-controls-at-boundary"
+        },
+        {
+          "sentence": "3. a task-specific acceptance command that inspects required evidence;",
+          "record": "uda.task-lock.exclusive-controls",
+          "obligation_id": "exclusive-controls-at-boundary"
+        },
+        {
+          "sentence": "4. explicit terminal-state semantics that distinguish incomplete, blocked, ready to merge, and complete.",
+          "record": "uda.task-lock.exclusive-controls",
+          "obligation_id": "exclusive-controls-at-boundary"
+        },
+        {
+          "sentence": "Conversation is still disposable working memory.",
+          "record": "uda.task-lock.exclusive-controls",
+          "obligation_id": "exclusive-controls-at-boundary"
+        },
+        {
+          "sentence": "The active task is recovered from Git.",
+          "record": "uda.task-lock.exclusive-controls",
+          "obligation_id": "exclusive-controls-at-boundary"
+        },
+        {
+          "sentence": "Use a repository-local file such as:",
+          "record": "uda.task-lock.lock-storage",
+          "obligation_id": "lock-storage-at-boundary"
+        },
+        {
+          "sentence": "```text\ntasks/ACTIVE-TASK.json\n```",
+          "record": "uda.task-lock.lock-storage",
+          "obligation_id": "lock-storage-at-boundary"
+        },
+        {
+          "sentence": "At minimum it should record:",
+          "record": "uda.task-lock.lock-storage",
+          "obligation_id": "lock-storage-at-boundary"
+        },
+        {
+          "sentence": "```json\n{\n  \"schemaVersion\": 1,\n  \"taskId\": \"example-task-v1\",\n  \"status\": \"active\",\n  \"exclusive\": true,\n  \"requiredBranch\": \"agent/example-task\",\n  \"pullRequest\": 123,\n  \"preflightCommand\": \"npm run task:preflight\",\n  \"completionCommand\": \"npm run task:acceptance\",\n  \"suspendedTaskSources\": [\n    \"old handoffs\",\n    \"global roadmap selection\",\n    \"unrelated worktrees\",\n    \"release queues\"\n  ]\n}\n```",
+          "record": "uda.task-lock.lock-storage",
+          "obligation_id": "lock-storage-at-boundary"
+        },
+        {
+          "sentence": "The lock belongs in the **target repository and task branch**, not only in a source repository, external note, or prior chat.",
+          "record": "uda.task-lock.lock-storage",
+          "obligation_id": "lock-storage-at-boundary"
+        },
+        {
+          "sentence": "The lock does not grant new authority.",
+          "record": "uda.task-lock.lock-storage",
+          "obligation_id": "lock-storage-at-boundary"
+        },
+        {
+          "sentence": "Current owner requirements, safety boundaries, access constraints, spending, publication, and irreversible actions retain their normal gates.",
+          "record": "uda.task-lock.lock-storage",
+          "obligation_id": "lock-storage-at-boundary"
+        },
+        {
+          "sentence": "An exclusive task lock means:",
+          "record": "uda.task-lock.competing-sources",
+          "obligation_id": "competing-sources-at-boundary"
+        },
+        {
+          "sentence": "- other branches and worktrees remain intact;",
+          "record": "uda.task-lock.competing-sources",
+          "obligation_id": "competing-sources-at-boundary"
+        },
+        {
+          "sentence": "- historical handoffs remain evidence;",
+          "record": "uda.task-lock.competing-sources",
+          "obligation_id": "competing-sources-at-boundary"
+        },
+        {
+          "sentence": "- global roadmaps remain valid for later use;",
+          "record": "uda.task-lock.competing-sources",
+          "obligation_id": "competing-sources-at-boundary"
+        },
+        {
+          "sentence": "- unrelated compliance or release blockers remain true;",
+          "record": "uda.task-lock.competing-sources",
+          "obligation_id": "competing-sources-at-boundary"
+        },
+        {
+          "sentence": "- none of those sources may select the current worker's next task while the lock is active.",
+          "record": "uda.task-lock.competing-sources",
+          "obligation_id": "competing-sources-at-boundary"
+        },
+        {
+          "sentence": "Name the suspended competing sources explicitly.",
+          "record": "uda.task-lock.competing-sources",
+          "obligation_id": "competing-sources-at-boundary"
+        },
+        {
+          "sentence": "Do not rely on a generic sentence such as “focus on this task.”",
+          "record": "uda.task-lock.competing-sources",
+          "obligation_id": "competing-sources-at-boundary"
+        },
+        {
+          "sentence": "After a fresh start, resume, context compaction, or model switch, the first repository command should verify:",
+          "record": "uda.task-lock.preflight",
+          "obligation_id": "preflight-at-boundary"
+        },
+        {
+          "sentence": "- the active-task file exists and parses;",
+          "record": "uda.task-lock.preflight",
+          "obligation_id": "preflight-at-boundary"
+        },
+        {
+          "sentence": "- `exclusive` is true when required;",
+          "record": "uda.task-lock.preflight",
+          "obligation_id": "preflight-at-boundary"
+        },
+        {
+          "sentence": "- the current branch/worktree matches `requiredBranch`;",
+          "record": "uda.task-lock.preflight",
+          "obligation_id": "preflight-at-boundary"
+        },
+        {
+          "sentence": "- the canonical current-state checkpoint names the same `taskId`;",
+          "record": "uda.task-lock.preflight",
+          "obligation_id": "preflight-at-boundary"
+        },
+        {
+          "sentence": "- the checkpoint names the task-specific completion command;",
+          "record": "uda.task-lock.preflight",
+          "obligation_id": "preflight-at-boundary"
+        },
+        {
+          "sentence": "- competing task sources are explicitly suspended.",
+          "record": "uda.task-lock.preflight",
+          "obligation_id": "preflight-at-boundary"
+        },
+        {
+          "sentence": "A wrong branch is a **hard preflight failure**.",
+          "record": "uda.task-lock.preflight",
+          "obligation_id": "preflight-at-boundary"
+        },
+        {
+          "sentence": "It is not permission to choose a different task from the repository.",
+          "record": "uda.task-lock.preflight",
+          "obligation_id": "preflight-at-boundary"
+        },
+        {
+          "sentence": "If the worker is in an old S001, guide-packet, compliance, release, or roadmap worktree, it should stop that task-selection process and move to the exact active-task worktree.",
+          "record": "uda.task-lock.preflight",
+          "obligation_id": "preflight-at-boundary"
+        },
+        {
+          "sentence": "It should not reinterpret the owner request to match the current directory.",
+          "record": "uda.task-lock.preflight",
+          "obligation_id": "preflight-at-boundary"
+        },
+        {
+          "sentence": "The canonical recovery checkpoint should prominently state:",
+          "record": "uda.task-lock.checkpoint-mirror",
+          "obligation_id": "checkpoint-mirror-at-boundary"
+        },
+        {
+          "sentence": "- task ID;",
+          "record": "uda.task-lock.checkpoint-mirror",
+          "obligation_id": "checkpoint-mirror-at-boundary"
+        },
+        {
+          "sentence": "- exact branch or worktree;",
+          "record": "uda.task-lock.checkpoint-mirror",
+          "obligation_id": "checkpoint-mirror-at-boundary"
+        },
+        {
+          "sentence": "- pull request when applicable;",
+          "record": "uda.task-lock.checkpoint-mirror",
+          "obligation_id": "checkpoint-mirror-at-boundary"
+        },
+        {
+          "sentence": "- first preflight command;",
+          "record": "uda.task-lock.checkpoint-mirror",
+          "obligation_id": "checkpoint-mirror-at-boundary"
+        },
+        {
+          "sentence": "- task-specific acceptance command;",
+          "record": "uda.task-lock.checkpoint-mirror",
+          "obligation_id": "checkpoint-mirror-at-boundary"
+        },
+        {
+          "sentence": "- current partial progress;",
+          "record": "uda.task-lock.checkpoint-mirror",
+          "obligation_id": "checkpoint-mirror-at-boundary"
+        },
+        {
+          "sentence": "- remaining acceptance conditions;",
+          "record": "uda.task-lock.checkpoint-mirror",
+          "obligation_id": "checkpoint-mirror-at-boundary"
+        },
+        {
+          "sentence": "- suspended competing task sources;",
+          "record": "uda.task-lock.checkpoint-mirror",
+          "obligation_id": "checkpoint-mirror-at-boundary"
+        },
+        {
+          "sentence": "- the rule that ordinary green tests are prerequisites, not completion.",
+          "record": "uda.task-lock.checkpoint-mirror",
+          "obligation_id": "checkpoint-mirror-at-boundary"
+        },
+        {
+          "sentence": "If a repository must preserve an older compliance checkpoint verbatim for audit integrity, keep it as subordinate evidence.",
+          "record": "uda.task-lock.checkpoint-mirror",
+          "obligation_id": "checkpoint-mirror-at-boundary"
+        },
+        {
+          "sentence": "Put the exclusive task lock above it and say explicitly that the older “next safe action” is suspended for the active task.",
+          "record": "uda.task-lock.checkpoint-mirror",
+          "obligation_id": "checkpoint-mirror-at-boundary"
+        },
+        {
+          "sentence": "Do not allow a branch-local current-state file to continue saying “do not change this policy” after a newer owner-authorized branch exists specifically to change it.",
+          "record": "uda.task-lock.checkpoint-mirror",
+          "obligation_id": "checkpoint-mirror-at-boundary"
+        },
+        {
+          "sentence": "File order is not authority order.",
+          "record": "uda.task-lock.authority-resolution",
+          "obligation_id": "authority-resolution-at-boundary"
+        },
+        {
+          "sentence": "For continuation of a validated active task, use:",
+          "record": "uda.task-lock.authority-resolution",
+          "obligation_id": "authority-resolution-at-boundary"
+        },
+        {
+          "sentence": "```text\ncurrent exact owner instruction or correction\n-> active-task lock and matching task-local checkpoint\n-> task-local plan and current chat-authored directive\n-> task PR/code/tests/CI and execution evidence\n-> repository-global operational state where causally applicable\n-> historical task state, old issues, old handoffs, archived checkpoints\n```",
+          "record": "uda.task-lock.authority-resolution",
+          "obligation_id": "authority-resolution-at-boundary"
+        },
+        {
+          "sentence": "Repository-wide safety, privacy, security, permission, spending, publication, and irreversible-action policies remain controlling for affected operations.",
+          "record": "uda.task-lock.authority-resolution",
+          "obligation_id": "authority-resolution-at-boundary"
+        },
+        {
+          "sentence": "A more specific task-local checkpoint cannot waive them.",
+          "record": "uda.task-lock.authority-resolution",
+          "obligation_id": "authority-resolution-at-boundary"
+        },
+        {
+          "sentence": "But a generic global `BLOCKED`, `WAITING`, or `OWNER_DECISION_REQUIRED` label is not transitive across task IDs.",
+          "record": "uda.task-lock.authority-resolution",
+          "obligation_id": "authority-resolution-at-boundary"
+        },
+        {
+          "sentence": "The active-task lock selects one checkpoint by exact source path, Git ref, commit/blob identity, content SHA-256, task ID, branch, and owner-outcome epoch/hash.",
+          "record": "uda.task-lock.authority-resolution",
+          "obligation_id": "authority-resolution-at-boundary"
+        },
+        {
+          "sentence": "Resolve the latest independently captured owner-source/correction record first; a newer valid owner stop or amendment invalidates continuation.",
+          "record": "uda.task-lock.authority-resolution",
+          "obligation_id": "authority-resolution-at-boundary"
+        },
+        {
+          "sentence": "Do not accept matching prose or task fields from a substituted checkpoint whose exact identity differs.",
+          "record": "uda.task-lock.authority-resolution",
+          "obligation_id": "authority-resolution-at-boundary"
+        },
+        {
+          "sentence": "Before a blocker changes the active task state, require a machine-readable `templates/SCOPED-BLOCKER.json` record proving that it is unresolved, current enough, scoped to this task/frontier/operation, causally required, not superseded, and not displaced by higher-precedence authority that establishes independence.",
+          "record": "uda.task-lock.blocker-scope",
+          "obligation_id": "blocker-scope-at-boundary"
+        },
+        {
+          "sentence": "Use these repository-global relations:",
+          "record": "uda.task-lock.blocker-scope",
+          "obligation_id": "blocker-scope-at-boundary"
+        },
+        {
+          "sentence": "```text\nCURRENT_AND_APPLICABLE\nCURRENT_BUT_UNRELATED\nSTALE_BUT_APPLICABLE_REVALIDATION_REQUIRED\nSTALE_AND_UNRELATED\nAMBIGUOUS\n```",
+          "record": "uda.task-lock.blocker-scope",
+          "obligation_id": "blocker-scope-at-boundary"
+        },
+        {
+          "sentence": "When a global blocker is unrelated, preserve it as `SUSPENDED_COMPETING_SOURCE`, leave the task-local execution state unchanged, and raise the applicable finding rather than deleting history.",
+          "record": "uda.task-lock.blocker-scope",
+          "obligation_id": "blocker-scope-at-boundary"
+        },
+        {
+          "sentence": "When scope is semantic or ambiguous, route to the reasoning chat; Codex does not decide.",
+          "record": "uda.task-lock.blocker-scope",
+          "obligation_id": "blocker-scope-at-boundary"
+        },
+        {
+          "sentence": "Blocker independence is valid only for `OPERATIONAL` blockers.",
+          "record": "uda.task-lock.blocker-scope",
+          "obligation_id": "blocker-scope-at-boundary"
+        },
+        {
+          "sentence": "An applicable safety, privacy, security, permission, spending, publication, or irreversible-action policy cannot be waived by listing its blocker ID as independent.",
+          "record": "uda.task-lock.blocker-scope",
+          "obligation_id": "blocker-scope-at-boundary"
+        },
+        {
+          "sentence": "Project affected-frontier authorization separately from the task's descriptive state and fail closed on applicable, stale-applicable, ambiguous, or invalid authority.",
+          "record": "uda.task-lock.blocker-scope",
+          "obligation_id": "blocker-scope-at-boundary"
+        },
+        {
+          "sentence": "Required findings include:",
+          "record": "uda.task-lock.blocker-scope",
+          "obligation_id": "blocker-scope-at-boundary"
+        },
+        {
+          "sentence": "```text\nSTALE_GLOBAL_BLOCKER_INHERITED\nBLOCKER_SCOPE_MISMATCH\nBLOCKER_CAUSAL_DEPENDENCY_MISSING\nGLOBAL_STATE_STALE_FOR_ACTIVE_TASK\nWAIT_CONDITION_NOT_ACTIONABLE\nWAIT_WITHOUT_ADMISSION\nGITHUB_UPDATE_WAIT_WITHOUT_CAUSAL_DEPENDENCY\nCROSS_TASK_BLOCKER_LEAKAGE\nINVALID_TASK_INDEPENDENCE_OVERRIDE\nTASK_LOCAL_CHECKPOINT_CONTENT_SHA256_MISMATCH\nCURRENT_OWNER_STOP\nWAIT_REASONING_HANDOFF_MISSING\nWAIT_NEXT_CHECK_OUTSIDE_HORIZON\n```",
+          "record": "uda.task-lock.blocker-scope",
+          "obligation_id": "blocker-scope-at-boundary"
+        },
+        {
+          "sentence": "Waiting is a separate controlled action. `templates/WAIT-ADMISSION.json` binds the active task, exact blocker or reasoning request, causal dependency, exact changing condition, source, actor/mechanism, poll or notification identity, next check, maximum horizon, horizon-expiry state, owner action, and unrelated-work policy.",
+          "record": "uda.task-lock.wait-admission",
+          "obligation_id": "wait-admission-at-boundary"
+        },
+        {
+          "sentence": "A bare `wait for GitHub to update`, `wait for CI`, `wait for issue`, or `wait for owner` fails closed.",
+          "record": "uda.task-lock.wait-admission",
+          "obligation_id": "wait-admission-at-boundary"
+        },
+        {
+          "sentence": "A task-specific command such as:",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "```bash\nnpm run task:acceptance\n```",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "should fail closed until the actual owner deliverables exist.",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "It should inspect durable artifacts rather than infer completion from prose.",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "Depending on the task, checks may include:",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "- exact corpus count and unique IDs;",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "- separation of model input from grader-only expectations;",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "- deterministic per-case results;",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "- actual non-mock model-run receipts;",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "- multi-turn trajectory results;",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "- comparison or ablation tables;",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "- aggregate metrics and explicit retain/simplify decisions;",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "- source provenance and runtime crosswalk;",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "- unresolved severe-failure count;",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "- exact-head verification commands;",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "- stable/release boundaries;",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "- article or source immutability;",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "- protected merge and post-merge receipt.",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "The acceptance command should print structured findings such as:",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "```text\nCORPUS_MANIFEST_MISSING\nLIVE_CAMPAIGN_BLOCKED\nABLATION_SUMMARY_MISSING\nQUERY_INPUT_GRADER_LEAK\nVERIFICATION_RECEIPT_MISSING\n```",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "This turns “what remains?” into a deterministic query rather than a model judgment.",
+          "record": "uda.task-lock.artifact-acceptance",
+          "obligation_id": "artifact-acceptance-at-boundary"
+        },
+        {
+          "sentence": "Use this distinction:",
+          "record": "uda.task-lock.terminal-states",
+          "obligation_id": "terminal-states-at-boundary"
+        },
+        {
+          "sentence": "```text\nordinary test suite\n  = implemented repository behavior is internally green\n\ntask-specific acceptance\n  = the owner-requested work products and evidence exist\n\nprotected merge + immutable receipt\n  = task closeout is complete\n```",
+          "record": "uda.task-lock.terminal-states",
+          "obligation_id": "terminal-states-at-boundary"
+        },
+        {
+          "sentence": "A worker may not use `npm test`, `npm run verify`, green CI, a passing mock replay, or a handful of synthetic tests as proof that a 49-case comparison, migration, audit, or live-validation campaign was completed.",
+          "record": "uda.task-lock.terminal-states",
+          "obligation_id": "terminal-states-at-boundary"
+        },
+        {
+          "sentence": "Recommended vocabulary:",
+          "record": "uda.task-lock.terminal-states",
+          "obligation_id": "terminal-states-at-boundary"
+        },
+        {
+          "sentence": "- `INCOMPLETE` — acceptance findings remain and work can continue;",
+          "record": "uda.task-lock.terminal-states",
+          "obligation_id": "terminal-states-at-boundary"
+        },
+        {
+          "sentence": "- `BLOCKED` — a genuine external permission, credential, access, spending, safety, publication, or provider boundary prevents a required step and durable evidence names it;",
+          "record": "uda.task-lock.terminal-states",
+          "obligation_id": "terminal-states-at-boundary"
+        },
+        {
+          "sentence": "- `READY_FOR_PROTECTED_MERGE` — task acceptance passes, but protected integration and receipt remain;",
+          "record": "uda.task-lock.terminal-states",
+          "obligation_id": "terminal-states-at-boundary"
+        },
+        {
+          "sentence": "- `COMPLETE` — protected merge/readback and immutable closeout receipt exist.",
+          "record": "uda.task-lock.terminal-states",
+          "obligation_id": "terminal-states-at-boundary"
+        },
+        {
+          "sentence": "Do not call missing implementation a blocker.",
+          "record": "uda.task-lock.terminal-states",
+          "obligation_id": "terminal-states-at-boundary"
+        },
+        {
+          "sentence": "Do not call a provider timeout a model rejection.",
+          "record": "uda.task-lock.terminal-states",
+          "obligation_id": "terminal-states-at-boundary"
+        },
+        {
+          "sentence": "Do not call a blocked live campaign complete.",
+          "record": "uda.task-lock.terminal-states",
+          "obligation_id": "terminal-states-at-boundary"
+        },
+        {
+          "sentence": "For black-box model testing, the lock and acceptance harness should mechanically separate:",
+          "record": "uda.task-lock.model-input-separation",
+          "obligation_id": "model-input-separation-at-boundary"
+        },
+        {
+          "sentence": "```text\nmodel-facing query\n```",
+          "record": "uda.task-lock.model-input-separation",
+          "obligation_id": "model-input-separation-at-boundary"
+        },
+        {
+          "sentence": "from:",
+          "record": "uda.task-lock.model-input-separation",
+          "obligation_id": "model-input-separation-at-boundary"
+        },
+        {
+          "sentence": "```text\nexpected route\nprohibited behavior\nassertions\ngrader metadata\nframework hints\n```",
+          "record": "uda.task-lock.model-input-separation",
+          "obligation_id": "model-input-separation-at-boundary"
+        },
+        {
+          "sentence": "The acceptance gate should fail if grader fields leak into model input, even if all campaign result files exist.",
+          "record": "uda.task-lock.model-input-separation",
+          "obligation_id": "model-input-separation-at-boundary"
+        },
+        {
+          "sentence": "The task lock should not become a permanent competing authority.",
+          "record": "uda.task-lock.retirement",
+          "obligation_id": "retirement-at-boundary"
+        },
+        {
+          "sentence": "After protected merge:",
+          "record": "uda.task-lock.retirement",
+          "obligation_id": "retirement-at-boundary"
+        },
+        {
+          "sentence": "1. record exact source and merged SHAs;",
+          "record": "uda.task-lock.retirement",
+          "obligation_id": "retirement-at-boundary"
+        },
+        {
+          "sentence": "2. record required check results;",
+          "record": "uda.task-lock.retirement",
+          "obligation_id": "retirement-at-boundary"
+        },
+        {
+          "sentence": "3. record immutable post-merge receipt;",
+          "record": "uda.task-lock.retirement",
+          "obligation_id": "retirement-at-boundary"
+        },
+        {
+          "sentence": "4. set task status to complete or archive the lock under a historical task path;",
+          "record": "uda.task-lock.retirement",
+          "obligation_id": "retirement-at-boundary"
+        },
+        {
+          "sentence": "5. update the canonical current-state checkpoint;",
+          "record": "uda.task-lock.retirement",
+          "obligation_id": "retirement-at-boundary"
+        },
+        {
+          "sentence": "6. re-enable normal roadmap selection only after closeout.",
+          "record": "uda.task-lock.retirement",
+          "obligation_id": "retirement-at-boundary"
+        },
+        {
+          "sentence": "A later task creates a new lock with a new task ID.",
+          "record": "uda.task-lock.retirement",
+          "obligation_id": "retirement-at-boundary"
+        },
+        {
+          "sentence": "It must not silently repurpose an old task lock.",
+          "record": "uda.task-lock.retirement",
+          "obligation_id": "retirement-at-boundary"
+        },
+        {
+          "sentence": "At minimum test that:",
+          "record": "uda.task-lock.control-plane-regressions",
+          "obligation_id": "control-plane-regressions-at-boundary"
+        },
+        {
+          "sentence": "- preflight rejects the wrong branch;",
+          "record": "uda.task-lock.control-plane-regressions",
+          "obligation_id": "control-plane-regressions-at-boundary"
+        },
+        {
+          "sentence": "- preflight rejects a stale current-state task identity;",
+          "record": "uda.task-lock.control-plane-regressions",
+          "obligation_id": "control-plane-regressions-at-boundary"
+        },
+        {
+          "sentence": "- preliminary code plus ordinary green tests cannot satisfy acceptance;",
+          "record": "uda.task-lock.control-plane-regressions",
+          "obligation_id": "control-plane-regressions-at-boundary"
+        },
+        {
+          "sentence": "- acceptance passes only when all declared artifacts exist;",
+          "record": "uda.task-lock.control-plane-regressions",
+          "obligation_id": "control-plane-regressions-at-boundary"
+        },
+        {
+          "sentence": "- a blocked live campaign yields `BLOCKED`, not `COMPLETE`;",
+          "record": "uda.task-lock.control-plane-regressions",
+          "obligation_id": "control-plane-regressions-at-boundary"
+        },
+        {
+          "sentence": "- model-input/grader leakage fails closed;",
+          "record": "uda.task-lock.control-plane-regressions",
+          "obligation_id": "control-plane-regressions-at-boundary"
+        },
+        {
+          "sentence": "- unrelated roadmap or worktree state is not selected while the task is exclusive.",
+          "record": "uda.task-lock.control-plane-regressions",
+          "obligation_id": "control-plane-regressions-at-boundary"
+        },
+        {
+          "sentence": "Do not rely on:",
+          "record": "uda.task-lock.anti-substitutes",
+          "obligation_id": "anti-substitutes-at-boundary"
+        },
+        {
+          "sentence": "- a long prompt alone;",
+          "record": "uda.task-lock.anti-substitutes",
+          "obligation_id": "anti-substitutes-at-boundary"
+        },
+        {
+          "sentence": "- a resumed conversation's hidden memory of the handoff;",
+          "record": "uda.task-lock.anti-substitutes",
+          "obligation_id": "anti-substitutes-at-boundary"
+        },
+        {
+          "sentence": "- `continue` or `what's next` as task selectors;",
+          "record": "uda.task-lock.anti-substitutes",
+          "obligation_id": "anti-substitutes-at-boundary"
+        },
+        {
+          "sentence": "- a global roadmap when a branch-specific owner task is active;",
+          "record": "uda.task-lock.anti-substitutes",
+          "obligation_id": "anti-substitutes-at-boundary"
+        },
+        {
+          "sentence": "- a current-state file from another branch;",
+          "record": "uda.task-lock.anti-substitutes",
+          "obligation_id": "anti-substitutes-at-boundary"
+        },
+        {
+          "sentence": "- ordinary CI as proof of owner-task completion;",
+          "record": "uda.task-lock.anti-substitutes",
+          "obligation_id": "anti-substitutes-at-boundary"
+        },
+        {
+          "sentence": "- a PR body that says “work in progress” while the worker reports complete;",
+          "record": "uda.task-lock.anti-substitutes",
+          "obligation_id": "anti-substitutes-at-boundary"
+        },
+        {
+          "sentence": "- conversational promises to compare without per-case comparison artifacts;",
+          "record": "uda.task-lock.anti-substitutes",
+          "obligation_id": "anti-substitutes-at-boundary"
+        },
+        {
+          "sentence": "- deleting parallel worktrees merely to prevent task drift.",
+          "record": "uda.task-lock.anti-substitutes",
+          "obligation_id": "anti-substitutes-at-boundary"
+        },
+        {
+          "sentence": "> For consequential multi-session work with competing repository task sources, maintain one machine-readable exclusive active-task lock in the target branch.",
+          "record": "uda.task-lock.portable-instruction",
+          "obligation_id": "portable-instruction-at-boundary"
+        },
+        {
+          "sentence": "After any fresh start, resume, compaction, or model switch, run the task preflight before consulting old handoffs or global roadmaps.",
+          "record": "uda.task-lock.portable-instruction",
+          "obligation_id": "portable-instruction-at-boundary"
+        },
+        {
+          "sentence": "A branch mismatch fails closed.",
+          "record": "uda.task-lock.portable-instruction",
+          "obligation_id": "portable-instruction-at-boundary"
+        },
+        {
+          "sentence": "Ordinary tests are prerequisites, not task completion.",
+          "record": "uda.task-lock.portable-instruction",
+          "obligation_id": "portable-instruction-at-boundary"
+        },
+        {
+          "sentence": "Claim readiness only when the task-specific acceptance command verifies every required artifact; claim completion only after protected merge and an immutable receipt.",
+          "record": "uda.task-lock.portable-instruction",
+          "obligation_id": "portable-instruction-at-boundary"
+        },
+        {
+          "sentence": "- Tiny one-shot tasks do not need a dedicated lock.",
+          "record": "uda.task-lock.scope-authority",
+          "obligation_id": "scope-authority-at-boundary"
+        },
+        {
+          "sentence": "- A lock cannot override newer owner instructions, safety policy, legal constraints, permissions, spending, publication, or irreversible-action gates.",
+          "record": "uda.task-lock.scope-authority",
+          "obligation_id": "scope-authority-at-boundary"
+        },
+        {
+          "sentence": "- A task-specific acceptance script is only as strong as its artifact schemas and tests; keep it reviewed and mutation-sensitive.",
+          "record": "uda.task-lock.scope-authority",
+          "obligation_id": "scope-authority-at-boundary"
+        },
+        {
+          "sentence": "- Parallel agents may have separate locks in separate worktrees, but shared mutable state must still be serialized.",
+          "record": "uda.task-lock.scope-authority",
+          "obligation_id": "scope-authority-at-boundary"
+        },
+        {
+          "sentence": "- A lock prevents task drift; it does not prove the substantive implementation is correct.",
+          "record": "uda.task-lock.scope-authority",
+          "obligation_id": "scope-authority-at-boundary"
+        }
+      ],
+      "legacy_remainder": ""
     },
     {
       "id": "patterns/executable-frontier-coherence.md",
@@ -6079,27 +7278,47 @@
       "id": "patterns/terminal-response-admission-and-autonomous-continuation.md",
       "kind": "pattern",
       "indexed": true,
-      "disposition": "LEGACY_UNSTRUCTURED",
+      "disposition": "STRUCTURED_ENFORCED",
       "behavioral": true,
       "activation_route": {
-        "kind": "INDEX_TRIGGER",
-        "detail": "Before an exclusive-task worker emits a terminal response"
+        "kind": "STRUCTURED_TRIGGER",
+        "detail": "Declared governance, continuity scope or exclusive_task action facts, plus named event actions; unknown facts block."
       },
       "actors": [
-        "reasoning agent",
-        "execution worker"
+        "work",
+        "codex",
+        "claude",
+        "controller",
+        "chat"
       ],
       "phases": [
-        "reasoning",
-        "final-delivery"
+        "pre-action",
+        "final-delivery",
+        "persistence"
       ],
       "destinations": [
-        "terminal-response-admission-and-autonomous-continuation task artifact or action boundary"
+        "terminal-state-reconciliation",
+        "controller-continuation-state",
+        "owner-visible-final",
+        "durable-task-checkpoint",
+        "provider-wait-admission",
+        "rejected-terminal-repair",
+        "execution-authority"
       ],
       "enforcement_types": [
-        "unobserved"
+        "semantic"
       ],
-      "task_time_records": [],
+      "task_time_records": [
+        "uda.continuation.state-reconciliation",
+        "uda.continuation.controller-resume",
+        "uda.continuation.terminal-admission",
+        "uda.continuation.recovery-events",
+        "uda.continuation.provider-waits",
+        "uda.continuation.mission-control-gate",
+        "uda.continuation.pause-semantics",
+        "uda.continuation.rejection-repair",
+        "uda.continuation.authority-limits"
+      ],
       "graph_node": null,
       "evidence": [
         {
@@ -6113,13 +7332,335 @@
         {
           "path": "tests/test_universal_next_step_rule.py",
           "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_uda_continuation_closure_slice.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_continuation_closure_slice.py",
+          "class": "BEHAVIORAL_REGRESSION"
         }
       ],
-      "migration": {
-        "priority": "P1",
-        "next_step": "Bind terminal response to the current task lock, exact remaining work and authoritative pause evidence; reject response closure whenever a safe authorized action remains.",
-        "trigger_frequency": "CONDITIONAL"
-      }
+      "obligation_map": [
+        {
+          "sentence": "Before any worker emits a terminal response, it must reconcile the current authoritative execution state:",
+          "record": "uda.continuation.state-reconciliation",
+          "obligation_id": "state-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "1. current owner instruction or correction;",
+          "record": "uda.continuation.state-reconciliation",
+          "obligation_id": "state-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "2. branch-bound active-task lock;",
+          "record": "uda.continuation.state-reconciliation",
+          "obligation_id": "state-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "3. canonical durable current-state checkpoint;",
+          "record": "uda.continuation.state-reconciliation",
+          "obligation_id": "state-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "4. live artifact/evidence ledger and current queue;",
+          "record": "uda.continuation.state-reconciliation",
+          "obligation_id": "state-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "5. current Mission Control terminal comparison and structured blockers;",
+          "record": "uda.continuation.state-reconciliation",
+          "obligation_id": "state-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "6. current chat-authored directive and any required reasoning handoff.",
+          "record": "uda.continuation.state-reconciliation",
+          "obligation_id": "state-reconciliation-at-boundary"
+        },
+        {
+          "sentence": "It does **not** close the root task.",
+          "record": "uda.continuation.controller-resume",
+          "obligation_id": "controller-resume-at-boundary"
+        },
+        {
+          "sentence": "The controller must preserve resumability and continue automatically when the new directive arrives or the blocking condition clears.",
+          "record": "uda.continuation.controller-resume",
+          "obligation_id": "controller-resume-at-boundary"
+        },
+        {
+          "sentence": "For an exclusive active task, **ending a response is a controlled terminal action**.",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "A terminal response is admitted only when at least one of these current, source-bound conditions is true:",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "- the requested root outcome is complete under its actual acceptance/terminal evidence gate;",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "- the owner has explicitly canceled, stopped, or replaced the current outcome;",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "- a genuine owner decision is required and no independent safe in-scope work remains;",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "- a genuine external blocker prevents the required frontier, has no admitted workaround or independent safe work remaining, and is durably recorded;",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "- a bounded execution directive has reached a real reasoning-review stop and the exact factual receipt has already been routed automatically to the configured reasoning chat.",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "A reasoning-review or external-blocker pause ends only the current execution turn.",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "None of the following is, by itself, permission for a terminal response:",
+          "record": "uda.continuation.recovery-events",
+          "obligation_id": "recovery-events-at-boundary"
+        },
+        {
+          "sentence": "- context compaction or context-window pressure;",
+          "record": "uda.continuation.recovery-events",
+          "obligation_id": "recovery-events-at-boundary"
+        },
+        {
+          "sentence": "- response/token-budget pressure;",
+          "record": "uda.continuation.recovery-events",
+          "obligation_id": "recovery-events-at-boundary"
+        },
+        {
+          "sentence": "- many tool calls or a long-running turn;",
+          "record": "uda.continuation.recovery-events",
+          "obligation_id": "recovery-events-at-boundary"
+        },
+        {
+          "sentence": "- a checkpoint or recovery commit;",
+          "record": "uda.continuation.recovery-events",
+          "obligation_id": "recovery-events-at-boundary"
+        },
+        {
+          "sentence": "- browser-tab cleanup or browser-memory pressure;",
+          "record": "uda.continuation.recovery-events",
+          "obligation_id": "recovery-events-at-boundary"
+        },
+        {
+          "sentence": "- a provider cooldown, temporary rate limit, retry/backoff interval, or transient tool outage;",
+          "record": "uda.continuation.recovery-events",
+          "obligation_id": "recovery-events-at-boundary"
+        },
+        {
+          "sentence": "- the end of a batch when the next batch/ordinal is already determined;",
+          "record": "uda.continuation.recovery-events",
+          "obligation_id": "recovery-events-at-boundary"
+        },
+        {
+          "sentence": "- ordinary green tests while task acceptance remains open;",
+          "record": "uda.continuation.recovery-events",
+          "obligation_id": "recovery-events-at-boundary"
+        },
+        {
+          "sentence": "- a worker-authored `blocked`, `done`, or handoff statement without current structured authority/evidence.",
+          "record": "uda.continuation.recovery-events",
+          "obligation_id": "recovery-events-at-boundary"
+        },
+        {
+          "sentence": "Treat these as recovery events.",
+          "record": "uda.continuation.recovery-events",
+          "obligation_id": "recovery-events-at-boundary"
+        },
+        {
+          "sentence": "Persist state, compact/reopen/restart as necessary, then recover the active task and continue from the first missing or stale action without repeating verified work.",
+          "record": "uda.continuation.recovery-events",
+          "obligation_id": "recovery-events-at-boundary"
+        },
+        {
+          "sentence": "When a required provider action is temporarily unavailable:",
+          "record": "uda.continuation.provider-waits",
+          "obligation_id": "provider-waits-at-boundary"
+        },
+        {
+          "sentence": "1. record the exact changing condition and admitted wait horizon;",
+          "record": "uda.continuation.provider-waits",
+          "obligation_id": "provider-waits-at-boundary"
+        },
+        {
+          "sentence": "2. advance independent safe in-scope work that does not depend on the provider;",
+          "record": "uda.continuation.provider-waits",
+          "obligation_id": "provider-waits-at-boundary"
+        },
+        {
+          "sentence": "3. keep checking the changing condition at the configured bounded interval;",
+          "record": "uda.continuation.provider-waits",
+          "obligation_id": "provider-waits-at-boundary"
+        },
+        {
+          "sentence": "4. resume the blocked frontier automatically when it clears;",
+          "record": "uda.continuation.provider-waits",
+          "obligation_id": "provider-waits-at-boundary"
+        },
+        {
+          "sentence": "5. terminally pause only when the wait is a genuine external blocker for **all** remaining authorized work and the controller has durable evidence of that state.",
+          "record": "uda.continuation.provider-waits",
+          "obligation_id": "provider-waits-at-boundary"
+        },
+        {
+          "sentence": "A cooldown is not an owner decision.",
+          "record": "uda.continuation.provider-waits",
+          "obligation_id": "provider-waits-at-boundary"
+        },
+        {
+          "sentence": "Mission Control-managed execution workers must consult the deterministic final-response gate immediately before an owner-facing terminal response:",
+          "record": "uda.continuation.mission-control-gate",
+          "obligation_id": "mission-control-gate-at-boundary"
+        },
+        {
+          "sentence": "```text\nGET /api/worker-channel/<worker>/finalization\n```",
+          "record": "uda.continuation.mission-control-gate",
+          "obligation_id": "mission-control-gate-at-boundary"
+        },
+        {
+          "sentence": "The endpoint authenticates the execution worker but does not accept worker-supplied terminal facts.",
+          "record": "uda.continuation.mission-control-gate",
+          "obligation_id": "mission-control-gate-at-boundary"
+        },
+        {
+          "sentence": "Mission Control reads its own current projected ledger and returns either:",
+          "record": "uda.continuation.mission-control-gate",
+          "obligation_id": "mission-control-gate-at-boundary"
+        },
+        {
+          "sentence": "```text\n200 terminalResponseAllowed:true\n```",
+          "record": "uda.continuation.mission-control-gate",
+          "obligation_id": "mission-control-gate-at-boundary"
+        },
+        {
+          "sentence": "or:",
+          "record": "uda.continuation.mission-control-gate",
+          "obligation_id": "mission-control-gate-at-boundary"
+        },
+        {
+          "sentence": "```text\n409 terminalResponseAllowed:false\nmustContinue:true\nrequiredNextAction:<durably derived next action>\n```",
+          "record": "uda.continuation.mission-control-gate",
+          "obligation_id": "mission-control-gate-at-boundary"
+        },
+        {
+          "sentence": "A `409` means the worker must not emit a terminal handoff.",
+          "record": "uda.continuation.mission-control-gate",
+          "obligation_id": "mission-control-gate-at-boundary"
+        },
+        {
+          "sentence": "It must execute or route the returned safe next action within existing authority.",
+          "record": "uda.continuation.mission-control-gate",
+          "obligation_id": "mission-control-gate-at-boundary"
+        },
+        {
+          "sentence": "The gate reuses the canonical Mission Control terminal comparator rather than creating a second completion model.",
+          "record": "uda.continuation.mission-control-gate",
+          "obligation_id": "mission-control-gate-at-boundary"
+        },
+        {
+          "sentence": "It additionally checks current READY/IN_PROGRESS queue work, durable checkpoint next steps, structured blocker ownership/workarounds, recoverable wait conditions, whether a required reasoning-review route is newer than the stop/blocker it claims to satisfy, and whether an owner-decision pause is backed by the authoritative Mission Control owner-obligation projection rather than merely a worker-authored `needsOwner` assertion.",
+          "record": "uda.continuation.mission-control-gate",
+          "obligation_id": "mission-control-gate-at-boundary"
+        },
+        {
+          "sentence": "Use precise semantics:",
+          "record": "uda.continuation.pause-semantics",
+          "obligation_id": "pause-semantics-at-boundary"
+        },
+        {
+          "sentence": "- `ALLOW_ROOT_CLOSE` — the source-bound terminal comparator permits actual task completion.",
+          "record": "uda.continuation.pause-semantics",
+          "obligation_id": "pause-semantics-at-boundary"
+        },
+        {
+          "sentence": "- `ALLOW_OWNER_CANCELLATION` — current owner authority canceled the outcome.",
+          "record": "uda.continuation.pause-semantics",
+          "obligation_id": "pause-semantics-at-boundary"
+        },
+        {
+          "sentence": "- `ALLOW_OWNER_DECISION_PAUSE` — a current owner obligation exists and no independent safe work remains.",
+          "record": "uda.continuation.pause-semantics",
+          "obligation_id": "pause-semantics-at-boundary"
+        },
+        {
+          "sentence": "- `ALLOW_EXTERNAL_BLOCKED_PAUSE` — a genuine external blocker prevents all remaining authorized work, with no workaround.",
+          "record": "uda.continuation.pause-semantics",
+          "obligation_id": "pause-semantics-at-boundary"
+        },
+        {
+          "sentence": "- `ALLOW_REASONING_HANDOFF_PAUSE` — the current bounded execution turn stopped for reasoning and the exact factual handoff is already durably routed after the current stop receipt.",
+          "record": "uda.continuation.pause-semantics",
+          "obligation_id": "pause-semantics-at-boundary"
+        },
+        {
+          "sentence": "All pause states except root close/cancellation leave the root task open.",
+          "record": "uda.continuation.pause-semantics",
+          "obligation_id": "pause-semantics-at-boundary"
+        },
+        {
+          "sentence": "A rejected terminal attempt should preserve an explicit reason such as:",
+          "record": "uda.continuation.rejection-repair",
+          "obligation_id": "rejection-repair-at-boundary"
+        },
+        {
+          "sentence": "```text\nREJECT_SAFE_WORK_REMAINS\nREJECT_RECOVERABLE_WAIT_TERMINALIZATION\nREJECT_UNROUTED_REASONING_STOP\nREJECT_SELF_OWNED_BLOCKER\nREJECT_BLOCKER_WITH_WORKAROUND\nREJECT_OWNER_DECISION_AUTHORITY_MISSING\nREJECT_UNVERIFIED_BLOCKED_STATE\nREJECT_TERMINAL_PROOF_MISSING\n```",
+          "record": "uda.continuation.rejection-repair",
+          "obligation_id": "rejection-repair-at-boundary"
+        },
+        {
+          "sentence": "Do not convert these into an owner question when the required next action is already mechanically known.",
+          "record": "uda.continuation.rejection-repair",
+          "obligation_id": "rejection-repair-at-boundary"
+        },
+        {
+          "sentence": "It does not broaden task scope or authority.",
+          "record": "uda.continuation.authority-limits",
+          "obligation_id": "authority-limits-at-boundary"
+        },
+        {
+          "sentence": "Safety, privacy, security, permission, spending, publication, irreversible-action, and explicit owner-stop boundaries remain controlling.",
+          "record": "uda.continuation.authority-limits",
+          "obligation_id": "authority-limits-at-boundary"
+        },
+        {
+          "sentence": "- The gate can only be as current as the Mission Control ledger and project recovery artifacts it projects.",
+          "record": "uda.continuation.authority-limits",
+          "obligation_id": "authority-limits-at-boundary"
+        },
+        {
+          "sentence": "- A true semantic ambiguity must still go to the authorized reasoning chat; deterministic continuation may not invent strategy.",
+          "record": "uda.continuation.authority-limits",
+          "obligation_id": "authority-limits-at-boundary"
+        },
+        {
+          "sentence": "- A real safety, permission, spending, publication, access, or irreversible-action boundary is not bypassed merely because other execution is possible.",
+          "record": "uda.continuation.authority-limits",
+          "obligation_id": "authority-limits-at-boundary"
+        },
+        {
+          "sentence": "- Tiny one-shot tasks without an exclusive active-task contract do not require this machinery.",
+          "record": "uda.continuation.authority-limits",
+          "obligation_id": "authority-limits-at-boundary"
+        }
+      ],
+      "legacy_remainder": "",
+      "review_notes": "Complete exact source-clause map and independent whole-pattern/per-section pins. Bound semantic admission and hostile candidate/replay/mutation regressions verify preservation/binding, not semantic truth, actual gate invocation or universal runtime adoption."
     },
     {
       "id": "patterns/test-efficiency-and-verification-budget.md",

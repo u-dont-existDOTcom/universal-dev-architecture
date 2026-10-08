@@ -1,0 +1,1 @@
+The root stays open at the reasoning pause. The controller preserves the exact frontier and automatically resumes after a valid new directive or cleared blocker. The claimed evidence instead relies on a pause treated as root closure.

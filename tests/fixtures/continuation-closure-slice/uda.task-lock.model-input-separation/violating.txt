@@ -1,0 +1,1 @@
+Expected routes and grading assertions are included in the black-box model query.

@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The root stays open at the reasoning pause. The controller preserves the exact frontier and automatically resumes after a valid new directive or cleared blocker.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The controller retires the root when the execution turn reaches reasoning review.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The root stays open at the reasoning pause. The controller preserves the exact frontier and automatically resumes after a valid new directive or cleared blocker. The claimed evidence instead relies on a pause treated as root closure.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "controller-resume-at-boundary",
+    "non_substitute": "a pause treated as root closure"
+  }
+}

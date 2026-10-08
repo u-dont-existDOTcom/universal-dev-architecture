@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Before resuming, actual repository and working tree, bootstrap and index, checkpoint, relevant commits and artifacts were inspected. Surviving and missing work was reconciled, stale state repaired, and exact task gates with enforcement points reloaded. Execution resumes from the latest verified boundary without repetition; newer verified evidence outranks checkpoint prose.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "Resume blindly follows a checkpoint that conflicts with a newer owner instruction and current artifacts.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Before resuming, actual repository and working tree, bootstrap and index, checkpoint, relevant commits and artifacts were inspected. Surviving and missing work was reconciled, stale state repaired, and exact task gates with enforcement points reloaded. Execution resumes from the latest verified boundary without repetition; newer verified evidence outranks checkpoint prose. The claimed evidence instead relies on a summary naming a rule instead of reactivation.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "resume-reconciliation-at-boundary",
+    "non_substitute": "a summary naming a rule instead of reactivation"
+  }
+}

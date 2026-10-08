@@ -11,6 +11,8 @@ python3 scripts/uda_rule_graph.py explain --task examples/rule-graph/work-handof
 python3 scripts/uda_rule_graph.py compare --task examples/rule-graph/work-handoff.json
 ```
 
+This representative Work handoff is an independent one-shot child step. Parent continuity remains with its supervisor; the child declares no exclusive competing-task lifecycle. Real multistep envelopes retain continuity_required=true and their full checkpoint duties.
+
 The flat catalog selects direct trigger matches. The graph route must additionally include `uda.active-contract.boundary-binding` through `requires` closure.
 
 ## Owner correction / recompile
@@ -110,3 +112,7 @@ The review/merge migration adds only these values to the existing fact:
 Deterministic review/check loops are outside both review action values.
 
 Every example envelope in this directory explicitly declares all three values absent in the action fact's provenance and KNOWN value list. A generic Work handoff is not a review round, finding judgment or merge decision merely because it hands off work. The synthetic fixture envelopes select these actions explicitly; unknown fact scope is tested fail-closed.
+
+## Continuation and closure action scope
+
+The existing action_classes fact also carries exclusive_task for the entire consequential multi-session competing-source task lifecycle, including pre-lock work; mission_control_terminal for a managed worker terminal attempt; provider_wait for a required provider wait; resume_reconciliation for restart/context recovery; task_completion for a long-running completion claim; black_box_model_test for model-input testing; task_closeout for protected post-merge retirement; and control_plane_testing for lock/acceptance regression work. Existing instruction_maintenance selects adoption of the portable instruction. These are scope facts, not authority grants. Missing/UNKNOWN applicability blocks; known absence omits only the absent action. Changing action scope requires recompilation and fresh receipts before its due boundary. No new fact kind is introduced.

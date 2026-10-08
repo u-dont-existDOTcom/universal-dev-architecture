@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Project implementation, test and research gates pass. Accurate durable final state records completed work, remaining follow-up and evidence. Transferable findings have their normal lesson disposition; the checkpoint does not substitute for promotion.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "Completion is claimed with a stale final state and undisposed transferable lessons.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Project implementation, test and research gates pass. Accurate durable final state records completed work, remaining follow-up and evidence. Transferable findings have their normal lesson disposition; the checkpoint does not substitute for promotion. The claimed evidence instead relies on a current-state file substituted for lesson promotion.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "completion-closeout-at-boundary",
+    "non_substitute": "a current-state file substituted for lesson promotion"
+  }
+}

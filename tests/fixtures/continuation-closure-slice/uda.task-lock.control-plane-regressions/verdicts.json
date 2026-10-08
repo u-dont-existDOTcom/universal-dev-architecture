@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Executed regressions reject wrong branch and stale checkpoint identity, missing artifacts, preliminary green-code completion, blocked live COMPLETE, grader leakage and unrelated-source selection; acceptance passes only when every declared artifact exists.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "Only the success path was tested; wrong branch, leakage and incomplete artifact acceptance are untested.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Executed regressions reject wrong branch and stale checkpoint identity, missing artifacts, preliminary green-code completion, blocked live COMPLETE, grader leakage and unrelated-source selection; acceptance passes only when every declared artifact exists. The claimed evidence instead relies on test names listed without executing the control-plane regressions.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "control-plane-regressions-at-boundary",
+    "non_substitute": "test names listed without executing the control-plane regressions"
+  }
+}

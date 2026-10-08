@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Durable memory holds decisions and reasons, useful rejected approaches, invariants, constraints, evidence, validation, uncertainty and next action. Private reasoning and exploratory thought transcripts are excluded.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "Private hidden reasoning is archived while the actual decision rationale and validation evidence are omitted.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Durable memory holds decisions and reasons, useful rejected approaches, invariants, constraints, evidence, validation, uncertainty and next action. Private reasoning and exploratory thought transcripts are excluded. The claimed evidence instead relies on hidden reasoning archived as continuity state.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "reasoning-outcomes-at-boundary",
+    "non_substitute": "hidden reasoning archived as continuity state"
+  }
+}

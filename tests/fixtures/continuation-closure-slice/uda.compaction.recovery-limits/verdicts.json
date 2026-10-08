@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Verified repository and newer owner authority outrank stale state. No secrets, credentials, tokens or private reasoning are stored. Large evidence stays canonical and is referenced. The chosen structured ledger provides equivalent recovery guarantees.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The recovery checkpoint publishes credentials and duplicates raw logs.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Verified repository and newer owner authority outrank stale state. No secrets, credentials, tokens or private reasoning are stored. Large evidence stays canonical and is referenced. The chosen structured ledger provides equivalent recovery guarantees. The claimed evidence instead relies on secrets stored in a public recovery checkpoint.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "recovery-limits-at-boundary",
+    "non_substitute": "secrets stored in a public recovery checkpoint"
+  }
+}

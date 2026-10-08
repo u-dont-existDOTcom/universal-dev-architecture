@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The rejected attempt retained REJECT_SAFE_WORK_REMAINS. The already-derived safe action was executed within authority without an owner scheduling question.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The rejection reason was discarded and the owner was asked to schedule a mechanically known next step.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The rejected attempt retained REJECT_SAFE_WORK_REMAINS. The already-derived safe action was executed within authority without an owner scheduling question. The claimed evidence instead relies on asking the owner to schedule an already-known next action.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "rejection-repair-at-boundary",
+    "non_substitute": "asking the owner to schedule an already-known next action"
+  }
+}

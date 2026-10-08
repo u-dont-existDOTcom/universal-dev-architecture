@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The exact task wait record binds blocker or reasoning request, causal dependency, changing condition and source, actor and mechanism, notification or poll identity, next check and horizon, expiry state, owner action and independent-work policy. Independent authorized work continues.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The worker waits for repository updates without a causal dependency or bounded changing condition.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The exact task wait record binds blocker or reasoning request, causal dependency, changing condition and source, actor and mechanism, notification or poll identity, next check and horizon, expiry state, owner action and independent-work policy. Independent authorized work continues. The claimed evidence instead relies on a bare wait for CI.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "wait-admission-at-boundary",
+    "non_substitute": "a bare wait for CI"
+  }
+}
