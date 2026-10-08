@@ -266,6 +266,46 @@ test("provider usage is sanitized before OK observations persist and logs import
   } finally { store.close(); imported.close(); }
 });
 
+test("provider metadata is sanitized before OK and INVALID_RESPONSE observations persist", async () => {
+  const usage = { input_tokens: 100, output_tokens: 2, cost: 0.125 };
+  const cases = (["provider", "id"] as const).flatMap((field) => {
+    const limit = field === "provider" ? 200 : 300;
+    return [
+      { value: "", accepted: false }, { value: "x".repeat(limit + 1), accepted: false },
+      { value: null, accepted: false }, { value: 123, accepted: false },
+      { value: "x", accepted: true }, { value: "x".repeat(limit), accepted: true },
+    ].map((fixture) => ({ field, ...fixture }));
+  });
+  for (const answers of [liveAnswers, undefined, { next_action: "PRIVATE_TEXT" }]) {
+    const store = new EventStore(":memory:");
+    try {
+      seedIssue47Store(store);
+      const events = store.workerEvents(store.fleetSupervisorWatch("project:human-design")!.worker);
+      for (const [i, { field, value, accepted }] of cases.entries()) {
+        const metadata = { provider: "TypeSafe", id: `response:metadata:${i}`, [field]: value };
+        const expectedProvider = field === "provider" ? accepted ? value : undefined : metadata.provider;
+        const expectedId = field === "id" ? accepted ? value : undefined : metadata.id;
+        const result = await observeFleetSupervisorWithJev("HEALTHY_ADVANCING", events, { valid: true }, {
+          env: { MISSION_CONTROL_JEV_SHADOW_ENABLED: "1", OPENROUTER_API_KEY: "test-only-key" },
+          transport: async () => ({ answers, usage, ...metadata }),
+        });
+        assert.equal(result.status, answers === liveAnswers ? "OK" : "ERROR");
+        assert.equal(result.error_code, answers === liveAnswers ? undefined : "INVALID_RESPONSE");
+        assert.equal(result.provider, expectedProvider); assert.equal(result.response_id, expectedId);
+        assert.deepEqual(result.usage, usage);
+        assert.equal(store.recordJevShadowObservation({ source: "LIVE", observedAt: at(i), observation: result }), true);
+        const row = rows(store).at(-1)!;
+        assert.equal(row.provider, expectedProvider ?? null); assert.equal(row.response_id, expectedId ?? null);
+        assert.equal(row.input_tokens, 100); assert.equal(row.output_tokens, 2); assert.equal(row.cost_usd, usage.cost);
+      }
+      const summary = store.jevShadowSummary();
+      assert.equal(summary.counts.total, cases.length);
+      assert.equal(summary.counts.byStatus[answers === liveAnswers ? "OK" : "ERROR"], cases.length);
+      assert.equal(summary.cost.totalUsd, cases.length * usage.cost);
+    } finally { store.close(); }
+  }
+});
+
 test("valid owner answers count independently of missing or unusable next actions", () => {
   const store = new EventStore(":memory:");
   try {
