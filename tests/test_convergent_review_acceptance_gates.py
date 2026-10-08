@@ -129,6 +129,43 @@ class ConvergentReviewAcceptanceGatesTests(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, rule)
 
+    def test_pilot_uncertainty_controls_scale_admission(self) -> None:
+        rule = self.pattern.split("4. **", 1)[1].split("\n5. **", 1)[0]
+        for phrase in (
+            "State the confidence level and method",
+            "size a representative pilot in advance",
+            "tolerable false-failure rate at the intended scale",
+            "one-sided upper confidence bound p_upper in place of the point estimate p",
+            "every unit/run and hard-floor calculation",
+            "one-sided lower confidence bound on each directly measured floor pass rate",
+            "Report the pilot counts and bounds",
+            "too small to rule out material rejection",
+            "enlarge it with a predeclared sample size or redesign before scale",
+            "rather than admitting the gate on a point estimate",
+            "If the conservative bound would reject enough correct work",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, rule)
+
+    def test_zero_flag_and_all_pass_pilots_retain_uncertainty(self) -> None:
+        rule = self.pattern.split("4. **", 1)[1].split("\n5. **", 1)[0]
+        self.assertIn("p_upper = 1 - alpha^(1/t) at confidence 1 - alpha", rule)
+        self.assertIn("q_lower = alpha^(1/u), not 1", rule)
+        example = re.search(
+            r"with t = (\d+) and alpha = ([\d.]+) this is about ([\d.]+)%, not zero",
+            rule,
+        )
+        self.assertIsNotNone(example)
+        t, alpha, percent = map(float, example.groups())
+        p_upper = 1 - alpha ** (1 / t)
+        self.assertAlmostEqual(p_upper * 100, percent, places=1)
+        # Inverting the zero-event binomial probability must recover alpha.
+        self.assertAlmostEqual((1 - p_upper) ** t, alpha)
+        self.assertGreater(1 - (1 - p_upper) ** 100, 0.99)
+        q_lower = alpha ** (1 / 5)
+        self.assertAlmostEqual(q_lower ** 5, alpha)
+        self.assertLess(q_lower ** 162, 0.01)
+
     def test_routes(self) -> None:
         assert_routed_rule(self, RELATIVE, (
             "Current universal pattern, promoted 2026-10-03",

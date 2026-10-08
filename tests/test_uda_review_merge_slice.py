@@ -175,7 +175,7 @@ class ReviewMergeSliceTests(unittest.TestCase):
         self.assertEqual(78, report["backlog_count"])
         self.assertEqual(6, len(report["removed_since_baseline"]))
         self.assertFalse(set(SOURCES).intersection(report["removed_since_baseline"]))
-        for source, expected in zip(SOURCES, (65, 58)):
+        for source, expected in zip(SOURCES, (70, 58)):
             entry = next(e for e in self.inventory["entries"] if e["id"] == source)
             self.assertEqual("STRUCTURED_ENFORCED", entry["disposition"])
             self.assertEqual(expected, len(entry["obligation_map"]))
@@ -187,6 +187,21 @@ class ReviewMergeSliceTests(unittest.TestCase):
         summary = (ROOT / "patterns/task-time-lesson-activation.md").read_text().split(
             "### Review/merge-gate migration slice 2", 1)[1]
         self.assertIn(f"bind {total} operative clauses", summary)
+
+    def test_false_failure_contract_carries_pilot_uncertainty(self):
+        _, _, _, _, contract = next(case for case in self.cases()
+                                    if case[1]["rule_id"] == "uda.review.false-failure")
+        obligation = contract["selected_rules"][0]["obligations"][0]
+        for phrase in ("confidence level and method", "pilot counts", "sample size",
+                       "upper confidence bound", "lower confidence bound",
+                       "every unit/run and hard-floor calculation",
+                       "enlarge the pilot or redesign before scale"):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, obligation["acceptance_evidence"])
+        self.assertIn("zero observed false flags treated as zero risk",
+                      obligation["non_substitutes"])
+        self.assertIn("an empirical pass rate extrapolated without a confidence bound",
+                      obligation["non_substitutes"])
 
     def test_requirement_slice_summary_matches_enforced_clause_maps(self):
         requirement = tt.read_json(ROOT / coverage.REQUIREMENT)

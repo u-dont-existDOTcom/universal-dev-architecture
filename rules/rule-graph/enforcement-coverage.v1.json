@@ -2772,12 +2772,37 @@
           "obligation_id": "false-failure-at-boundary"
         },
         {
+          "sentence": "State the confidence level and method, and size a representative pilot in advance for the tolerable false-failure rate at the intended scale.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Use a one-sided upper confidence bound p_upper in place of the point estimate p in every unit/run and hard-floor calculation, or a one-sided lower confidence bound on each directly measured floor pass rate.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Under the independent constant-p model, zero false flags among t known-correct items give the exact one-sided bound p_upper = 1 - alpha^(1/t) at confidence 1 - alpha; with t = 20 and alpha = 0.05 this is about 13.9%, not zero.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Likewise, if all u independent known-correct units pass a floor, its exact lower bound is q_lower = alpha^(1/u), not 1.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Report the pilot counts and bounds; if the pilot is too small to rule out material rejection, enlarge it with a predeclared sample size or redesign before scale, rather than admitting the gate on a point estimate.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
           "sentence": "Apply the estimate to each hard floor too: a zero-critical-misses floor is a zero-findings gate over the m critical items alone, so it fails correct work with probability 1 - (1 - p)^m.",
           "record": "uda.review.false-failure",
           "obligation_id": "false-failure-at-boundary"
         },
         {
-          "sentence": "If the estimate would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after.",
+          "sentence": "If the conservative bound would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after.",
           "record": "uda.review.false-failure",
           "obligation_id": "false-failure-at-boundary"
         },
@@ -2797,7 +2822,7 @@
           "obligation_id": "false-failure-at-boundary"
         },
         {
-          "sentence": "Treat the formulas as planning estimates, and prefer a pass rate measured on known-correct units.",
+          "sentence": "Treat the formulas as planning estimates, and prefer a pass rate measured on known-correct units with its confidence bound.",
           "record": "uda.review.false-failure",
           "obligation_id": "false-failure-at-boundary"
         },

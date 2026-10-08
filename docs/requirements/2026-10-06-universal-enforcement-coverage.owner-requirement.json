@@ -57,8 +57,8 @@
       "clauses_sha256": "0296f83c29eb4a6e0aa59c0ad74785f72224a331282c461d1b92757531d1d6b1"
     },
     "patterns/convergent-review-acceptance-gates.md": {
-      "clause_count": 65,
-      "clauses_sha256": "0529aca45d9fd9f05e97868987d0677ae16188f7e6954bac78cb2108d5eb318f",
+      "clause_count": 70,
+      "clauses_sha256": "322c68899b88ffe62945f789f2200eb16b1d459408d218943bacc682c14d6037",
       "pre_section_sha256": "9fe60d56872542596f2a1f2ebb7b393edf56ad0f5ea351c95cf8e3d871c3adaa",
       "sections": {
         "status": {
@@ -72,9 +72,9 @@
           "source_sha256": "947dc48385b2bfe4fed663beb0ad4af12cbcdd78a6672778c7e269942d330a0d"
         },
         "rules": {
-          "clause_count": 30,
-          "clauses_sha256": "e92bc828cfca2520b33ed6104b68698465df21414c3062f0c92ad69bd6fbc16a",
-          "source_sha256": "3d5af5e114b12902dd659f00fdb61f419ce99581ace6685b496604a889a8404e"
+          "clause_count": 35,
+          "clauses_sha256": "8833a478742a0bb30a07c1aaba1586887c0a540a0927690ff7bb2603f7445692",
+          "source_sha256": "86c0303e293dfc4537b88c9d3f4b907caa268303672ad14e1224cab61bc70e8b"
         },
         "bounds": {
           "clause_count": 9,
@@ -98,8 +98,8 @@
         },
         "transfer-rationale-and-limits": {
           "clause_count": 10,
-          "clauses_sha256": "6d9e61ea020a3c694c18e092ee84e819ce25191c8453f182c7763935a3dda150",
-          "source_sha256": "350e60aa83b152b0f537fc03cc434476e3865694a46cd98723f7f1c67528d6e4"
+          "clauses_sha256": "860e8561f708deb663c7782aa282332e8d69597d0ea7e0e6128f98a406f15505",
+          "source_sha256": "b0746de024fade376b087e04f71278948a62194c9cb72070becf163441e4e8af"
         }
       }
     },
@@ -313,7 +313,7 @@
       "baseline_shrinkage": 6,
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
-      "implemented": "Two new identities structured: 65 review clauses / 8 obligations; 58 merge clauses / 8 obligations; 14 new records, no exceptions or backlog additions."
+      "implemented": "Two new identities structured: 70 review clauses / 8 obligations; 58 merge clauses / 8 obligations; 14 new records, no exceptions or backlog additions."
     }
   ],
   "learning_state_at_merge": [

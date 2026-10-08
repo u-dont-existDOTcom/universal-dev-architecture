@@ -1,14 +1,14 @@
 {
-  "catalog_sha256": "0a9d3bbfc0b0c601c5d61e0a43aa47762c085f1aab60829aa3dfd4fb7dcc26ac",
+  "catalog_sha256": "b6a727ff06b8bc61776a05b37313fdc3d1581c07164fa823199aa03484a08dbe",
   "compiler_sha256": "e526ae1e706c6ff97d74d00302c55d0a7e49aafc2df41df09f703520f7e9997a",
-  "content_sha256": "dac20947800d646c1717969c3a4ffdd06b0bbbe7cf556702adc1936c2a7cbdf0",
+  "content_sha256": "7f2b795b588af5da91373379785b3c8bc3829bc32a6e3faccca3da24ce01eb7c",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
       "extracted_utf8_bytes": 268,
-      "git_blob_sha1": "832f7fc3b04b15d57af314db5c6cb5d2b317ad29",
+      "git_blob_sha1": "22b1200af650ddf42d4b2745eab1006c76be0e30",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:832f7fc3b04b15d57af314db5c6cb5d2b317ad29",
+      "repository_revision": "BLOB:22b1200af650ddf42d4b2745eab1006c76be0e30",
       "rule_id": "uda.active-contract.boundary-binding",
       "selectors": [
         {
@@ -998,9 +998,9 @@
     {
       "extracted_sha256": "20246d4cb4a4c9f5f46331555fae123081c44aa8fb779019e93784f7f4a0fd24",
       "extracted_utf8_bytes": 116,
-      "git_blob_sha1": "832f7fc3b04b15d57af314db5c6cb5d2b317ad29",
+      "git_blob_sha1": "22b1200af650ddf42d4b2745eab1006c76be0e30",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:832f7fc3b04b15d57af314db5c6cb5d2b317ad29",
+      "repository_revision": "BLOB:22b1200af650ddf42d4b2745eab1006c76be0e30",
       "rule_id": "uda.owner-correction.reactivate",
       "selectors": [
         {
@@ -1026,9 +1026,9 @@
     {
       "extracted_sha256": "76b4dd7362e3bde038b7673c23f2307b68cd08a8d58fd93422160b7ce0ec39cb",
       "extracted_utf8_bytes": 965,
-      "git_blob_sha1": "d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "rule_id": "uda.review.acceptance-floors",
       "selectors": [
         {
@@ -1068,9 +1068,9 @@
     {
       "extracted_sha256": "2c52ee44a7cd47f87b7b1d2ec891b2c8142282c0c08b76a0abe01aa72ae9c570",
       "extracted_utf8_bytes": 776,
-      "git_blob_sha1": "d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "rule_id": "uda.review.change-scope",
       "selectors": [
         {
@@ -1110,9 +1110,9 @@
     {
       "extracted_sha256": "e9906a5e3786af1c90aa253b4e82b42e3987fedfa61ae72f195cd3af50a1e5b4",
       "extracted_utf8_bytes": 490,
-      "git_blob_sha1": "d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "rule_id": "uda.review.cycle-escalation",
       "selectors": [
         {
@@ -1136,9 +1136,9 @@
     {
       "extracted_sha256": "3f616d735d636efbba1f81975f5f8c03edb45f605a657db6f8089107a2349064",
       "extracted_utf8_bytes": 855,
-      "git_blob_sha1": "d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "rule_id": "uda.review.declared-authority",
       "selectors": [
         {
@@ -1178,9 +1178,9 @@
     {
       "extracted_sha256": "16294aa2651f0a6d13d25bc3fd7514b127b08a64c42783fc098d1b79f8c31441",
       "extracted_utf8_bytes": 279,
-      "git_blob_sha1": "d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "rule_id": "uda.review.failure-repair",
       "selectors": [
         {
@@ -1190,11 +1190,11 @@
       ]
     },
     {
-      "extracted_sha256": "743c1647a878dbba41d18cbce3dff8698db426c5acc06144129e2b79d5b28246",
-      "extracted_utf8_bytes": 2536,
-      "git_blob_sha1": "d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "extracted_sha256": "73b1769d4420792c0a9e944609b7f655b3d193509ad46190acd1a9da0fb231c4",
+      "extracted_utf8_bytes": 3487,
+      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "rule_id": "uda.review.false-failure",
       "selectors": [
         {
@@ -1235,11 +1235,31 @@
         },
         {
           "kind": "exact_text",
+          "text": "State the confidence level and method, and size a representative pilot in advance for the tolerable false-failure rate at the intended scale."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Use a one-sided upper confidence bound p_upper in place of the point estimate p in every unit/run and hard-floor calculation, or a one-sided lower confidence bound on each directly measured floor pass rate."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Under the independent constant-p model, zero false flags among t known-correct items give the exact one-sided bound p_upper = 1 - alpha^(1/t) at confidence 1 - alpha; with t = 20 and alpha = 0.05 this is about 13.9%, not zero."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Likewise, if all u independent known-correct units pass a floor, its exact lower bound is q_lower = alpha^(1/u), not 1."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Report the pilot counts and bounds; if the pilot is too small to rule out material rejection, enlarge it with a predeclared sample size or redesign before scale, rather than admitting the gate on a point estimate."
+        },
+        {
+          "kind": "exact_text",
           "text": "Apply the estimate to each hard floor too: a zero-critical-misses floor is a zero-findings gate over the m critical items alone, so it fails correct work with probability 1 - (1 - p)^m."
         },
         {
           "kind": "exact_text",
-          "text": "If the estimate would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after."
+          "text": "If the conservative bound would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after."
         },
         {
           "kind": "exact_text",
@@ -1255,7 +1275,7 @@
         },
         {
           "kind": "exact_text",
-          "text": "Treat the formulas as planning estimates, and prefer a pass rate measured on known-correct units."
+          "text": "Treat the formulas as planning estimates, and prefer a pass rate measured on known-correct units with its confidence bound."
         },
         {
           "kind": "exact_text",
@@ -1290,9 +1310,9 @@
     {
       "extracted_sha256": "d41588f149d477b287d172983a1d12cc4aaa58942727638334c2e8a3fb3038af",
       "extracted_utf8_bytes": 660,
-      "git_blob_sha1": "d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "rule_id": "uda.review.item-degradation",
       "selectors": [
         {
@@ -1320,9 +1340,9 @@
     {
       "extracted_sha256": "702fa5d805d8d2efc05946ab787a4d34f5fb2b8ff8dcb57201d505f03143d715",
       "extracted_utf8_bytes": 769,
-      "git_blob_sha1": "d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "git_blob_sha1": "4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d291a65f859ee5f4cad4448c47cd34097287bfe4",
+      "repository_revision": "BLOB:4b67bc7dc2063e46f95f684a09de1af26fbb9012",
       "rule_id": "uda.review.repair-bound",
       "selectors": [
         {
