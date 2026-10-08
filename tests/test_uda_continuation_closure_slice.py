@@ -334,7 +334,10 @@ class ContinuationClosureSliceTests(unittest.TestCase):
             if rid not in REFRESH_EVENTS:
                 continue
             with self.subTest(record=rid):
-                self.assertEqual(["action_classes"], r["refresh_on_facts"])
+                expected_facts = ["action_classes"]
+                if rid in ("uda.compaction.resume-reconciliation", "uda.compaction.completion-closeout"):
+                    expected_facts.append("continuity_required")
+                self.assertEqual(expected_facts, r["refresh_on_facts"])
                 task["facts"]["action_classes"]["value"] = ["exclusive_task"]
                 initial = tt.compile_contract(catalog, self.profile, task, "graph")
                 self.assertFalse(initial["selected_rules"])
@@ -351,6 +354,39 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                 receipts = self.bind(refreshed, phase, payload, tt.read_json(folder / "verdicts.json")["compliant.txt"])
                 self.assertEqual("ADMITTED", self.check(refreshed, phase, payload, changed, receipts=receipts)["admission"])
                 self.assertEqual("ADMITTED", self.check(refreshed, phase, payload, copy.deepcopy(changed), receipts=receipts)["admission"])
+
+    def test_expanding_continuity_blocks_resume_and_closeout_until_recompiled(self):
+        for folder, record, catalog, task, _ in self.cases():
+            if record["rule_id"] not in ("uda.compaction.resume-reconciliation", "uda.compaction.completion-closeout"):
+                continue
+            phase, destination = record["obligations"][0]["due_phase"], record["obligations"][0]["destination"]
+            payload = (folder / "compliant.txt").read_bytes()
+            judgment = tt.read_json(folder / "verdicts.json")["compliant.txt"]
+            for mode in ("graph", "flat"):
+                for initial_fact in ({"state": "KNOWN", "value": False}, {"state": "ABSENT"}):
+                    with self.subTest(record=record["rule_id"], mode=mode, initial_state=initial_fact["state"]):
+                        initial_task = copy.deepcopy(task)
+                        initial_task["facts"]["continuity_required"] = initial_fact
+                        initial = tt.compile_contract(catalog, self.profile, initial_task, mode)
+                        self.assertFalse(initial["selected_rules"])
+                        self.assertEqual("NOT_EVALUATED", self.check(
+                            initial, phase, payload, initial_task, destination=destination)["admission"])
+                        changed = copy.deepcopy(initial_task)
+                        changed["facts"]["continuity_required"] = {"state": "KNOWN", "value": True}
+                        stale = self.check(initial, phase, payload, changed, destination=destination)
+                        self.assertEqual("BLOCKED", stale["admission"])
+                        self.assertEqual("task facts changed; recompile contract before checking", stale["reason"])
+                        self.assertEqual("BLOCKED", tt.check_contract(
+                            initial, phase, payload, destination=destination)["admission"])
+                        refreshed = tt.compile_contract(catalog, self.profile, changed, mode)
+                        self.assertEqual([record["rule_id"]], [r["rule_id"] for r in refreshed["selected_rules"]])
+                        self.assertEqual("BLOCKED", self.check(
+                            refreshed, phase, payload, changed, destination=destination)["admission"])
+                        receipts = self.bind(refreshed, phase, payload, judgment)
+                        self.assertEqual("ADMITTED", self.check(
+                            refreshed, phase, payload, changed, destination=destination, receipts=receipts)["admission"])
+                        self.assertEqual("BLOCKED", self.check(
+                            refreshed, phase, payload, initial_task, destination=destination, receipts=receipts)["admission"])
 
     def test_becoming_exclusive_blocks_each_core_destination_until_recompiled(self):
         for folder, record, catalog, task, _ in self.cases():

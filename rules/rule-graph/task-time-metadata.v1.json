@@ -4839,7 +4839,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "continuity_required"
       ]
     },
     {
@@ -4925,7 +4926,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "continuity_required"
       ]
     },
     {
