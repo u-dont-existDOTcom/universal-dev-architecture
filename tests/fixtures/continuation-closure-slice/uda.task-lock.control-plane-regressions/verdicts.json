@@ -1,7 +1,7 @@
 {
   "compliant.txt": {
     "verdict": "PASS",
-    "evidence": "Executed regressions reject wrong branch and stale checkpoint identity, missing artifacts, preliminary green-code completion, blocked live COMPLETE, grader leakage and unrelated-source selection; acceptance passes only when every declared artifact exists.",
+    "evidence": "Executed control-plane cases reject wrong branch, stale task identity, preliminary green code, missing artifacts, COMPLETE for blocked live work, input/grader leakage and unrelated roadmap selection; only all declared artifacts admit acceptance. The receipt includes execution results.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -10,7 +10,7 @@
   },
   "violating.txt": {
     "verdict": "FAIL",
-    "evidence": "Only the success path was tested; wrong branch, leakage and incomplete artifact acceptance are untested.",
+    "evidence": "The worker reports control-plane coverage without running any of its cases.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -19,7 +19,7 @@
   },
   "near-miss.txt": {
     "verdict": "FAIL",
-    "evidence": "Executed regressions reject wrong branch and stale checkpoint identity, missing artifacts, preliminary green-code completion, blocked live COMPLETE, grader leakage and unrelated-source selection; acceptance passes only when every declared artifact exists. The claimed evidence instead relies on test names listed without executing the control-plane regressions.",
+    "evidence": "An enumerated plan does not prove the required control-plane regressions ran.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",

@@ -230,7 +230,11 @@ class EnforcementCoverageTests(unittest.TestCase):
 
     def test_promoted_baseline_entries_cannot_regress_without_owner_authorization(self):
         original = self.read(coverage.COVERAGE)
-        promoted = self.read(coverage.REQUIREMENT)["source_clause_manifest"]
+        requirement = self.read(coverage.REQUIREMENT)
+        promoted = requirement["source_clause_manifest"]
+        # Simulate absence of this owner's explicit corrective reclassification.
+        requirement.pop("owner_authorized_coverage_corrections", None)
+        self.write(coverage.REQUIREMENT, requirement)
         self.assertTrue(promoted)
         for target in promoted:
             with self.subTest(target=target):
@@ -337,7 +341,7 @@ class EnforcementCoverageTests(unittest.TestCase):
         backlog = report["backlog"]
         migrated_baseline = set(report["removed_since_baseline"])
         self.assertEqual(expected, {e["id"] for e in backlog if e["priority"] == "P1"} | migrated_baseline)
-        self.assertEqual(9, len(migrated_baseline))
+        self.assertEqual(7, len(migrated_baseline))
 
     def test_report_orders_priority_then_estimated_trigger_frequency(self):
         report = coverage.report(self.root)
@@ -372,9 +376,9 @@ class EnforcementCoverageTests(unittest.TestCase):
         baseline_ids = set(self.read(coverage.BASELINE)["backlog_ids"])
         removed = sorted(e["id"] for e in entries if e["disposition"] == "STRUCTURED_ENFORCED" and e["id"] in baseline_ids)
         self.assertEqual(removed, report["removed_since_baseline"])
-        self.assertEqual(9, len(removed))
+        self.assertEqual(7, len(removed))
         self.assertEqual(84, report["baseline_backlog_count"])
-        self.assertEqual(75, report["backlog_count"])
+        self.assertEqual(77, report["backlog_count"])
 
     def test_documented_counts_match_report(self):
         report = coverage.report(self.root)

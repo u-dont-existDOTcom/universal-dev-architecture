@@ -2268,7 +2268,7 @@
       "id": "patterns/context-compaction-resilience.md",
       "kind": "pattern",
       "indexed": true,
-      "disposition": "STRUCTURED_ENFORCED",
+      "disposition": "STRUCTURED_PARTIAL",
       "behavioral": true,
       "activation_route": {
         "kind": "STRUCTURED_TRIGGER",
@@ -2288,9 +2288,7 @@
       ],
       "destinations": [
         "durable-task-checkpoint",
-        "canonical-repository-memory",
         "verified-resume-state",
-        "repository-recovery-handoff",
         "project-instruction"
       ],
       "enforcement_types": [
@@ -2300,15 +2298,9 @@
         "uda.continuity.step-checkpoint",
         "uda.continuity.turn-end-handoff",
         "uda.continuity.usage-warning",
-        "uda.compaction.durable-memory",
-        "uda.compaction.recovery-checkpoint",
-        "uda.compaction.durable-boundaries",
         "uda.compaction.resume-reconciliation",
-        "uda.compaction.reasoning-outcomes",
-        "uda.compaction.fresh-worker-recovery",
         "uda.compaction.completion-closeout",
-        "uda.compaction.portable-instruction",
-        "uda.compaction.recovery-limits"
+        "uda.compaction.portable-instruction"
       ],
       "graph_node": null,
       "evidence": [
@@ -2353,138 +2345,138 @@
           "class": "BEHAVIORAL_REGRESSION"
         }
       ],
-      "review_notes": "Complete exact source-clause map and independent whole-pattern/per-section pins. Bound semantic admission and hostile candidate/replay/mutation regressions verify preservation/binding, not semantic truth, actual gate invocation or universal runtime adoption.",
-      "legacy_remainder": "",
+      "review_notes": "Supervisor corrections bind claims to exact-head acceptance, real gate/resolver output and actual phases; retain explicit source remainder and evidence limitations. No universal runtime or semantic-truth claim.",
+      "legacy_remainder": "Unselected operative clauses retained in prose after consolidation and mandatory refresh exceed the unchanged rendered budget: Do not attempt to preserve private model reasoning or every exploratory thought. Persist the user-relevant engineering/research outcomes needed for continuity: - decisions and why they were chosen; - rejected approaches when repeating them would waste time or recreate a known failure; - invariants and constraints; - evidence pointers; - test/validation results; - unresolved uncertainty; - next action. - Do not treat a stale `CURRENT-STATE` file as more authoritative than actual Git state or newer owner instructions. - Do not store secrets, credentials, tokens, or private chain-of-thought in recovery files. - Do not duplicate large logs or raw evidence into the checkpoint; link to their canonical locations. - Projects may use a machine-readable ledger/database instead of Markdown if it provides the same recovery guarantees. The general durable-memory/checkpoint/boundary clauses now carried in uda.continuity.step-checkpoint cover OPEN executable continuity; their broader multi-step diagnostic, stopped or satisfied-task persistence scope remains prose-governed. Repository-alone successor recovery at its handoff boundary also remains prose-governed: A robust project should tolerate starting a completely fresh agent conversation at any time. The test is: > Could a competent new worker, with repository access but without the old chat transcript, recover the correct current state and continue without repeating completed work or silently losing important constraints? If not, project state is insufficiently durable.",
       "obligation_map": [
         {
           "sentence": "A project must therefore be designed so that losing old chat detail does not mean losing project state.",
-          "record": "uda.compaction.durable-memory",
-          "obligation_id": "durable-memory-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "Use this hierarchy:",
-          "record": "uda.compaction.durable-memory",
-          "obligation_id": "durable-memory-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- **conversation/context = working RAM**;",
-          "record": "uda.compaction.durable-memory",
-          "obligation_id": "durable-memory-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- **canonical repository = durable project memory**;",
-          "record": "uda.compaction.durable-memory",
-          "obligation_id": "durable-memory-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- **Git history = durable audit trail and rollback path**;",
-          "record": "uda.compaction.durable-memory",
-          "obligation_id": "durable-memory-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- **current-state/checkpoint file = recovery entry point**;",
-          "record": "uda.compaction.durable-memory",
-          "obligation_id": "durable-memory-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- **exact project artifacts/evidence = authority for factual implementation state**.",
-          "record": "uda.compaction.durable-memory",
-          "obligation_id": "durable-memory-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "Any decision, constraint, discovery, architecture choice, completed step, or unresolved blocker that would matter after a new thread or context compaction must be written into the canonical repository rather than left only in chat.",
-          "record": "uda.compaction.durable-memory",
-          "obligation_id": "durable-memory-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "For any project with multi-step, multi-session, or long autonomous work, maintain a concise canonical recovery file such as `CURRENT-STATE.md`, `state/CURRENT-STATE.md`, or an equivalent machine-readable state file chosen by the project.",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "The exact filename may vary, but there must be one obvious current recovery entry point referenced by the project's main index/bootstrap.",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "With concurrent branches, keep that entry point for repository-level state and give each task its own checkpoint.",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "Per-task files avoid merge conflicts while the recovery entry point stays obvious.",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "At minimum, the state checkpoint should record:",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- current goal / task;",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- authoritative baseline or relevant commit/ref;",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- important active decisions and owner constraints;",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- bootstrap requirements and blocking gates that the task directive or handoff established, so they stay active after compaction;",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- completed work that must not be repeated;",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- current step / last durable checkpoint;",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- remaining work;",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- blockers or unresolved questions;",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- relevant artifacts, evidence, tests, logs, branches, and commits;",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- uncommitted/dirty-working-tree status when relevant;",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- the next safe resume action or command.",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "Keep this file concise and operational.",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "It is a recovery map, not a transcript dump.",
-          "record": "uda.compaction.recovery-checkpoint",
-          "obligation_id": "recovery-checkpoint-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "Plan usage limits, like context limits, can end a turn without warning.",
@@ -2548,48 +2540,48 @@
         },
         {
           "sentence": "Update the current-state file whenever losing the current chat would otherwise create ambiguity or rework, especially:",
-          "record": "uda.compaction.durable-boundaries",
-          "obligation_id": "durable-boundaries-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- after a meaningful implementation/research/editorial milestone;",
-          "record": "uda.compaction.durable-boundaries",
-          "obligation_id": "durable-boundaries-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- after a consequential owner decision or constraint change;",
-          "record": "uda.compaction.durable-boundaries",
-          "obligation_id": "durable-boundaries-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- after discovering a blocker or falsifying an approach;",
-          "record": "uda.compaction.durable-boundaries",
-          "obligation_id": "durable-boundaries-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- before/after risky migrations or long autonomous runs;",
-          "record": "uda.compaction.durable-boundaries",
-          "obligation_id": "durable-boundaries-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- before handing work to another agent/thread;",
-          "record": "uda.compaction.durable-boundaries",
-          "obligation_id": "durable-boundaries-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "- before claiming a multi-step task complete.",
-          "record": "uda.compaction.durable-boundaries",
-          "obligation_id": "durable-boundaries-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "Do not wait for the model to detect that compaction is imminent.",
-          "record": "uda.compaction.durable-boundaries",
-          "obligation_id": "durable-boundaries-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "Context limits are implementation details and may not be visible to the worker.",
-          "record": "uda.compaction.durable-boundaries",
-          "obligation_id": "durable-boundaries-at-boundary"
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         },
         {
           "sentence": "After interruption, a new thread, a model switch, or suspected context loss:",
@@ -2650,71 +2642,6 @@
           "sentence": "If it conflicts with exact Git state, current artifacts, tests, or newer owner instructions, the newer verified evidence wins and the checkpoint must be repaired.",
           "record": "uda.compaction.resume-reconciliation",
           "obligation_id": "resume-reconciliation-at-boundary"
-        },
-        {
-          "sentence": "Do not attempt to preserve private model reasoning or every exploratory thought.",
-          "record": "uda.compaction.reasoning-outcomes",
-          "obligation_id": "reasoning-outcomes-at-boundary"
-        },
-        {
-          "sentence": "Persist the user-relevant engineering/research outcomes needed for continuity:",
-          "record": "uda.compaction.reasoning-outcomes",
-          "obligation_id": "reasoning-outcomes-at-boundary"
-        },
-        {
-          "sentence": "- decisions and why they were chosen;",
-          "record": "uda.compaction.reasoning-outcomes",
-          "obligation_id": "reasoning-outcomes-at-boundary"
-        },
-        {
-          "sentence": "- rejected approaches when repeating them would waste time or recreate a known failure;",
-          "record": "uda.compaction.reasoning-outcomes",
-          "obligation_id": "reasoning-outcomes-at-boundary"
-        },
-        {
-          "sentence": "- invariants and constraints;",
-          "record": "uda.compaction.reasoning-outcomes",
-          "obligation_id": "reasoning-outcomes-at-boundary"
-        },
-        {
-          "sentence": "- evidence pointers;",
-          "record": "uda.compaction.reasoning-outcomes",
-          "obligation_id": "reasoning-outcomes-at-boundary"
-        },
-        {
-          "sentence": "- test/validation results;",
-          "record": "uda.compaction.reasoning-outcomes",
-          "obligation_id": "reasoning-outcomes-at-boundary"
-        },
-        {
-          "sentence": "- unresolved uncertainty;",
-          "record": "uda.compaction.reasoning-outcomes",
-          "obligation_id": "reasoning-outcomes-at-boundary"
-        },
-        {
-          "sentence": "- next action.",
-          "record": "uda.compaction.reasoning-outcomes",
-          "obligation_id": "reasoning-outcomes-at-boundary"
-        },
-        {
-          "sentence": "A robust project should tolerate starting a completely fresh agent conversation at any time.",
-          "record": "uda.compaction.fresh-worker-recovery",
-          "obligation_id": "fresh-worker-recovery-at-boundary"
-        },
-        {
-          "sentence": "The test is:",
-          "record": "uda.compaction.fresh-worker-recovery",
-          "obligation_id": "fresh-worker-recovery-at-boundary"
-        },
-        {
-          "sentence": "> Could a competent new worker, with repository access but without the old chat transcript, recover the correct current state and continue without repeating completed work or silently losing important constraints?",
-          "record": "uda.compaction.fresh-worker-recovery",
-          "obligation_id": "fresh-worker-recovery-at-boundary"
-        },
-        {
-          "sentence": "If not, project state is insufficiently durable.",
-          "record": "uda.compaction.fresh-worker-recovery",
-          "obligation_id": "fresh-worker-recovery-at-boundary"
         },
         {
           "sentence": "For substantive long-running work, completion requires both:",
@@ -2782,26 +2709,17 @@
           "obligation_id": "portable-instruction-at-boundary"
         },
         {
-          "sentence": "- Do not treat a stale `CURRENT-STATE` file as more authoritative than actual Git state or newer owner instructions.",
-          "record": "uda.compaction.recovery-limits",
-          "obligation_id": "recovery-limits-at-boundary"
-        },
-        {
-          "sentence": "- Do not store secrets, credentials, tokens, or private chain-of-thought in recovery files.",
-          "record": "uda.compaction.recovery-limits",
-          "obligation_id": "recovery-limits-at-boundary"
-        },
-        {
-          "sentence": "- Do not duplicate large logs or raw evidence into the checkpoint; link to their canonical locations.",
-          "record": "uda.compaction.recovery-limits",
-          "obligation_id": "recovery-limits-at-boundary"
-        },
-        {
-          "sentence": "- Projects may use a machine-readable ledger/database instead of Markdown if it provides the same recovery guarantees.",
-          "record": "uda.compaction.recovery-limits",
-          "obligation_id": "recovery-limits-at-boundary"
+          "sentence": "Automatic model-context compaction is an efficiency mechanism, not a persistence mechanism.",
+          "record": "uda.continuity.step-checkpoint",
+          "obligation_id": "save-completed-step"
         }
-      ]
+      ],
+      "existing_coverage_limits": "Triggers depend on self-declared action_classes/continuity scope; binding checks do not independently discover the action. Event-selected records currently permit reason-bound NOT_APPLICABLE even when the trigger declares the event; semantic review must reject a false absence. Synthetic receipts test binding and asserted judgments, not semantic truth or live execution.",
+      "migration": {
+        "priority": "P1",
+        "trigger_frequency": "FREQUENT",
+        "next_step": "Bind the exact legacy_remainder at its named persistence/handoff or multi-event controller boundary without weakening the unchanged Work projection budgets."
+      }
     },
     {
       "id": "patterns/context-gated-symbolic-personality-synthesis-errata.md",
@@ -4047,8 +3965,8 @@
           "class": "BEHAVIORAL_REGRESSION"
         }
       ],
-      "review_notes": "Complete exact source-clause map and independent whole-pattern/per-section pins. Bound semantic admission and hostile candidate/replay/mutation regressions verify preservation/binding, not semantic truth, actual gate invocation or universal runtime adoption.",
-      "existing_coverage_limits": "Resolver mechanically validates supplied identities, owner-source receipt binding, blocker applicability, non-waivable gates, waits and frontiers. It does not prove the owner-source receipt is semantically correct, inspect every task deliverable, run live campaigns, or establish protected merge/readback completion.",
+      "review_notes": "Supervisor corrections bind claims to exact-head acceptance, real gate/resolver output and actual phases; retain explicit source remainder and evidence limitations. No universal runtime or semantic-truth claim.",
+      "existing_coverage_limits": "Triggers depend on self-declared action_classes/continuity scope; binding checks do not independently discover the action. Event-selected records currently permit reason-bound NOT_APPLICABLE even when the trigger declares the event; semantic review must reject a false absence. Synthetic receipts test binding and asserted judgments, not semantic truth or live execution.",
       "obligation_map": [
         {
           "sentence": "For consequential multi-session work in a repository with competing task sources, make the active task **exclusive, source-controlled, branch-bound, and machine-gated**.",
@@ -4698,17 +4616,17 @@
         {
           "sentence": "- ordinary CI as proof of owner-task completion;",
           "record": "uda.task-lock.anti-substitutes",
-          "obligation_id": "anti-substitutes-at-boundary"
+          "obligation_id": "anti-substitutes-at-claim"
         },
         {
           "sentence": "- a PR body that says “work in progress” while the worker reports complete;",
           "record": "uda.task-lock.anti-substitutes",
-          "obligation_id": "anti-substitutes-at-boundary"
+          "obligation_id": "anti-substitutes-at-claim"
         },
         {
           "sentence": "- conversational promises to compare without per-case comparison artifacts;",
           "record": "uda.task-lock.anti-substitutes",
-          "obligation_id": "anti-substitutes-at-boundary"
+          "obligation_id": "anti-substitutes-at-claim"
         },
         {
           "sentence": "- deleting parallel worktrees merely to prevent task drift.",
@@ -4736,11 +4654,6 @@
           "obligation_id": "portable-instruction-at-boundary"
         },
         {
-          "sentence": "Claim readiness only when the task-specific acceptance command verifies every required artifact; claim completion only after protected merge and an immutable receipt.",
-          "record": "uda.task-lock.portable-instruction",
-          "obligation_id": "portable-instruction-at-boundary"
-        },
-        {
           "sentence": "- Tiny one-shot tasks do not need a dedicated lock.",
           "record": "uda.task-lock.scope-authority",
           "obligation_id": "scope-authority-at-boundary"
@@ -4764,6 +4677,11 @@
           "sentence": "- A lock prevents task drift; it does not prove the substantive implementation is correct.",
           "record": "uda.task-lock.scope-authority",
           "obligation_id": "scope-authority-at-boundary"
+        },
+        {
+          "sentence": "Claim readiness only when the task-specific acceptance command verifies every required artifact; claim completion only after protected merge and an immutable receipt.",
+          "record": "uda.task-lock.terminal-states",
+          "obligation_id": "terminal-states-at-boundary"
         }
       ],
       "legacy_remainder": ""
@@ -7278,7 +7196,7 @@
       "id": "patterns/terminal-response-admission-and-autonomous-continuation.md",
       "kind": "pattern",
       "indexed": true,
-      "disposition": "STRUCTURED_ENFORCED",
+      "disposition": "STRUCTURED_PARTIAL",
       "behavioral": true,
       "activation_route": {
         "kind": "STRUCTURED_TRIGGER",
@@ -7340,6 +7258,14 @@
         {
           "path": "tests/test_uda_continuation_closure_slice.py",
           "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "tools/codex-mission-control/restored/codex-mission-control/tests/final-response-gate.test.ts",
+          "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "tools/codex-mission-control/restored/codex-mission-control/tests/worker-channel.test.ts",
+          "class": "BEHAVIORAL_REGRESSION"
         }
       ],
       "obligation_map": [
@@ -7384,11 +7310,6 @@
           "obligation_id": "controller-resume-at-boundary"
         },
         {
-          "sentence": "The controller must preserve resumability and continue automatically when the new directive arrives or the blocking condition clears.",
-          "record": "uda.continuation.controller-resume",
-          "obligation_id": "controller-resume-at-boundary"
-        },
-        {
           "sentence": "For an exclusive active task, **ending a response is a controlled terminal action**.",
           "record": "uda.continuation.terminal-admission",
           "obligation_id": "terminal-admission-at-boundary"
@@ -7429,56 +7350,6 @@
           "obligation_id": "terminal-admission-at-boundary"
         },
         {
-          "sentence": "None of the following is, by itself, permission for a terminal response:",
-          "record": "uda.continuation.recovery-events",
-          "obligation_id": "recovery-events-at-boundary"
-        },
-        {
-          "sentence": "- context compaction or context-window pressure;",
-          "record": "uda.continuation.recovery-events",
-          "obligation_id": "recovery-events-at-boundary"
-        },
-        {
-          "sentence": "- response/token-budget pressure;",
-          "record": "uda.continuation.recovery-events",
-          "obligation_id": "recovery-events-at-boundary"
-        },
-        {
-          "sentence": "- many tool calls or a long-running turn;",
-          "record": "uda.continuation.recovery-events",
-          "obligation_id": "recovery-events-at-boundary"
-        },
-        {
-          "sentence": "- a checkpoint or recovery commit;",
-          "record": "uda.continuation.recovery-events",
-          "obligation_id": "recovery-events-at-boundary"
-        },
-        {
-          "sentence": "- browser-tab cleanup or browser-memory pressure;",
-          "record": "uda.continuation.recovery-events",
-          "obligation_id": "recovery-events-at-boundary"
-        },
-        {
-          "sentence": "- a provider cooldown, temporary rate limit, retry/backoff interval, or transient tool outage;",
-          "record": "uda.continuation.recovery-events",
-          "obligation_id": "recovery-events-at-boundary"
-        },
-        {
-          "sentence": "- the end of a batch when the next batch/ordinal is already determined;",
-          "record": "uda.continuation.recovery-events",
-          "obligation_id": "recovery-events-at-boundary"
-        },
-        {
-          "sentence": "- ordinary green tests while task acceptance remains open;",
-          "record": "uda.continuation.recovery-events",
-          "obligation_id": "recovery-events-at-boundary"
-        },
-        {
-          "sentence": "- a worker-authored `blocked`, `done`, or handoff statement without current structured authority/evidence.",
-          "record": "uda.continuation.recovery-events",
-          "obligation_id": "recovery-events-at-boundary"
-        },
-        {
           "sentence": "Treat these as recovery events.",
           "record": "uda.continuation.recovery-events",
           "obligation_id": "recovery-events-at-boundary"
@@ -7500,16 +7371,6 @@
         },
         {
           "sentence": "2. advance independent safe in-scope work that does not depend on the provider;",
-          "record": "uda.continuation.provider-waits",
-          "obligation_id": "provider-waits-at-boundary"
-        },
-        {
-          "sentence": "3. keep checking the changing condition at the configured bounded interval;",
-          "record": "uda.continuation.provider-waits",
-          "obligation_id": "provider-waits-at-boundary"
-        },
-        {
-          "sentence": "4. resume the blocked frontier automatically when it clears;",
           "record": "uda.continuation.provider-waits",
           "obligation_id": "provider-waits-at-boundary"
         },
@@ -7657,10 +7518,91 @@
           "sentence": "- Tiny one-shot tasks without an exclusive active-task contract do not require this machinery.",
           "record": "uda.continuation.authority-limits",
           "obligation_id": "authority-limits-at-boundary"
+        },
+        {
+          "sentence": "This rule operationalizes, rather than replaces:",
+          "record": "uda.continuation.authority-limits",
+          "obligation_id": "authority-limits-at-boundary"
+        },
+        {
+          "sentence": "- `patterns/exclusive-active-task-locks.md`;",
+          "record": "uda.continuation.authority-limits",
+          "obligation_id": "authority-limits-at-boundary"
+        },
+        {
+          "sentence": "- the standing continuous-next-step rule in `patterns/codex-github-operating-system.md`;",
+          "record": "uda.continuation.authority-limits",
+          "obligation_id": "authority-limits-at-boundary"
+        },
+        {
+          "sentence": "- `templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md`;",
+          "record": "uda.continuation.authority-limits",
+          "obligation_id": "authority-limits-at-boundary"
+        },
+        {
+          "sentence": "- the Mission Control terminal comparator.",
+          "record": "uda.continuation.authority-limits",
+          "obligation_id": "authority-limits-at-boundary"
+        },
+        {
+          "sentence": "None of the following is, by itself, permission for a terminal response:",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "- context compaction or context-window pressure;",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "- response/token-budget pressure;",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "- many tool calls or a long-running turn;",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "- a checkpoint or recovery commit;",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "- browser-tab cleanup or browser-memory pressure;",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "- a provider cooldown, temporary rate limit, retry/backoff interval, or transient tool outage;",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "- the end of a batch when the next batch/ordinal is already determined;",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "- ordinary green tests while task acceptance remains open;",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
+        },
+        {
+          "sentence": "- a worker-authored `blocked`, `done`, or handoff statement without current structured authority/evidence.",
+          "record": "uda.continuation.terminal-admission",
+          "obligation_id": "terminal-admission-at-boundary"
         }
       ],
-      "legacy_remainder": "",
-      "review_notes": "Complete exact source-clause map and independent whole-pattern/per-section pins. Bound semantic admission and hostile candidate/replay/mutation regressions verify preservation/binding, not semantic truth, actual gate invocation or universal runtime adoption."
+      "legacy_remainder": "Lifetime continuation after admission is not established by a single pre-action receipt: The controller must preserve resumability and continue automatically when the new directive arrives or the blocking condition clears. 3. keep checking the changing condition at the configured bounded interval; 4. resume the blocked frontier automatically when it clears; Runtime polling, cleared-condition detection and automatic continuation require multi-event controller evidence; current final-response gate tests cover terminal decisions, not the complete lifetime.",
+      "review_notes": "Supervisor corrections bind claims to exact-head acceptance, real gate/resolver output and actual phases; retain explicit source remainder and evidence limitations. No universal runtime or semantic-truth claim.",
+      "existing_coverage_limits": "Triggers depend on self-declared action_classes/continuity scope; binding checks do not independently discover the action. Event-selected records currently permit reason-bound NOT_APPLICABLE even when the trigger declares the event; semantic review must reject a false absence. Synthetic receipts test binding and asserted judgments, not semantic truth or live execution. Provider polling and automatic resume-on-clear cannot be established by one admission receipt; these exact lifetime clauses remain in legacy_remainder.",
+      "migration": {
+        "priority": "P1",
+        "trigger_frequency": "FREQUENT",
+        "next_step": "Bind the exact legacy_remainder at its named persistence/handoff or multi-event controller boundary without weakening the unchanged Work projection budgets."
+      }
     },
     {
       "id": "patterns/test-efficiency-and-verification-budget.md",

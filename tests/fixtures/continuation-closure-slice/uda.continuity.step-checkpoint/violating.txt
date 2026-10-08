@@ -1,1 +1,1 @@
-Completed work remains in one session with no durable save or exact next action.
+The branch has the completed code, but the exact next action exists only in the old conversation. The worker plans to save at the next warning.

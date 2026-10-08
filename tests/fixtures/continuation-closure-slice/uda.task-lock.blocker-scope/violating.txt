@@ -1,1 +1,1 @@
-A safety blocker is labeled independent and bypassed; an unrelated global wait contaminates the active task.
+A security-policy blocker is labeled operationally independent and discarded without a resolver finding.

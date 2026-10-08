@@ -194,7 +194,10 @@ class KernelSliceTests(unittest.TestCase):
             if not entry.get("obligation_map"):
                 continue
             with self.subTest(section=entry["id"]):
-                self.assertEqual(entry["disposition"], "STRUCTURED_ENFORCED")
+                partial = entry["id"] in {"patterns/context-compaction-resilience.md",
+                                          "patterns/terminal-response-admission-and-autonomous-continuation.md"}
+                self.assertEqual(entry["disposition"], "STRUCTURED_PARTIAL" if partial else "STRUCTURED_ENFORCED")
+                self.assertEqual(partial, bool(entry.get("legacy_remainder")))
                 for item in entry["obligation_map"]:
                     sentence = item["sentence"].replace("|", "\\|").replace("\n", " ")
                     self.assertIn(sentence, doc)

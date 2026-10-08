@@ -1,7 +1,7 @@
 {
   "compliant.txt": {
     "verdict": "PASS",
-    "evidence": "The adopted instruction preserves temporary conversation and durable repository state, all checkpoint fields, completed-step saves without thresholds, current OPEN-turn and reachable private handoff, account recreation list, one-line resume, contextual writer, immediate warning save with small steps and reconciliation after every restart or switch. Real publication gates are preserved.",
+    "evidence": "A one-shot instruction edit adopts disposable chat and durable Git, one concise checkpoint with every field, continuous completed-step saves and pushes, current OPEN-turn private/account recovery and resume line, contextual worker ownership, warning save/small steps and actual-state reconciliation after every named restart and switch.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -10,7 +10,7 @@
   },
   "violating.txt": {
     "verdict": "FAIL",
-    "evidence": "The adopted instruction defers saves to a usage threshold and drops private-state recovery.",
+    "evidence": "The adopted instruction permits saving only at a visible usage threshold.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -19,7 +19,7 @@
   },
   "near-miss.txt": {
     "verdict": "FAIL",
-    "evidence": "The adopted instruction preserves temporary conversation and durable repository state, all checkpoint fields, completed-step saves without thresholds, current OPEN-turn and reachable private handoff, account recreation list, one-line resume, contextual writer, immediate warning save with small steps and reconciliation after every restart or switch. Real publication gates are preserved. The claimed evidence instead relies on a portable instruction omitting the turn-end resume line.",
+    "evidence": "The adoption is missing the required turn-end resume line despite retaining the other checkpoint duties.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",

@@ -1,1 +1,1 @@
-The contextual worker saved each completed step to the authorized task branch and updated done, next and the exact resume action. Any account can resume without the old chat. Saving is continuous and never waits for a usage threshold or helper. The claimed evidence instead relies on a promise to save later.
+The worker pushed code and wrote done, next and the exact command. The checkpoint dropped an owner-imposed blocking gate, so a fresh account would execute that command without it.

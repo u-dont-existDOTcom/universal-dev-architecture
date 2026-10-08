@@ -1,7 +1,7 @@
 {
   "compliant.txt": {
     "verdict": "PASS",
-    "evidence": "Context and response pressure triggered a durable save. Recovery restarts from the first stale or missing action and retains verified completed work; cleanup, retries, batch ends, green tests and self-authored labels do not terminate the task.",
+    "evidence": "After restart the saved checkpoint identifies the active task and first missing action. Verified artifacts are retained and work resumes there without repeating them; the checkpoint confers no terminal permission.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -10,7 +10,7 @@
   },
   "violating.txt": {
     "verdict": "FAIL",
-    "evidence": "Browser cleanup and a checkpoint commit are treated as permission to stop despite a known next batch.",
+    "evidence": "The worker restarted without saved progress and reruns the verified batch.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -19,13 +19,13 @@
   },
   "near-miss.txt": {
     "verdict": "FAIL",
-    "evidence": "Context and response pressure triggered a durable save. Recovery restarts from the first stale or missing action and retains verified completed work; cleanup, retries, batch ends, green tests and self-authored labels do not terminate the task. The claimed evidence instead relies on a checkpoint treated as terminal permission.",
+    "evidence": "Recovery must preserve verified progress rather than repeat work to reconstruct conversational memory.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
       "relation": "SAME_AGENT"
     },
     "obligation_id": "recovery-events-at-boundary",
-    "non_substitute": "a checkpoint treated as terminal permission"
+    "non_substitute": "verified work repeated after restart"
   }
 }

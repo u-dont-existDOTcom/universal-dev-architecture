@@ -1,7 +1,7 @@
 {
   "compliant.txt": {
     "verdict": "PASS",
-    "evidence": "The contextual worker saved each completed step to the authorized task branch and updated done, next and the exact resume action. Any account can resume without the old chat. Saving is continuous and never waits for a usage threshold or helper.",
+    "evidence": "The contextual worker pushed the completed step. One indexed repository recovery entry points to this task checkpoint with goal, verified baseline, owner decisions/constraints and gates, completed/current/remaining steps, blockers, artifacts/tests/logs/branch/commit pointers, dirty state and exact next action. Canonical artifacts hold discoveries and architecture outcomes. Chat is RAM, Git audit/rollback, and compaction only efficiency. Saves cover every ambiguity/rework boundary, including owner changes and handoffs, without waiting for a usage limit or helper. Any account can recover without the old chat.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -10,7 +10,7 @@
   },
   "violating.txt": {
     "verdict": "FAIL",
-    "evidence": "Completed work remains in one session with no durable save or exact next action.",
+    "evidence": "The branch has the completed code, but the exact next action exists only in the old conversation. The worker plans to save at the next warning.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -19,13 +19,13 @@
   },
   "near-miss.txt": {
     "verdict": "FAIL",
-    "evidence": "The contextual worker saved each completed step to the authorized task branch and updated done, next and the exact resume action. Any account can resume without the old chat. Saving is continuous and never waits for a usage threshold or helper. The claimed evidence instead relies on a promise to save later.",
+    "evidence": "Pushed code and an executable next command do not compensate for omitting a binding owner gate from durable recovery.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
       "relation": "SAME_AGENT"
     },
     "obligation_id": "save-completed-step",
-    "non_substitute": "a promise to save later"
+    "non_substitute": "a checkpoint omitting an established blocking gate"
   }
 }

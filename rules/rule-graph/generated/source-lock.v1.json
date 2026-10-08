@@ -1,14 +1,14 @@
 {
-  "catalog_sha256": "df7d3e88792c6d5120ee24ac4cce38b68a9313824ce1694ee50af57f6f120020",
+  "catalog_sha256": "05799e0ea1d48f2a1f1d0468a71642425b7fe9f97fe105af33f0a6b62384434f",
   "compiler_sha256": "e526ae1e706c6ff97d74d00302c55d0a7e49aafc2df41df09f703520f7e9997a",
-  "content_sha256": "b74314b6bbf58726acb1450af24837e617bf65affe434ca25c315559daf880e3",
+  "content_sha256": "990504c6ee1c887b73b9d55fa3c0464001101383b9b26005faf0675b64bee70b",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
       "extracted_utf8_bytes": 268,
-      "git_blob_sha1": "b56639dd7492254c2238254509af2d75a2eef4b9",
+      "git_blob_sha1": "e7384c4f5945fdc24abfbb93044a9bca9d305f46",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:b56639dd7492254c2238254509af2d75a2eef4b9",
+      "repository_revision": "BLOB:e7384c4f5945fdc24abfbb93044a9bca9d305f46",
       "rule_id": "uda.active-contract.boundary-binding",
       "selectors": [
         {
@@ -84,120 +84,6 @@
       ]
     },
     {
-      "extracted_sha256": "355c926a430905d8d2a11e1f01b284354a2c92749c8cd37d6d9f3be5ca800469",
-      "extracted_utf8_bytes": 605,
-      "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
-      "path": "patterns/context-compaction-resilience.md",
-      "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
-      "rule_id": "uda.compaction.durable-boundaries",
-      "selectors": [
-        {
-          "kind": "exact_text",
-          "text": "Update the current-state file whenever losing the current chat would otherwise create ambiguity or rework, especially:"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- after a meaningful implementation/research/editorial milestone;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- after a consequential owner decision or constraint change;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- after discovering a blocker or falsifying an approach;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- before/after risky migrations or long autonomous runs;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- before handing work to another agent/thread;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- before claiming a multi-step task complete."
-        },
-        {
-          "kind": "exact_text",
-          "text": "Do not wait for the model to detect that compaction is imminent."
-        },
-        {
-          "kind": "exact_text",
-          "text": "Context limits are implementation details and may not be visible to the worker."
-        }
-      ]
-    },
-    {
-      "extracted_sha256": "b4bc001e1f60541efe624c8e9edeaaff132c6ecf5ddbda072a97418c1db1104d",
-      "extracted_utf8_bytes": 661,
-      "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
-      "path": "patterns/context-compaction-resilience.md",
-      "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
-      "rule_id": "uda.compaction.durable-memory",
-      "selectors": [
-        {
-          "kind": "exact_text",
-          "text": "A project must therefore be designed so that losing old chat detail does not mean losing project state."
-        },
-        {
-          "kind": "exact_text",
-          "text": "Use this hierarchy:"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- **conversation/context = working RAM**;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- **canonical repository = durable project memory**;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- **Git history = durable audit trail and rollback path**;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- **current-state/checkpoint file = recovery entry point**;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- **exact project artifacts/evidence = authority for factual implementation state**."
-        },
-        {
-          "kind": "exact_text",
-          "text": "Any decision, constraint, discovery, architecture choice, completed step, or unresolved blocker that would matter after a new thread or context compaction must be written into the canonical repository rather than left only in chat."
-        }
-      ]
-    },
-    {
-      "extracted_sha256": "20be99218fb3ad1cac9e01d8990b9bec94c5facf5b43c6a810d70359dea3b6ea",
-      "extracted_utf8_bytes": 371,
-      "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
-      "path": "patterns/context-compaction-resilience.md",
-      "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
-      "rule_id": "uda.compaction.fresh-worker-recovery",
-      "selectors": [
-        {
-          "kind": "exact_text",
-          "text": "A robust project should tolerate starting a completely fresh agent conversation at any time."
-        },
-        {
-          "kind": "exact_text",
-          "text": "The test is:"
-        },
-        {
-          "kind": "exact_text",
-          "text": "> Could a competent new worker, with repository access but without the old chat transcript, recover the correct current state and continue without repeating completed work or silently losing important constraints?"
-        },
-        {
-          "kind": "exact_text",
-          "text": "If not, project state is insufficiently durable."
-        }
-      ]
-    },
-    {
       "extracted_sha256": "cd8eee7e4df509a2cf4a9805741dbe7e42db47c00df4a006d01905dddf5ce451",
       "extracted_utf8_bytes": 940,
       "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
@@ -236,160 +122,6 @@
         {
           "kind": "exact_text",
           "text": "On any new thread, interruption, context compaction, model switch, or account switch, reconcile the checkpoint against actual repository state and resume from the latest verified checkpoint without repeating completed work."
-        }
-      ]
-    },
-    {
-      "extracted_sha256": "4c9fb4c31cdc9c6ff9c874673f5129bfcd47148e9556b71a39f9506274e175f9",
-      "extracted_utf8_bytes": 412,
-      "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
-      "path": "patterns/context-compaction-resilience.md",
-      "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
-      "rule_id": "uda.compaction.reasoning-outcomes",
-      "selectors": [
-        {
-          "kind": "exact_text",
-          "text": "Do not attempt to preserve private model reasoning or every exploratory thought."
-        },
-        {
-          "kind": "exact_text",
-          "text": "Persist the user-relevant engineering/research outcomes needed for continuity:"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- decisions and why they were chosen;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- rejected approaches when repeating them would waste time or recreate a known failure;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- invariants and constraints;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- evidence pointers;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- test/validation results;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- unresolved uncertainty;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- next action."
-        }
-      ]
-    },
-    {
-      "extracted_sha256": "82f4613b3353f5bcca002844da11031d05a014a779e1e3c5e5a5976b4dda70bb",
-      "extracted_utf8_bytes": 1281,
-      "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
-      "path": "patterns/context-compaction-resilience.md",
-      "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
-      "rule_id": "uda.compaction.recovery-checkpoint",
-      "selectors": [
-        {
-          "kind": "exact_text",
-          "text": "For any project with multi-step, multi-session, or long autonomous work, maintain a concise canonical recovery file such as `CURRENT-STATE.md`, `state/CURRENT-STATE.md`, or an equivalent machine-readable state file chosen by the project."
-        },
-        {
-          "kind": "exact_text",
-          "text": "The exact filename may vary, but there must be one obvious current recovery entry point referenced by the project's main index/bootstrap."
-        },
-        {
-          "kind": "exact_text",
-          "text": "With concurrent branches, keep that entry point for repository-level state and give each task its own checkpoint."
-        },
-        {
-          "kind": "exact_text",
-          "text": "Per-task files avoid merge conflicts while the recovery entry point stays obvious."
-        },
-        {
-          "kind": "exact_text",
-          "text": "At minimum, the state checkpoint should record:"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- current goal / task;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- authoritative baseline or relevant commit/ref;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- important active decisions and owner constraints;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- bootstrap requirements and blocking gates that the task directive or handoff established, so they stay active after compaction;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- completed work that must not be repeated;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- current step / last durable checkpoint;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- remaining work;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- blockers or unresolved questions;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- relevant artifacts, evidence, tests, logs, branches, and commits;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- uncommitted/dirty-working-tree status when relevant;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- the next safe resume action or command."
-        },
-        {
-          "kind": "exact_text",
-          "text": "Keep this file concise and operational."
-        },
-        {
-          "kind": "exact_text",
-          "text": "It is a recovery map, not a transcript dump."
-        }
-      ]
-    },
-    {
-      "extracted_sha256": "b0029268ed3b57ef05d102d25021b2f6036e20cbffe60c4a7bd27a247ce9cc0b",
-      "extracted_utf8_bytes": 432,
-      "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
-      "path": "patterns/context-compaction-resilience.md",
-      "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
-      "rule_id": "uda.compaction.recovery-limits",
-      "selectors": [
-        {
-          "kind": "exact_text",
-          "text": "- Do not treat a stale `CURRENT-STATE` file as more authoritative than actual Git state or newer owner instructions."
-        },
-        {
-          "kind": "exact_text",
-          "text": "- Do not store secrets, credentials, tokens, or private chain-of-thought in recovery files."
-        },
-        {
-          "kind": "exact_text",
-          "text": "- Do not duplicate large logs or raw evidence into the checkpoint; link to their canonical locations."
-        },
-        {
-          "kind": "exact_text",
-          "text": "- Projects may use a machine-readable ledger/database instead of Markdown if it provides the same recovery guarantees."
         }
       ]
     },
@@ -452,8 +184,8 @@
       ]
     },
     {
-      "extracted_sha256": "e35b6580e1153631a1404362a0583dae53d69423af2f6713ba22c1e36bd305a3",
-      "extracted_utf8_bytes": 670,
+      "extracted_sha256": "c98d1681ad2a9616de3d21c7bf2354260a1ff093489e547240f7b52ff8a52555",
+      "extracted_utf8_bytes": 962,
       "git_blob_sha1": "017c41f37ed01d0df10265b751c4bbd9c5b122d3",
       "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
       "repository_revision": "BLOB:017c41f37ed01d0df10265b751c4bbd9c5b122d3",
@@ -482,12 +214,32 @@
         {
           "kind": "exact_text",
           "text": "- Tiny one-shot tasks without an exclusive active-task contract do not require this machinery."
+        },
+        {
+          "kind": "exact_text",
+          "text": "This rule operationalizes, rather than replaces:"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- `patterns/exclusive-active-task-locks.md`;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- the standing continuous-next-step rule in `patterns/codex-github-operating-system.md`;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- `templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md`;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- the Mission Control terminal comparator."
         }
       ]
     },
     {
-      "extracted_sha256": "9f95ae2935032ba78097dc2f7a3ecd69f67722c80a366859b9efd29f9ab9d666",
-      "extracted_utf8_bytes": 171,
+      "extracted_sha256": "b31811241ade523796110abae7d6f87eee782e42827b5efc1a36aa7dec0bdbd5",
+      "extracted_utf8_bytes": 36,
       "git_blob_sha1": "017c41f37ed01d0df10265b751c4bbd9c5b122d3",
       "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
       "repository_revision": "BLOB:017c41f37ed01d0df10265b751c4bbd9c5b122d3",
@@ -496,10 +248,6 @@
         {
           "kind": "exact_text",
           "text": "It does **not** close the root task."
-        },
-        {
-          "kind": "exact_text",
-          "text": "The controller must preserve resumability and continue automatically when the new directive arrives or the blocking condition clears."
         }
       ]
     },
@@ -610,8 +358,8 @@
       ]
     },
     {
-      "extracted_sha256": "5bd99793bd41ab649e98f17b208a4afa550fbafe3403e8c47390021e5bfb486e",
-      "extracted_utf8_bytes": 547,
+      "extracted_sha256": "7380b546898204b3894c8f23d030524d9b841d6e0b5eead189e3a1e43cc9e5fa",
+      "extracted_utf8_bytes": 408,
       "git_blob_sha1": "017c41f37ed01d0df10265b751c4bbd9c5b122d3",
       "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
       "repository_revision": "BLOB:017c41f37ed01d0df10265b751c4bbd9c5b122d3",
@@ -631,14 +379,6 @@
         },
         {
           "kind": "exact_text",
-          "text": "3. keep checking the changing condition at the configured bounded interval;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "4. resume the blocked frontier automatically when it clears;"
-        },
-        {
-          "kind": "exact_text",
           "text": "5. terminally pause only when the wait is a genuine external blocker for **all** remaining authorized work and the controller has durable evidence of that state."
         },
         {
@@ -648,53 +388,13 @@
       ]
     },
     {
-      "extracted_sha256": "b54a4ca66019128cf105d4e6666b78c9bd0cd0d27385e2a4b16411d35beb2f68",
-      "extracted_utf8_bytes": 824,
+      "extracted_sha256": "4b7935762e6c08befbfa52936ad5b0c42ae52df4eca5731b380ad66a4dffc354",
+      "extracted_utf8_bytes": 198,
       "git_blob_sha1": "017c41f37ed01d0df10265b751c4bbd9c5b122d3",
       "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
       "repository_revision": "BLOB:017c41f37ed01d0df10265b751c4bbd9c5b122d3",
       "rule_id": "uda.continuation.recovery-events",
       "selectors": [
-        {
-          "kind": "exact_text",
-          "text": "None of the following is, by itself, permission for a terminal response:"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- context compaction or context-window pressure;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- response/token-budget pressure;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- many tool calls or a long-running turn;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- a checkpoint or recovery commit;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- browser-tab cleanup or browser-memory pressure;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- a provider cooldown, temporary rate limit, retry/backoff interval, or transient tool outage;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- the end of a batch when the next batch/ordinal is already determined;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- ordinary green tests while task acceptance remains open;"
-        },
-        {
-          "kind": "exact_text",
-          "text": "- a worker-authored `blocked`, `done`, or handoff statement without current structured authority/evidence."
-        },
         {
           "kind": "exact_text",
           "text": "Treat these as recovery events."
@@ -766,8 +466,8 @@
       ]
     },
     {
-      "extracted_sha256": "7789dfa39334bf337d12b0ef27918785fdf91e02a20ec63df41a732875e52de4",
-      "extracted_utf8_bytes": 862,
+      "extracted_sha256": "6c6692377683c61f3dcec08f26a9019708d6b9134e1ac1a6a34b051d999bedcf",
+      "extracted_utf8_bytes": 1488,
       "git_blob_sha1": "017c41f37ed01d0df10265b751c4bbd9c5b122d3",
       "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
       "repository_revision": "BLOB:017c41f37ed01d0df10265b751c4bbd9c5b122d3",
@@ -804,12 +504,52 @@
         {
           "kind": "exact_text",
           "text": "A reasoning-review or external-blocker pause ends only the current execution turn."
+        },
+        {
+          "kind": "exact_text",
+          "text": "None of the following is, by itself, permission for a terminal response:"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- context compaction or context-window pressure;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- response/token-budget pressure;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- many tool calls or a long-running turn;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- a checkpoint or recovery commit;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- browser-tab cleanup or browser-memory pressure;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- a provider cooldown, temporary rate limit, retry/backoff interval, or transient tool outage;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- the end of a batch when the next batch/ordinal is already determined;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- ordinary green tests while task acceptance remains open;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- a worker-authored `blocked`, `done`, or handoff statement without current structured authority/evidence."
         }
       ]
     },
     {
-      "extracted_sha256": "21810953693cf4b7df14b86af900753fe9354e4b23cf4353f6eff4282ca56510",
-      "extracted_utf8_bytes": 532,
+      "extracted_sha256": "3144696b11757f034fbbee3357b3037d79a29d9f0458717ed8e60d6daa546a45",
+      "extracted_utf8_bytes": 3178,
       "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
       "path": "patterns/context-compaction-resilience.md",
       "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
@@ -826,6 +566,150 @@
         {
           "kind": "exact_text",
           "text": "- Tiny one-shot tasks do not need a dedicated current-state file."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A project must therefore be designed so that losing old chat detail does not mean losing project state."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Use this hierarchy:"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- **conversation/context = working RAM**;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- **canonical repository = durable project memory**;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- **Git history = durable audit trail and rollback path**;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- **current-state/checkpoint file = recovery entry point**;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- **exact project artifacts/evidence = authority for factual implementation state**."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Any decision, constraint, discovery, architecture choice, completed step, or unresolved blocker that would matter after a new thread or context compaction must be written into the canonical repository rather than left only in chat."
+        },
+        {
+          "kind": "exact_text",
+          "text": "For any project with multi-step, multi-session, or long autonomous work, maintain a concise canonical recovery file such as `CURRENT-STATE.md`, `state/CURRENT-STATE.md`, or an equivalent machine-readable state file chosen by the project."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The exact filename may vary, but there must be one obvious current recovery entry point referenced by the project's main index/bootstrap."
+        },
+        {
+          "kind": "exact_text",
+          "text": "With concurrent branches, keep that entry point for repository-level state and give each task its own checkpoint."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Per-task files avoid merge conflicts while the recovery entry point stays obvious."
+        },
+        {
+          "kind": "exact_text",
+          "text": "At minimum, the state checkpoint should record:"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- current goal / task;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- authoritative baseline or relevant commit/ref;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- important active decisions and owner constraints;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- bootstrap requirements and blocking gates that the task directive or handoff established, so they stay active after compaction;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- completed work that must not be repeated;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- current step / last durable checkpoint;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- remaining work;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- blockers or unresolved questions;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- relevant artifacts, evidence, tests, logs, branches, and commits;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- uncommitted/dirty-working-tree status when relevant;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- the next safe resume action or command."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Keep this file concise and operational."
+        },
+        {
+          "kind": "exact_text",
+          "text": "It is a recovery map, not a transcript dump."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Update the current-state file whenever losing the current chat would otherwise create ambiguity or rework, especially:"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- after a meaningful implementation/research/editorial milestone;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- after a consequential owner decision or constraint change;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- after discovering a blocker or falsifying an approach;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- before/after risky migrations or long autonomous runs;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- before handing work to another agent/thread;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- before claiming a multi-step task complete."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Do not wait for the model to detect that compaction is imminent."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Context limits are implementation details and may not be visible to the worker."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Automatic model-context compaction is an efficiency mechanism, not a persistence mechanism."
         }
       ]
     },
@@ -1734,9 +1618,9 @@
     {
       "extracted_sha256": "20246d4cb4a4c9f5f46331555fae123081c44aa8fb779019e93784f7f4a0fd24",
       "extracted_utf8_bytes": 116,
-      "git_blob_sha1": "b56639dd7492254c2238254509af2d75a2eef4b9",
+      "git_blob_sha1": "e7384c4f5945fdc24abfbb93044a9bca9d305f46",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:b56639dd7492254c2238254509af2d75a2eef4b9",
+      "repository_revision": "BLOB:e7384c4f5945fdc24abfbb93044a9bca9d305f46",
       "rule_id": "uda.owner-correction.reactivate",
       "selectors": [
         {
@@ -2630,8 +2514,8 @@
       ]
     },
     {
-      "extracted_sha256": "6d07ce531e783644eda4f8fc6c8f7b5b976c2641b32fc0cd2511469b99d891b6",
-      "extracted_utf8_bytes": 549,
+      "extracted_sha256": "7eac93f20b9a1f9e3284f7636ed758d6d8efd897563cb03310324baf98a58ad2",
+      "extracted_utf8_bytes": 381,
       "git_blob_sha1": "1d2d5cadab6ad434e0b7903b940b21ee020ea2f5",
       "path": "patterns/exclusive-active-task-locks.md",
       "repository_revision": "BLOB:1d2d5cadab6ad434e0b7903b940b21ee020ea2f5",
@@ -2652,10 +2536,6 @@
         {
           "kind": "exact_text",
           "text": "Ordinary tests are prerequisites, not task completion."
-        },
-        {
-          "kind": "exact_text",
-          "text": "Claim readiness only when the task-specific acceptance command verifies every required artifact; claim completion only after protected merge and an immutable receipt."
         }
       ]
     },
@@ -2794,8 +2674,8 @@
       ]
     },
     {
-      "extracted_sha256": "f9719facbdc7327b4fd148941bead78d19827e6616b611c4d1b2029016fc8e13",
-      "extracted_utf8_bytes": 1076,
+      "extracted_sha256": "5057e49fa63286d7de7d5683b53365838272e30f03d8e26cb7b0fec6f4efeab1",
+      "extracted_utf8_bytes": 1244,
       "git_blob_sha1": "1d2d5cadab6ad434e0b7903b940b21ee020ea2f5",
       "path": "patterns/exclusive-active-task-locks.md",
       "repository_revision": "BLOB:1d2d5cadab6ad434e0b7903b940b21ee020ea2f5",
@@ -2844,6 +2724,10 @@
         {
           "kind": "exact_text",
           "text": "Do not call a blocked live campaign complete."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Claim readiness only when the task-specific acceptance command verifies every required artifact; claim completion only after protected merge and an immutable receipt."
         }
       ]
     },

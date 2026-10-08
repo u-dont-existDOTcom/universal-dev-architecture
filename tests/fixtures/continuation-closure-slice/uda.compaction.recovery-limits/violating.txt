@@ -1,1 +1,0 @@
-The recovery checkpoint publishes credentials and duplicates raw logs.

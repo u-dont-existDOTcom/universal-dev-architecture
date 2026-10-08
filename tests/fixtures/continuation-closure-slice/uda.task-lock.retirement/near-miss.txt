@@ -1,1 +1,1 @@
-After protected merge, source and merged identities, required check results and immutable readback receipt were recorded. The lock was completed or archived, canonical checkpoint updated and only then roadmap selection resumed. New work creates a new task identity. The claimed evidence instead relies on roadmap selection restored before closeout.
+Protected merge and required checks are recorded. The worker resumes roadmap selection before recording the immutable closeout receipt and archiving the lock.

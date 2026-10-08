@@ -1,7 +1,7 @@
 {
   "compliant.txt": {
     "verdict": "PASS",
-    "evidence": "Immediately before the proposed response the authenticated server gate derived its decision from its current ledger and canonical comparator. Ready work, next steps, blocker ownership and workarounds, waits, newer reasoning routing and current owner obligations were considered. Its denial was obeyed and the safe returned action was routed under existing authority.",
+    "evidence": "Immediately before this candidate the gate command returned exit status 0 and actual JSON terminalResponseAllowed:true, decision:ALLOW_ROOT_CLOSE, terminalStateVectorSha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa. The worker and current state match the output. Native server gate and authenticated worker-route tests separately cover server-owned facts, the canonical comparator and queue/blocker/reasoning/owner authority; this receipt does not prove server internals.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -10,7 +10,7 @@
   },
   "violating.txt": {
     "verdict": "FAIL",
-    "evidence": "The current server gate denied termination, but the worker sends a terminal handoff anyway.",
+    "evidence": "The actual gate command exited 75 with terminalResponseAllowed:false, decision:REJECT_SAFE_WORK_REMAINS and a current state hash. The worker emitted the handoff instead of routing its next action.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -19,13 +19,13 @@
   },
   "near-miss.txt": {
     "verdict": "FAIL",
-    "evidence": "Immediately before the proposed response the authenticated server gate derived its decision from its current ledger and canonical comparator. Ready work, next steps, blocker ownership and workarounds, waits, newer reasoning routing and current owner obligations were considered. Its denial was obeyed and the safe returned action was routed under existing authority. The claimed evidence instead relies on a local self-check instead of the current server gate.",
+    "evidence": "The consultation assertion omits the actual command result and state-bound gate output.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
       "relation": "SAME_AGENT"
     },
     "obligation_id": "mission-control-gate-at-boundary",
-    "non_substitute": "a local self-check instead of the current server gate"
+    "non_substitute": "consultation asserted without actual gate output"
   }
 }

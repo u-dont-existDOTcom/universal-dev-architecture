@@ -1,1 +1,1 @@
-The worker asks the owner what to do during a cooldown while an independent safe action is ready.
+The provider is cooling down. Independent local work is runnable, yet the worker asks the owner whether to wait.

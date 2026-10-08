@@ -84,7 +84,7 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                 # Only the kernel's own final judgments remain; no checkpoint receipt is needed.
                 checked = tt.check_contract(
                     contract, 'final-delivery', payload, receipts=pass_receipts(tt, contract, 'final-delivery', payload),
-                    clock_start='2026-10-07T00:00:00Z', clock_end='2026-10-07T00:02:00Z')
+                    clock_start='2026-10-07T00:00:00Z', clock_end='2026-10-07T00:02:00Z', current_facts=task['facts'])
                 self.assertEqual(checked['admission'], 'ADMITTED')
 
     def test_unknown_or_missing_continuity_scope_remains_unresolved(self):
@@ -205,7 +205,8 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                     if paragraph == '- Tiny one-shot tasks do not need a dedicated current-state file.':
                         self.assertIn(paragraph, source.split('## Limits\n', 1)[1])
                     else:
-                        self.assertIn(paragraph, subsection)
+                        self.assertIn(paragraph, source if rule_id == 'uda.continuity.step-checkpoint' else subsection)
+                self.assertIn("At each completed step, push the work to the task branch", rule['source_text'] if rule_id == 'uda.continuity.step-checkpoint' else subsection)
                 self.assertEqual(len(rule['obligations']), 1)
                 obligation = rule['obligations'][0]
                 self.assertEqual(obligation['obligation_id'], obligation_id)
@@ -289,7 +290,7 @@ class DestinationScopedContinuityTests(unittest.TestCase):
         catalog = predicate_catalog(json.loads((ROOT / 'rules/rule-graph/task-time-metadata.v1.json').read_text()))
         profile = json.loads((ROOT / 'scripts/instruction-layering-profile.json').read_text())
         task = json.loads((ROOT / 'examples/rule-graph/work-handoff.json').read_text())
-        task['facts']['continuity_required'].update(value=True, provenance='multistep destination-scoping regression')
+        cls.task = task
         cls.contract = tt.compile_contract(catalog, profile, task, 'graph')
         cls.final = b'2026-10-07 00:02:00 UTC\nElapsed time: 2 minutes\nWork saved.\n'
         cls.readings = {'clock_start': '2026-10-07T00:00:00Z',
@@ -301,7 +302,7 @@ class DestinationScopedContinuityTests(unittest.TestCase):
                        'obligation_id': 'save-turn-end-handoff', 'destination': DESTINATION}
 
     def check(self, payload, **kwargs):
-        return tt.check_contract(self.contract, 'final-delivery', payload, **kwargs)
+        return tt.check_contract(self.contract, 'final-delivery', payload, current_facts=self.task['facts'], **kwargs)
 
     def test_open_task_final_scoped_check_excludes_continuity_handoff(self):
         result = self.check(self.final, destination='owner-visible-final', **self.readings)
@@ -367,6 +368,7 @@ class DestinationScopedContinuityTests(unittest.TestCase):
                     with self.subTest(script=script, destination=destination, expected=expected):
                         run = subprocess.run([sys.executable, str(ROOT / 'scripts' / script),
                             'check', '--contract', str(contract), '--phase', 'final-delivery',
+                            '--task', str(ROOT / 'examples/rule-graph/work-handoff.json'),
                             '--destination', destination, '--payload', str(payload), *extra],
                             capture_output=True, text=True, cwd=ROOT)
                         self.assertEqual(run.returncode, 0 if expected == 'ADMITTED' else 4,
@@ -410,7 +412,6 @@ class UsageWarningRefreshTests(unittest.TestCase):
         cls.catalog = json.loads((ROOT / 'rules/rule-graph/task-time-metadata.v1.json').read_text())
         cls.profile = json.loads((ROOT / 'scripts/instruction-layering-profile.json').read_text())
         cls.task = json.loads((ROOT / 'examples/rule-graph/work-handoff.json').read_text())
-        cls.task['facts']['continuity_required'].update(value=True, provenance='multistep running-task warning regression')
         cls.payload = (FIXTURE / 'step-checkpoint-compliant.txt').read_bytes()
         cls.verdict = json.loads((FIXTURE / 'step-checkpoint.verdicts.json').read_text())[1]
 
@@ -526,11 +527,11 @@ class UsageWarningRefreshTests(unittest.TestCase):
             paths['checkpoint.txt'].write_bytes(self.payload)
             paths['receipts.json'].write_text(json.dumps(receipts))
             for script in ('uda_rule_graph_task_time.py', 'uda_rule_graph.py'):
-                for warning, supply_task, expected in ((False, True, 'NOT_EVALUATED'),
+                for warning, supply_task, expected in ((False, True, 'ADMITTED'),
                                                        (True, True, 'BLOCKED'),
                                                        (False, False, 'BLOCKED')):
                     with self.subTest(script=script, warning=warning, supply_task=supply_task):
-                        task = json.loads((ROOT / 'examples/rule-graph/work-handoff.json').read_text())
+                        task = copy.deepcopy(self.task)
                         task['facts']['usage_warning_visible']['value'] = warning
                         paths['task.json'].write_text(json.dumps(task))
                         command = [sys.executable, str(ROOT / 'scripts' / script), 'check',

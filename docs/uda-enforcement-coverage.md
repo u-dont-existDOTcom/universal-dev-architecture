@@ -4,7 +4,7 @@ Rules can be readable and easy to find without ever changing an answer or blocki
 
 ## Dispositions
 
-- **STRUCTURED_ENFORCED:** all behavioral obligations in this source have exact task-time records and an evaluable admission path. Large files with a narrow slice do not qualify. Through slice 2a, six kernel sections and five complete behavioral patterns are in this state; other large pattern sources still have unstructured remainders. An obligation-level bootstrap exception is carried outside activated UDA, not represented as an admitted obligation.
+- **STRUCTURED_ENFORCED:** all behavioral obligations in this source have exact task-time records and an evaluable admission path. Large files with a narrow slice do not qualify. After supervisor correction of slice 2a, six kernel sections and three complete behavioral patterns are in this state; other large pattern sources still have unstructured remainders. An obligation-level bootstrap exception is carried outside activated UDA, not represented as an admitted obligation.
 - **STRUCTURED_PARTIAL:** some obligations have exact records; the entry names the remaining operative obligations in `legacy_remainder`. It stays in the migration backlog. Semantic records now accept exact-candidate receipts and fail closed with UNKNOWN when no matching, well-formed receipt supplies a judgment.
 - **WORKFLOW_ONLY:** the source is a specialist authoritative workflow or reference, with a source-specific explanation. This is an explicit exception, not a claim of semantic task-time enforcement. Some specialist workflows do contain behavior; that fact stays visible.
 - **LEGACY_UNSTRUCTURED:** a behavioral rule still relies on prose/index application. Its exact identity and migration priority are reported. Routing does not count as enforcement.
@@ -43,21 +43,21 @@ Inventory entries: 98
 
 Indexed patterns: 84
 
-Migration backlog: 75
+Migration backlog: 77
 
-Task-time records: 76, sourced from 12 files, with 2 mechanical and 83 semantic obligations. Slice 2a adds 34 records and extends three existing continuity records; the 37 continuation/closure behaviors map 295 exact operative clause rows.
+Task-time records: 70, sourced from 12 files, with 2 mechanical and 78 semantic obligations. Corrected slice 2a adds 28 records and extends three continuity records; its 31 records carry 32 semantic behaviors and 281 mapped clause rows.
 
 | Disposition | Count |
 |---|---:|
-| STRUCTURED_ENFORCED | 11 |
-| STRUCTURED_PARTIAL | 6 |
+| STRUCTURED_ENFORCED | 9 |
+| STRUCTURED_PARTIAL | 8 |
 | WORKFLOW_ONLY | 10 |
 | LEGACY_UNSTRUCTURED | 69 |
 | NOT_ACTIVE | 2 |
 
-Six root sections, the two review/merge patterns and the three continuation/closure patterns are STRUCTURED_ENFORCED. The six partial sources are task-time lesson activation, owner-goal follow-up, Chat/Work execution routing, the repository operating system, worker-directive/output delivery and reasoning selection. The parent owner outcome remains OPEN: owner-outcome invariants and operating-system coverage belong to slice 2b; later priorities remain.
+Six root sections, the two review/merge patterns and exclusive active-task locks are STRUCTURED_ENFORCED. Context-compaction resilience and terminal admission are STRUCTURED_PARTIAL with exact operative remainders, alongside the six earlier partial sources. The parent owner outcome remains OPEN for owner-outcome/operating-system slice 2b and later priorities.
 
-The immutable baseline still pins 84 identities. Backlog falls from 78 before slice 2a to 75 afterward: three baseline patterns became fully enforced, bringing total baseline shrinkage to nine, with zero additions. P1 falls from 16 to 13; P2 remains 47 and P3 remains 15. The two review/merge identities never belonged to the baseline. Historical findings keep their earlier snapshots.
+The immutable baseline pins 84 identities. Corrected backlog falls from 78 before slice 2a to 77: only the task-lock pattern is a complete promotion. Seven baseline identities are removed, with zero additions. P1 is 15, P2 is 47 and P3 is 15. The two review/merge identities never belonged to the baseline. The owner explicitly required correcting overstated dispositions; the requirement records that authority and pins partial clause maps without authorizing new baseline identities.
 
 ## Kernel slice 1 obligation map
 
@@ -237,7 +237,7 @@ The 2026-10-07 maintainer-handoff addition in `patterns/suggested-fix-queue.md` 
 
 ## Exact migration backlog
 
-P1 retains 16 of the issue's 22 high-leverage identities after the six kernel sections are removed. Other general behavioral entries are P2 (47); mechanics specific to a project or infrastructure surface are P3 (15), including Mission Control supervision/relay, browser automation, worker permissions and Work cloud dispatch. Every P1 entry is behavioral, checked by the validator.
+P1 retains 15 high-leverage identities; P2 has 47 and P3 has 15. Every P1 entry is behavioral. Corrected partial compaction and terminal-admission coverage stays visible here.
 
 Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_TURN, FREQUENT, CONDITIONAL, SPECIALIST; use the id only to break ties. Frequency classes are declared routing estimates, not measured usage. Each entry retains its specific next step. The report uses this same order.
 
@@ -245,10 +245,12 @@ Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_
 |---|---|---|
 | `patterns/chat-work-execution-routing-threshold.md` | P1 | FREQUENT |
 | `patterns/codex-github-operating-system.md` | P1 | FREQUENT |
+| `patterns/context-compaction-resilience.md` | P1 | FREQUENT |
 | `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md` | P1 | FREQUENT |
 | `patterns/reasoning-selection.md` | P1 | FREQUENT |
 | `patterns/source-interpretation-provenance.md` | P1 | FREQUENT |
 | `patterns/task-time-lesson-activation.md` | P1 | FREQUENT |
+| `patterns/terminal-response-admission-and-autonomous-continuation.md` | P1 | FREQUENT |
 | `patterns/worker-directive-delivery-and-chat-output-budget.md` | P1 | FREQUENT |
 | `patterns/chatgpt-client-surface-capability-and-thread-recovery.md` | P1 | CONDITIONAL |
 | `patterns/cross-family-reasoning-check.md` | P1 | CONDITIONAL |
@@ -403,7 +405,7 @@ The twelve new direct routes use these leading clauses:
 
 ## Review/merge-gate integration reconciliation (slice 2)
 
-The maintainer lane chose structured admission for the review-convergence policy change on 2026-10-07. Both new behavioral patterns are STRUCTURED_ENFORCED; no specialist exception or legacy addition was used, and no owner quotation or authorization entry was added. The immutable 84-identity baseline remains unchanged and the backlog stayed 78 before and after that historical review/merge slice; slice 2a now leaves 75. The integration draft temporarily listed both new identities as legacy, producing an invalid 80-entry backlog; that was never authorized backlog growth. Earlier integration findings remain historical. The newest slice finding records live disposition counts.
+The maintainer lane chose structured admission for the review-convergence policy change on 2026-10-07. Both new behavioral patterns are STRUCTURED_ENFORCED; no specialist exception or legacy addition was used, and no owner quotation or authorization entry was added. The immutable 84-identity baseline remains unchanged and the backlog stayed 78 before and after that historical review/merge slice; corrected slice 2a now leaves 77. The integration draft temporarily listed both new identities as legacy, producing an invalid 80-entry backlog; that was never authorized backlog growth. Earlier integration findings remain historical. The newest slice finding records live disposition counts.
 
 The review pattern contributes 70 operative clauses in 8 records and 8 obligations. The unchanged merge-gate pattern contributes 58 clauses in 6 records and 8 obligations. Enumerated clauses include operative scope/authority limits, failure and repair clauses, transfer qualifications and the Problem section formulas and assumptions used by rule 4; incident history and relationships to other patterns remain explanatory context. The formula-use obligation binds unit/run and hard-floor estimates, independently known-correct items with findings adjudicated false, the eligible denominator including unflagged items, and labelled guesses when those labels are unavailable. Pilot size must support the predeclared scale decision; upper error-rate or lower measured-pass-rate confidence bounds, including zero-flag/all-pass cases, carry sampling uncertainty into every floor and unit/run estimate. An inadequate pilot is enlarged with a predeclared sample size or the gate redesigned before scale. The review-fix round adds five formula/assumption clauses and replaces one evidence clause with three; it adds no records or obligations. Each source has a whole-pattern independent clause pin and independent count/hash pins for every operative level-two section, using sorted exact clause strings in source_clause_manifest. Every level-two section also pins its complete body, so added prose beside existing mapped clauses cannot evade review through lock/projection regeneration. Nonzero-miss floors use the binomial tail for each floor's own n, p and allowed misses k, or a measured known-correct false-failure rate; the zero-miss formulas retain their original scope. Record/map deletion and same-count selector shortening fail even after regenerating the lock and projection. Pin hashes establish preservation, not completeness or semantic truth.
 
@@ -604,7 +606,7 @@ This is an owner-side instruction draft; this repository change does not edit ow
 
 The fixtures in `tests/fixtures/dominated-route/` use abstract inputs/outputs. The old final presents a two-command route, then the same transform command's direct-output option, and calls the latter preferable: its golden FAIL receipt blocks. The repaired one-command final's PASS receipt admits and stays one line (under 160 characters). Replaying a PASS receipt for the old payload or rewriting the final without a new receipt blocks. When intermediate approval before output is a real material tradeoff, both alternatives remain and the golden PASS receipt admits them. These fixtures pin source provenance to the exact source blob for commit-independent golden bindings; production compilation preserves repository-revision provenance. The isolated regression checks the dominated-route slice; the existing mechanical suites separately check timestamps and elapsed time.
 
-Both passes of the first integration are implemented. This establishes inventory, activation-state reporting, semantic binding admission and a behavioral regression; it does not establish universal live behavioral enforcement. The parent owner outcome remains OPEN; kernel slice 1 left 78 partial/legacy identities, and slice 2a leaves 75. Later slices migrate the remaining P1 patterns and subsequent priorities. The baseline pin remains unchanged: no added identities and nine fully structured removals are now reported.
+Both passes of the first integration are implemented. This establishes inventory, activation-state reporting, semantic binding admission and a behavioral regression; it does not establish universal live behavioral enforcement. The parent owner outcome remains OPEN; kernel slice 1 left 78 partial/legacy identities, and corrected slice 2a leaves 77. Later slices migrate the remaining P1 patterns and subsequent priorities. The baseline pin remains unchanged: no added identities and seven fully structured removals are now reported.
 
 ## Usage-limit continuity slice
 
@@ -646,33 +648,35 @@ At its historical integration boundary, the continuity slice changed one LEGACY_
 
 ## Continuation and closure migration slice 2a
 
-This slice completes the exact clause maps for terminal admission, context-compaction resilience and exclusive task locks. All three patterns retain their wording. Every level-two section has an independent source-body pin; pre-section text and whole-pattern clause sets are independently pinned in the owner requirement. Explanatory incident/history and cross-pattern routing text are context; scope, authority, failure and repair duties are mapped. The mapped durability requirement in the compaction Problem section is operative, so that section is pinned as mapped rather than declared non-operative.
+Supervisor correction preserves the three canonical pattern files byte-for-byte. Task locks are fully structured; terminal admission and compaction retain exact operative remainders. Whole-pattern/pre-section and per-section source pins remain, including for these partial maps. The validator permits this corrective reclassification only with the owner-authorized exact baseline identity, date, quote, source and reason; it does not count a correction as a new backlog addition.
 
-| Pattern | Found clause rows | Structured | Excepted | Remaining | Task-time behaviors |
-|---|---:|---:|---:|---:|---:|
-| Terminal response admission | 63 | 63 | 0 | 0 | 9 |
-| Context-compaction resilience | 89 | 89 | 0 | 0 | 12 |
-| Exclusive active-task locks | 143 | 143 | 0 | 0 | 16 |
-| Total | 295 | 295 | 0 | 0 | 37 |
+| Pattern | Reviewed clause rows | Mapped | Literal remainder | Records / behaviors | Disposition |
+|---|---:|---:|---:|---:|---|
+| Terminal response admission | 68 | 65 | 3 | 9 / 9 | STRUCTURED_PARTIAL |
+| Context-compaction resilience | 90 | 73 | 17 plus wider persistence scope | 6 / 6 | STRUCTURED_PARTIAL |
+| Exclusive active-task locks | 143 | 143 | 0 | 16 / 17 | STRUCTURED_ENFORCED |
+| Total | 301 | 281 | 20 plus wider scope | 31 / 32 | |
 
-There are no new obligation exceptions: neither an unloaded-UDA-only duty nor an owner-settings change occurs here. The inherited kernel BOOTSTRAP_NOT_LOADED exception retains its exact sentence/reason/carrier; deleting that sentence still fails coverage. No owner settings change is made.
+The representative Work handoff restores `continuity_required:true` with its original provenance, “multi-step work requires durable recovery across turns or sessions.” It always selects step-checkpoint and turn-end-handoff. Their original regression expectations are restored. Durable-memory, recovery-checkpoint and durable-boundaries clauses share the continuity persistence record's unchanged exact selectors and expanded evidence. The catch-all “whenever losing the current chat would otherwise create ambiguity or rework” and the distinction between compaction efficiency and persistence are explicit. No selector is shortened and no cap is increased.
 
-All 37 behaviors are semantic and require exact bound receipts; there is no new predicate kind. Existing mechanical timestamp and elapsed-time checks ignore even contradictory semantic receipts. The controller-resume record applies only to the named controller; worker terminal records apply to work/codex/claude, and generic agent/checkpoint duties to chat/work/codex/claude. Current authority and scope limits also cover the named controller where the source does. Pre-action task selection, lock installation and preflight, authority resolution, blocker/wait admission, resumed-state verification and input separation remain pre-action, never deferred to final output. Persistence and handoff duties use the actual checkpoint, memory or receiving instruction; final response admission checks the actual response.
+Restoring continuity alone reproduces the 33,814-byte oversized render. Consolidation still exceeds the cap after mandatory event refresh. Distinct reasoning-outcome, recovery-limit and successor-recovery clauses therefore remain in compaction's exact `legacy_remainder`, rather than being silently dropped or triggered on unrelated facts. The consolidated persistence record retains its original OPEN executable-work trigger; the broader diagnostic/stopped/satisfied-task persistence scope is also recorded as remainder. Its indexed, trigger-selected compaction source stays STRUCTURED_PARTIAL.
 
-Existing KNOWN facts provide scope. `continuity_required` declares genuine multistep/session recovery; `action_classes` membership in `exclusive_task` declares the whole lifecycle of consequential multi-session work with competing sources (including before the lock is written), not just lock creation. Event values `mission_control_terminal`, `provider_wait`, `resume_reconciliation`, `task_completion`, `black_box_model_test`, `task_closeout`, `control_plane_testing` and `instruction_maintenance` identify the named narrower events. Missing/UNKNOWN applicable facts block; known absence excludes the event, and no new fact is added. Conditional event duties permit NOT_APPLICABLE only with a bound reason; always-on authority and scope duties do not. Event facts must be refreshed/recompiled when the governed action changes; fixture receipts cannot authorize another candidate or owner epoch.
+At claim time each terminal label requires its entry evidence: INCOMPLETE while findings remain; BLOCKED only with durable evidence naming the genuine boundary; READY_FOR_PROTECTED_MERGE only after task acceptance passed on the exact head with cited output and no open findings; COMPLETE only after protected merge, readback and immutable receipt. Wrong-head acceptance and READY with findings are explicit non-substitutes. Anti-substitutes retain pre-action task selection and a separate final-delivery claim obligation, including the exact contradictory work-in-progress PR claim.
 
-The three existing continuity records are extended to revision 3. Their behaviors, phases, destinations, warning refresh and scope facts remain. The duplicated exact tiny-task scope selector has a single map owner in step-checkpoint; turn-end-handoff retains the same `continuity_required` predicate and one-shot exemption. This normalization makes the map unambiguous without dropping the scope obligation or changing normative text, and is unrelated to fitting the Work budget.
+Terminal receipts require actual final-response command output: exit status, terminalResponseAllowed, decision and terminalStateVectorSha256. Server-side clauses cite native Mission Control final-response and worker-route tests. Authority evidence keeps privacy and security, removes the unsourced revalidation addition, and carries the operational relationship to all four predecessor controls. All thirteen required findings must come from actual active-task authority resolver output in the authority, blocker and wait receipts. All nine recovery events are prohibited substitutes in final-delivery terminal admission; persistence still owns saving and recovering progress.
 
-The representative Work envelope now describes the receiving worker's bounded independent one-shot child step. Its supervisor retains the parent checkpoint/recovery lifecycle; the child has no competing task sources or exclusive task contract. `continuity_required=false` and known action absence exclude duties that belong to those other scopes. Genuine multistep envelopes still select the complete recovery records; the regression asserts this explicitly. The owner-correction example remains continuity-enabled, so its separate final/checkpoint admission example remains valid. No selector text is shortened and no obligation or limit is dropped to fit the projection.
+Nine event-gated records declare `refresh_on_facts:["action_classes"]`. Even an initially excluded record retains its refresh guard at the real phase/destination; changing facts block until recompilation and fresh receipts, while unchanged facts admit. Both portable instructions select governance plus instruction_maintenance for one-shot adoption and retain reason-bound NOT_APPLICABLE. Independent table pins protect every record's trigger, due phase and N/A permission, including both anti-substitute phases.
 
-| Measured production boundary | Before | After | Unchanged budget |
+| Measured production boundary | Before slice 2a | Corrected | Unchanged budget |
 |---|---:|---:|---:|
-| Compiled rendered Work contract, UTF-8 | 27,355 | 24,308 | 32,768 |
-| Mission Control injected Work block, UTF-8 | 33,139 | 29,913 | 40,960 |
+| Compiled rendered Work contract, UTF-8 | 27,355 | 32,084 | 32,768 |
+| Mission Control injected Work block, UTF-8 | 33,139 | 37,194 | 40,960 |
 
-The injected block is measured with `Buffer.byteLength(ruleGraphPromptBlock(workHandoffRuleGraphProjection({ MISSION_CONTROL_RULE_GRAPH_MODE: "graph" })).join("\n"), "utf8")` in the unchanged production adapter. Its allowance is the 49,152-byte (48 KiB) prompt limit minus the 8,192-byte wrapper/directive reserve; both full prompt and reserve tests remain. The rendered measurement uses the compiled JSON's `rendered_contract` UTF-8 bytes. Source lock and Work projection use the documented regeneration commands above; no Mission Control runtime code changes.
+The injected block is measured through the unchanged production adapter's ruleGraphPromptBlock/workHandoffRuleGraphProjection using Buffer.byteLength on the joined block. Its allowance is the 49,152-byte prompt cap minus the unchanged 8,192-byte wrapper/directive reserve. The production prompt regression asserts both continuity ids and reserve compliance. Source lock and projection use the documented generation commands.
 
-`tests/test_uda_continuation_closure_slice.py` exercises 37 domain-neutral per-record task envelopes and 111 candidate payloads under `tests/fixtures/continuation-closure-slice/`. Hash-free judgments bind at test time: violating/non-substitute candidates block, compliance admits, candidate/owner-epoch replays and absent/wrong-phase/wrong-destination receipts block, and justified NOT_APPLICABLE is limited to explicitly permitted duties. Record, selector, clause and coordinated-deletion mutations fail despite regeneration, as do exception-sentence deletion and new unreviewed section/pre-section/source text. These are preservation/admission tests, not proof of semantic truth, actual pushes, current provider polling, authenticated identity, independence or universal invocation.
+Twenty fixture sets now have bespoke near-misses that omit or violate a particular clause. No template or literal non-substitute sentence is required in a candidate. The suite still proves exact binding, actor/trigger/phase/destination admission, stale-receipt rejection and source/deletion protection, not semantic truth. The mechanical timestamp case now isolates bad elapsed-time reporting while preserving a valid first-line timestamp.
+
+Coverage limits remain explicit: action classes and continuity scope are self-declared; event triggers do not independently prove the real event; reason-bound N/A on already declared events still needs correct semantic judgment. Future provider polling and resume-on-clear cannot be established by one admission receipt. Those multi-event controller clauses remain in terminal admission's exact legacy remainder. No live universal behavior, protected merge, publication or independent review is claimed.
 
 ### patterns/terminal-response-admission-and-autonomous-continuation.md
 
@@ -686,7 +690,6 @@ The injected block is measured with `Buffer.byteLength(ruleGraphPromptBlock(work
 | 5. current Mission Control terminal comparison and structured blockers; | uda.continuation.state-reconciliation / state-reconciliation-at-boundary |
 | 6. current chat-authored directive and any required reasoning handoff. | uda.continuation.state-reconciliation / state-reconciliation-at-boundary |
 | It does **not** close the root task. | uda.continuation.controller-resume / controller-resume-at-boundary |
-| The controller must preserve resumability and continue automatically when the new directive arrives or the blocking condition clears. | uda.continuation.controller-resume / controller-resume-at-boundary |
 | For an exclusive active task, **ending a response is a controlled terminal action**. | uda.continuation.terminal-admission / terminal-admission-at-boundary |
 | A terminal response is admitted only when at least one of these current, source-bound conditions is true: | uda.continuation.terminal-admission / terminal-admission-at-boundary |
 | - the requested root outcome is complete under its actual acceptance/terminal evidence gate; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
@@ -695,23 +698,11 @@ The injected block is measured with `Buffer.byteLength(ruleGraphPromptBlock(work
 | - a genuine external blocker prevents the required frontier, has no admitted workaround or independent safe work remaining, and is durably recorded; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
 | - a bounded execution directive has reached a real reasoning-review stop and the exact factual receipt has already been routed automatically to the configured reasoning chat. | uda.continuation.terminal-admission / terminal-admission-at-boundary |
 | A reasoning-review or external-blocker pause ends only the current execution turn. | uda.continuation.terminal-admission / terminal-admission-at-boundary |
-| None of the following is, by itself, permission for a terminal response: | uda.continuation.recovery-events / recovery-events-at-boundary |
-| - context compaction or context-window pressure; | uda.continuation.recovery-events / recovery-events-at-boundary |
-| - response/token-budget pressure; | uda.continuation.recovery-events / recovery-events-at-boundary |
-| - many tool calls or a long-running turn; | uda.continuation.recovery-events / recovery-events-at-boundary |
-| - a checkpoint or recovery commit; | uda.continuation.recovery-events / recovery-events-at-boundary |
-| - browser-tab cleanup or browser-memory pressure; | uda.continuation.recovery-events / recovery-events-at-boundary |
-| - a provider cooldown, temporary rate limit, retry/backoff interval, or transient tool outage; | uda.continuation.recovery-events / recovery-events-at-boundary |
-| - the end of a batch when the next batch/ordinal is already determined; | uda.continuation.recovery-events / recovery-events-at-boundary |
-| - ordinary green tests while task acceptance remains open; | uda.continuation.recovery-events / recovery-events-at-boundary |
-| - a worker-authored `blocked`, `done`, or handoff statement without current structured authority/evidence. | uda.continuation.recovery-events / recovery-events-at-boundary |
 | Treat these as recovery events. | uda.continuation.recovery-events / recovery-events-at-boundary |
 | Persist state, compact/reopen/restart as necessary, then recover the active task and continue from the first missing or stale action without repeating verified work. | uda.continuation.recovery-events / recovery-events-at-boundary |
 | When a required provider action is temporarily unavailable: | uda.continuation.provider-waits / provider-waits-at-boundary |
 | 1. record the exact changing condition and admitted wait horizon; | uda.continuation.provider-waits / provider-waits-at-boundary |
 | 2. advance independent safe in-scope work that does not depend on the provider; | uda.continuation.provider-waits / provider-waits-at-boundary |
-| 3. keep checking the changing condition at the configured bounded interval; | uda.continuation.provider-waits / provider-waits-at-boundary |
-| 4. resume the blocked frontier automatically when it clears; | uda.continuation.provider-waits / provider-waits-at-boundary |
 | 5. terminally pause only when the wait is a genuine external blocker for **all** remaining authorized work and the controller has durable evidence of that state. | uda.continuation.provider-waits / provider-waits-at-boundary |
 | A cooldown is not an owner decision. | uda.continuation.provider-waits / provider-waits-at-boundary |
 | Mission Control-managed execution workers must consult the deterministic final-response gate immediately before an owner-facing terminal response: | uda.continuation.mission-control-gate / mission-control-gate-at-boundary |
@@ -741,37 +732,54 @@ The injected block is measured with `Buffer.byteLength(ruleGraphPromptBlock(work
 | - A true semantic ambiguity must still go to the authorized reasoning chat; deterministic continuation may not invent strategy. | uda.continuation.authority-limits / authority-limits-at-boundary |
 | - A real safety, permission, spending, publication, access, or irreversible-action boundary is not bypassed merely because other execution is possible. | uda.continuation.authority-limits / authority-limits-at-boundary |
 | - Tiny one-shot tasks without an exclusive active-task contract do not require this machinery. | uda.continuation.authority-limits / authority-limits-at-boundary |
+| This rule operationalizes, rather than replaces: | uda.continuation.authority-limits / authority-limits-at-boundary |
+| - `patterns/exclusive-active-task-locks.md`; | uda.continuation.authority-limits / authority-limits-at-boundary |
+| - the standing continuous-next-step rule in `patterns/codex-github-operating-system.md`; | uda.continuation.authority-limits / authority-limits-at-boundary |
+| - `templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md`; | uda.continuation.authority-limits / authority-limits-at-boundary |
+| - the Mission Control terminal comparator. | uda.continuation.authority-limits / authority-limits-at-boundary |
+| None of the following is, by itself, permission for a terminal response: | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - context compaction or context-window pressure; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - response/token-budget pressure; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - many tool calls or a long-running turn; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - a checkpoint or recovery commit; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - browser-tab cleanup or browser-memory pressure; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - a provider cooldown, temporary rate limit, retry/backoff interval, or transient tool outage; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - the end of a batch when the next batch/ordinal is already determined; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - ordinary green tests while task acceptance remains open; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - a worker-authored `blocked`, `done`, or handoff statement without current structured authority/evidence. | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+
+Operative remainder: Lifetime continuation after admission is not established by a single pre-action receipt: The controller must preserve resumability and continue automatically when the new directive arrives or the blocking condition clears. 3. keep checking the changing condition at the configured bounded interval; 4. resume the blocked frontier automatically when it clears; Runtime polling, cleared-condition detection and automatic continuation require multi-event controller evidence; current final-response gate tests cover terminal decisions, not the complete lifetime.
 
 ### patterns/context-compaction-resilience.md
 
 | Exact sentence or clause | Record / obligation |
 |---|---|
-| A project must therefore be designed so that losing old chat detail does not mean losing project state. | uda.compaction.durable-memory / durable-memory-at-boundary |
-| Use this hierarchy: | uda.compaction.durable-memory / durable-memory-at-boundary |
-| - **conversation/context = working RAM**; | uda.compaction.durable-memory / durable-memory-at-boundary |
-| - **canonical repository = durable project memory**; | uda.compaction.durable-memory / durable-memory-at-boundary |
-| - **Git history = durable audit trail and rollback path**; | uda.compaction.durable-memory / durable-memory-at-boundary |
-| - **current-state/checkpoint file = recovery entry point**; | uda.compaction.durable-memory / durable-memory-at-boundary |
-| - **exact project artifacts/evidence = authority for factual implementation state**. | uda.compaction.durable-memory / durable-memory-at-boundary |
-| Any decision, constraint, discovery, architecture choice, completed step, or unresolved blocker that would matter after a new thread or context compaction must be written into the canonical repository rather than left only in chat. | uda.compaction.durable-memory / durable-memory-at-boundary |
-| For any project with multi-step, multi-session, or long autonomous work, maintain a concise canonical recovery file such as `CURRENT-STATE.md`, `state/CURRENT-STATE.md`, or an equivalent machine-readable state file chosen by the project. | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| The exact filename may vary, but there must be one obvious current recovery entry point referenced by the project's main index/bootstrap. | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| With concurrent branches, keep that entry point for repository-level state and give each task its own checkpoint. | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| Per-task files avoid merge conflicts while the recovery entry point stays obvious. | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| At minimum, the state checkpoint should record: | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| - current goal / task; | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| - authoritative baseline or relevant commit/ref; | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| - important active decisions and owner constraints; | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| - bootstrap requirements and blocking gates that the task directive or handoff established, so they stay active after compaction; | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| - completed work that must not be repeated; | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| - current step / last durable checkpoint; | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| - remaining work; | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| - blockers or unresolved questions; | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| - relevant artifacts, evidence, tests, logs, branches, and commits; | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| - uncommitted/dirty-working-tree status when relevant; | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| - the next safe resume action or command. | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| Keep this file concise and operational. | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
-| It is a recovery map, not a transcript dump. | uda.compaction.recovery-checkpoint / recovery-checkpoint-at-boundary |
+| A project must therefore be designed so that losing old chat detail does not mean losing project state. | uda.continuity.step-checkpoint / save-completed-step |
+| Use this hierarchy: | uda.continuity.step-checkpoint / save-completed-step |
+| - **conversation/context = working RAM**; | uda.continuity.step-checkpoint / save-completed-step |
+| - **canonical repository = durable project memory**; | uda.continuity.step-checkpoint / save-completed-step |
+| - **Git history = durable audit trail and rollback path**; | uda.continuity.step-checkpoint / save-completed-step |
+| - **current-state/checkpoint file = recovery entry point**; | uda.continuity.step-checkpoint / save-completed-step |
+| - **exact project artifacts/evidence = authority for factual implementation state**. | uda.continuity.step-checkpoint / save-completed-step |
+| Any decision, constraint, discovery, architecture choice, completed step, or unresolved blocker that would matter after a new thread or context compaction must be written into the canonical repository rather than left only in chat. | uda.continuity.step-checkpoint / save-completed-step |
+| For any project with multi-step, multi-session, or long autonomous work, maintain a concise canonical recovery file such as `CURRENT-STATE.md`, `state/CURRENT-STATE.md`, or an equivalent machine-readable state file chosen by the project. | uda.continuity.step-checkpoint / save-completed-step |
+| The exact filename may vary, but there must be one obvious current recovery entry point referenced by the project's main index/bootstrap. | uda.continuity.step-checkpoint / save-completed-step |
+| With concurrent branches, keep that entry point for repository-level state and give each task its own checkpoint. | uda.continuity.step-checkpoint / save-completed-step |
+| Per-task files avoid merge conflicts while the recovery entry point stays obvious. | uda.continuity.step-checkpoint / save-completed-step |
+| At minimum, the state checkpoint should record: | uda.continuity.step-checkpoint / save-completed-step |
+| - current goal / task; | uda.continuity.step-checkpoint / save-completed-step |
+| - authoritative baseline or relevant commit/ref; | uda.continuity.step-checkpoint / save-completed-step |
+| - important active decisions and owner constraints; | uda.continuity.step-checkpoint / save-completed-step |
+| - bootstrap requirements and blocking gates that the task directive or handoff established, so they stay active after compaction; | uda.continuity.step-checkpoint / save-completed-step |
+| - completed work that must not be repeated; | uda.continuity.step-checkpoint / save-completed-step |
+| - current step / last durable checkpoint; | uda.continuity.step-checkpoint / save-completed-step |
+| - remaining work; | uda.continuity.step-checkpoint / save-completed-step |
+| - blockers or unresolved questions; | uda.continuity.step-checkpoint / save-completed-step |
+| - relevant artifacts, evidence, tests, logs, branches, and commits; | uda.continuity.step-checkpoint / save-completed-step |
+| - uncommitted/dirty-working-tree status when relevant; | uda.continuity.step-checkpoint / save-completed-step |
+| - the next safe resume action or command. | uda.continuity.step-checkpoint / save-completed-step |
+| Keep this file concise and operational. | uda.continuity.step-checkpoint / save-completed-step |
+| It is a recovery map, not a transcript dump. | uda.continuity.step-checkpoint / save-completed-step |
 | Plan usage limits, like context limits, can end a turn without warning. | uda.continuity.step-checkpoint / save-completed-step |
 | Never defer saving to a usage threshold. | uda.continuity.step-checkpoint / save-completed-step |
 | At each completed step, push the work to the task branch (work-in-progress commits are fine) and update the checkpoint's done, next, and exact next action. | uda.continuity.step-checkpoint / save-completed-step |
@@ -784,15 +792,15 @@ The injected block is measured with `Buffer.byteLength(ruleGraphPromptBlock(work
 | When a usage signal is visible at or above a warning level (about 90%), checkpoint immediately and take only small, restartable steps. | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
 | This warning supplements continuous checkpoints and never replaces them. | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
 | If only a model-specific weekly limit is reached, switching model family in the same account is a valid way to continue. | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
-| Update the current-state file whenever losing the current chat would otherwise create ambiguity or rework, especially: | uda.compaction.durable-boundaries / durable-boundaries-at-boundary |
-| - after a meaningful implementation/research/editorial milestone; | uda.compaction.durable-boundaries / durable-boundaries-at-boundary |
-| - after a consequential owner decision or constraint change; | uda.compaction.durable-boundaries / durable-boundaries-at-boundary |
-| - after discovering a blocker or falsifying an approach; | uda.compaction.durable-boundaries / durable-boundaries-at-boundary |
-| - before/after risky migrations or long autonomous runs; | uda.compaction.durable-boundaries / durable-boundaries-at-boundary |
-| - before handing work to another agent/thread; | uda.compaction.durable-boundaries / durable-boundaries-at-boundary |
-| - before claiming a multi-step task complete. | uda.compaction.durable-boundaries / durable-boundaries-at-boundary |
-| Do not wait for the model to detect that compaction is imminent. | uda.compaction.durable-boundaries / durable-boundaries-at-boundary |
-| Context limits are implementation details and may not be visible to the worker. | uda.compaction.durable-boundaries / durable-boundaries-at-boundary |
+| Update the current-state file whenever losing the current chat would otherwise create ambiguity or rework, especially: | uda.continuity.step-checkpoint / save-completed-step |
+| - after a meaningful implementation/research/editorial milestone; | uda.continuity.step-checkpoint / save-completed-step |
+| - after a consequential owner decision or constraint change; | uda.continuity.step-checkpoint / save-completed-step |
+| - after discovering a blocker or falsifying an approach; | uda.continuity.step-checkpoint / save-completed-step |
+| - before/after risky migrations or long autonomous runs; | uda.continuity.step-checkpoint / save-completed-step |
+| - before handing work to another agent/thread; | uda.continuity.step-checkpoint / save-completed-step |
+| - before claiming a multi-step task complete. | uda.continuity.step-checkpoint / save-completed-step |
+| Do not wait for the model to detect that compaction is imminent. | uda.continuity.step-checkpoint / save-completed-step |
+| Context limits are implementation details and may not be visible to the worker. | uda.continuity.step-checkpoint / save-completed-step |
 | After interruption, a new thread, a model switch, or suspected context loss: | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
 | 1. inspect the canonical repository and working tree; | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
 | 2. read the project bootstrap/index and current-state checkpoint; | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
@@ -805,19 +813,6 @@ The injected block is measured with `Buffer.byteLength(ruleGraphPromptBlock(work
 | A summary that names a rule does not make it active; reload the rule and its enforcement point (see `patterns/task-time-lesson-activation.md`). | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
 | The checkpoint is a routing document, not higher authority than the repository itself. | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
 | If it conflicts with exact Git state, current artifacts, tests, or newer owner instructions, the newer verified evidence wins and the checkpoint must be repaired. | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
-| Do not attempt to preserve private model reasoning or every exploratory thought. | uda.compaction.reasoning-outcomes / reasoning-outcomes-at-boundary |
-| Persist the user-relevant engineering/research outcomes needed for continuity: | uda.compaction.reasoning-outcomes / reasoning-outcomes-at-boundary |
-| - decisions and why they were chosen; | uda.compaction.reasoning-outcomes / reasoning-outcomes-at-boundary |
-| - rejected approaches when repeating them would waste time or recreate a known failure; | uda.compaction.reasoning-outcomes / reasoning-outcomes-at-boundary |
-| - invariants and constraints; | uda.compaction.reasoning-outcomes / reasoning-outcomes-at-boundary |
-| - evidence pointers; | uda.compaction.reasoning-outcomes / reasoning-outcomes-at-boundary |
-| - test/validation results; | uda.compaction.reasoning-outcomes / reasoning-outcomes-at-boundary |
-| - unresolved uncertainty; | uda.compaction.reasoning-outcomes / reasoning-outcomes-at-boundary |
-| - next action. | uda.compaction.reasoning-outcomes / reasoning-outcomes-at-boundary |
-| A robust project should tolerate starting a completely fresh agent conversation at any time. | uda.compaction.fresh-worker-recovery / fresh-worker-recovery-at-boundary |
-| The test is: | uda.compaction.fresh-worker-recovery / fresh-worker-recovery-at-boundary |
-| > Could a competent new worker, with repository access but without the old chat transcript, recover the correct current state and continue without repeating completed work or silently losing important constraints? | uda.compaction.fresh-worker-recovery / fresh-worker-recovery-at-boundary |
-| If not, project state is insufficiently durable. | uda.compaction.fresh-worker-recovery / fresh-worker-recovery-at-boundary |
 | For substantive long-running work, completion requires both: | uda.compaction.completion-closeout / completion-closeout-at-boundary |
 | - the project's normal implementation/test/research gates; and | uda.compaction.completion-closeout / completion-closeout-at-boundary |
 | - a current durable checkpoint or final state that accurately records what was completed, remaining follow-up, and relevant evidence/commits. | uda.compaction.completion-closeout / completion-closeout-at-boundary |
@@ -831,10 +826,9 @@ The injected block is measured with `Buffer.byteLength(ruleGraphPromptBlock(work
 | Before ending a turn on OPEN work, save that turn's state, reachable private supervisor state, account-bound items to recreate, and a one-line resume instruction. | uda.compaction.portable-instruction / portable-instruction-at-boundary |
 | The worker holding the context saves it; a visible usage warning calls for an immediate checkpoint and small, restartable steps. | uda.compaction.portable-instruction / portable-instruction-at-boundary |
 | On any new thread, interruption, context compaction, model switch, or account switch, reconcile the checkpoint against actual repository state and resume from the latest verified checkpoint without repeating completed work. | uda.compaction.portable-instruction / portable-instruction-at-boundary |
-| - Do not treat a stale `CURRENT-STATE` file as more authoritative than actual Git state or newer owner instructions. | uda.compaction.recovery-limits / recovery-limits-at-boundary |
-| - Do not store secrets, credentials, tokens, or private chain-of-thought in recovery files. | uda.compaction.recovery-limits / recovery-limits-at-boundary |
-| - Do not duplicate large logs or raw evidence into the checkpoint; link to their canonical locations. | uda.compaction.recovery-limits / recovery-limits-at-boundary |
-| - Projects may use a machine-readable ledger/database instead of Markdown if it provides the same recovery guarantees. | uda.compaction.recovery-limits / recovery-limits-at-boundary |
+| Automatic model-context compaction is an efficiency mechanism, not a persistence mechanism. | uda.continuity.step-checkpoint / save-completed-step |
+
+Operative remainder: Unselected operative clauses retained in prose after consolidation and mandatory refresh exceed the unchanged rendered budget: Do not attempt to preserve private model reasoning or every exploratory thought. Persist the user-relevant engineering/research outcomes needed for continuity: - decisions and why they were chosen; - rejected approaches when repeating them would waste time or recreate a known failure; - invariants and constraints; - evidence pointers; - test/validation results; - unresolved uncertainty; - next action. - Do not treat a stale `CURRENT-STATE` file as more authoritative than actual Git state or newer owner instructions. - Do not store secrets, credentials, tokens, or private chain-of-thought in recovery files. - Do not duplicate large logs or raw evidence into the checkpoint; link to their canonical locations. - Projects may use a machine-readable ledger/database instead of Markdown if it provides the same recovery guarantees. The general durable-memory/checkpoint/boundary clauses now carried in uda.continuity.step-checkpoint cover OPEN executable continuity; their broader multi-step diagnostic, stopped or satisfied-task persistence scope remains prose-governed. Repository-alone successor recovery at its handoff boundary also remains prose-governed: A robust project should tolerate starting a completely fresh agent conversation at any time. The test is: > Could a competent new worker, with repository access but without the old chat transcript, recover the correct current state and continue without repeating completed work or silently losing important constraints? If not, project state is insufficiently durable.
 
 ### patterns/exclusive-active-task-locks.md
 
@@ -969,21 +963,17 @@ The injected block is measured with `Buffer.byteLength(ruleGraphPromptBlock(work
 | - `continue` or `what's next` as task selectors; | uda.task-lock.anti-substitutes / anti-substitutes-at-boundary |
 | - a global roadmap when a branch-specific owner task is active; | uda.task-lock.anti-substitutes / anti-substitutes-at-boundary |
 | - a current-state file from another branch; | uda.task-lock.anti-substitutes / anti-substitutes-at-boundary |
-| - ordinary CI as proof of owner-task completion; | uda.task-lock.anti-substitutes / anti-substitutes-at-boundary |
-| - a PR body that says “work in progress” while the worker reports complete; | uda.task-lock.anti-substitutes / anti-substitutes-at-boundary |
-| - conversational promises to compare without per-case comparison artifacts; | uda.task-lock.anti-substitutes / anti-substitutes-at-boundary |
+| - ordinary CI as proof of owner-task completion; | uda.task-lock.anti-substitutes / anti-substitutes-at-claim |
+| - a PR body that says “work in progress” while the worker reports complete; | uda.task-lock.anti-substitutes / anti-substitutes-at-claim |
+| - conversational promises to compare without per-case comparison artifacts; | uda.task-lock.anti-substitutes / anti-substitutes-at-claim |
 | - deleting parallel worktrees merely to prevent task drift. | uda.task-lock.anti-substitutes / anti-substitutes-at-boundary |
 | > For consequential multi-session work with competing repository task sources, maintain one machine-readable exclusive active-task lock in the target branch. | uda.task-lock.portable-instruction / portable-instruction-at-boundary |
 | After any fresh start, resume, compaction, or model switch, run the task preflight before consulting old handoffs or global roadmaps. | uda.task-lock.portable-instruction / portable-instruction-at-boundary |
 | A branch mismatch fails closed. | uda.task-lock.portable-instruction / portable-instruction-at-boundary |
 | Ordinary tests are prerequisites, not task completion. | uda.task-lock.portable-instruction / portable-instruction-at-boundary |
-| Claim readiness only when the task-specific acceptance command verifies every required artifact; claim completion only after protected merge and an immutable receipt. | uda.task-lock.portable-instruction / portable-instruction-at-boundary |
 | - Tiny one-shot tasks do not need a dedicated lock. | uda.task-lock.scope-authority / scope-authority-at-boundary |
 | - A lock cannot override newer owner instructions, safety policy, legal constraints, permissions, spending, publication, or irreversible-action gates. | uda.task-lock.scope-authority / scope-authority-at-boundary |
 | - A task-specific acceptance script is only as strong as its artifact schemas and tests; keep it reviewed and mutation-sensitive. | uda.task-lock.scope-authority / scope-authority-at-boundary |
 | - Parallel agents may have separate locks in separate worktrees, but shared mutable state must still be serialized. | uda.task-lock.scope-authority / scope-authority-at-boundary |
 | - A lock prevents task drift; it does not prove the substantive implementation is correct. | uda.task-lock.scope-authority / scope-authority-at-boundary |
-
-## Review judgment limits
-
-`patterns/living-mermaid-workflow-maps.md` is treated as specialist documentation maintenance; `patterns/github-actions-pr-ref-namespace-safety.md` as specialist workflow ref/log topology. Neither exception proves downstream adoption, and both should be reviewed if the owner wants their authoring behavior structured. The six symbolic-analysis exceptions retain their live domain constraints and scientific-validation limits. Evidence classes are declared after reading tests, but file-level evidence can contain several types of check; the report never upgrades routing to admission.
+| Claim readiness only when the task-specific acceptance command verifies every required artifact; claim completion only after protected merge and an immutable receipt. | uda.task-lock.terminal-states / terminal-states-at-boundary |

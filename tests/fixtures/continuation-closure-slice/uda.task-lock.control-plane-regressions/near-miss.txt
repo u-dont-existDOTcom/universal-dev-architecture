@@ -1,1 +1,1 @@
-Executed regressions reject wrong branch and stale checkpoint identity, missing artifacts, preliminary green-code completion, blocked live COMPLETE, grader leakage and unrelated-source selection; acceptance passes only when every declared artifact exists. The claimed evidence instead relies on test names listed without executing the control-plane regressions.
+The test report lists every required regression name and their planned assertions. It contains no executed result or command output.

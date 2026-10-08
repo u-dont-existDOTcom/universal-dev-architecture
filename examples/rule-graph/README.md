@@ -11,7 +11,7 @@ python3 scripts/uda_rule_graph.py explain --task examples/rule-graph/work-handof
 python3 scripts/uda_rule_graph.py compare --task examples/rule-graph/work-handoff.json
 ```
 
-This representative Work handoff is an independent one-shot child step. Parent continuity remains with its supervisor; the child declares no exclusive competing-task lifecycle. Real multistep envelopes retain continuity_required=true and their full checkpoint duties.
+This representative Work handoff requires multi-step durable recovery across turns or sessions, so continuity_required=true selects both continuous checkpoint records. It declares no exclusive competing-task lifecycle. Current action_classes facts must accompany checks at event refresh boundaries, including when an event was absent at compilation.
 
 The flat catalog selects direct trigger matches. The graph route must additionally include `uda.active-contract.boundary-binding` through `requires` closure.
 
@@ -41,7 +41,7 @@ for receipt in receipts['receipts']:
                    issued_at='2026-09-22T15:12:00+00:00')
 path.write_text(json.dumps(receipts))
 PY
-python3 scripts/uda_rule_graph.py check --contract /tmp/corrected-contract.json --phase final-delivery --destination owner-visible-final --payload /tmp/final.txt --receipts /tmp/final-receipts.json --clock-start 2026-09-22T15:10:00+00:00 --clock-end 2026-09-22T15:12:00+00:00
+python3 scripts/uda_rule_graph.py check --contract /tmp/corrected-contract.json --task examples/rule-graph/owner-correction.json --phase final-delivery --destination owner-visible-final --payload /tmp/final.txt --receipts /tmp/final-receipts.json --clock-start 2026-09-22T15:10:00+00:00 --clock-end 2026-09-22T15:12:00+00:00
 ```
 
 Supply the two current-turn readings as ISO 8601 timestamps with UTC offsets. The first line must match the end reading, and `Elapsed time` must equal their difference. Missing readings or a timestamp only on a later line block admission. The kernel's semantic final obligations, such as clock provenance and continuation, also need receipts bound to the exact final bytes; this example fills them with an illustrative judgment. Receipts never replace the timestamp and elapsed-time predicates.
@@ -65,7 +65,7 @@ for receipt in receipts['receipts']:
                    issued_at='2026-09-22T15:12:00+00:00')
 path.write_text(json.dumps(receipts))
 PY
-python3 scripts/uda_rule_graph.py check --contract /tmp/corrected-contract.json --phase final-delivery --destination durable-task-checkpoint --payload /tmp/checkpoint.txt --receipts /tmp/checkpoint-receipts.json
+python3 scripts/uda_rule_graph.py check --contract /tmp/corrected-contract.json --task examples/rule-graph/owner-correction.json --phase final-delivery --destination durable-task-checkpoint --payload /tmp/checkpoint.txt --receipts /tmp/checkpoint-receipts.json
 ```
 
 Both scoped checks must be ADMITTED. The receipt check verifies binding, not the semantic judgment or actual persistence; a blank, missing or mismatched receipt blocks the checkpoint check.

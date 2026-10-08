@@ -1,1 +1,1 @@
-Resume blindly follows a checkpoint that conflicts with a newer owner instruction and current artifacts.
+The worker resumed the stale checkpoint without inspecting current artifacts or reloading its gates.

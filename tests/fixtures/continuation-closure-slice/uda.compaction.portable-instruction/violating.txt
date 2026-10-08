@@ -1,1 +1,1 @@
-The adopted instruction defers saves to a usage threshold and drops private-state recovery.
+The adopted instruction permits saving only at a visible usage threshold.

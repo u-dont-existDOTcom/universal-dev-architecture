@@ -1,7 +1,7 @@
 {
   "compliant.txt": {
     "verdict": "PASS",
-    "evidence": "Current machine blocker evidence proves unresolved status, task and frontier scope, causal dependency and no supersession. Global relations were classified. An unrelated blocker stays suspended and does not change this task. Ambiguity routes to reasoning. Only operational independence can waive an operational blocker; non-waivable policies remain controlling. Affected-frontier authorization is separate and invalid authority fails closed with findings.",
+    "evidence": "The actual resolver output retains STALE_GLOBAL_BLOCKER_INHERITED, BLOCKER_SCOPE_MISMATCH, BLOCKER_CAUSAL_DEPENDENCY_MISSING, GLOBAL_STATE_STALE_FOR_ACTIVE_TASK, CROSS_TASK_BLOCKER_LEAKAGE and INVALID_TASK_INDEPENDENCE_OVERRIDE when their conditions apply. It validates machine-recorded scope, freshness, unresolved causality and supersession; all five global relations are classified. Unrelated blockers remain suspended without changing this task, ambiguous scope routes to reasoning and independence applies only to operational blockers. Frontier authorization fails closed for applicable non-waivable policy.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -10,7 +10,7 @@
   },
   "violating.txt": {
     "verdict": "FAIL",
-    "evidence": "A safety blocker is labeled independent and bypassed; an unrelated global wait contaminates the active task.",
+    "evidence": "A security-policy blocker is labeled operationally independent and discarded without a resolver finding.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -19,13 +19,13 @@
   },
   "near-miss.txt": {
     "verdict": "FAIL",
-    "evidence": "Current machine blocker evidence proves unresolved status, task and frontier scope, causal dependency and no supersession. Global relations were classified. An unrelated blocker stays suspended and does not change this task. Ambiguity routes to reasoning. Only operational independence can waive an operational blocker; non-waivable policies remain controlling. Affected-frontier authorization is separate and invalid authority fails closed with findings. The claimed evidence instead relies on an unrelated blocker changing the active task state.",
+    "evidence": "A relation label and asserted check do not supply the resolver findings required to admit scoped authority.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
       "relation": "SAME_AGENT"
     },
     "obligation_id": "blocker-scope-at-boundary",
-    "non_substitute": "an unrelated blocker changing the active task state"
+    "non_substitute": "resolver findings replaced by a worker assertion"
   }
 }

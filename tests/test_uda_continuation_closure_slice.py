@@ -27,6 +27,59 @@ ACTIONS = ("exclusive_task", "mission_control_terminal", "provider_wait",
            "resume_reconciliation", "task_completion", "black_box_model_test",
            "task_closeout", "control_plane_testing", "instruction_maintenance")
 
+# Independent boundary pins: changing metadata does not rewrite this table.
+# Columns: phase, reason-bound N/A, event (None means the whole exclusive scope).
+BOUNDARIES = {
+    "uda.continuity.step-checkpoint": ("persistence", False, "continuity"),
+    "uda.continuity.turn-end-handoff": ("final-delivery", False, "continuity"),
+    "uda.continuity.usage-warning": ("persistence", False, "warning"),
+    "uda.continuation.state-reconciliation": ("pre-action", False, None),
+    "uda.continuation.controller-resume": ("pre-action", False, None),
+    "uda.continuation.terminal-admission": ("final-delivery", False, None),
+    "uda.continuation.recovery-events": ("persistence", False, None),
+    "uda.continuation.provider-waits": ("pre-action", True, "provider_wait"),
+    "uda.continuation.mission-control-gate": ("final-delivery", False, "mission_control_terminal"),
+    "uda.continuation.pause-semantics": ("final-delivery", False, None),
+    "uda.continuation.rejection-repair": ("pre-action", True, None),
+    "uda.continuation.authority-limits": ("pre-action", False, None),
+    "uda.compaction.resume-reconciliation": ("pre-action", True, "resume_reconciliation"),
+    "uda.compaction.completion-closeout": ("final-delivery", True, "task_completion"),
+    "uda.compaction.portable-instruction": ("handoff", True, "instruction_maintenance"),
+    "uda.task-lock.exclusive-controls": ("pre-action", False, None),
+    "uda.task-lock.lock-storage": ("pre-action", False, None),
+    "uda.task-lock.competing-sources": ("pre-action", False, None),
+    "uda.task-lock.preflight": ("pre-action", False, None),
+    "uda.task-lock.checkpoint-mirror": ("persistence", False, None),
+    "uda.task-lock.authority-resolution": ("pre-action", False, None),
+    "uda.task-lock.blocker-scope": ("pre-action", True, None),
+    "uda.task-lock.wait-admission": ("pre-action", True, None),
+    "uda.task-lock.artifact-acceptance": ("pre-action", False, None),
+    "uda.task-lock.terminal-states": ("final-delivery", False, None),
+    "uda.task-lock.model-input-separation": ("pre-action", True, "black_box_model_test"),
+    "uda.task-lock.retirement": ("persistence", True, "task_closeout"),
+    "uda.task-lock.control-plane-regressions": ("pre-action", True, "control_plane_testing"),
+    "uda.task-lock.anti-substitutes": ("pre-action", False, None),
+    "uda.task-lock.portable-instruction": ("handoff", True, "instruction_maintenance"),
+    "uda.task-lock.scope-authority": ("pre-action", False, None),
+}
+REFRESH_EVENTS = {rid: event for rid, (_, _, event) in BOUNDARIES.items()
+                  if event not in (None, "continuity", "warning")}
+
+
+def expected_trigger(rid, event):
+    if event in ("continuity", "warning"):
+        executable = {"all": [{"fact": "owner_outcome_status", "eq": "OPEN"},
+                    {"not": {"fact": "task_mode", "in": ["INSTRUCTION_ONLY", "DIAGNOSTIC_ONLY", "NO_CHANGE", "STOP"]}}]}
+        if event == "warning":
+            return {"all": [executable, {"fact": "usage_warning_visible", "eq": True}]}
+        return {"all": executable["all"] + [{"fact": "continuity_required", "eq": True}]}
+    clauses = [{"fact": "governance_required", "eq": True}]
+    if event != "instruction_maintenance":
+        clauses += [{"fact": "continuity_required", "eq": True}] if rid.startswith("uda.compaction.") else [{"fact": "action_classes", "contains": "exclusive_task"}]
+    if event:
+        clauses.append({"fact": "action_classes", "contains": event})
+    return {"all": clauses}
+
 
 def facts_in(expr):
     if "fact" in expr:
@@ -66,7 +119,7 @@ class ContinuationClosureSliceTests(unittest.TestCase):
         return tt.check_contract(contract, phase, payload, current_facts=task["facts"], **kwargs)
 
     def test_complete_fixture_table_is_domain_neutral_and_hash_free(self):
-        self.assertEqual(37, len(self.records))
+        self.assertEqual(31, len(self.records))
         self.assertEqual({r["rule_id"] for r in self.records}, {p.name for p in FIXTURES.iterdir()})
         for folder, record, *_ in self.cases():
             with self.subTest(record=record["rule_id"]):
@@ -76,7 +129,6 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                 near = judgments["near-miss.txt"]
                 ob = next(o for o in record["obligations"] if o["obligation_id"] == near["obligation_id"])
                 self.assertIn(near["non_substitute"], ob["non_substitutes"])
-                self.assertIn(near["non_substitute"], (folder / "near-miss.txt").read_text())
                 for path in folder.iterdir():
                     self.assertNotRegex(path.read_text(), r"https?://|/home/|AGENTS\.md|u-dont-exist|joel|#31[27]|patterns/|state/")
 
@@ -88,7 +140,9 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                     with self.subTest(record=record["rule_id"], candidate=filename, phase=phase):
                         result = self.check(contract, phase, payload, task,
                                             receipts=self.bind(contract, phase, payload, judgment))
-                        self.assertEqual("ADMITTED" if judgment["verdict"] == "PASS" else "BLOCKED", result["admission"])
+                        target_due = any(o["obligation_id"] == judgment.get("obligation_id") and o["due_phase"] == phase for o in record["obligations"])
+                        expected = "ADMITTED" if judgment["verdict"] == "PASS" or (judgment.get("obligation_id") and not target_due) else "BLOCKED"
+                        self.assertEqual(expected, result["admission"])
                         self.assertTrue(result["results"])
                         self.assertTrue(all(r["judgment_proved"] is False for r in result["results"]))
 
@@ -149,7 +203,8 @@ class ContinuationClosureSliceTests(unittest.TestCase):
         for folder, record, catalog, task, _ in self.cases():
             if record["source"]["path"] == SOURCES[1]:
                 continue
-            for absent in ([], [a for a in ACTIONS if a != "exclusive_task"]):
+            absent_sets = ([],) if record["rule_id"].endswith("portable-instruction") else ([], [a for a in ACTIONS if a != "exclusive_task"])
+            for absent in absent_sets:
                 envelope = copy.deepcopy(task)
                 envelope["facts"]["action_classes"]["value"] = absent
                 self.assertFalse(tt.compile_contract(catalog, self.profile, envelope, "graph")["selected_rules"])
@@ -167,7 +222,7 @@ class ContinuationClosureSliceTests(unittest.TestCase):
             payload = (folder / "compliant.txt").read_bytes()
             judgment = tt.read_json(folder / "verdicts.json")["compliant.txt"]
             final_receipts = self.bind(contract, "final-delivery", payload, judgment)
-            self.assertEqual([], final_receipts["receipts"])
+            self.assertFalse(any(r["phase"] == "pre-action" for r in final_receipts["receipts"]))
             self.assertEqual("BLOCKED", self.check(contract, "pre-action", payload, task, receipts=final_receipts)["admission"])
             ob = record["obligations"][0]
             wrong_dest = self.bind(contract, "pre-action", payload, judgment)
@@ -192,8 +247,8 @@ class ContinuationClosureSliceTests(unittest.TestCase):
         task = tt.read_json(ROOT / "examples/rule-graph/instruction-only.json")
         contract = tt.compile_contract(catalog, self.profile, task, "graph")
         clocks = {"clock_start": "2030-01-02T10:00:00Z", "clock_end": "2030-01-02T10:02:00Z"}
-        for payload, verdict, expected in ((b"2030-01-02 10:02:00 UTC\nElapsed time: 120 seconds\n", "FAIL", "PASS"),
-                                           (b"Done.\n", "PASS", "FAIL")):
+        for payload, verdict, expected in ((b"2030-01-02 10:02:00 UTC\nElapsed time: 120 seconds\n", "FAIL", ("PASS", "PASS")),
+                                           (b"2030-01-02 10:02:00 UTC\nElapsed time: 180 seconds\n", "PASS", ("PASS", "FAIL"))):
             receipts = {"receipts": [{"rule_id": record["rule_id"], "obligation_id": o["obligation_id"],
                           "verdict": verdict, "contract_sha256": contract["content_sha256"],
                           "payload_sha256": hashlib.sha256(payload).hexdigest(), "phase": "final-delivery",
@@ -201,20 +256,19 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                           "actor": {"id": "fixture", "kind": "fixture", "relation": "SAME_AGENT"},
                           "issued_at": "2030-01-02T10:02:00Z"} for o in record["obligations"]]}
             result = tt.check_contract(contract, "final-delivery", payload, receipts=receipts, **clocks)
-            for row in result["results"]:
-                if row["obligation_id"] in {o["obligation_id"] for o in record["obligations"] if o["enforcement"] == "mechanical"}:
-                    self.assertEqual(expected, row["status"])
+            actual = {row["obligation_id"]: row["status"] for row in result["results"]}
+            self.assertEqual(expected, (actual["final-first-line-timestamp"], actual["final-elapsed-time"]))
 
     def test_complete_maps_pins_and_backlog_shrinkage(self):
         report = coverage.report(ROOT)
-        self.assertEqual(75, report["backlog_count"])
-        self.assertEqual(9, len(report["removed_since_baseline"]))
-        self.assertTrue(set(SOURCES).issubset(report["removed_since_baseline"]))
-        for source, count in zip(SOURCES, (63, 89, 143)):
+        self.assertEqual(77, report["backlog_count"])
+        self.assertEqual(7, len(report["removed_since_baseline"]))
+        self.assertIn(SOURCES[2], report["removed_since_baseline"])
+        for source, count, disposition in zip(SOURCES, (65, 73, 143), ("STRUCTURED_PARTIAL", "STRUCTURED_PARTIAL", "STRUCTURED_ENFORCED")):
             entry = next(e for e in self.inventory["entries"] if e["id"] == source)
-            self.assertEqual("STRUCTURED_ENFORCED", entry["disposition"])
+            self.assertEqual(disposition, entry["disposition"])
             self.assertEqual(count, len(entry["obligation_map"]))
-            self.assertFalse(entry["legacy_remainder"])
+            self.assertEqual(disposition == "STRUCTURED_PARTIAL", bool(entry["legacy_remainder"]))
             self.assertFalse(any("exception" in i for i in entry["obligation_map"]))
             manifest = tt.read_json(ROOT / coverage.REQUIREMENT)["source_clause_manifest"][source]
             self.assertEqual(count, manifest["clause_count"])
@@ -224,23 +278,77 @@ class ContinuationClosureSliceTests(unittest.TestCase):
         self.assertEqual(84, len(baseline["backlog_ids"]))
         self.assertFalse(baseline.get("owner_authorized_additions"))
 
-    def test_representative_work_selects_only_its_actual_bounded_receiving_scope(self):
+    def test_representative_work_keeps_usage_limit_continuity_under_both_budgets(self):
         work = tt.read_json(ROOT / coverage.WORK_TASK)
         self.assertEqual("work", work["facts"]["actor"]["value"])
-        self.assertFalse(work["facts"]["continuity_required"]["value"])
-        self.assertIn("one-shot", work["facts"]["continuity_required"]["provenance"])
+        self.assertTrue(work["facts"]["continuity_required"]["value"])
+        self.assertEqual("multi-step work requires durable recovery across turns or sessions", work["facts"]["continuity_required"]["provenance"])
         self.assertNotIn("exclusive_task", work["facts"]["action_classes"]["value"])
         projection = tt.read_json(ROOT / coverage.WORK_CONTRACT)
         self.assertLessEqual(len(projection["rendered_contract"].encode()), 32768)
-        self.assertFalse({r["rule_id"] for r in self.records} & {r["rule_id"] for r in projection["selected_rules"]})
-        # A real multi-step envelope must retain the complete checkpoint duties.
-        multistep = copy.deepcopy(work)
-        multistep["facts"]["continuity_required"]["value"] = True
-        contract = tt.compile_contract(self.catalog, self.profile, multistep, "graph")
-        self.assertTrue({"uda.compaction.durable-memory", "uda.compaction.recovery-checkpoint",
-                         "uda.compaction.durable-boundaries", "uda.compaction.reasoning-outcomes",
-                         "uda.compaction.fresh-worker-recovery", "uda.compaction.recovery-limits"}.issubset(
-                             {r["rule_id"] for r in contract["selected_rules"]}))
+        selected = {r["rule_id"] for r in projection["selected_rules"]}
+        self.assertTrue({"uda.continuity.step-checkpoint", "uda.continuity.turn-end-handoff"}.issubset(selected))
+        self.assertFalse({"uda.compaction.durable-memory", "uda.compaction.recovery-checkpoint", "uda.compaction.durable-boundaries"} & selected)
+
+    def test_expected_phases_not_applicable_and_triggers_are_pinned(self):
+        self.assertEqual(set(BOUNDARIES), {r["rule_id"] for r in self.records})
+        for r in self.records:
+            rid = r["rule_id"]
+            phase, na, event = BOUNDARIES[rid]
+            with self.subTest(record=rid):
+                self.assertEqual(expected_trigger(rid, event), r["trigger"])
+                self.assertEqual((phase, na), (r["obligations"][0]["due_phase"], r["obligations"][0]["not_applicable_allowed"]))
+                expected = [(phase, na)]
+                if rid == "uda.task-lock.anti-substitutes":
+                    expected.append(("final-delivery", False))
+                self.assertEqual(expected, [(o["due_phase"], o["not_applicable_allowed"]) for o in r["obligations"]])
+        # These owner-identified evidence omissions previously passed synthetic
+        # verdict fixtures. Preserve the actual claim/gate requirements as well.
+        demands = {
+            "uda.task-lock.terminal-states": ("while acceptance findings remain", "exact claimed head", "command, head and output cited", "no open acceptance findings", "protected merge, readback and the immutable closeout receipt"),
+            "uda.continuation.mission-control-gate": ("actual output", "exit status", "terminalResponseAllowed", "decision", "terminalStateVectorSha256", "tests/final-response-gate.test.ts"),
+            "uda.continuation.authority-limits": ("privacy", "security", "explicit owner-stop"),
+            "uda.task-lock.authority-resolution": ("scripts/active_task_authority.py", "CURRENT_OWNER_STOP", "TASK_LOCAL_CHECKPOINT_CONTENT_SHA256_MISMATCH"),
+            "uda.task-lock.blocker-scope": ("scripts/active_task_authority.py", "STALE_GLOBAL_BLOCKER_INHERITED", "BLOCKER_SCOPE_MISMATCH", "BLOCKER_CAUSAL_DEPENDENCY_MISSING", "GLOBAL_STATE_STALE_FOR_ACTIVE_TASK", "CROSS_TASK_BLOCKER_LEAKAGE", "INVALID_TASK_INDEPENDENCE_OVERRIDE"),
+            "uda.task-lock.wait-admission": ("scripts/active_task_authority.py", "WAIT_CONDITION_NOT_ACTIONABLE", "WAIT_WITHOUT_ADMISSION", "GITHUB_UPDATE_WAIT_WITHOUT_CAUSAL_DEPENDENCY", "WAIT_REASONING_HANDOFF_MISSING", "WAIT_NEXT_CHECK_OUTSIDE_HORIZON"),
+        }
+        by_id = {r["rule_id"]: r for r in self.records}
+        for rid, clauses in demands.items():
+            evidence = by_id[rid]["obligations"][0]["acceptance_evidence"]
+            for clause in clauses:
+                with self.subTest(record=rid, required=clause):
+                    self.assertIn(clause, evidence)
+
+    def test_event_fact_changes_block_until_recompiled_even_if_initially_excluded(self):
+        for folder, r, catalog, task, _ in self.cases():
+            rid = r["rule_id"]
+            if rid not in REFRESH_EVENTS:
+                continue
+            with self.subTest(record=rid):
+                self.assertEqual(["action_classes"], r["refresh_on_facts"])
+                task["facts"]["action_classes"]["value"] = ["exclusive_task"]
+                initial = tt.compile_contract(catalog, self.profile, task, "graph")
+                self.assertFalse(initial["selected_rules"])
+                phase = r["obligations"][0]["due_phase"]
+                payload = (folder / "compliant.txt").read_bytes()
+                self.assertEqual("ADMITTED", self.check(initial, phase, payload, task)["admission"])
+                self.assertEqual("BLOCKED", tt.check_contract(initial, phase, payload)["admission"])
+                changed = copy.deepcopy(task)
+                changed["facts"]["action_classes"]["value"].append(REFRESH_EVENTS[rid])
+                self.assertEqual("BLOCKED", self.check(initial, phase, payload, changed)["admission"])
+                refreshed = tt.compile_contract(catalog, self.profile, changed, "graph")
+                self.assertEqual([rid], [x["rule_id"] for x in refreshed["selected_rules"]])
+                self.assertEqual("BLOCKED", self.check(refreshed, phase, payload, changed)["admission"])
+                receipts = self.bind(refreshed, phase, payload, tt.read_json(folder / "verdicts.json")["compliant.txt"])
+                self.assertEqual("ADMITTED", self.check(refreshed, phase, payload, changed, receipts=receipts)["admission"])
+                self.assertEqual("ADMITTED", self.check(refreshed, phase, payload, copy.deepcopy(changed), receipts=receipts)["admission"])
+
+    def test_one_shot_governance_instruction_adopts_both_portable_controls(self):
+        task = tt.read_json(ROOT / coverage.WORK_TASK)
+        task["facts"]["continuity_required"]["value"] = False
+        task["facts"]["action_classes"]["value"] = ["instruction_maintenance"]
+        contract = tt.compile_contract(self.catalog, self.profile, task, "graph")
+        self.assertTrue({"uda.kernel.instruction-maintenance", "uda.compaction.portable-instruction", "uda.task-lock.portable-instruction"}.issubset({r["rule_id"] for r in contract["selected_rules"]}))
 
 
 class ContinuationClosureCoverageMutations(unittest.TestCase):
@@ -355,3 +463,14 @@ class ContinuationClosureCoverageMutations(unittest.TestCase):
                 path.write_text(text[:heading.end()] + "\nThe executor must acquire a second lock before editing.\n" + text[heading.end():])
                 self.regenerate()
                 self.rejected("obligation_map differs from independent section clause manifests")
+
+    def test_corrective_partial_dispositions_need_exact_owner_authority(self):
+        for source in SOURCES[:2]:
+            self.restore()
+            with self.subTest(source=source):
+                self.mutate(coverage.REQUIREMENT, lambda d: d.update(
+                    owner_authorized_coverage_corrections=[c for c in d["owner_authorized_coverage_corrections"] if c["id"] != source]))
+                self.rejected("unauthorized promoted coverage regression: " + source)
+                self.restore()
+                self.mutate(coverage.REQUIREMENT, lambda d: next(c for c in d["owner_authorized_coverage_corrections"] if c["id"] == source).update(owner_quote=""))
+                self.rejected("coverage correction needs exact baseline id")

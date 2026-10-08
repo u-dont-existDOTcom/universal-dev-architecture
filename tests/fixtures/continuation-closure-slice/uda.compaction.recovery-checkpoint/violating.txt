@@ -1,1 +1,0 @@
-The checkpoint omits the directive-established blocking gate and the next executable action.

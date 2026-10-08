@@ -1,1 +1,0 @@
-The bootstrap names one recovery entry and separate concurrent-task checkpoints. The concise task checkpoint records goal, baseline, decisions, owner constraints, bootstrap and blocking gates, completed work, current durable boundary, remaining work, questions, evidence and relevant dirty state, with an exact safe resume action.

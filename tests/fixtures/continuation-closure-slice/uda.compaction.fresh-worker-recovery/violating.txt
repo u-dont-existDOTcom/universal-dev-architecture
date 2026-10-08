@@ -1,1 +1,0 @@
-The successor requires the old conversation to recover the next step and loses an owner constraint.

@@ -1,7 +1,7 @@
 {
   "compliant.txt": {
     "verdict": "PASS",
-    "evidence": "The actual acceptance harness rejects model-facing input containing expected routes, prohibited behavior, assertions, grader metadata or framework hints. Queries and grader fields are mechanically separate; complete campaign files cannot waive leakage.",
+    "evidence": "The actual harness verifies model-facing input excludes expected routes, prohibited behavior, assertions, grader metadata and framework hints. It rejects leakage even when every result file exists.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -10,7 +10,7 @@
   },
   "violating.txt": {
     "verdict": "FAIL",
-    "evidence": "Expected routes and grading assertions are included in the black-box model query.",
+    "evidence": "The model prompt includes the expected route and grader assertions.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -19,13 +19,13 @@
   },
   "near-miss.txt": {
     "verdict": "FAIL",
-    "evidence": "The actual acceptance harness rejects model-facing input containing expected routes, prohibited behavior, assertions, grader metadata or framework hints. Queries and grader fields are mechanically separate; complete campaign files cannot waive leakage. The claimed evidence instead relies on grader expectations included in model-facing input.",
+    "evidence": "Complete results cannot waive a failed model-input separation check.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
       "relation": "SAME_AGENT"
     },
     "obligation_id": "model-input-separation-at-boundary",
-    "non_substitute": "grader expectations included in model-facing input"
+    "non_substitute": "complete result files used to waive input leakage"
   }
 }

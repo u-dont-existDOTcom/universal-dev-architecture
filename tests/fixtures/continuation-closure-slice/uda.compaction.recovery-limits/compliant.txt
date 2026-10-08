@@ -1,1 +1,0 @@
-Verified repository and newer owner authority outrank stale state. No secrets, credentials, tokens or private reasoning are stored. Large evidence stays canonical and is referenced. The chosen structured ledger provides equivalent recovery guarantees.

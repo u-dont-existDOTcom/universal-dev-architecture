@@ -172,8 +172,8 @@ class ReviewMergeSliceTests(unittest.TestCase):
         self.assertFalse(set(SOURCES).intersection(baseline["backlog_ids"]))
         self.assertFalse(baseline.get("owner_authorized_additions"))
         report = coverage.report(ROOT)
-        self.assertEqual(75, report["backlog_count"])
-        self.assertEqual(9, len(report["removed_since_baseline"]))
+        self.assertEqual(77, report["backlog_count"])
+        self.assertEqual(7, len(report["removed_since_baseline"]))
         self.assertFalse(set(SOURCES).intersection(report["removed_since_baseline"]))
         for source, expected in zip(SOURCES, (70, 58)):
             entry = next(e for e in self.inventory["entries"] if e["id"] == source)

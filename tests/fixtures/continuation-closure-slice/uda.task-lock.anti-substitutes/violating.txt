@@ -1,1 +1,1 @@
-Hidden chat memory selects an old task and promises replace per-case comparisons.
+The worker selects a historical task from hidden chat memory and reports it complete because CI passed.

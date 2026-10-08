@@ -1,1 +1,1 @@
-Expected routes and grading assertions are included in the black-box model query.
+The model prompt includes the expected route and grader assertions.

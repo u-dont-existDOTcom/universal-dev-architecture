@@ -1,7 +1,7 @@
 {
   "compliant.txt": {
     "verdict": "PASS",
-    "evidence": "The latest independent owner source was resolved before the exact lock-selected checkpoint path, ref, object, content hash, task, branch and outcome epoch were bound. Current correction, lock and checkpoint, directive, task evidence, applicable global policy then history determine authority. New owner stop invalidates continuation; identical prose cannot authorize a substituted checkpoint.",
+    "evidence": "The independently captured latest owner source is checked before the exact checkpoint path/ref/commit/blob/content hash, task, branch and owner epoch/hash. Actual resolver output contains CURRENT_OWNER_STOP for the newest stop and TASK_LOCAL_CHECKPOINT_CONTENT_SHA256_MISMATCH for the substituted checkpoint; it denies continuation. Task-local prose and global labels do not override either finding.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -10,7 +10,7 @@
   },
   "violating.txt": {
     "verdict": "FAIL",
-    "evidence": "A substituted checkpoint with identical task fields but a different content hash authorizes execution after a newer stop.",
+    "evidence": "The latest independent source says stop. An older checkpoint is used to authorize another mutation.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -19,7 +19,7 @@
   },
   "near-miss.txt": {
     "verdict": "FAIL",
-    "evidence": "The latest independent owner source was resolved before the exact lock-selected checkpoint path, ref, object, content hash, task, branch and outcome epoch were bound. Current correction, lock and checkpoint, directive, task evidence, applicable global policy then history determine authority. New owner stop invalidates continuation; identical prose cannot authorize a substituted checkpoint. The claimed evidence instead relies on matching task prose substituted for exact checkpoint identity.",
+    "evidence": "Matching labels cannot override the actual resolver content-hash mismatch finding.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",

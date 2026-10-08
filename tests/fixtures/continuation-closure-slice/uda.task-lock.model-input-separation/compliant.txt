@@ -1,1 +1,1 @@
-The actual acceptance harness rejects model-facing input containing expected routes, prohibited behavior, assertions, grader metadata or framework hints. Queries and grader fields are mechanically separate; complete campaign files cannot waive leakage.
+The actual harness verifies model-facing input excludes expected routes, prohibited behavior, assertions, grader metadata and framework hints. It rejects leakage even when every result file exists.

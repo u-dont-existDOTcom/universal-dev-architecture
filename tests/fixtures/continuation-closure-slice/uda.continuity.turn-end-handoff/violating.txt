@@ -1,1 +1,1 @@
-The checkpoint describes a previous turn and private state remains only in the old account.
+The earlier checkpoint still describes yesterday. The current next action and private state were not saved.

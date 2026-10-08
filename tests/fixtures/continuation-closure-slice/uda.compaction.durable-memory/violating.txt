@@ -1,1 +1,0 @@
-Architecture choices and an unresolved blocker remain only in the current conversation.

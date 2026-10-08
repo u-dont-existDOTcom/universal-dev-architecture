@@ -176,18 +176,15 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
     def test_elapsed_time_cannot_be_certified_from_final_payload_alone(self):
         compiled = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
         generated = json.loads((ROOT / "tools/codex-mission-control/restored/codex-mission-control/generated/rule-graph/work-handoff-contract.json").read_text())
-        multi_task = copy.deepcopy(self.work)
-        multi_task["facts"]["continuity_required"].update(value=True, provenance="multistep receipt regression")
-        multistep = task_time.compile_contract(self.catalog, self.profile, multi_task, "graph")
-        self.assertIn("uda.continuity.turn-end-handoff", self.ids(multistep))
-        for contract in (compiled, generated, multistep):
+        for contract in (compiled, generated):
             timestamp = next(x for x in contract["selected_rules"] if x["rule_id"] == "uda.final.timestamp")
             elapsed = next(x for x in timestamp["obligations"] if x["obligation_id"] == "final-elapsed-time")
             self.assertIn("elapsed", elapsed["required_behavior"].lower())
             self.assertIn("clock readings", elapsed["acceptance_evidence"].lower())
             self.assertEqual(elapsed["enforcement"], "mechanical")
             for payload in ("2026-09-30 09:40 UTC\nDone.", "2026-09-30 09:40 UTC\nElapsed: 2 minutes. Done."):
-                checked = task_time.check_contract(contract, "final-delivery", payload)
+                checked = task_time.check_contract(contract, "final-delivery", payload,
+                    current_facts=self.work["facts"] if contract is generated else self.instruction["facts"])
                 self.assertEqual(checked["admission"], "BLOCKED")
                 self.assertEqual(next(x for x in checked["results"] if x["obligation_id"] == "final-elapsed-time")["status"], "UNKNOWN")
             checked = task_time.check_contract(
@@ -195,9 +192,10 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
                 clock_start="2026-09-30T09:40:00+00:00", clock_end="2026-09-30T09:42:00+00:00",
                 receipts=pass_receipts(task_time, contract, "final-delivery", "2026-09-30 09:42 UTC\nElapsed time: 2 minutes",
                                        exclude_rules=("uda.continuity.",)),
+                current_facts=self.work["facts"] if contract is generated else self.instruction["facts"],
             )
             self.assertEqual(next(x for x in checked["results"] if x["obligation_id"] == "final-elapsed-time")["status"], "PASS")
-            if contract is multistep:
+            if contract is generated:
                 # Valid clocks do not discharge the OPEN task's durable handoff.
                 self.assertEqual(checked["admission"], "BLOCKED")
                 self.assertEqual(next(x for x in checked["results"] if x["obligation_id"] == "save-turn-end-handoff")["status"], "UNKNOWN")
@@ -284,7 +282,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
 
     def test_semantic_handoff_does_not_self_certify(self):
         contract = task_time.compile_contract(self.catalog, self.profile, self.work, "graph")
-        checked = task_time.check_contract(contract, "handoff", "bounded directive")
+        checked = task_time.check_contract(contract, "handoff", "bounded directive", current_facts=self.work["facts"])
         self.assertEqual(checked["admission"], "BLOCKED")
         self.assertTrue(any(item["status"] == "UNKNOWN" for item in checked["results"]))
 
@@ -337,7 +335,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
                     self.assertEqual(dirty_lock, task_time.build_lock(self.catalog, self.profile))
                     clean_contract = task_time.compile_contract(self.catalog, self.profile, self.work, "graph")
                     self.assertEqual(dirty_contract, clean_contract)
-                    checked = task_time.check_contract(clean_contract, "handoff", payload, receipts=receipts)
+                    checked = task_time.check_contract(clean_contract, "handoff", payload, receipts=receipts, current_facts=self.work["facts"])
                     self.assertEqual(checked["admission"], "ADMITTED")
                 if boundary == "containing commit":
                     (root / "checkpoint.txt").write_text("Unrelated checkpoint\n")

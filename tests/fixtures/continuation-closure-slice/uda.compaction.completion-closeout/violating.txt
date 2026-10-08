@@ -1,1 +1,1 @@
-Completion is claimed with a stale final state and undisposed transferable lessons.
+The tests passed and the task was closed without current durable final state.

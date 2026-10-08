@@ -1,7 +1,7 @@
 {
   "compliant.txt": {
     "verdict": "PASS",
-    "evidence": "After protected merge, source and merged identities, required check results and immutable readback receipt were recorded. The lock was completed or archived, canonical checkpoint updated and only then roadmap selection resumed. New work creates a new task identity.",
+    "evidence": "After protected merge, source/merged identities, required checks and immutable post-merge receipt are recorded. The lock is completed/archived and canonical state updated before roadmap selection resumes; a later task receives a new identity and lock.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -10,7 +10,7 @@
   },
   "violating.txt": {
     "verdict": "FAIL",
-    "evidence": "The old lock is silently repurposed and roadmap selection resumes before integration readback.",
+    "evidence": "The old task lock is silently renamed for the next task.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -19,7 +19,7 @@
   },
   "near-miss.txt": {
     "verdict": "FAIL",
-    "evidence": "After protected merge, source and merged identities, required check results and immutable readback receipt were recorded. The lock was completed or archived, canonical checkpoint updated and only then roadmap selection resumed. New work creates a new task identity. The claimed evidence instead relies on roadmap selection restored before closeout.",
+    "evidence": "Merge alone does not authorize retiring task control before immutable closeout.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",

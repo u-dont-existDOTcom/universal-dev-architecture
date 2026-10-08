@@ -1,7 +1,7 @@
 {
   "compliant.txt": {
     "verdict": "PASS",
-    "evidence": "Before resuming, actual repository and working tree, bootstrap and index, checkpoint, relevant commits and artifacts were inspected. Surviving and missing work was reconciled, stale state repaired, and exact task gates with enforcement points reloaded. Execution resumes from the latest verified boundary without repetition; newer verified evidence outranks checkpoint prose.",
+    "evidence": "After interruption the worker inspected the repository and dirty tree, bootstrap/index/checkpoint, relevant commits and artifacts. It repaired stale checkpoint fields, established survived/remaining work, reloaded current task gates and their enforcement points, then resumed the latest verified boundary without repeats. Exact artifacts and newer owner authority outrank summaries.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -10,7 +10,7 @@
   },
   "violating.txt": {
     "verdict": "FAIL",
-    "evidence": "Resume blindly follows a checkpoint that conflicts with a newer owner instruction and current artifacts.",
+    "evidence": "The worker resumed the stale checkpoint without inspecting current artifacts or reloading its gates.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",
@@ -19,7 +19,7 @@
   },
   "near-miss.txt": {
     "verdict": "FAIL",
-    "evidence": "Before resuming, actual repository and working tree, bootstrap and index, checkpoint, relevant commits and artifacts were inspected. Surviving and missing work was reconciled, stale state repaired, and exact task gates with enforcement points reloaded. Execution resumes from the latest verified boundary without repetition; newer verified evidence outranks checkpoint prose. The claimed evidence instead relies on a summary naming a rule instead of reactivation.",
+    "evidence": "Accurate repository reconciliation cannot substitute for current task-gate reactivation.",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "fixture",

@@ -259,6 +259,9 @@ def validate(root: Path | str) -> list[str]:
                     errors.append(prefix + "enforced disposition needs a complete obligation_map")
                 if not {"ADMISSION", "BEHAVIORAL_REGRESSION"}.issubset(evidence_classes):
                     errors.append(prefix + "enforced disposition needs both ADMISSION and BEHAVIORAL_REGRESSION evidence")
+            if disposition == "STRUCTURED_ENFORCED" or (
+                    disposition == "STRUCTURED_PARTIAL"
+                    and eid in requirement.get("source_clause_manifest", {})):
                 # Pin the source clauses in the requirement, independently of
                 # editable records/maps and their regenerable lock/projection.
                 manifest = requirement.get("source_clause_manifest", {}).get(eid)
@@ -462,9 +465,24 @@ def validate(root: Path | str) -> list[str]:
                 errors.append("baseline backlog may shrink only through STRUCTURED_ENFORCED: " + eid)
         # Independent clause manifests persist completed promotions. Original
         # baseline membership cannot authorize putting those entries back.
+        corrections = set()
+        for correction in requirement.get("owner_authorized_coverage_corrections", []):
+            try:
+                date.fromisoformat(correction["date"])
+                if (correction.get("id") not in pinned
+                        or correction.get("disposition") != "STRUCTURED_PARTIAL"
+                        or not specific_reason(correction.get("owner_quote"))
+                        or not specific_reason(correction.get("reason"))
+                        or not isinstance(correction.get("source"), str)
+                        or not correction["source"].strip()):
+                    raise ValueError("incomplete corrective authority")
+                corrections.add(correction["id"])
+            except (KeyError, TypeError, ValueError):
+                errors.append("coverage correction needs exact baseline id, partial disposition, owner_quote, date, source and reason")
         for eid in requirement.get("source_clause_manifest", {}):
             disposition = by_id.get(eid, {}).get("disposition")
-            if disposition != "STRUCTURED_ENFORCED" and not (disposition in BACKLOG and eid in authorized_additions):
+            corrected = disposition == "STRUCTURED_PARTIAL" and eid in corrections
+            if disposition != "STRUCTURED_ENFORCED" and not corrected and not (disposition in BACKLOG and eid in authorized_additions):
                 errors.append("unauthorized promoted coverage regression: " + eid)
         # Compare complete regenerated content, not just IDs or a self-declared
         # checksum. Regeneration stays in memory and uses the audited root.

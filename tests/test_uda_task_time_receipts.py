@@ -162,7 +162,7 @@ class SemanticReceiptTests(unittest.TestCase):
                 for receipt in receipts['receipts']:
                     receipt.update(verdict='PASS', evidence='The literal test candidate binds the current contract and directs only mechanical work with facts returned to Chat.',
                                    actor={'id': 'application-author', 'kind': 'chat', 'relation': 'SAME_AGENT'}, issued_at='2026-10-06T12:00:00Z')
-                result = tt.check_contract(contract, phase, payload, receipts=receipts)
+                result = tt.check_contract(contract, phase, payload, receipts=receipts, current_facts=envelope['facts'])
                 self.assertEqual(result['admission'], 'ADMITTED')
                 self.assertTrue(all(r['binding_status'] == 'RECEIPT_BINDING_VERIFIED' for r in result['results']))
 

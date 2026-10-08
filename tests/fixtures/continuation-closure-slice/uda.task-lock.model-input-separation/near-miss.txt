@@ -1,1 +1,1 @@
-The actual acceptance harness rejects model-facing input containing expected routes, prohibited behavior, assertions, grader metadata or framework hints. Queries and grader fields are mechanically separate; complete campaign files cannot waive leakage. The claimed evidence instead relies on grader expectations included in model-facing input.
+The input-separation harness reports a leaked framework hint, but all campaign result files exist and the worker waives the leak.

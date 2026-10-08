@@ -770,7 +770,7 @@
     },
     {
       "rule_id": "uda.continuity.step-checkpoint",
-      "revision": 3,
+      "revision": 4,
       "status": "CURRENT",
       "source": {
         "path": "patterns/context-compaction-resilience.md",
@@ -786,6 +786,150 @@
           {
             "kind": "exact_text",
             "text": "- Tiny one-shot tasks do not need a dedicated current-state file."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A project must therefore be designed so that losing old chat detail does not mean losing project state."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Use this hierarchy:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- **conversation/context = working RAM**;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- **canonical repository = durable project memory**;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- **Git history = durable audit trail and rollback path**;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- **current-state/checkpoint file = recovery entry point**;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- **exact project artifacts/evidence = authority for factual implementation state**."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Any decision, constraint, discovery, architecture choice, completed step, or unresolved blocker that would matter after a new thread or context compaction must be written into the canonical repository rather than left only in chat."
+          },
+          {
+            "kind": "exact_text",
+            "text": "For any project with multi-step, multi-session, or long autonomous work, maintain a concise canonical recovery file such as `CURRENT-STATE.md`, `state/CURRENT-STATE.md`, or an equivalent machine-readable state file chosen by the project."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The exact filename may vary, but there must be one obvious current recovery entry point referenced by the project's main index/bootstrap."
+          },
+          {
+            "kind": "exact_text",
+            "text": "With concurrent branches, keep that entry point for repository-level state and give each task its own checkpoint."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Per-task files avoid merge conflicts while the recovery entry point stays obvious."
+          },
+          {
+            "kind": "exact_text",
+            "text": "At minimum, the state checkpoint should record:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- current goal / task;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- authoritative baseline or relevant commit/ref;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- important active decisions and owner constraints;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- bootstrap requirements and blocking gates that the task directive or handoff established, so they stay active after compaction;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- completed work that must not be repeated;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- current step / last durable checkpoint;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- remaining work;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- blockers or unresolved questions;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- relevant artifacts, evidence, tests, logs, branches, and commits;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- uncommitted/dirty-working-tree status when relevant;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- the next safe resume action or command."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Keep this file concise and operational."
+          },
+          {
+            "kind": "exact_text",
+            "text": "It is a recovery map, not a transcript dump."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Update the current-state file whenever losing the current chat would otherwise create ambiguity or rework, especially:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- after a meaningful implementation/research/editorial milestone;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- after a consequential owner decision or constraint change;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- after discovering a blocker or falsifying an approach;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- before/after risky migrations or long autonomous runs;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- before handing work to another agent/thread;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- before claiming a multi-step task complete."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Do not wait for the model to detect that compaction is imminent."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Context limits are implementation details and may not be visible to the worker."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Automatic model-context compaction is an efficiency mechanism, not a persistence mechanism."
           }
         ]
       },
@@ -828,16 +972,23 @@
       "obligations": [
         {
           "obligation_id": "save-completed-step",
-          "required_behavior": "At each completed step, the worker holding the context pushes the work to the task branch and updates done, next and the exact next action in the durable checkpoint, so any account can resume from durable state alone; never wait for a usage threshold or a helper at the limit.",
+          "required_behavior": "At completed steps and whenever chat loss would cause ambiguity or rework, the contextual worker saves canonical outcomes and every minimum recovery field, pushes task-branch work without waiting for limits or a helper, and preserves repository-alone recovery across accounts.",
           "due_phase": "persistence",
           "destination": "durable-task-checkpoint",
-          "acceptance_evidence": "The durable checkpoint matches the completed step, identifies the pushed task-branch work, and records done, next and an exact executable resume action without needing the old chat.",
+          "acceptance_evidence": "The durable checkpoint matches the completed step, identifies the pushed task-branch work, and records done, next and an exact executable resume action without needing the old chat. The actual canonical repository holds outcomes needed after context loss; chat is working RAM, Git is audit/rollback, the current checkpoint is the recovery entry, and exact artifacts establish implementation state. Model compaction never substitutes for persistence. The project bootstrap/index references one obvious recovery entry. Concurrent branches use separate task checkpoints under that entry. The checkpoint records goal/task; verified baseline/ref; decisions and owner constraints; directive bootstrap/blocking gates; completed work; current/last boundary; remaining work; blockers/questions; artifacts/tests/logs/branches/commits; dirty state where relevant; exact safe resume action. It is a concise recovery map, not a transcript. Actual checkpoint writes track implementation/research/editorial milestones, owner decisions/constraints, blockers or falsified approaches, risky migration/long-run boundaries, agent/thread handoffs and completion claims. Hidden or invisible model context limits never defer saves. Checkpoint writes also occur whenever losing the current chat would otherwise create ambiguity or rework, beyond the six named examples.",
           "non_substitutes": [
             "a promise to save later",
             "a summary only in chat",
             "local-only work with no push",
             "waiting for a usage threshold",
-            "a helper launched at the limit"
+            "a helper launched at the limit",
+            "a decision left only in chat",
+            "model compaction treated as durable memory",
+            "a transcript dump as a recovery map",
+            "a checkpoint omitting an established blocking gate",
+            "one shared mutable checkpoint for concurrent tasks",
+            "waiting for imminent compaction to checkpoint",
+            "a milestone saved only after the handoff"
           ],
           "carry_through": "Keep saving at each completed step across turns, compaction, model changes and account switches; carry the current goal, constraints and remaining action into the successor checkpoint.",
           "repair": "The worker holding the context saves and pushes the completed work and repairs done, next and the exact next action before continuing; preserve and name any real access or publication gate.",
@@ -855,7 +1006,7 @@
     },
     {
       "rule_id": "uda.continuity.turn-end-handoff",
-      "revision": 3,
+      "revision": 4,
       "status": "CURRENT",
       "source": {
         "path": "patterns/context-compaction-resilience.md",
@@ -932,7 +1083,7 @@
     },
     {
       "rule_id": "uda.continuity.usage-warning",
-      "revision": 3,
+      "revision": 4,
       "status": "CURRENT",
       "source": {
         "path": "patterns/context-compaction-resilience.md",
@@ -3738,7 +3889,7 @@
     },
     {
       "rule_id": "uda.continuation.state-reconciliation",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
@@ -3825,7 +3976,7 @@
     },
     {
       "rule_id": "uda.continuation.controller-resume",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
@@ -3833,10 +3984,6 @@
           {
             "kind": "exact_text",
             "text": "It does **not** close the root task."
-          },
-          {
-            "kind": "exact_text",
-            "text": "The controller must preserve resumability and continue automatically when the new directive arrives or the blocking condition clears."
           }
         ]
       },
@@ -3865,10 +4012,10 @@
       "obligations": [
         {
           "obligation_id": "controller-resume-at-boundary",
-          "required_behavior": "Keep the root open and resumable during reasoning/external pauses; resume automatically on a new directive or cleared condition.",
+          "required_behavior": "Keep reasoning-review and external-blocker pauses nonterminal for the root task and preserve the exact paused frontier.",
           "due_phase": "pre-action",
           "destination": "controller-continuation-state",
-          "acceptance_evidence": "Controller state leaves the root open, preserves the exact paused frontier and admits automatic continuation after the new directive arrives or the blocker clears.",
+          "acceptance_evidence": "Controller state leaves the root task open and records the exact paused frontier, current directive/blocker and resumable recovery identity. A pre-action receipt alone does not establish subsequent automatic continuation.",
           "non_substitutes": [
             "a pause treated as root closure",
             "owner reminder used as scheduler"
@@ -3889,7 +4036,7 @@
     },
     {
       "rule_id": "uda.continuation.terminal-admission",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
@@ -3925,66 +4072,7 @@
           {
             "kind": "exact_text",
             "text": "A reasoning-review or external-blocker pause ends only the current execution turn."
-          }
-        ]
-      },
-      "authority_owner": "current UDA pattern",
-      "authority_domain": "continuation and closure",
-      "applies_to": {
-        "roles": [
-          "universal_internal"
-        ],
-        "actors": [
-          "work",
-          "codex",
-          "claude"
-        ]
-      },
-      "trigger": {
-        "all": [
-          {
-            "fact": "governance_required",
-            "eq": true
           },
-          {
-            "fact": "action_classes",
-            "contains": "exclusive_task"
-          }
-        ]
-      },
-      "obligations": [
-        {
-          "obligation_id": "terminal-admission-at-boundary",
-          "required_behavior": "Admit response termination only under a current source-bound completion, owner stop, exhausted decision/blocker or already-routed reasoning-review boundary.",
-          "due_phase": "final-delivery",
-          "destination": "owner-visible-final",
-          "acceptance_evidence": "Exclusive response closure is controlled. Actual root acceptance is complete OR current owner explicitly canceled/stopped/replaced it OR a genuine owner decision has no independent safe work OR a durably recorded genuine external blocker has no workaround or independent work OR the bounded directive reached a real reasoning stop with its exact factual receipt already automatically routed. Check current evidence, not response/session boundaries.",
-          "non_substitutes": [
-            "ending a response treated as completion",
-            "green tests while root acceptance is open",
-            "an unrouted reasoning stop"
-          ],
-          "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
-          "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        }
-      ],
-      "provenance": {
-        "origin": "owner-authorized migration slice 2a; exact existing prose",
-        "review_state": "REVIEWED"
-      },
-      "relations": []
-    },
-    {
-      "rule_id": "uda.continuation.recovery-events",
-      "revision": 1,
-      "status": "CURRENT",
-      "source": {
-        "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
-        "selectors": [
           {
             "kind": "exact_text",
             "text": "None of the following is, by itself, permission for a terminal response:"
@@ -4024,7 +4112,75 @@
           {
             "kind": "exact_text",
             "text": "- a worker-authored `blocked`, `done`, or handoff statement without current structured authority/evidence."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "continuation and closure",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
           },
+          {
+            "fact": "action_classes",
+            "contains": "exclusive_task"
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "terminal-admission-at-boundary",
+          "required_behavior": "Admit response termination only under a current source-bound completion, owner stop, exhausted decision/blocker or already-routed reasoning-review boundary.",
+          "due_phase": "final-delivery",
+          "destination": "owner-visible-final",
+          "acceptance_evidence": "Exclusive response closure is controlled. Actual root acceptance is complete OR current owner explicitly canceled/stopped/replaced it OR a genuine owner decision has no independent safe work OR a durably recorded genuine external blocker has no workaround or independent work OR the bounded directive reached a real reasoning stop with its exact factual receipt already automatically routed. Check current evidence, not response/session boundaries.",
+          "non_substitutes": [
+            "ending a response treated as completion",
+            "green tests while root acceptance is open",
+            "an unrouted reasoning stop",
+            "context compaction or context-window pressure",
+            "response/token-budget pressure",
+            "many tool calls or a long-running turn",
+            "a checkpoint or recovery commit",
+            "browser-tab cleanup or browser-memory pressure",
+            "a provider cooldown, temporary rate limit, retry/backoff interval, or transient tool outage",
+            "the end of a batch when the next batch/ordinal is already determined",
+            "ordinary green tests while task acceptance remains open",
+            "a worker-authored `blocked`, `done`, or handoff statement without current structured authority/evidence"
+          ],
+          "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
+          "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner-authorized migration slice 2a; exact existing prose",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.continuation.recovery-events",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
+        "selectors": [
           {
             "kind": "exact_text",
             "text": "Treat these as recovery events."
@@ -4062,10 +4218,10 @@
       "obligations": [
         {
           "obligation_id": "recovery-events-at-boundary",
-          "required_behavior": "Treat session and response pressure as recovery events, persist and resume the first missing or stale action without repeated verified work.",
+          "required_behavior": "Persist recovery state through non-terminal events, recover the active task after necessary restart and continue from the first missing or stale action without repeating verified work.",
           "due_phase": "persistence",
           "destination": "durable-task-checkpoint",
-          "acceptance_evidence": "Compaction, token pressure, tool-heavy turns, checkpoint commits, browser cleanup, cooldowns/retries/outages, batch ends, green tests and worker-authored status alone never authorize termination. Saved recovery state identifies the first missing/stale action and preserves verified work through necessary restart/compaction.",
+          "acceptance_evidence": "The saved recovery checkpoint identifies the active task and first missing/stale action; necessary restart/compaction preserves already verified work and resumes from that boundary. Persistence is recovery evidence, not terminal permission.",
           "non_substitutes": [
             "a checkpoint treated as terminal permission",
             "a response budget used as a blocker",
@@ -4087,7 +4243,7 @@
     },
     {
       "rule_id": "uda.continuation.provider-waits",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
@@ -4103,14 +4259,6 @@
           {
             "kind": "exact_text",
             "text": "2. advance independent safe in-scope work that does not depend on the provider;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "3. keep checking the changing condition at the configured bounded interval;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "4. resume the blocked frontier automatically when it clears;"
           },
           {
             "kind": "exact_text",
@@ -4156,7 +4304,7 @@
           "required_behavior": "Record bounded waits, advance independent work, poll and resume automatically; terminally pause only for a durable blocker of all authorized remaining work.",
           "due_phase": "pre-action",
           "destination": "provider-wait-admission",
-          "acceptance_evidence": "The provider wait has the exact changing condition and admitted horizon, bounded polling evidence, independent safe work advancement and automatic resumed frontier when clear. A cooldown is never an owner decision. Terminal pause requires durable controller evidence that all remaining authorized work is blocked. A reason-bound NOT_APPLICABLE must establish that this conditional event/action is absent.",
+          "acceptance_evidence": "The actual provider wait admission records its exact changing condition and admitted horizon, independent safe work advanced, and configured bounded polling/resume mechanism. A cooldown is never an owner decision. Terminal pause requires durable controller evidence that all remaining authorized work is blocked. Actual later polling and automatic resume-on-clear are lifetime behaviors outside this single receipt. A reason-bound NOT_APPLICABLE must establish that this conditional event/action is absent.",
           "non_substitutes": [
             "a cooldown presented as an owner decision",
             "waiting while independent safe work remains",
@@ -4174,11 +4322,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.continuation.mission-control-gate",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
@@ -4263,11 +4414,13 @@
           "required_behavior": "Consult the authenticated deterministic finalization gate immediately before terminal delivery and obey its current decision.",
           "due_phase": "final-delivery",
           "destination": "owner-visible-final",
-          "acceptance_evidence": "The managed execution worker consulted the exact finalization endpoint immediately before its response. Only server-owned current ledger facts feed the canonical comparator. A 409 forbids the handoff and its safe requiredNextAction is executed or routed within existing authority. The gate accounts for READY/IN_PROGRESS work, checkpoint next steps, blocker ownership/workarounds, recoverable waits, newer routed reasoning receipts and authoritative owner-obligation projection; worker supplied terminal facts or needsOwner assertions cannot substitute.",
+          "acceptance_evidence": "The receipt contains the actual output of scripts/require-final-response-admission.mjs immediately before this terminal candidate: exit status, terminalResponseAllowed, decision and terminalStateVectorSha256, bound to the current worker/state. Exit 0 with terminalResponseAllowed:true permits the matching admitted decision; exit 75 with terminalResponseAllowed:false forbids terminal delivery and requires executing or routing requiredNextAction within authority. A mere worker assertion that the endpoint was consulted is insufficient. Server-owned ledger/comparator, authenticated worker route, queue/checkpoint/blocker/wait freshness, reasoning-route order and owner-obligation clauses are supported by Mission Control tests/final-response-gate.test.ts and tests/worker-channel.test.ts, not worker receipts.",
           "non_substitutes": [
             "a local self-check instead of the current server gate",
             "worker-supplied terminal facts",
-            "a 409 followed by a terminal handoff"
+            "a 409 followed by a terminal handoff",
+            "consultation asserted without actual gate output",
+            "gate output omitting terminalStateVectorSha256"
           ],
           "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
           "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
@@ -4281,11 +4434,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.continuation.pause-semantics",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
@@ -4371,7 +4527,7 @@
     },
     {
       "rule_id": "uda.continuation.rejection-repair",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
@@ -4441,7 +4597,7 @@
     },
     {
       "rule_id": "uda.continuation.authority-limits",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
@@ -4469,6 +4625,26 @@
           {
             "kind": "exact_text",
             "text": "- Tiny one-shot tasks without an exclusive active-task contract do not require this machinery."
+          },
+          {
+            "kind": "exact_text",
+            "text": "This rule operationalizes, rather than replaces:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- `patterns/exclusive-active-task-locks.md`;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- the standing continuous-next-step rule in `patterns/codex-github-operating-system.md`;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- `templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md`;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- the Mission Control terminal comparator."
           }
         ]
       },
@@ -4504,7 +4680,7 @@
           "required_behavior": "Respect current ledger freshness, semantic reasoning authority, all real gates and the tiny-task scope.",
           "due_phase": "pre-action",
           "destination": "execution-authority",
-          "acceptance_evidence": "Freshness limitations are retained and stale projected artifacts are revalidated. Genuine semantic ambiguity goes to the authorized reasoning chat; deterministic continuation invents no strategy. Safety/access/permission/spending/publication/irreversible and owner-stop boundaries stay controlling. Tiny one-shot tasks without an exclusive contract need no terminal machinery; continuation grants no scope.",
+          "acceptance_evidence": "The gate is limited by the freshness of the Mission Control ledger and projected recovery artifacts. Genuine semantic ambiguity goes to the authorized reasoning chat; deterministic continuation invents no strategy. Safety, privacy, security, permission, spending, publication, irreversible-action and explicit owner-stop boundaries remain controlling; access boundaries are not bypassed. Tiny one-shot tasks without an exclusive contract need no terminal machinery; continuation broadens no scope or authority. This rule operationalizes rather than replaces exclusive task locks, the standing continuous-next-step operating-system rule, the current worker supervision bootstrap and the Mission Control terminal comparator.",
           "non_substitutes": [
             "safe work elsewhere used to bypass a genuine gate",
             "deterministic continuation inventing strategy",
@@ -4525,326 +4701,8 @@
       "relations": []
     },
     {
-      "rule_id": "uda.compaction.durable-memory",
-      "revision": 1,
-      "status": "CURRENT",
-      "source": {
-        "path": "patterns/context-compaction-resilience.md",
-        "selectors": [
-          {
-            "kind": "exact_text",
-            "text": "A project must therefore be designed so that losing old chat detail does not mean losing project state."
-          },
-          {
-            "kind": "exact_text",
-            "text": "Use this hierarchy:"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- **conversation/context = working RAM**;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- **canonical repository = durable project memory**;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- **Git history = durable audit trail and rollback path**;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- **current-state/checkpoint file = recovery entry point**;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- **exact project artifacts/evidence = authority for factual implementation state**."
-          },
-          {
-            "kind": "exact_text",
-            "text": "Any decision, constraint, discovery, architecture choice, completed step, or unresolved blocker that would matter after a new thread or context compaction must be written into the canonical repository rather than left only in chat."
-          }
-        ]
-      },
-      "authority_owner": "current UDA pattern",
-      "authority_domain": "continuation and closure",
-      "applies_to": {
-        "roles": [
-          "universal_internal"
-        ],
-        "actors": [
-          "chat",
-          "work",
-          "codex",
-          "claude"
-        ]
-      },
-      "trigger": {
-        "all": [
-          {
-            "fact": "governance_required",
-            "eq": true
-          },
-          {
-            "fact": "continuity_required",
-            "eq": true
-          }
-        ]
-      },
-      "obligations": [
-        {
-          "obligation_id": "durable-memory-at-boundary",
-          "required_behavior": "Persist continuity-relevant decisions, constraints, discoveries, architecture, steps and blockers in canonical memory.",
-          "due_phase": "persistence",
-          "destination": "canonical-repository-memory",
-          "acceptance_evidence": "The actual canonical repository holds outcomes needed after context loss; chat is working RAM, Git is audit/rollback, the current checkpoint is the recovery entry, and exact artifacts establish implementation state. Model compaction never substitutes for persistence.",
-          "non_substitutes": [
-            "a decision left only in chat",
-            "model compaction treated as durable memory"
-          ],
-          "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
-          "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        }
-      ],
-      "provenance": {
-        "origin": "owner-authorized migration slice 2a; exact existing prose",
-        "review_state": "REVIEWED"
-      },
-      "relations": []
-    },
-    {
-      "rule_id": "uda.compaction.recovery-checkpoint",
-      "revision": 1,
-      "status": "CURRENT",
-      "source": {
-        "path": "patterns/context-compaction-resilience.md",
-        "selectors": [
-          {
-            "kind": "exact_text",
-            "text": "For any project with multi-step, multi-session, or long autonomous work, maintain a concise canonical recovery file such as `CURRENT-STATE.md`, `state/CURRENT-STATE.md`, or an equivalent machine-readable state file chosen by the project."
-          },
-          {
-            "kind": "exact_text",
-            "text": "The exact filename may vary, but there must be one obvious current recovery entry point referenced by the project's main index/bootstrap."
-          },
-          {
-            "kind": "exact_text",
-            "text": "With concurrent branches, keep that entry point for repository-level state and give each task its own checkpoint."
-          },
-          {
-            "kind": "exact_text",
-            "text": "Per-task files avoid merge conflicts while the recovery entry point stays obvious."
-          },
-          {
-            "kind": "exact_text",
-            "text": "At minimum, the state checkpoint should record:"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- current goal / task;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- authoritative baseline or relevant commit/ref;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- important active decisions and owner constraints;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- bootstrap requirements and blocking gates that the task directive or handoff established, so they stay active after compaction;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- completed work that must not be repeated;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- current step / last durable checkpoint;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- remaining work;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- blockers or unresolved questions;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- relevant artifacts, evidence, tests, logs, branches, and commits;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- uncommitted/dirty-working-tree status when relevant;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- the next safe resume action or command."
-          },
-          {
-            "kind": "exact_text",
-            "text": "Keep this file concise and operational."
-          },
-          {
-            "kind": "exact_text",
-            "text": "It is a recovery map, not a transcript dump."
-          }
-        ]
-      },
-      "authority_owner": "current UDA pattern",
-      "authority_domain": "continuation and closure",
-      "applies_to": {
-        "roles": [
-          "universal_internal"
-        ],
-        "actors": [
-          "chat",
-          "work",
-          "codex",
-          "claude"
-        ]
-      },
-      "trigger": {
-        "all": [
-          {
-            "fact": "governance_required",
-            "eq": true
-          },
-          {
-            "fact": "continuity_required",
-            "eq": true
-          }
-        ]
-      },
-      "obligations": [
-        {
-          "obligation_id": "recovery-checkpoint-at-boundary",
-          "required_behavior": "Maintain an obvious concise canonical recovery entry and separate task checkpoints with every minimum operational field.",
-          "due_phase": "persistence",
-          "destination": "durable-task-checkpoint",
-          "acceptance_evidence": "The project bootstrap/index references one obvious recovery entry. Concurrent branches use separate task checkpoints under that entry. The checkpoint records goal/task; verified baseline/ref; decisions and owner constraints; directive bootstrap/blocking gates; completed work; current/last boundary; remaining work; blockers/questions; artifacts/tests/logs/branches/commits; dirty state where relevant; exact safe resume action. It is a concise recovery map, not a transcript.",
-          "non_substitutes": [
-            "a transcript dump as a recovery map",
-            "a checkpoint omitting an established blocking gate",
-            "one shared mutable checkpoint for concurrent tasks"
-          ],
-          "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
-          "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        }
-      ],
-      "provenance": {
-        "origin": "owner-authorized migration slice 2a; exact existing prose",
-        "review_state": "REVIEWED"
-      },
-      "relations": []
-    },
-    {
-      "rule_id": "uda.compaction.durable-boundaries",
-      "revision": 1,
-      "status": "CURRENT",
-      "source": {
-        "path": "patterns/context-compaction-resilience.md",
-        "selectors": [
-          {
-            "kind": "exact_text",
-            "text": "Update the current-state file whenever losing the current chat would otherwise create ambiguity or rework, especially:"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- after a meaningful implementation/research/editorial milestone;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- after a consequential owner decision or constraint change;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- after discovering a blocker or falsifying an approach;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- before/after risky migrations or long autonomous runs;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- before handing work to another agent/thread;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- before claiming a multi-step task complete."
-          },
-          {
-            "kind": "exact_text",
-            "text": "Do not wait for the model to detect that compaction is imminent."
-          },
-          {
-            "kind": "exact_text",
-            "text": "Context limits are implementation details and may not be visible to the worker."
-          }
-        ]
-      },
-      "authority_owner": "current UDA pattern",
-      "authority_domain": "continuation and closure",
-      "applies_to": {
-        "roles": [
-          "universal_internal"
-        ],
-        "actors": [
-          "chat",
-          "work",
-          "codex",
-          "claude"
-        ]
-      },
-      "trigger": {
-        "all": [
-          {
-            "fact": "governance_required",
-            "eq": true
-          },
-          {
-            "fact": "continuity_required",
-            "eq": true
-          }
-        ]
-      },
-      "obligations": [
-        {
-          "obligation_id": "durable-boundaries-at-boundary",
-          "required_behavior": "Update checkpoints at ambiguity/rework boundaries without waiting for visible context pressure.",
-          "due_phase": "persistence",
-          "destination": "durable-task-checkpoint",
-          "acceptance_evidence": "Actual checkpoint writes track implementation/research/editorial milestones, owner decisions/constraints, blockers or falsified approaches, risky migration/long-run boundaries, agent/thread handoffs and completion claims. Hidden or invisible model context limits never defer saves.",
-          "non_substitutes": [
-            "waiting for imminent compaction to checkpoint",
-            "a milestone saved only after the handoff"
-          ],
-          "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
-          "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        }
-      ],
-      "provenance": {
-        "origin": "owner-authorized migration slice 2a; exact existing prose",
-        "review_state": "REVIEWED"
-      },
-      "relations": []
-    },
-    {
       "rule_id": "uda.compaction.resume-reconciliation",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/context-compaction-resilience.md",
@@ -4952,181 +4810,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
-    },
-    {
-      "rule_id": "uda.compaction.reasoning-outcomes",
-      "revision": 1,
-      "status": "CURRENT",
-      "source": {
-        "path": "patterns/context-compaction-resilience.md",
-        "selectors": [
-          {
-            "kind": "exact_text",
-            "text": "Do not attempt to preserve private model reasoning or every exploratory thought."
-          },
-          {
-            "kind": "exact_text",
-            "text": "Persist the user-relevant engineering/research outcomes needed for continuity:"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- decisions and why they were chosen;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- rejected approaches when repeating them would waste time or recreate a known failure;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- invariants and constraints;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- evidence pointers;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- test/validation results;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- unresolved uncertainty;"
-          },
-          {
-            "kind": "exact_text",
-            "text": "- next action."
-          }
-        ]
-      },
-      "authority_owner": "current UDA pattern",
-      "authority_domain": "continuation and closure",
-      "applies_to": {
-        "roles": [
-          "universal_internal"
-        ],
-        "actors": [
-          "chat",
-          "work",
-          "codex",
-          "claude"
-        ]
-      },
-      "trigger": {
-        "all": [
-          {
-            "fact": "governance_required",
-            "eq": true
-          },
-          {
-            "fact": "continuity_required",
-            "eq": true
-          }
-        ]
-      },
-      "obligations": [
-        {
-          "obligation_id": "reasoning-outcomes-at-boundary",
-          "required_behavior": "Persist user-relevant outcomes, reasons, evidence, uncertainty and next action while excluding hidden reasoning.",
-          "due_phase": "persistence",
-          "destination": "canonical-repository-memory",
-          "acceptance_evidence": "Continuity memory records decisions with rationale, useful rejected approaches, invariants/constraints, evidence pointers, test/validation results, unresolved uncertainty and next action; private chain-of-thought and every exploratory thought are excluded.",
-          "non_substitutes": [
-            "hidden reasoning archived as continuity state",
-            "decision labels without reasons or evidence"
-          ],
-          "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
-          "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        }
-      ],
-      "provenance": {
-        "origin": "owner-authorized migration slice 2a; exact existing prose",
-        "review_state": "REVIEWED"
-      },
-      "relations": []
-    },
-    {
-      "rule_id": "uda.compaction.fresh-worker-recovery",
-      "revision": 1,
-      "status": "CURRENT",
-      "source": {
-        "path": "patterns/context-compaction-resilience.md",
-        "selectors": [
-          {
-            "kind": "exact_text",
-            "text": "A robust project should tolerate starting a completely fresh agent conversation at any time."
-          },
-          {
-            "kind": "exact_text",
-            "text": "The test is:"
-          },
-          {
-            "kind": "exact_text",
-            "text": "> Could a competent new worker, with repository access but without the old chat transcript, recover the correct current state and continue without repeating completed work or silently losing important constraints?"
-          },
-          {
-            "kind": "exact_text",
-            "text": "If not, project state is insufficiently durable."
-          }
-        ]
-      },
-      "authority_owner": "current UDA pattern",
-      "authority_domain": "continuation and closure",
-      "applies_to": {
-        "roles": [
-          "universal_internal"
-        ],
-        "actors": [
-          "chat",
-          "work",
-          "codex",
-          "claude"
-        ]
-      },
-      "trigger": {
-        "all": [
-          {
-            "fact": "governance_required",
-            "eq": true
-          },
-          {
-            "fact": "continuity_required",
-            "eq": true
-          }
-        ]
-      },
-      "obligations": [
-        {
-          "obligation_id": "fresh-worker-recovery-at-boundary",
-          "required_behavior": "Provide repository-alone recovery that preserves completed work and constraints.",
-          "due_phase": "handoff",
-          "destination": "repository-recovery-handoff",
-          "acceptance_evidence": "A competent successor with repository access and no old transcript can recover current state, continue without repetition and retain material constraints. Insufficient recovery is treated as missing durability and repaired before the handoff.",
-          "non_substitutes": [
-            "old chat transcript required to recover",
-            "a new worker guessing missing constraints"
-          ],
-          "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
-          "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        }
-      ],
-      "provenance": {
-        "origin": "owner-authorized migration slice 2a; exact existing prose",
-        "review_state": "REVIEWED"
-      },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.compaction.completion-closeout",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/context-compaction-resilience.md",
@@ -5205,11 +4896,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.compaction.portable-instruction",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/context-compaction-resilience.md",
@@ -5268,10 +4962,6 @@
             "eq": true
           },
           {
-            "fact": "continuity_required",
-            "eq": true
-          },
-          {
             "fact": "action_classes",
             "contains": "instruction_maintenance"
           }
@@ -5283,7 +4973,7 @@
           "required_behavior": "Carry the full portable continuity invariant to the actual project instruction consumer.",
           "due_phase": "handoff",
           "destination": "project-instruction",
-          "acceptance_evidence": "When adopting the recommended instruction, preserve disposable chat/durable Git, one concise state file with every listed field, completed-step pushes/checkpoints without threshold delays, current OPEN-turn save/private reachability/account recreation/one-line resume, contextual worker ownership, warning save/small steps and actual-state reconciliation across every named restart/switch. Respect current publication restrictions rather than bypassing them. A reason-bound NOT_APPLICABLE must establish that this conditional event/action is absent.",
+          "acceptance_evidence": "When adopting the recommended instruction, preserve disposable chat/durable Git, one concise state file with every listed field, completed-step pushes/checkpoints without threshold delays, current OPEN-turn save/private reachability/account recreation/one-line resume, contextual worker ownership, warning save/small steps and actual-state reconciliation across every named restart/switch. A reason-bound NOT_APPLICABLE must establish that this conditional event/action is absent.",
           "non_substitutes": [
             "a portable instruction omitting the turn-end resume line",
             "a helper replacing the contextual worker at the limit"
@@ -5300,87 +4990,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
-    },
-    {
-      "rule_id": "uda.compaction.recovery-limits",
-      "revision": 1,
-      "status": "CURRENT",
-      "source": {
-        "path": "patterns/context-compaction-resilience.md",
-        "selectors": [
-          {
-            "kind": "exact_text",
-            "text": "- Do not treat a stale `CURRENT-STATE` file as more authoritative than actual Git state or newer owner instructions."
-          },
-          {
-            "kind": "exact_text",
-            "text": "- Do not store secrets, credentials, tokens, or private chain-of-thought in recovery files."
-          },
-          {
-            "kind": "exact_text",
-            "text": "- Do not duplicate large logs or raw evidence into the checkpoint; link to their canonical locations."
-          },
-          {
-            "kind": "exact_text",
-            "text": "- Projects may use a machine-readable ledger/database instead of Markdown if it provides the same recovery guarantees."
-          }
-        ]
-      },
-      "authority_owner": "current UDA pattern",
-      "authority_domain": "continuation and closure",
-      "applies_to": {
-        "roles": [
-          "universal_internal"
-        ],
-        "actors": [
-          "chat",
-          "work",
-          "codex",
-          "claude"
-        ]
-      },
-      "trigger": {
-        "all": [
-          {
-            "fact": "governance_required",
-            "eq": true
-          },
-          {
-            "fact": "continuity_required",
-            "eq": true
-          }
-        ]
-      },
-      "obligations": [
-        {
-          "obligation_id": "recovery-limits-at-boundary",
-          "required_behavior": "Respect verified authority and private content limits; use canonical evidence pointers and equivalent recovery stores.",
-          "due_phase": "persistence",
-          "destination": "durable-task-checkpoint",
-          "acceptance_evidence": "Stale state never outranks Git/new owner evidence. Checkpoints contain no secrets, credentials, tokens, private chain-of-thought or duplicated large logs/raw evidence; canonical pointers supply evidence. A ledger/database is valid only with equivalent recovery guarantees.",
-          "non_substitutes": [
-            "secrets stored in a public recovery checkpoint",
-            "raw logs duplicated into the checkpoint",
-            "a ledger without equivalent recovery guarantees"
-          ],
-          "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
-          "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
-          "enforcement": "semantic",
-          "mechanical_check": null,
-          "not_applicable_allowed": false,
-          "independent_review_required": false
-        }
-      ],
-      "provenance": {
-        "origin": "owner-authorized migration slice 2a; exact existing prose",
-        "review_state": "REVIEWED"
-      },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.exclusive-controls",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5471,7 +5088,7 @@
     },
     {
       "rule_id": "uda.task-lock.lock-storage",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5558,7 +5175,7 @@
     },
     {
       "rule_id": "uda.task-lock.competing-sources",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5649,7 +5266,7 @@
     },
     {
       "rule_id": "uda.task-lock.preflight",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5752,7 +5369,7 @@
     },
     {
       "rule_id": "uda.task-lock.checkpoint-mirror",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5863,7 +5480,7 @@
     },
     {
       "rule_id": "uda.task-lock.authority-resolution",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5937,11 +5554,12 @@
           "required_behavior": "Resolve current independent owner authority and exact lock-selected checkpoint before global status or historical sources.",
           "due_phase": "pre-action",
           "destination": "task-authority-resolution",
-          "acceptance_evidence": "Authority follows current exact owner correction, matching lock/checkpoint, local plan/directive, task evidence, causally applicable global state then history. Bind exact checkpoint source path/ref/commit/blob/content hash/task/branch/owner epoch/hash after latest independent owner-source/correction; new valid owner stop/amendment invalidates continuation. Matching prose from a substituted checkpoint never suffices; global labels are not transitive and policy gates remain controlling.",
+          "acceptance_evidence": "Authority follows current exact owner correction, matching lock/checkpoint, local plan/directive, task evidence, causally applicable global state then history. Bind exact checkpoint source path/ref/commit/blob/content hash/task/branch/owner epoch/hash after latest independent owner-source/correction; new valid owner stop/amendment invalidates continuation. Matching prose from a substituted checkpoint never suffices; global labels are not transitive and policy gates remain controlling. Cite the actual scripts/active_task_authority.py resolver output and its emitted findings, including CURRENT_OWNER_STOP and TASK_LOCAL_CHECKPOINT_CONTENT_SHA256_MISMATCH when their conditions hold; matching prose or a worker assertion cannot replace that output.",
           "non_substitutes": [
             "matching task prose substituted for exact checkpoint identity",
             "a global blocked label inherited without causality",
-            "a stale owner record after an owner stop"
+            "a stale owner record after an owner stop",
+            "resolver findings replaced by a worker assertion"
           ],
           "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
           "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
@@ -5959,7 +5577,7 @@
     },
     {
       "rule_id": "uda.task-lock.blocker-scope",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -6037,11 +5655,12 @@
           "required_behavior": "Require current scoped causal blocker evidence, preserve unrelated state, route ambiguity and fail closed on affected authority.",
           "due_phase": "pre-action",
           "destination": "scoped-blocker-admission",
-          "acceptance_evidence": "Before a blocker changes task state, its machine-readable record proves unresolved/current/task-frontier-operation scope, causal requirement and no supersession/displacement by independence. Classify all five declared global relations. Unrelated blockers stay SUSPENDED_COMPETING_SOURCE with task state unchanged and a finding; semantic ambiguity goes to reasoning Chat, not Codex judgment. Independence applies only to OPERATIONAL blockers; applicable non-waivable policies remain binding. Project affected-frontier authorization separately; applicable/stale-applicable/ambiguous/invalid authority fails closed with required structured findings. A reason-bound NOT_APPLICABLE must establish that this conditional event/action is absent.",
+          "acceptance_evidence": "Before a blocker changes task state, its machine-readable record proves unresolved/current/task-frontier-operation scope, causal requirement and no supersession/displacement by independence. Classify all five declared global relations. Unrelated blockers stay SUSPENDED_COMPETING_SOURCE with task state unchanged and a finding; semantic ambiguity goes to reasoning Chat, not Codex judgment. Independence applies only to OPERATIONAL blockers; applicable non-waivable policies remain binding. Project affected-frontier authorization separately; applicable/stale-applicable/ambiguous/invalid authority fails closed with the actual scripts/active_task_authority.py output and emitted findings STALE_GLOBAL_BLOCKER_INHERITED, BLOCKER_SCOPE_MISMATCH, BLOCKER_CAUSAL_DEPENDENCY_MISSING, GLOBAL_STATE_STALE_FOR_ACTIVE_TASK, CROSS_TASK_BLOCKER_LEAKAGE and INVALID_TASK_INDEPENDENCE_OVERRIDE when their conditions hold. A reason-bound NOT_APPLICABLE must establish that this conditional event/action is absent.",
           "non_substitutes": [
             "an unrelated blocker changing the active task state",
             "a policy blocker declared operationally independent",
-            "Codex deciding ambiguous blocker scope"
+            "Codex deciding ambiguous blocker scope",
+            "resolver findings replaced by a worker assertion"
           ],
           "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
           "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
@@ -6059,7 +5678,7 @@
     },
     {
       "rule_id": "uda.task-lock.wait-admission",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -6105,10 +5724,11 @@
           "required_behavior": "Admit waiting only from exact task-bound actionable changing condition and bounded wait record.",
           "due_phase": "pre-action",
           "destination": "wait-admission",
-          "acceptance_evidence": "The wait admission binds task, blocker/reasoning request, causal dependency, changing condition/source/actor mechanism, poll/notification identity, next check, max horizon/expiry state, owner action and unrelated-work policy. Bare waiting for CI, repository updates, issue or owner fails closed; known independent work continues. A reason-bound NOT_APPLICABLE must establish that this conditional event/action is absent.",
+          "acceptance_evidence": "The wait admission binds task, blocker/reasoning request, causal dependency, changing condition/source/actor mechanism, poll/notification identity, next check, max horizon/expiry state, owner action and unrelated-work policy. Bare waiting for CI, repository updates, issue or owner fails closed; known independent work continues. A reason-bound NOT_APPLICABLE must establish that this conditional event/action is absent. Cite actual scripts/active_task_authority.py wait-admission output and the emitted findings WAIT_CONDITION_NOT_ACTIONABLE, WAIT_WITHOUT_ADMISSION, GITHUB_UPDATE_WAIT_WITHOUT_CAUSAL_DEPENDENCY, WAIT_REASONING_HANDOFF_MISSING and WAIT_NEXT_CHECK_OUTSIDE_HORIZON when applicable.",
           "non_substitutes": [
             "a bare wait for CI",
-            "a wait without causal dependency or horizon"
+            "a wait without causal dependency or horizon",
+            "resolver findings replaced by a worker assertion"
           ],
           "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
           "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
@@ -6126,7 +5746,7 @@
     },
     {
       "rule_id": "uda.task-lock.artifact-acceptance",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -6269,7 +5889,7 @@
     },
     {
       "rule_id": "uda.task-lock.terminal-states",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -6317,6 +5937,10 @@
           {
             "kind": "exact_text",
             "text": "Do not call a blocked live campaign complete."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Claim readiness only when the task-specific acceptance command verifies every required artifact; claim completion only after protected merge and an immutable receipt."
           }
         ]
       },
@@ -6351,11 +5975,13 @@
           "required_behavior": "Separate repository correctness, artifact completeness and protected closeout with honest terminal labels.",
           "due_phase": "final-delivery",
           "destination": "owner-visible-final",
-          "acceptance_evidence": "Ordinary suites cover implemented behavior, task acceptance covers owner artifacts, protected merge plus immutable receipt covers closeout. INCOMPLETE still permits work; BLOCKED names a genuine evidenced external boundary; READY_FOR_PROTECTED_MERGE awaits integration/receipt; COMPLETE requires protected merge/readback and immutable closeout. Missing implementation is not a blocker, timeout is not model rejection, blocked live work is not complete; green CI/mock/synthetic tests do not prove required comparison/migration/audit/live campaigns.",
+          "acceptance_evidence": "Ordinary suites establish internal behavior; task acceptance establishes owner artifacts; protected integration establishes closeout. INCOMPLETE applies while acceptance findings remain and work can continue. BLOCKED requires durable evidence naming the genuine external boundary that prevents a required step. READY_FOR_PROTECTED_MERGE requires the task-specific acceptance command to have passed on the exact claimed head, with its command, head and output cited and no open acceptance findings; protected integration and receipt remain. COMPLETE requires protected merge, readback and the immutable closeout receipt. Missing implementation is not a blocker, timeout is not model rejection and blocked live work is not complete; green CI/mock/synthetic tests do not prove required owner campaigns.",
           "non_substitutes": [
             "green CI substituted for owner-task completion",
             "missing implementation labeled an external blocker",
-            "a provider timeout labeled model rejection"
+            "a provider timeout labeled model rejection",
+            "READY claimed with open acceptance findings",
+            "acceptance output from a different head"
           ],
           "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
           "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
@@ -6373,7 +5999,7 @@
     },
     {
       "rule_id": "uda.task-lock.model-input-separation",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -6452,11 +6078,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.retirement",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -6555,11 +6184,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.control-plane-regressions",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -6650,11 +6282,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.anti-substitutes",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -6729,13 +6364,31 @@
       "obligations": [
         {
           "obligation_id": "anti-substitutes-at-boundary",
-          "required_behavior": "Reject conversational, stale-state, test and destructive substitutes for executable task selection/completion.",
+          "required_behavior": "Use the exclusive task identity before selecting work; never substitute prompts, remembered chats, generic continuation language, competing roadmaps, another branch checkpoint or deleted parallel worktrees.",
           "due_phase": "pre-action",
           "destination": "task-selection-state",
-          "acceptance_evidence": "Do not rely on long prompts, hidden chat memory, generic continue/next language, active competing roadmaps, other-branch checkpoints, ordinary CI, misleading PR/progress labels, promises without per-case artifacts or deletion of parallel worktrees as proof of controlled selection or completion.",
+          "acceptance_evidence": "Before task selection, current exact lock/branch authority controls the next task. Long prompts, hidden handoff memory, generic continue/next, active competing roadmaps, other-branch checkpoints and deleting parallel worktrees cannot substitute.",
           "non_substitutes": [
             "conversational promise instead of per-case artifacts",
             "hidden conversation memory as the task selector"
+          ],
+          "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
+          "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        },
+        {
+          "obligation_id": "anti-substitutes-at-claim",
+          "required_behavior": "Claim completion from actual task evidence; never use green CI, a work-in-progress PR body or conversational comparison promises as completion evidence.",
+          "due_phase": "final-delivery",
+          "destination": "owner-visible-final",
+          "acceptance_evidence": "At the actual completion claim, ordinary CI is not proof of owner-task completion. A PR body that says “work in progress” while the worker reports complete is a contradictory non-substitute. Required comparisons have per-case artifacts, not conversational promises.",
+          "non_substitutes": [
+            "a PR body that says “work in progress” while the worker reports complete",
+            "ordinary CI as proof of owner-task completion",
+            "conversational promise instead of per-case artifacts"
           ],
           "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
           "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
@@ -6753,7 +6406,7 @@
     },
     {
       "rule_id": "uda.task-lock.portable-instruction",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -6773,10 +6426,6 @@
           {
             "kind": "exact_text",
             "text": "Ordinary tests are prerequisites, not task completion."
-          },
-          {
-            "kind": "exact_text",
-            "text": "Claim readiness only when the task-specific acceptance command verifies every required artifact; claim completion only after protected merge and an immutable receipt."
           }
         ]
       },
@@ -6798,10 +6447,6 @@
           {
             "fact": "governance_required",
             "eq": true
-          },
-          {
-            "fact": "action_classes",
-            "contains": "exclusive_task"
           },
           {
             "fact": "action_classes",
@@ -6832,11 +6477,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.scope-authority",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",

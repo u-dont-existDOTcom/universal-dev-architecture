@@ -1,1 +1,1 @@
-The adopted instruction allows generic continue to choose a task and green CI to certify completion.
+The edited instruction permits ordinary green tests to establish owner-task completion.

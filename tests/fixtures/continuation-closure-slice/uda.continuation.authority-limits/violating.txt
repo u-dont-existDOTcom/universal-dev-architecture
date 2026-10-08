@@ -1,1 +1,1 @@
-An available independent action is used to justify bypassing an applicable spending boundary.
+The task lock authorizes continuation, so the worker publishes the private dataset despite its privacy restriction.

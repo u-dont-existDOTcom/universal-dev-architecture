@@ -151,8 +151,8 @@
       }
     },
     "patterns/terminal-response-admission-and-autonomous-continuation.md": {
-      "clause_count": 63,
-      "clauses_sha256": "9e2da66be658c98e1fc13d0c7ba551c32bbc937f36f58cf4e28ad97da5635100",
+      "clause_count": 65,
+      "clauses_sha256": "37aa104f24e01c8e79bc902474a5f471a343af14a8ed3d96a1d5a0b86b7cdd71",
       "pre_section_sha256": "435a30a6f726a4c4e78b237f3dfed517016e1a8eb1c961c08b26ebb443aa8b2b",
       "sections": {
         "problem": {
@@ -161,8 +161,8 @@
           "source_sha256": "2690112d25dab3d95a214bfd854542d1709ce064e90bac03b99ac3830e4edf30"
         },
         "universal-rule": {
-          "clause_count": 17,
-          "clauses_sha256": "376f0ad38d597ca293709e92e1e4e6edbafb27f30dd1b8e3f463fe3b4363d764",
+          "clause_count": 16,
+          "clauses_sha256": "c01a5ef83166307d80e1ba5b6202a74e4893cdef1e297fdd5d22ab84ac84a9f2",
           "source_sha256": "287e4933de4f001fa140c3bad988ee1a25db1f6afd37f78150c98a235d9dc719"
         },
         "non-terminal-recovery-events": {
@@ -171,8 +171,8 @@
           "source_sha256": "2681136af50f4e83f94610a3890895fda62cdac19f6bc431ac7c9d9c3bfe10db"
         },
         "provider-waits-and-cooldowns": {
-          "clause_count": 7,
-          "clauses_sha256": "7378f6d84d496f914eacf1f4f8bb7f94034c41bd7f3e6ecc5c726e605926b862",
+          "clause_count": 5,
+          "clauses_sha256": "d883e792e8a7a15f068ec7c1689e6f89644271fc874a037876c6c5ca2e4fb5df",
           "source_sha256": "0611d78fcf35bf52db10e088e9d2e5bf4d7650a2c18c27fbc7df581988d50779"
         },
         "mission-control-mechanical-gate": {
@@ -191,8 +191,8 @@
           "source_sha256": "7e2038815f747eff4d2a50be8197f09050b1a88fb142e0c5e665904bad726632"
         },
         "relation-to-other-controls": {
-          "clause_count": 2,
-          "clauses_sha256": "40fafb48f280569fb4f6c2242e9f6121107b0eb88e49c93023940a18eca890b5",
+          "clause_count": 7,
+          "clauses_sha256": "7820d7325e212c14ed1602a1d612c592940cd1660f5a55e000dab31d5ac4ab41",
           "source_sha256": "c7a22b21ba152e88a8cfeaf61c8c6768df892e2b21c7233fe6e27648f2d930ce"
         },
         "origin--transfer-rationale": {
@@ -208,8 +208,8 @@
       }
     },
     "patterns/context-compaction-resilience.md": {
-      "clause_count": 89,
-      "clauses_sha256": "fb88ce98e06854eaec3404bb80b6bc1eb047b3612f2badd021aee57cc89e40fd",
+      "clause_count": 73,
+      "clauses_sha256": "74cbfd7a98f6c34c19e16afb66cf8a50fef09a564b61bb002c50dd55a80bdfab",
       "pre_section_sha256": "867545769e503df2dc7ce3f161c627c84a275b8caa11a9a5c5d35626f1b6e475",
       "sections": {
         "problem": {
@@ -218,8 +218,8 @@
           "source_sha256": "9f040a7e81f980ea20af5e6adf682e596248cfa2f7c2e4580a69b24be1ec9b94"
         },
         "universal-pattern": {
-          "clause_count": 75,
-          "clauses_sha256": "f06e3d67187e8834d7d790ec9a3e7158f76349c7e81f45dfd299e13b675d09f8",
+          "clause_count": 63,
+          "clauses_sha256": "8371178771dd02e52a5fb11d05132685c85a0cff8a74cbd140f9eed70c279c8a",
           "source_sha256": "47d52fb25990835eed5bca2b33a37d9bff676090c59c8e62d59975ab0a599943"
         },
         "recommended-project-instruction": {
@@ -233,8 +233,8 @@
           "source_sha256": "e6e4454abf32fdf6f630ca78dc2e9eac7de318a2e9bb9a6fcd7def455481b759"
         },
         "limits": {
-          "clause_count": 5,
-          "clauses_sha256": "97d14b239afb0322577ed4dfcf5fc868c6867e7e970d4343f0688f10a5920b1b",
+          "clause_count": 1,
+          "clauses_sha256": "b0e492e68cd1ffa0bb99fa99c934a9c848123cc41f2427de4ce6cba6ab61a538",
           "source_sha256": "6b7f4353621705de4e4009873101d1b0e6a8764e2c0d6d7baf99bc4df4e0d059"
         }
       }
@@ -352,6 +352,11 @@
       "review": "pass-2 execution readback",
       "finding": "Receipts must survive exact-byte input handling and reject malformed JSON or invalid UTF-8 receipt files; an owner correction must stale a receipt even when selection stays the same.",
       "disposition": "Both CLI entrypoints read payload bytes, malformed receipt files leave UNKNOWN, the whole envelope enters the contract hash, and direct CLI/binding regressions cover these boundaries."
+    },
+    {
+      "review": "owner supervisor corrections before review rounds, 2026-10-08",
+      "finding": "Work continuity removal, missing claim/gate/resolver clauses, stale event selection, phase drift and overstated complete-pattern coverage.",
+      "disposition": "2026-10-08 supervisor corrections: restored representative Work continuity/provenance and original continuity-test expectations; consolidated persistence selectors without shortening them; exact-head status gates; actual Mission Control command and authority-resolver outputs; stop-time recovery exclusions; phase/trigger/N/A pins; action-class refresh; one-shot instruction adoption; bespoke near-misses; corrected partial dispositions with explicit owner authority, unchanged baseline and budgets."
     }
   ],
   "regression": "Coverage, receipt, activation-state and dominated-route tests; mutation-style checks that remove or corrupt an enforcement link.",
@@ -490,18 +495,18 @@
       "finding_id": "slice-2a-continuation-closure",
       "date": "2026-10-08",
       "identity_counts_by_disposition": {
-        "STRUCTURED_ENFORCED": 11,
-        "STRUCTURED_PARTIAL": 6,
+        "STRUCTURED_ENFORCED": 9,
+        "STRUCTURED_PARTIAL": 8,
         "WORKFLOW_ONLY": 10,
         "LEGACY_UNSTRUCTURED": 69,
         "NOT_ACTIVE": 2
       },
-      "backlog_count": 75,
-      "baseline_shrinkage": 9,
+      "backlog_count": 77,
+      "baseline_shrinkage": 7,
       "root_owner_outcome": "OPEN",
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
-      "implemented": "63 terminal, 89 compaction, 143 lock clauses; 34 new/3 extended semantic records; zero exceptions/remainder. Work 24308/29913 bytes. Slice 2b and later remain."
+      "implemented": "65/73/143 mapped rows; 28 new/3 extended records, 32 behaviors. Locks enforced; terminal/compaction partial. Work 32084/37194 bytes. Slice 2b/later OPEN."
     }
   ],
   "learning_state_at_merge": [
@@ -510,5 +515,23 @@
   "nonclaims": [
     "A matching receipt verifies the binding and attributes an asserted judgment to an actor; it does not prove application, semantic truth, actor identity or actual independence. SAME_AGENT is application evidence, not independent verification.",
     "Turns that never load UDA are outside its protection; the repository cannot enforce them."
+  ],
+  "owner_authorized_coverage_corrections": [
+    {
+      "id": "patterns/context-compaction-resilience.md",
+      "disposition": "STRUCTURED_PARTIAL",
+      "date": "2026-10-08",
+      "source": "current owner supervisor review of migration slice 2a before review rounds",
+      "owner_quote": "After the fixes, mark a pattern STRUCTURED_ENFORCED only where every operative clause is carried at its real boundary by evidence that demands it; otherwise STRUCTURED_PARTIAL with the exact legacy_remainder.",
+      "reason": "Supervisor review found overstated whole-pattern enforcement; retain exact clause pins, structured admission and the explicit remaining operative boundaries rather than claim a completed promotion."
+    },
+    {
+      "id": "patterns/terminal-response-admission-and-autonomous-continuation.md",
+      "disposition": "STRUCTURED_PARTIAL",
+      "date": "2026-10-08",
+      "source": "current owner supervisor review of migration slice 2a before review rounds",
+      "owner_quote": "After the fixes, mark a pattern STRUCTURED_ENFORCED only where every operative clause is carried at its real boundary by evidence that demands it; otherwise STRUCTURED_PARTIAL with the exact legacy_remainder.",
+      "reason": "Supervisor review found overstated whole-pattern enforcement; retain exact clause pins, structured admission and the explicit remaining operative boundaries rather than claim a completed promotion."
+    }
   ]
 }

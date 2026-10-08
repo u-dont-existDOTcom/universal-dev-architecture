@@ -1,1 +1,1 @@
-Context and response pressure triggered a durable save. Recovery restarts from the first stale or missing action and retains verified completed work; cleanup, retries, batch ends, green tests and self-authored labels do not terminate the task.
+After restart the saved checkpoint identifies the active task and first missing action. Verified artifacts are retained and work resumes there without repeating them; the checkpoint confers no terminal permission.

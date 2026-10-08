@@ -1,1 +1,1 @@
-Only the success path was tested; wrong branch, leakage and incomplete artifact acceptance are untested.
+The worker reports control-plane coverage without running any of its cases.

@@ -1,1 +1,1 @@
-A substituted checkpoint with identical task fields but a different content hash authorizes execution after a newer stop.
+The latest independent source says stop. An older checkpoint is used to authorize another mutation.
