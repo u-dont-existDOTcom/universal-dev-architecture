@@ -328,6 +328,23 @@ class ContinuationClosureSliceTests(unittest.TestCase):
         projection = tt.read_json(ROOT / coverage.WORK_CONTRACT)
         self.assertEqual(len(projection['rendered_contract'].encode('utf-8')), int(measured[1]))
 
+    def test_canonical_work_measurements_match_rendered_utf8_bytes(self):
+        summary = (ROOT / 'patterns/task-time-lesson-activation.md').read_text()
+        measured = re.search(r'Work contract was ([\d,]+) rendered bytes at the reviewed baseline; '
+                             r'it is now ([\d,]+) rendered bytes', summary)
+        self.assertIsNotNone(measured)
+        baseline_catalog = copy.deepcopy(self.catalog)
+        handoff = next(r for r in baseline_catalog['records']
+                       if r['rule_id'] == 'uda.continuity.turn-end-handoff')
+        handoff['refresh_on_facts'] = [f for f in handoff['refresh_on_facts']
+                                     if f != 'owner_outcome_status']
+        baseline = tt.compile_contract(baseline_catalog, self.profile,
+                                       tt.read_json(ROOT / coverage.WORK_TASK), 'graph')
+        projection = tt.read_json(ROOT / coverage.WORK_CONTRACT)
+        for index, contract in ((1, baseline), (2, projection)):
+            self.assertEqual(len(contract['rendered_contract'].encode('utf-8')),
+                             int(measured[index].replace(',', '')))
+
     def test_event_fact_changes_block_until_recompiled_even_if_initially_excluded(self):
         for folder, r, catalog, task, _ in self.cases():
             rid = r["rule_id"]

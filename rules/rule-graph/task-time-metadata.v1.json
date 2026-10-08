@@ -1084,7 +1084,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "continuity_required"
+        "continuity_required",
+        "owner_outcome_status"
       ]
     },
     {
