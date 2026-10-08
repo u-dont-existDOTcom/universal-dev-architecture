@@ -1160,7 +1160,7 @@
           "class": "ROUTING"
         }
       ],
-      "review_notes": "Current owner workflow with behavioral selection and adaptation duties; development rules stay references, runtime rules become code/protocol. Excludes owner-private deployment material and preserves project authority.",
+      "review_notes": "Current owner workflow with behavioral selection and adaptation duties; development rules stay references, runtime rules become code/protocol. UDA adoption adds suggested-fix wiring unless developers load the live root every turn. Text tests protect that instruction, not downstream adoption. Excludes owner-private deployment material and preserves project authority.",
       "migration": {
         "priority": "P2",
         "next_step": "Register standalone-runtime import work; bind named runtime, failure-based selection, project-native enforcement form, source commit/import location, deliberate sync and a test that fails without each imported control.",
@@ -5103,6 +5103,7 @@
       ],
       "task_time_records": [],
       "graph_node": null,
+      "existing_coverage_limits": "Text-presence tests preserve the every-UDA-project lane rule, first-item folder creation, checks before a folder exists, wiring at adoption and the one-time wiring-only pull request, complete README wiring in root project templates, and the architecture's uda-lane pull-request handoff and both OWNER requests. They do not enforce downstream adoption, lane checks, filing, label application, remaining-work comments, maintainer check-ins/review/merge or the filing agent's stop-editing boundary.",
       "evidence": [
         {
           "path": "patterns/suggested-fix-queue.md",
@@ -5127,7 +5128,7 @@
       ],
       "migration": {
         "priority": "P2",
-        "next_step": "Bind project lane intake, owner-request disposition and ledger updates to session-start and cross-project suggestion persistence; reject owner-as-transport handoffs.",
+        "next_step": "Bind project lane intake, owner-request disposition and ledger updates to session-start and cross-project suggestion persistence; bind architecture pull-request uda-lane labeling, the remaining-work comment, maintainer check-in/review/merge and filing-agent edit restrictions to the handoff boundary; reject owner-as-transport handoffs.",
         "trigger_frequency": "CONDITIONAL"
       }
     },

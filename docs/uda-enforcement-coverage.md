@@ -233,6 +233,8 @@ Clauses 33; consolidated obligations 7; structured clauses 33; excepted 0; remai
 | Before switching methods, declaring progress complete, or ending a substantial pass, verify what observable result proves each promised operation actually occurred. | uda.kernel.operation-commitments / keep-promised-operation-open |
 | If a still-valid promised step was displaced by later work, execute it before continuing. | uda.kernel.operation-commitments / keep-promised-operation-open |
 
+The 2026-10-07 maintainer-handoff addition in `patterns/suggested-fix-queue.md` remains text-only coverage within its existing `LEGACY_UNSTRUCTURED` identity. Its tests protect step 9, the `uda-lane` label and README/index routing; they do not enforce live handoff, maintainer check-ins or filing-agent edit restrictions. The inventory records those limits and the migration work; the backlog remains 84 identities.
+
 ## Exact migration backlog
 
 P1 retains 16 of the issue's 22 high-leverage identities after the six kernel sections are removed. Other general behavioral entries are P2 (47); mechanics specific to a project or infrastructure surface are P3 (15), including Mission Control supervision/relay, browser automation, worker permissions and Work cloud dispatch. Every P1 entry is behavioral, checked by the validator.

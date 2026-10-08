@@ -15,7 +15,7 @@ Agents that develop a project load this architecture, but a project's runtime of
 3. **Import each item in the most enforceable form that fits:**
    - A mechanical rule becomes code: a validator, a gate or a test in the project.
    - A reasoning behavior of a runtime agent becomes part of the project's own runtime protocol or prompt, rewritten for that audience and domain.
-   - A development-time rule is referenced, not copied. The project's `AGENTS.md` routes its developers to this architecture.
+   - A development-time rule is referenced, not copied. The project's `AGENTS.md` routes its developers to this architecture. When a project starts using these rules, the agent carrying them in adds the suggested-fix wiring section from `suggested-fixes/README.md` to its `AGENTS.md`, replacing `<repository>` with the project's name, unless its agents load this repository's root `AGENTS.md` every turn (`patterns/suggested-fix-queue.md`, step 7).
 4. **Adapt, don't paste.** Runtime text is read by end users' sessions or other people's agents. Write it for them, and keep owner-private material, owner-specific examples and internal process out of it.
 5. **Record where it came from.** The project keeps a short import manifest, such as `docs/uda-imports.md`, listing each imported item: its source path here, the source commit, the form it took, and where it lives in the project.
 6. **Keep it in sync on purpose.** A check in the project (CI or scheduled) compares the manifest's source commits with this architecture's default branch and reports imported sources that have changed. Updating an import is a deliberate change with its own test, never an automatic copy, because it changes runtime behavior.
