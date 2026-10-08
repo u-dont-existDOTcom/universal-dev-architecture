@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -111,6 +112,56 @@ class CurrentStateConcisionTests(unittest.TestCase):
                 )
             with mock.patch.dict(globals(), {"TASK_STATES": task_states}):
                 self.test_pr_297_recovery_checkpoints_route_past_published_repair()
+
+    def test_retained_recovery_boundaries_use_reachable_commits(self) -> None:
+        # Check active recovery references, not historical evidence or round details.
+        for name in (
+            "task-5e54bcd1e5766e40fe276c2f61bbb571a2ee3bb0febddf6b7a2a44309fc30f0b.md",
+            "task-bb6e46e5581cf4d85c63d1e63cbd675d51203ca44658f9b15a187af662aedc7c.md",
+        ):
+            text = (TASK_STATES / name).read_text(encoding="utf-8")
+            for heading in ("Goal", "Current checkpoint"):
+                section = text.split(f"## {heading}\n", 1)[1].split("\n## ", 1)[0]
+                boundaries = "\n".join(re.findall(
+                    r"(?m)^- (?:Root outcome|Last verified durable boundary[^:]*):.*$", section
+                ))
+                for commit in set(re.findall(r"`([0-9a-f]{7,40})`", boundaries)):
+                    with self.subTest(path=name, heading=heading, commit=commit):
+                        result = subprocess.run(
+                            ["git", "merge-base", "--is-ancestor", commit, "HEAD"],
+                            cwd=Path(__file__).resolve().parents[1],
+                            capture_output=True,
+                            text=True,
+                            check=False,
+                        )
+                        self.assertEqual(0, result.returncode, result.stderr)
+
+    def test_retained_recovery_checkpoints_can_be_rewritten(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            task_states = root / "state" / "tasks"
+            task_states.mkdir(parents=True)
+            current_state = root / "state" / "CURRENT-STATE.md"
+            current_state.write_text(CURRENT_STATE.read_text(encoding="utf-8"), encoding="utf-8")
+            for path in sorted(TASK_STATES.glob("*.md")):
+                text = re.sub(
+                    r"(?ms)^(## (?:Current checkpoint|Remaining|Next safe action))\n.*?(?=^## |\Z)",
+                    r"\1\n\n- Recover from the latest available repository state.\n\n",
+                    path.read_text(encoding="utf-8"),
+                )
+                (task_states / path.name).write_text(text, encoding="utf-8")
+            loader = unittest.TestLoader()
+            suite = unittest.TestSuite(
+                type(self)(name)
+                for name in loader.getTestCaseNames(type(self))
+                if name != self._testMethodName
+            )
+            with mock.patch.dict(
+                globals(), {"ROOT": root, "CURRENT_STATE": current_state, "TASK_STATES": task_states}
+            ):
+                result = unittest.TestResult()
+                suite.run(result)
+            self.assertTrue(result.wasSuccessful(), result.failures + result.errors)
 
 if __name__ == "__main__":
     unittest.main()

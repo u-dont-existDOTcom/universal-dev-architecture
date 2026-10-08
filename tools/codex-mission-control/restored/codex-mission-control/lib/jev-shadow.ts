@@ -235,8 +235,8 @@ function parseJevResponse(raw: unknown): {
       output_tokens: numberOrUndefined(usage.output_tokens, true),
       cost: numberOrUndefined(usage.cost),
     } : undefined,
-    provider: typeof record.provider === "string" ? record.provider : undefined,
-    response_id: typeof record.id === "string" ? record.id : undefined,
+    provider: stringOrUndefined(record.provider, 200),
+    response_id: stringOrUndefined(record.id, 300),
   };
   if (!record.answers || typeof record.answers !== "object" || Array.isArray(record.answers)) {
     throw new JevResponseError("Response answers are missing.", metadata);
@@ -263,6 +263,10 @@ export function jevShadowTimeoutMs(raw: string | undefined): number {
 function numberOrUndefined(value: unknown, integer = false): number | undefined {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     && (!integer || Number.isSafeInteger(value)) ? value : undefined;
+}
+
+function stringOrUndefined(value: unknown, maxLength: number): string | undefined {
+  return typeof value === "string" && value.length > 0 && value.length <= maxLength ? value : undefined;
 }
 
 function isAbortError(error: unknown): boolean {
