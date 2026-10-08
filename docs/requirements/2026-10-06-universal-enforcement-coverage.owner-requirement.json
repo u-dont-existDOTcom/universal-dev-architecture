@@ -55,6 +55,100 @@
     "AGENTS.md#workflow": {
       "clause_count": 33,
       "clauses_sha256": "0296f83c29eb4a6e0aa59c0ad74785f72224a331282c461d1b92757531d1d6b1"
+    },
+    "patterns/convergent-review-acceptance-gates.md": {
+      "clause_count": 70,
+      "clauses_sha256": "cd6db6991cc9891be474ba3c1fd3bb3ab4d1bc0426e341925ed985fd4bcb86e2",
+      "pre_section_sha256": "9fe60d56872542596f2a1f2ebb7b393edf56ad0f5ea351c95cf8e3d871c3adaa",
+      "sections": {
+        "status": {
+          "clause_count": 1,
+          "clauses_sha256": "99691207cdcb42ba76934779fd05b47ae0426353331fdfce550f571c979d6670",
+          "source_sha256": "b3a790aa896331444e0e38c0e98ab5ed9d0176ac78af8fdb5e2079d14a148ef9"
+        },
+        "problem": {
+          "clause_count": 9,
+          "clauses_sha256": "ee8e19e972aeac77549d5ca0e209a7ec01056d88f2db071d8c4b5321c44d9f1b",
+          "source_sha256": "947dc48385b2bfe4fed663beb0ad4af12cbcdd78a6672778c7e269942d330a0d"
+        },
+        "rules": {
+          "clause_count": 35,
+          "clauses_sha256": "2eb1f9b325e102811c658c5a0b837b95130db015b0e62231479251636d86e1ca",
+          "source_sha256": "1860ee6be726911578427ae8dca226aa0864fba15914c76e7cdc8ae931a36e49"
+        },
+        "bounds": {
+          "clause_count": 9,
+          "clauses_sha256": "069bf44d4581a7b44adab98c765c9def7cebf77e8f7d74331cace9b311678686",
+          "source_sha256": "484bd03865c5787421eac322254994fb02efd5e9557e188193f80ddf05b312f9"
+        },
+        "failure-condition-and-repair": {
+          "clause_count": 5,
+          "clauses_sha256": "70af7cd1692e7b0b0fa4faa9c937e9f6d04654cae15c6eb76bba48e6285f27ef",
+          "source_sha256": "f9b5278ca0015231851c0fbc3f3da351f4f703b129986c769bd1554e9653f04b"
+        },
+        "relationship-to-other-patterns": {
+          "classification": "NON_OPERATIVE",
+          "reason": "Cross-pattern references summarize the mapped review rules and identify their existing normative owners; they add no independent obligation.",
+          "source_sha256": "756809a5303a7d4b29d22d7049374f146f62c41e8dc7bdf8625bdb7461c3119d"
+        },
+        "requirement-accretion-declaration": {
+          "clause_count": 1,
+          "clauses_sha256": "2b1979a568bf0415afa9c01d79679ab63f8dea074ad3297c10240a5f1665f248",
+          "source_sha256": "96c3d964f0cb553b44ffbf01cf4085980636cca1281f712001cf28f02bc80d0a"
+        },
+        "transfer-rationale-and-limits": {
+          "clause_count": 10,
+          "clauses_sha256": "a0f9284464ef4e50e39f7bfff49fcca77e4868b92c82160da92475dd5f7344b5",
+          "source_sha256": "d2ef4273a4f94ea77d65dc6d3664daa37df4e71eca7c00f90faa9874e811a11f"
+        }
+      }
+    },
+    "patterns/agent-completable-merge-gates.md": {
+      "clause_count": 58,
+      "clauses_sha256": "821fd0ccde08f02407576b5a0b45d7c061ee8c59e81efc6fbb442f60a154ef2f",
+      "pre_section_sha256": "36f1182cdefab625da313048024934a7e69b75832a4fbc16a98a4bce2b20ca88",
+      "sections": {
+        "status": {
+          "clause_count": 1,
+          "clauses_sha256": "2b196683168c52671ec211051d15409c471edef216bafebdffcd09a942dbba5a",
+          "source_sha256": "582ea3d7b9cdc2fc096a74dd2947d48f4778f8e2030f63be08d5507f59040554"
+        },
+        "problem": {
+          "classification": "NON_OPERATIVE",
+          "reason": "Historical incident description explains the merge-gate motivation without prescribing independent behavior; operative duties are mapped in Rules and Bounds.",
+          "source_sha256": "8a1726ab75653ae8c7443706407e1982c06ecf0e5f6663faa1a5f16a5b574e19"
+        },
+        "rules": {
+          "clause_count": 36,
+          "clauses_sha256": "98e2b44582bb49d3a6e98db847be0370e8910f5ece763822b96914a7ee6bedcd",
+          "source_sha256": "7e57b16b5b571bdeff18cce8f9307c0c15422338960d9fd1788b421fb2387e16"
+        },
+        "bounds": {
+          "clause_count": 9,
+          "clauses_sha256": "75d77060b04deb83cd50915169eddfd82d769817652d23c173a5531bfe170b26",
+          "source_sha256": "5dac31f27fa7cfc8ed9eb312741de5d98ce4ff077192814979a1f02232e2783f"
+        },
+        "failure-condition-and-repair": {
+          "clause_count": 5,
+          "clauses_sha256": "3a431c2d184330cd504b47cff803b73cc05d21b9fa0ab3044cc05a2c008dd009",
+          "source_sha256": "c4c2c69afd3592b396103b3315bc406d66099f5d86be295c7ba0c373fdc1c10d"
+        },
+        "relationship-to-other-patterns": {
+          "classification": "NON_OPERATIVE",
+          "reason": "Cross-pattern references describe existing hosted-gate rule ownership and routing without adding an independent obligation beyond the mapped sections.",
+          "source_sha256": "e057abb2b2c767990eb1b59ce3ca65119fdc2e4cbaa7222913092434e3106d89"
+        },
+        "requirement-accretion-declaration": {
+          "clause_count": 1,
+          "clauses_sha256": "426884de5ffda68860f667d44258f21c44f2155aaa4852cd046c0477305a6a90",
+          "source_sha256": "87be2b60b888b6f3cd8fe98f4fe5dc3edd904c22fd654509e1c34812387d6075"
+        },
+        "transfer-rationale-and-limits": {
+          "clause_count": 6,
+          "clauses_sha256": "ebeae1cb4231f26f5e17f0ed8879cb8167ec3418890ecbe02e54ab1e562c5d17",
+          "source_sha256": "e508398fb79e213562e4c53668bbecd6f013c200061661ba9cea2b3a7fd891ef"
+        }
+      }
     }
   },
   "review_changes": [
@@ -131,8 +225,7 @@
         "LF-7.1",
         "LF-7.2",
         "LF-7.3"
-      ],
-      "notes": "Existing map already covers instructions not loaded, loaded checks missing the real endpoint, proxy tests and overstated coverage. No new broad pattern or LF row is needed."
+      ]
     },
     {
       "finding_id": "pass-1-inventory",
@@ -152,8 +245,7 @@
       "date": "2026-10-06",
       "backlog_count": 84,
       "backlog_ids_sha256": "6311f2d872d7c8a02f3d9d4f38667b71b4d23e25f614f1f9c825aaa644f9a0b2",
-      "path": "rules/rule-graph/enforcement-legacy-baseline.v1.json",
-      "notes": "Exact identities are pinned in this file; the count and canonical-list digest retain the requirement-bound anti-tampering anchor without duplicating the list."
+      "path": "rules/rule-graph/enforcement-legacy-baseline.v1.json"
     },
     {
       "finding_id": "pass-2-inventory",
@@ -175,12 +267,12 @@
     },
     {
       "finding_id": "policy-pr-312-reconciliation",
-      "basis": "Available remote-tracking snapshot 3ed51341b1f9221057c7b49c0f46402c5f878759; live freshness unavailable. No dependency on this open policy change.",
+      "basis": "Maintainer chose structured admission on 2026-10-07; no backlog-addition authorization.",
       "new_pattern_ids": [
         "patterns/agent-completable-merge-gates.md",
         "patterns/convergent-review-acceptance-gates.md"
       ],
-      "required_second_merge_action": "Both are behavioral. Whichever integrates second must add exact universe entries and activation routes. Structured records/admission or a genuine specialist-workflow reason are needed; legacy backlog additions require explicit owner authorization. No preclassification for absent files and no automatic grandfathering."
+      "required_second_merge_action": "Completed: both are STRUCTURED_ENFORCED with maps, pins and bound admission regressions; no backlog additions."
     },
     {
       "finding_id": "slice-1-kernel",
@@ -206,6 +298,22 @@
       "consolidated_obligations": 23,
       "rendered_work_utf8_bytes": 27355,
       "rendered_work_budget_bytes": 32768
+    },
+    {
+      "finding_id": "slice-2-review-merge",
+      "date": "2026-10-07",
+      "identity_counts_by_disposition": {
+        "LEGACY_UNSTRUCTURED": 71,
+        "STRUCTURED_ENFORCED": 8,
+        "WORKFLOW_ONLY": 10,
+        "STRUCTURED_PARTIAL": 7,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 78,
+      "baseline_shrinkage": 6,
+      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "Two new identities structured: 70 review clauses / 8 obligations; 58 merge clauses / 8 obligations; 14 new records, no exceptions or backlog additions."
     }
   ],
   "learning_state_at_merge": [

@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Before the gate, reference R with verified provenance and metric floors are frozen. Aggregate recall is 0.96 against 0.95; critical misses are zero against a zero ceiling. Required stratum A also passes its 0.90 floor. No measure trades off a floor. The report prints recall, critical misses, failed units and error counts on separate lines; no unit is concealed.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "All units must obtain zero model findings; no aggregate floors or frozen reference exist.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Pooled recall passes because stratum B is strong, while required stratum A kept nothing and has no floor. a pooled pass that conceals an empty required unit.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "acceptance-floors-at-boundary",
+    "non_substitute": "a pooled pass that conceals an empty required unit"
+  }
+}

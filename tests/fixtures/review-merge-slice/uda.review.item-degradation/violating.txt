@@ -1,0 +1,1 @@
+The pipeline discarded the entire unit and halted every independent unit because B remains flagged.

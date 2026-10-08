@@ -75,7 +75,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | ID | Failure | Quick check | Covered by | MAST |
 |---|---|---|---|---|
 | LF-5.1 | Keeping a strategy that isn't working, or dropping one before it could work. | Compare direct outcome evidence with the strategy's expected effect and window. | `patterns/outcome-advancement-and-strategy-efficacy.md`; `patterns/failed-strategy-lineage-and-negative-evidence-binding.md` | |
-| LF-5.2 | A loop that doesn't converge: the same kind of step repeated, or review rounds that each find new edge cases. | Cap the rounds; when a cap is hit, change the method (for example one full audit) rather than repeat the step. | `patterns/outcome-advancement-and-strategy-efficacy.md` | FM-1.3 |
+| LF-5.2 | A loop that doesn't converge: the same kind of step repeated, or review rounds that each find new edge cases. | Cap the rounds; when a cap is hit, change the method (for example one full audit) rather than repeat the step. When a noisy model reviewer sets the rounds, re-review only changed items and stop when findings per cycle stay flat or bounce. | `patterns/outcome-advancement-and-strategy-efficacy.md`; `patterns/convergent-review-acceptance-gates.md` | FM-1.3 |
 | LF-5.3 | New infrastructure where the existing platform already offers it. | Inventory the platform's own deployment surfaces first. | `patterns/platform-native-deployment-before-new-infrastructure.md` | |
 | LF-5.4 | Recommending before checking the facts that decide it: price, availability, fit. | Resolve the deciding facts before naming a candidate. | `patterns/recommendation-preflight-integrity.md`; `patterns/shopping-research.md` (shopping) | |
 | LF-5.5 | The wrong model tier: the top tier for easy work, or a low tier for hard work. | Split judgment from execution; use the lowest sufficient tier. | `patterns/delegate-easy-work-to-cheaper-models.md`; `patterns/work-model-and-effort-routing.md`; `patterns/chat-work-execution-routing-threshold.md`; `patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md` | |
@@ -103,6 +103,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-7.4 | A failure put in the wrong class, so it gets the wrong fix: a serialization error treated as reasoning, a mechanical error escalated as reasoning. | Classify before changing model or approach. | `patterns/structured-output-failure-boundary.md`; `patterns/work-model-and-effort-routing.md` (failure classes) | |
 | LF-7.5 | A GitHub Actions audit mistakes a checkout-created merge ref for a pull request head, or reads its own incomplete log. | Compare head refs with checkout refs; exclude the current workflow run from log retrieval. | `patterns/github-actions-pr-ref-namespace-safety.md` | |
 | LF-7.6 | Repeated full or mutation tests consume time without changing a decision. | Measure test cost; run focused tests during iteration and full suites at a justified checkpoint. | `patterns/test-efficiency-and-verification-budget.md` | |
+| LF-7.7 | A gate that fails correct work: a noisy reviewer must report nothing on every unit and every repair is re-reviewed whole, so correct work is rejected at a rate nobody estimated and repairs chase the reviewer's variance. | Estimate the gate's false-failure rate before the run; re-review only earlier findings and changed items; gate on aggregates with hard floors; stop and escalate when findings per cycle stay flat or bounce. | `patterns/convergent-review-acceptance-gates.md` | FM-3.3 |
 
 ### 8. Stopping and continuing
 
@@ -113,6 +114,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-8.3 | Interrupting the owner for work the agent can do. | Try the safe self-remedy first. | `patterns/worker-self-remediation-before-owner-interruption.md` | |
 | LF-8.4 | A workflow left in a state with no next step. | Every non-final state names its next work or its blocker. | `patterns/executable-frontier-coherence.md` | |
 | LF-8.5 | A completed work package or release is mistaken for closure of a longer research mission. | Compare the result with the invariant purpose and the current evidence frontier before closing the root mission. | `patterns/long-range-research-mission-supervision.md` | |
+| LF-8.6 | A hosted merge gate the agent cannot complete, found at the first merge, so every pull request waits on an owner click that verifies nothing. | At the start of the workstream, can the agent satisfy each hosted gate with its actual permissions, refusals included? If not, raise one owner decision with a recommendation instead of a recurring owner chore. | `patterns/agent-completable-merge-gates.md`; `patterns/worker-self-remediation-before-owner-interruption.md` | |
 
 ### 9. Reporting and handing off
 

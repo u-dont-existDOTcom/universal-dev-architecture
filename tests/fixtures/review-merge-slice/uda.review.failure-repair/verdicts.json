@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "After an observed failure the repaired gate now has a pre-scale estimate, change-only repair scope, fixed bound, stall rule, item withholding and persisted output gaps. An aggregate change for the declared gate stays a proposal. Counts are on the owner questions page; independent units proceed.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The observed failure persists unchanged while the affected gate resumes.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "A document describes all proposed repairs, but the affected gate resumes with the old whole-unit review and no gap output. a repair plan presented as a repaired gate.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "failure-repair-at-boundary",
+    "non_substitute": "a repair plan presented as a repaired gate"
+  }
+}

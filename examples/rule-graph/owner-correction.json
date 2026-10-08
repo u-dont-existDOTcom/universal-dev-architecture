@@ -32,7 +32,7 @@
       "value": [
         "repository_change"
       ],
-      "provenance": "active implementation"
+      "provenance": "active implementation; review_round, review_finding_judgment and merge_gate are absent"
     },
     "owner_outcome_status": {
       "state": "KNOWN",

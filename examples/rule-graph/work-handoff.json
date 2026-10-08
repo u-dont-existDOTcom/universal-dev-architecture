@@ -33,7 +33,7 @@
         "work_handoff",
         "artifact_delivery"
       ],
-      "provenance": "bounded action plan"
+      "provenance": "bounded action plan; review_round, review_finding_judgment and merge_gate are absent"
     },
     "owner_outcome_status": {
       "state": "KNOWN",

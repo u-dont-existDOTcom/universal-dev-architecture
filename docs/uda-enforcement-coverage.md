@@ -1,10 +1,10 @@
-# UDA enforcement coverage — first integration, usage-limit continuity and kernel migration slice 1
+# UDA enforcement coverage — first integration, continuity and migration slices 1–2
 
 Rules can be readable and easy to find without ever changing an answer or blocking an action. This inventory makes that gap visible. It checks declared coverage, not the semantic truth of an agent's judgment or live enforcement across every consumer. The owner outcome remains OPEN.
 
 ## Dispositions
 
-- **STRUCTURED_ENFORCED:** all behavioral obligations in this source have exact task-time records and an evaluable admission path. Large files with a narrow slice do not qualify. Slice 1 has six kernel sections in this state; large pattern sources still have unstructured remainders. An obligation-level bootstrap exception is carried outside activated UDA, not represented as an admitted obligation.
+- **STRUCTURED_ENFORCED:** all behavioral obligations in this source have exact task-time records and an evaluable admission path. Large files with a narrow slice do not qualify. Slices 1–2 have six kernel sections and two complete behavioral patterns in this state; other large pattern sources still have unstructured remainders. An obligation-level bootstrap exception is carried outside activated UDA, not represented as an admitted obligation.
 - **STRUCTURED_PARTIAL:** some obligations have exact records; the entry names the remaining operative obligations in `legacy_remainder`. It stays in the migration backlog. Semantic records now accept exact-candidate receipts and fail closed with UNKNOWN when no matching, well-formed receipt supplies a judgment.
 - **WORKFLOW_ONLY:** the source is a specialist authoritative workflow or reference, with a source-specific explanation. This is an explicit exception, not a claim of semantic task-time enforcement. Some specialist workflows do contain behavior; that fact stays visible.
 - **LEGACY_UNSTRUCTURED:** a behavioral rule still relies on prose/index application. Its exact identity and migration priority are reported. Routing does not count as enforcement.
@@ -26,7 +26,7 @@ The kernel profile uses the required `repository_kind: uda-kernel` classificatio
 
 1. Read the full source and its applicable authority. A new pattern file or root level-two section immediately joins the computed universe.
 2. Add exactly one entry in `rules/rule-graph/enforcement-coverage.v1.json`, with canonical id, behavioral classification, actors, phases, destinations, evidence and a real activation route.
-3. For structured coverage, list every exact `task_time_records` id. Each record must exist, match this source (and root section), and be claimed once. Supply both ADMISSION and BEHAVIORAL_REGRESSION evidence for a fully structured section. Enumerate every operative sentence or clause in its obligation_map and capture its independent source_clause_manifest in the owner requirement record; use partial coverage with an exact legacy_remainder when obligations remain.
+3. For structured coverage, list every exact `task_time_records` id. Each record must exist, match this source (and root section), and be claimed once. Supply both ADMISSION and BEHAVIORAL_REGRESSION evidence for a fully structured section. Enumerate every operative sentence or clause in its obligation_map and capture its independent source_clause_manifest in the owner requirement record; use partial coverage with an exact legacy_remainder when obligations remain. A fully enforced pattern also requires `pre_section_sha256` for the complete source before its first level-two heading (the entire source if there is no such heading). Every level-two section in a fully enforced pattern must have a manifest entry: mapped clause pins plus `source_sha256` of the complete section body, or `classification: NON_OPERATIVE` with a specific `reason` and `source_sha256` of the exact section body (after the heading, before the next level-two heading). Non-operative declarations require human review; the validator verifies their shape and content binding, not their semantic truth.
 4. For a specialist workflow exception, explain the actual domain and authoritative workflow. For retirement, name the reason and successor. Neither disposition hides a live missing route.
 5. New backlog is forbidden. The baseline identity pin stays unchanged; current backlog shrinks only through STRUCTURED_ENFORCED identities reported in removed_since_baseline. Additions require `owner_authorized_additions` with exact id, owner quote, ISO date and source. The baseline pins identities, not just a total, and must match the initial count and canonical identity-list SHA-256 preserved in the owner requirement record. Editing that pin alone cannot authorize growth; owner quotes and coordinated policy rewrites still require human authority review.
 6. Update docs counts/backlog and run `python3 scripts/uda_enforcement_coverage.py validate` and `python3 scripts/uda_enforcement_coverage.py report`. The deterministic repository audit runs validation at error level. If task-time metadata or bound source changes, regenerate the lock with `python3 scripts/uda_rule_graph.py validate --write-lock rules/rule-graph/generated/source-lock.v1.json` and regenerate the representative Mission Control projection with `python3 scripts/uda_rule_graph.py compile --task examples/rule-graph/work-handoff.json --mode graph --output tools/codex-mission-control/restored/codex-mission-control/generated/rule-graph/work-handoff-contract.json`. These are derived artifacts, not Mission Control runtime changes.
@@ -39,25 +39,25 @@ The systemic gap fits existing logic-map entries: LF-2.1 for unloaded/stale guid
 
 ## Current counts
 
-Inventory entries: 96
+Inventory entries: 98
 
-Indexed patterns: 82
+Indexed patterns: 84
 
 Migration backlog: 78
 
-Task-time records: 28, sourced from 8 files, with 2 mechanical and 33 semantic obligations (23 consolidated kernel behaviors, 9 existing pattern obligations and 3 usage-limit continuity obligations).
+Task-time records: 42, sourced from 10 files, with 2 mechanical and 49 semantic obligations (23 kernel behaviors, 9 earlier pattern obligations, 3 usage-limit continuity obligations and 16 review/merge-gate behaviors).
 
 | Disposition | Count |
 |---|---:|
-| STRUCTURED_ENFORCED | 6 |
+| STRUCTURED_ENFORCED | 8 |
 | STRUCTURED_PARTIAL | 7 |
 | WORKFLOW_ONLY | 10 |
 | LEGACY_UNSTRUCTURED | 71 |
 | NOT_ACTIVE | 2 |
 
-Six root sections are STRUCTURED_ENFORCED after slice 1. The seven partial pattern sources are task-time lesson activation, owner-goal follow-up, Chat/Work execution routing, the repository operating system, worker-directive/output delivery, reasoning selection and context-compaction resilience. Reasoning selection structures the dominated-route obligation; context-compaction resilience structures only §3 Usage limits and account switches. Their exact unstructured remainders stay in backlog; the parent owner outcome remains OPEN.
+Six root sections and both new review/merge-gate patterns are STRUCTURED_ENFORCED after slices 1–2. The seven partial pattern sources are task-time lesson activation, owner-goal follow-up, Chat/Work execution routing, the repository operating system, worker-directive/output delivery, reasoning selection and context-compaction resilience. Reasoning selection structures the dominated-route obligation; context-compaction resilience structures only §3 Usage limits and account switches. Their exact unstructured remainders stay in backlog; the parent owner outcome remains OPEN.
 
-The immutable baseline pins 84 identities. Current backlog is 78: six fully structured sections removed, no additions. P1 falls from 22 to 16; P2 remains 47 and P3 remains 15. The report's removed_since_baseline lists only those six sections. The original pass-1/pass-2 counts remain historical requirement findings.
+The immutable baseline pins 84 identities. Current backlog is 78: six fully structured baseline sections removed, no additions. The two new pattern identities were never baseline members; structuring them prevents growth and does not count as baseline shrinkage. P1 falls from 22 to 16; P2 remains 47 and P3 remains 15. The report's removed_since_baseline lists only those six sections. The original pass-1/pass-2 counts remain historical requirement findings.
 
 ## Kernel slice 1 obligation map
 
@@ -404,9 +404,162 @@ The twelve new direct routes use these leading clauses:
 | 81 | `patterns/shared-provider-submission-queue.md` | Before coordinating browser submissions across sessions or workers sharing a provider, |
 | 82 | `patterns/targeted-artifact-edit-preservation.md` | Before a targeted artifact edit, |
 
-## Open policy change reconciliation
+## Review/merge-gate integration reconciliation (slice 2)
 
-The separate review-convergence policy change (draft/open PR #312, local snapshot 3ed51341b1f9221057c7b49c0f46402c5f878759) adds `patterns/agent-completable-merge-gates.md` and `patterns/convergent-review-acceptance-gates.md`. Both were read and are behavioral; neither exists in this branch, so neither is included as an extra inventory entry. This change does not depend on that policy change. Whichever integrates second must give both files exact dispositions and activation routes. It must structure their admission, supply a genuine specialist-workflow justification, or obtain explicit owner-authorized backlog additions. Their pre-existing open pull request does not silently exempt them from the no-growth gate. Reconcile the shared index and logic-map edits at that integration.
+The maintainer lane chose structured admission for the review-convergence policy change on 2026-10-07. Both new behavioral patterns are STRUCTURED_ENFORCED; no specialist exception or legacy addition was used, and no owner quotation or authorization entry was added. The immutable 84-identity baseline remains unchanged and the authorized live backlog stays 78 before and after. The integration draft temporarily listed both new identities as legacy, producing an invalid 80-entry backlog; that was never authorized backlog growth. Earlier integration findings remain historical. The newest slice finding records live disposition counts.
+
+The review pattern contributes 70 operative clauses in 8 records and 8 obligations. The unchanged merge-gate pattern contributes 58 clauses in 6 records and 8 obligations. Enumerated clauses include operative scope/authority limits, failure and repair clauses, transfer qualifications and the Problem section formulas and assumptions used by rule 4; incident history and relationships to other patterns remain explanatory context. The formula-use obligation binds unit/run and hard-floor estimates, independently known-correct items with findings adjudicated false, the eligible denominator including unflagged items, and labelled guesses when those labels are unavailable. Pilot size must support the predeclared scale decision; upper error-rate or lower measured-pass-rate confidence bounds, including zero-flag/all-pass cases, carry sampling uncertainty into every floor and unit/run estimate. An inadequate pilot is enlarged with a predeclared sample size or the gate redesigned before scale. The review-fix round adds five formula/assumption clauses and replaces one evidence clause with three; it adds no records or obligations. Each source has a whole-pattern independent clause pin and independent count/hash pins for every operative level-two section, using sorted exact clause strings in source_clause_manifest. Every level-two section also pins its complete body, so added prose beside existing mapped clauses cannot evade review through lock/projection regeneration. Nonzero-miss floors use the binomial tail for each floor's own n, p and allowed misses k, or a measured known-correct false-failure rate; the zero-miss formulas retain their original scope. Record/map deletion and same-count selector shortening fail even after regenerating the lock and projection. Pin hashes establish preservation, not completeness or semantic truth.
+
+All new records apply to chat, work, codex and claude under governance_required. They reuse the existing action_classes fact with only three new values: review_round means designing, requesting or running noisy language-model review rounds whose findings govern acceptance; review_finding_judgment means judging/accepting those noisy-reviewer findings; merge_gate means designing, changing or operating merge gates, including deciding whether a pull request may merge and preflighting the workstream's hosted merge/release/deploy path. Deterministic checks are outside both review action values. No new fact keys were introduced. Every illustrative example explicitly declares these values absent from its KNOWN action_classes list. UNKNOWN or missing actor/action/governance facts block, while known unrelated actions do not select these records. A generic Work handoff performs none of them.
+
+Boundaries are the actual review request/plan, scale design, acceptance decision, output/cycle persistence, hosted-capability checkpoint, merge-eligibility check, owner questions handoff and post-action persistence. Owner-click batching and hosted readback are separate obligations; failure escalation and recording a later owner reply are separate too. All 16 obligations are semantic: the current task-time predicates cannot certify their complete meaning in both directions. Bound receipts retain acceptance evidence, non-substitutes, carry-through and repair. Fourteen payload-dependent obligations remain selected with not_applicable_allowed: true and require a reason-bound receipt for an absent action; the two authority invariants do not allow NOT_APPLICABLE. There are no new obligation exceptions. Golden synthetic judgments test admission, not semantic truth, live gate operations or authenticated reviewer independence.
+
+The rendered generic Work projection stays 27,355 bytes before and after (32,768-byte cap). Mission Control's actual injected block stays 33,139 bytes (49,152-byte prompt limit, with 8,192 bytes reserved for the wrapper/directive; 7,821 bytes of additional headroom). Sizes were measured with the current adapter; no limits or runtime code changed beyond incoming main's machinery. The documented regeneration commands produced both derived files. The generic handoff selects none of the 14 new records.
+
+The table-driven fixture folders in tests/fixtures/review-merge-slice/ contain one neutral envelope, violating/compliant/near-miss candidates and hash-free verdicts per record. Receipts bind at test time. Regressions cover failure, compliance, non-substitutes, per-obligation missing/FAIL receipts, cross-candidate and rewrite replay, reason-bound NOT_APPLICABLE, actor/action scope, UNKNOWN facts, clause maps and source pins. Existing pattern text tests remain separate TEXT_PRESENCE evidence.
+
+### Convergent review acceptance obligation map
+
+Source: `patterns/convergent-review-acceptance-gates.md`. All clauses below are structured; no exceptions or remaining clauses.
+
+| Exact sentence or clause | Record / obligation |
+|---|---|
+| After a repair, send the reviewer only the earlier findings and the items the repair changed. | uda.review.change-scope / change-scope-at-boundary |
+| Carry forward every item that passed and did not change. | uda.review.change-scope / change-scope-at-boundary |
+| Give each item a stable ID when it is first produced, and match items to their earlier verdicts mechanically, by ID, exact content and the complete evaluator configuration (reviewer prompt, rubric, model/version, sampling settings and frozen reference; hashes are enough), never by asking the reviewer. | uda.review.change-scope / change-scope-at-boundary |
+| An item whose ID, content or evaluator configuration does not match counts as changed; a configuration change counts every affected item as changed and requires re-review before aggregate acceptance. | uda.review.change-scope / change-scope-at-boundary |
+| a repair cycle re-reviews items that passed and did not change under the same evaluator configuration, or carries a verdict across an evaluator configuration change; | uda.review.change-scope / change-scope-at-boundary |
+| Carrying an item forward assumes its verdict depends only on that item, the frozen reference and the bound evaluator configuration. | uda.review.change-scope / change-scope-at-boundary |
+| When a verdict depends on other items (order, duplicates, consistency across items), declare the dependency and count a change to the other item as a change to this one. | uda.review.change-scope / change-scope-at-boundary |
+| Re-review the change, not the whole unit. | uda.review.change-scope / change-scope-at-boundary |
+| Fix the number of repair cycles before the first cycle runs. | uda.review.repair-bound / repair-bound-at-boundary |
+| Declare a stall rule along with the repair bound, for example "two repairs in a row that leave the count the same or higher". | uda.review.repair-bound / repair-bound-at-boundary |
+| If a controlling directive fixes a repair limit, the stall rule can end repairs sooner and never extends them (`patterns/structured-output-failure-boundary.md`). | uda.review.repair-bound / repair-bound-at-boundary |
+| Stopping repairs does not show that the unit, the repair method, or the reviewer is wrong. | uda.review.repair-bound / repair-bound-at-boundary |
+| The next step is diagnosis or an owner decision (`patterns/outcome-advancement-and-strategy-efficacy.md`, section 9.4). | uda.review.repair-bound / repair-bound-at-boundary |
+| repairs have no bound fixed in advance, or findings per cycle are not recorded; | uda.review.repair-bound / repair-bound-at-boundary |
+| Bound the repairs and degrade by item. | uda.review.repair-bound / repair-bound-at-boundary |
+| A directive's ceiling stays a ceiling. | uda.review.repair-bound / repair-bound-at-boundary |
+| A bound ends spend and proves nothing else. | uda.review.repair-bound / repair-bound-at-boundary |
+| When the repairs run out, withhold only the items still flagged and mark them for review, keep every other item, and record each omission that is still flagged (a reference item the reviewer says the output lacks) as a gap in the output. | uda.review.item-degradation / item-degradation-at-boundary |
+| Do not discard the unit, and do not halt the pipeline: one unit's leftover flags never stop units that do not depend on it. | uda.review.item-degradation / item-degradation-at-boundary |
+| A unit that consumes or checks the withheld items waits until they are reviewed, or runs without them and records the gap; it never treats them as accepted. | uda.review.item-degradation / item-degradation-at-boundary |
+| Keep the independent units moving while the question waits. | uda.review.item-degradation / item-degradation-at-boundary |
+| a unit is discarded, or the pipeline halted, because some items stay flagged. | uda.review.item-degradation / item-degradation-at-boundary |
+| Accept a run on aggregate measures with floors stated in advance, not on every unit reaching zero findings. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Where units are not interchangeable, because each customer, source or experiment must keep its own required items, add a per-unit or per-stratum minimum to the floors: a pooled measure lets strong units hide one that kept nothing. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Freeze the reference before the gate runs, and never trade a hard floor against another measure. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Report the failed units and the error counts beside the aggregate, each measure on its own line, so a passing aggregate hides neither. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| An aggregate can hide a bad unit, which is why rule 3 reports failed units and error counts beside it. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| A frozen reference is only as sound as its own provenance. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Gate on aggregates with hard floors. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Suppose each item in a correct unit of n items draws a false flag independently with probability p. | uda.review.false-failure / false-failure-at-boundary |
+| The unit then passes a zero-finding gate with probability (1 - p)^n. | uda.review.false-failure / false-failure-at-boundary |
+| With p = 0.05 and n = 27 that is about 25%. | uda.review.false-failure / false-failure-at-boundary |
+| Requiring all N units to pass multiplies the chances: if each unit passes with probability q, all N pass with probability q^N. | uda.review.false-failure / false-failure-at-boundary |
+| Even q = 0.99 gives 0.99^162, about 20%, across 162 units. | uda.review.false-failure / false-failure-at-boundary |
+| For a recall floor r over n known-correct reference items, the allowed misses are k = n - ceil(r*n). | uda.review.false-failure / false-failure-at-boundary |
+| Under the same independence and constant-p model, the false-failure probability is P(Binomial(n, p) > k) = sum from j = k + 1 to n of C(n, j) p^j (1 - p)^(n - j), where C(n, j) counts combinations. | uda.review.false-failure / false-failure-at-boundary |
+| With k = 0 this reduces to the zero-miss formula above. | uda.review.false-failure / false-failure-at-boundary |
+| For example, r = 0.95, n = 100 and p = 0.01 allow k = 5 misses and give about 0.0535% false failures, versus about 63.4% for zero allowed misses. | uda.review.false-failure / false-failure-at-boundary |
+| Apply the binomial tail to each aggregate, per-unit and per-stratum floor using its own n, p and allowed misses k, or measure that floor's false-failure rate on independently known-correct work. | uda.review.false-failure / false-failure-at-boundary |
+| Before a gate runs over many units, estimate how often it will fail correct work, using the formulas in the Problem section. | uda.review.false-failure / false-failure-at-boundary |
+| Take p from a pilot on units independently known to be correct (the frozen reference, for example), or from earlier cycles' records only for items independently known to be correct, with any findings adjudicated false. | uda.review.false-failure / false-failure-at-boundary |
+| Estimate p as the number of distinct reviewed known-correct items receiving at least one adjudicated false flag divided by all reviewed known-correct items, including unflagged items; count each item once even if it has multiple false findings, and exclude genuine defects and unadjudicated records. | uda.review.false-failure / false-failure-at-boundary |
+| When those labels are unavailable, treat p as a guess and say so. | uda.review.false-failure / false-failure-at-boundary |
+| State the confidence level and method, and size a representative pilot in advance for the tolerable false-failure rate at the intended scale. | uda.review.false-failure / false-failure-at-boundary |
+| Use a one-sided upper confidence bound p_upper in place of the point estimate p in every unit/run and hard-floor calculation, or a one-sided lower confidence bound on each directly measured floor pass rate. | uda.review.false-failure / false-failure-at-boundary |
+| Under the independent constant-p model, zero false flags among t known-correct items give the exact one-sided bound p_upper = 1 - alpha^(1/t) at confidence 1 - alpha; with t = 20 and alpha = 0.05 this is about 13.9%, not zero. | uda.review.false-failure / false-failure-at-boundary |
+| Likewise, if all u independent known-correct units pass a floor, its exact lower bound is q_lower = alpha^(1/u), not 1. | uda.review.false-failure / false-failure-at-boundary |
+| Report the pilot counts and bounds; if the pilot is too small to rule out material rejection, enlarge it with a predeclared sample size or redesign before scale, rather than admitting the gate on a point estimate. | uda.review.false-failure / false-failure-at-boundary |
+| Apply the estimate to each hard floor too: a zero-critical-misses floor is a zero-findings gate over the m critical items alone, so it fails correct work with probability 1 - (1 - p)^m. | uda.review.false-failure / false-failure-at-boundary |
+| If the conservative bound would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after. | uda.review.false-failure / false-failure-at-boundary |
+| a gate needs zero findings from a model reviewer on every unit and no false-failure estimate was made; | uda.review.false-failure / false-failure-at-boundary |
+| The formulas assume false flags are independent at one constant rate p. | uda.review.false-failure / false-failure-at-boundary |
+| Real flags cluster, since one misreading can flag several items, and p differs by item type and by reviewer. | uda.review.false-failure / false-failure-at-boundary |
+| Treat the formulas as planning estimates, and prefer a pass rate measured on known-correct units with its confidence bound. | uda.review.false-failure / false-failure-at-boundary |
+| A reviewer that misses real defects needs a different reviewer or a deterministic check. | uda.review.false-failure / false-failure-at-boundary |
+| Estimate the false-failure rate before running at scale. | uda.review.false-failure / false-failure-at-boundary |
+| Record the number of findings after every cycle, with the item IDs. | uda.review.cycle-escalation / cycle-escalation-at-boundary |
+| When the count stays flat or bounces across repairs, stop spending rounds and apply rule 2. | uda.review.cycle-escalation / cycle-escalation-at-boundary |
+| Put the question on the owner questions page (`patterns/owner-questions-page.md`) with the per-cycle counts, what each cycle changed, and the options (for example accept the partial result with its gaps, change the gate, or have a person review the flagged items). | uda.review.cycle-escalation / cycle-escalation-at-boundary |
+| Track findings per cycle and stop early when they do not fall. | uda.review.cycle-escalation / cycle-escalation-at-boundary |
+| The rules shape a gate that an agent or pipeline designs, or that a project leaves open. | uda.review.declared-authority / declared-authority-at-boundary |
+| They never lower a gate the owner or the project's authority has declared blocking. | uda.review.declared-authority / declared-authority-at-boundary |
+| For a declared zero-finding gate, run it as declared, put the false-failure estimate and the proposed aggregate gate on the owner questions page as a proposal, and keep running the declared gate until the owner or the project authority changes it (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**). | uda.review.declared-authority / declared-authority-at-boundary |
+| The pattern addresses false flags. | uda.review.declared-authority / declared-authority-at-boundary |
+| It makes no claim about which reviewer or model is better. | uda.review.declared-authority / declared-authority-at-boundary |
+| It adds no gate to any project and does not lower a gate that the owner or a project has declared. | uda.review.declared-authority / declared-authority-at-boundary |
+| Declared gates stay hard. | uda.review.declared-authority / declared-authority-at-boundary |
+| it covers only gates whose checker is a noisy reviewer. It adds no blocking gate and lowers no declared one. | uda.review.declared-authority / declared-authority-at-boundary |
+| Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; and put the counts on the owner questions page. | uda.review.failure-repair / failure-repair-at-boundary |
+
+
+### Agent-completable merge gates obligation map
+
+Source: `patterns/agent-completable-merge-gates.md`. All clauses below are structured; no exceptions or remaining clauses.
+
+| Exact sentence or clause | Record / obligation |
+|---|---|
+| For a workstream that will merge, release, or deploy through hosted controls, list each hosted gate on that path (for example required reviews, resolved conversations, required checks, bypass limits, environment approvals, and the merge itself) from current settings evidence, not from repository files (`patterns/codex-github-operating-system.md`). | uda.merge-gate.capability / capability-at-boundary |
+| For each gate, check that the agent can satisfy it with the permissions it actually has: account or token scopes, the connector's actions, the sandbox, and the permission or safety layer's own refusals, which can block an action the platform allows. | uda.merge-gate.capability / capability-at-boundary |
+| Check the exact action, not a neighboring one, because being able to read threads says nothing about resolving them (`patterns/reasoning-selection.md`, capability edges). | uda.merge-gate.capability / capability-at-boundary |
+| Read the permission rules or documentation that govern the action, query the settings read-only, or use a refusal already on record. | uda.merge-gate.capability / capability-at-boundary |
+| Attempt the action itself only on a destination the workstream already authorizes for such tests, such as a sandbox repository, never by creating a hosted object just to probe. | uda.merge-gate.capability / capability-at-boundary |
+| Record can or cannot for each gate in the task checkpoint. | uda.merge-gate.capability / capability-at-boundary |
+| the first sign that the agent cannot complete a hosted gate comes at the merge step; | uda.merge-gate.capability / capability-at-boundary |
+| Which actions a permission layer refuses depends on the platform, the account and the layer's current configuration. | uda.merge-gate.capability / capability-at-boundary |
+| Check the exact action in the current session; do not rely on this pattern's example. | uda.merge-gate.capability / capability-at-boundary |
+| Check the gates when the workstream starts. | uda.merge-gate.capability / capability-at-boundary |
+| Put one question on the owner questions page (`patterns/owner-questions-page.md`) at the start, not at the first merge. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| It is the owner's decision because it changes what the platform enforces. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Name the gate in plain words, say why the agent cannot satisfy it, and give the options with a recommendation. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| First sort the gate. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| A clerical gate records a step whose substance a check can verify, such as resolved review conversations or an up-to-date branch. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| An approval gate exists for independent human authorization, such as a required approving review or an environment approval, and an agent-run check cannot stand in for that separation. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| (the recommendation for a clerical gate; never offered for an approval gate). | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| It ends the recurring clicks, and it costs the platform's own enforcement unless the check is also made a required status check. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| scoped to that one action, with the approval and scope written down. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| It keeps the platform gate and removes the clicks, and it costs tooling the owner must approve and maintain. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| The agent never grants itself the permission that was refused. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| (the recommendation for an approval gate) when the gate exists for a person's authorization or the owner wants a person to confirm each one. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Rule 4 then applies, and the agent can attach the substance check's result so the approval rests on a verified result. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| An owner action that returns on every pull request signals a gate the agent cannot complete. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Raise the gate once instead of treating each return as a new request; the one decision in rule 2 covers them all. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Raise it once per workstream and gate. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Reopen it only when the gate, the agent's permissions, or the permission or safety layer changes. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| the owner is asked for the same gate action on a second pull request with no decision on the page; | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Replacing a gate changes what the platform enforces. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| The owner accepts that tradeoff in deciding; the agent states it in the question. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| If the agent cannot complete a gate, raise one owner decision early. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Replace the gate with a check the agent can run that verifies substance | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Automate the gate with owner-approved tooling, | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Keep the gate and the clicks, | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| Do not hand the owner a recurring chore list. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| One question per gate. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| it adds one start-of-workstream check and at most one owner question per gate. It adds no blocking gate and changes no hosted setting. | uda.merge-gate.owner-decision / owner-decision-at-boundary |
+| The check passes when the latest review of the exact head commit reports nothing open, every earlier finding maps to a fix commit or to a written reason it was not changed, and the required status checks pass. | uda.merge-gate.substance-check / substance-check-at-boundary |
+| When the gate it replaces is the up-to-date-branch requirement, the check also confirms that the head contains the current base commit, or runs the required checks on the exact merge result, so checks that passed on an older base cannot admit a change that conflicts with newer work. | uda.merge-gate.substance-check / substance-check-at-boundary |
+| Bind that result to the base commit it checked, and rerun it whenever the base moves before the merge, or use a merge queue that tests the exact merge. | uda.merge-gate.substance-check / substance-check-at-boundary |
+| a thread is marked resolved with no fix and no written reason to point to. | uda.merge-gate.substance-check / substance-check-at-boundary |
+| The substance check is only as good as the review behind it. | uda.merge-gate.substance-check / substance-check-at-boundary |
+| It does not turn an author's own review into independent review (`patterns/independent-evaluation-separation.md`), and it assumes a reviewer that reports open findings against the exact head commit. | uda.merge-gate.substance-check / substance-check-at-boundary |
+| Until the gate is removed or automated, it stays in force: list each instance that still needs the owner under **For you to do**, grouped into one step with exact links (rule 4), so the page stays the complete list of his work, and attach the substance check's result to each pull request so his clicks rest on a verified result. | uda.merge-gate.owner-clicks / owner-clicks-at-boundary |
+| When a click is unavoidable, batch it into one step: exact links to every target in one place (the **For you to do** section of the owner questions page), | uda.merge-gate.owner-clicks / owner-clicks-at-boundary |
+| The owner is then not asked twice, and the agent does not take "done" on faith. | uda.merge-gate.owner-clicks / verify-owner-action |
+| and a read-back the agent runs afterward to confirm it worked, such as a hosted query that counts the threads still open. | uda.merge-gate.owner-clicks / verify-owner-action |
+| A click that records a choice only the owner can make (accept a risk, approve a spend, merge a change) stays with the owner. | uda.merge-gate.authority / authority-at-boundary |
+| Nothing here lets an agent relax a hosted gate, use an owner-only bypass, merge around a refusal, or disguise a refused action behind another tool or route. | uda.merge-gate.authority / authority-at-boundary |
+| A refusal by the permission or safety layer is a boundary (`patterns/worker-self-remediation-before-owner-interruption.md`, **Fail closed on genuine boundaries**). | uda.merge-gate.authority / authority-at-boundary |
+| The agent proposes the replacement, and the owner decides (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**). | uda.merge-gate.authority / authority-at-boundary |
+| A hosted setting counts as changed only when settings or API evidence shows it (`patterns/codex-github-operating-system.md`). | uda.merge-gate.authority / authority-at-boundary |
+| It adds no gate and grants no authority. Changing a hosted gate stays the owner's decision. | uda.merge-gate.authority / authority-at-boundary |
+| Keep owner clicks for decisions. | uda.merge-gate.authority / authority-at-boundary |
+| No bypass. | uda.merge-gate.authority / authority-at-boundary |
+| A declared gate stays until the owner changes it. | uda.merge-gate.authority / authority-at-boundary |
+| Repair: stop listing the click; put the decision on the owner questions page with a recommendation; batch the unavoidable clicks as in rule 4; | uda.merge-gate.failure-repair / failure-repair-at-boundary |
+| and move the answer to **Decided** when the owner replies. | uda.merge-gate.failure-repair / record-owner-reply |
 
 ## Semantic receipt workflow and limits
 
@@ -486,13 +639,13 @@ The report now counts the following evidence classes. An entry may occur in seve
 
 | Evidence class | Inventory entries |
 |---|---:|
-| TEXT_PRESENCE | 96 |
-| ROUTING | 80 |
-| COMPILATION | 9 |
-| ADMISSION | 19 |
-| BEHAVIORAL_REGRESSION | 15 |
+| TEXT_PRESENCE | 92 |
+| ROUTING | 82 |
+| COMPILATION | 8 |
+| ADMISSION | 26 |
+| BEHAVIORAL_REGRESSION | 23 |
 
-This slice changes one LEGACY_UNSTRUCTURED entry to STRUCTURED_PARTIAL. The universe remains 96 entries and 82 indexed patterns, with 84 backlog identities (P1 22, P2 47, P3 15), zero additions and zero removals. No baseline pin was changed. The source lock and representative Work handoff projection are regenerated; Mission Control runtime and owner settings are untouched. A worker that never loaded UDA remains outside its protection, and an optional status-line warning remains surface-specific.
+At its historical integration boundary, the continuity slice changed one LEGACY_UNSTRUCTURED entry to STRUCTURED_PARTIAL, with 96 entries, 82 indexed patterns and 84 backlog identities (P1 22, P2 47, P3 15), zero additions and removals. The current counts above include the later kernel and review/merge migrations. No baseline pin was changed. The source lock and representative Work handoff projection are regenerated; Mission Control runtime and owner settings are untouched. A worker that never loaded UDA remains outside its protection, and an optional status-line warning remains surface-specific.
 
 ## Review judgment limits
 

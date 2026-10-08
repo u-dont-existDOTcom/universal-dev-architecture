@@ -1,0 +1,1 @@
+The reviewer says A looks unchanged, so A carries forward without an exact identity comparison. reviewer judgment used as item identity. Separately, B carries forward by matching ID and content even though its reviewer rubric changed: carried verdict from a different evaluator configuration.

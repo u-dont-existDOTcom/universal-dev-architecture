@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "At workstream start, current hosted settings list review, conversation, required-check, bypass, environment-approval and merge gates. The checkpoint records can/cannot for every exact action, accounting for account scopes, connector actions, sandbox and permission refusals in this session. Governing permission rules and read-only settings support each result. No probe object was created; any action test used an already-authorized destination. Merge itself is included before the first merge.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The workstream first discovers that thread resolution and merge are refused at the merge step; no start checkpoint exists.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Current settings are listed and reading threads succeeds, so the checkpoint marks thread resolution allowed without checking that action. reading threads presented as proof that resolution is allowed.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "capability-at-boundary",
+    "non_substitute": "reading threads presented as proof that resolution is allowed"
+  }
+}

@@ -964,7 +964,9 @@
           "claude"
         ]
       },
-      "refresh_on_facts": ["usage_warning_visible"],
+      "refresh_on_facts": [
+        "usage_warning_visible"
+      ],
       "trigger": {
         "all": [
           {
@@ -2269,6 +2271,1472 @@
       "provenance": {
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.change-scope",
+      "revision": 2,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "After a repair, send the reviewer only the earlier findings and the items the repair changed."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Carry forward every item that passed and did not change."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Give each item a stable ID when it is first produced, and match items to their earlier verdicts mechanically, by ID, exact content and the complete evaluator configuration (reviewer prompt, rubric, model/version, sampling settings and frozen reference; hashes are enough), never by asking the reviewer."
+          },
+          {
+            "kind": "exact_text",
+            "text": "An item whose ID, content or evaluator configuration does not match counts as changed; a configuration change counts every affected item as changed and requires re-review before aggregate acceptance."
+          },
+          {
+            "kind": "exact_text",
+            "text": "a repair cycle re-reviews items that passed and did not change under the same evaluator configuration, or carries a verdict across an evaluator configuration change;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Carrying an item forward assumes its verdict depends only on that item, the frozen reference and the bound evaluator configuration."
+          },
+          {
+            "kind": "exact_text",
+            "text": "When a verdict depends on other items (order, duplicates, consistency across items), declare the dependency and count a change to the other item as a change to this one."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Re-review the change, not the whole unit."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "change-scope-at-boundary",
+          "required_behavior": "Re-review only earlier findings and changed, configuration-invalidated or dependency-invalidated items; carry passing items forward only under matching evaluator configuration.",
+          "due_phase": "pre-action",
+          "destination": "review-request",
+          "acceptance_evidence": "Stable IDs, exact content and complete evaluator configuration (reviewer prompt, rubric, model/version, sampling settings and frozen reference; exact values or hashes) match earlier verdicts mechanically. ID/content/configuration mismatch is changed. A configuration change invalidates every affected carried verdict and requires re-review before aggregate acceptance. Declare cross-item dependencies and invalidate dependents when inputs change. Only earlier findings and changed items reach the repair reviewer. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "reviewer judgment used as item identity",
+            "whole-unit re-review of unchanged passing items",
+            "carried verdict from a different evaluator configuration"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.repair-bound",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Fix the number of repair cycles before the first cycle runs."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Declare a stall rule along with the repair bound, for example \"two repairs in a row that leave the count the same or higher\"."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If a controlling directive fixes a repair limit, the stall rule can end repairs sooner and never extends them (`patterns/structured-output-failure-boundary.md`)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Stopping repairs does not show that the unit, the repair method, or the reviewer is wrong."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The next step is diagnosis or an owner decision (`patterns/outcome-advancement-and-strategy-efficacy.md`, section 9.4)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "repairs have no bound fixed in advance, or findings per cycle are not recorded;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Bound the repairs and degrade by item."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A directive's ceiling stays a ceiling."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A bound ends spend and proves nothing else."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "repair-bound-at-boundary",
+          "required_behavior": "Fix repair and stall bounds before the first cycle and preserve any tighter controlling ceiling.",
+          "due_phase": "pre-action",
+          "destination": "review-repair-plan",
+          "acceptance_evidence": "The plan fixes a cycle ceiling and a stall rule before spend, permits early stop without extension, and requires per-cycle findings. Exhaustion ends spend; it proves nothing about unit, method or reviewer correctness and routes to diagnosis or an owner decision with item degradation. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "a ceiling invented after repairs",
+            "exhaustion presented as proof that the reviewer is wrong"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.item-degradation",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "When the repairs run out, withhold only the items still flagged and mark them for review, keep every other item, and record each omission that is still flagged (a reference item the reviewer says the output lacks) as a gap in the output."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Do not discard the unit, and do not halt the pipeline: one unit's leftover flags never stop units that do not depend on it."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A unit that consumes or checks the withheld items waits until they are reviewed, or runs without them and records the gap; it never treats them as accepted."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Keep the independent units moving while the question waits."
+          },
+          {
+            "kind": "exact_text",
+            "text": "a unit is discarded, or the pipeline halted, because some items stay flagged."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "item-degradation-at-boundary",
+          "required_behavior": "At exhaustion or stall withhold only unresolved items, preserve independent work and persist every omission gap.",
+          "due_phase": "persistence",
+          "destination": "review-accepted-output",
+          "acceptance_evidence": "Flagged items are withheld and marked for review; other items and independent units continue. Still-flagged reference omissions appear as output gaps. Consumers of withheld items wait for review or run without them with explicit gaps; none treats withheld items as accepted. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "discarding the unit because of leftover flags",
+            "dependent consumers treating withheld items as accepted"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.acceptance-floors",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Accept a run on aggregate measures with floors stated in advance, not on every unit reaching zero findings."
+          },
+          {
+            "kind": "exact_text",
+            "text": "An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Where units are not interchangeable, because each customer, source or experiment must keep its own required items, add a per-unit or per-stratum minimum to the floors: a pooled measure lets strong units hide one that kept nothing."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Freeze the reference before the gate runs, and never trade a hard floor against another measure."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Report the failed units and the error counts beside the aggregate, each measure on its own line, so a passing aggregate hides neither."
+          },
+          {
+            "kind": "exact_text",
+            "text": "An aggregate can hide a bad unit, which is why rule 3 reports failed units and error counts beside it."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A frozen reference is only as sound as its own provenance."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Gate on aggregates with hard floors."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "acceptance-floors-at-boundary",
+          "required_behavior": "Judge acceptance against advance aggregate hard floors and disclose failures without masking per-unit requirements.",
+          "due_phase": "pre-action",
+          "destination": "review-acceptance-decision",
+          "acceptance_evidence": "Floors and a provenance-grounded reference are frozen before the gate. Measures are not traded against hard floors. Noninterchangeable units/strata have their own minimum. Failed units and error counts accompany the aggregate, each measure on its own line. Pooled recall plus zero critical misses is an example, not a mandatory metric set. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "a pooled pass that conceals an empty required unit",
+            "trading a hard floor against another measure"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.false-failure",
+      "revision": 5,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Suppose each item in a correct unit of n items draws a false flag independently with probability p."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The unit then passes a zero-finding gate with probability (1 - p)^n."
+          },
+          {
+            "kind": "exact_text",
+            "text": "With p = 0.05 and n = 27 that is about 25%."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Requiring all N units to pass multiplies the chances: if each unit passes with probability q, all N pass with probability q^N."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Even q = 0.99 gives 0.99^162, about 20%, across 162 units."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Before a gate runs over many units, estimate how often it will fail correct work, using the formulas in the Problem section."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Take p from a pilot on units independently known to be correct (the frozen reference, for example), or from earlier cycles' records only for items independently known to be correct, with any findings adjudicated false."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Estimate p as the number of distinct reviewed known-correct items receiving at least one adjudicated false flag divided by all reviewed known-correct items, including unflagged items; count each item once even if it has multiple false findings, and exclude genuine defects and unadjudicated records."
+          },
+          {
+            "kind": "exact_text",
+            "text": "When those labels are unavailable, treat p as a guess and say so."
+          },
+          {
+            "kind": "exact_text",
+            "text": "State the confidence level and method, and size a representative pilot in advance for the tolerable false-failure rate at the intended scale."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Use a one-sided upper confidence bound p_upper in place of the point estimate p in every unit/run and hard-floor calculation, or a one-sided lower confidence bound on each directly measured floor pass rate."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Under the independent constant-p model, zero false flags among t known-correct items give the exact one-sided bound p_upper = 1 - alpha^(1/t) at confidence 1 - alpha; with t = 20 and alpha = 0.05 this is about 13.9%, not zero."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Likewise, if all u independent known-correct units pass a floor, its exact lower bound is q_lower = alpha^(1/u), not 1."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Report the pilot counts and bounds; if the pilot is too small to rule out material rejection, enlarge it with a predeclared sample size or redesign before scale, rather than admitting the gate on a point estimate."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Apply the estimate to each hard floor too: a zero-critical-misses floor is a zero-findings gate over the m critical items alone, so it fails correct work with probability 1 - (1 - p)^m."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If the conservative bound would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after."
+          },
+          {
+            "kind": "exact_text",
+            "text": "a gate needs zero findings from a model reviewer on every unit and no false-failure estimate was made;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "The formulas assume false flags are independent at one constant rate p."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Real flags cluster, since one misreading can flag several items, and p differs by item type and by reviewer."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Treat the formulas as planning estimates, and prefer a pass rate measured on known-correct units with its confidence bound."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A reviewer that misses real defects needs a different reviewer or a deterministic check."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Estimate the false-failure rate before running at scale."
+          },
+          {
+            "kind": "exact_text",
+            "text": "For a recall floor r over n known-correct reference items, the allowed misses are k = n - ceil(r*n)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Under the same independence and constant-p model, the false-failure probability is P(Binomial(n, p) > k) = sum from j = k + 1 to n of C(n, j) p^j (1 - p)^(n - j), where C(n, j) counts combinations."
+          },
+          {
+            "kind": "exact_text",
+            "text": "With k = 0 this reduces to the zero-miss formula above."
+          },
+          {
+            "kind": "exact_text",
+            "text": "For example, r = 0.95, n = 100 and p = 0.01 allow k = 5 misses and give about 0.0535% false failures, versus about 63.4% for zero allowed misses."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Apply the binomial tail to each aggregate, per-unit and per-stratum floor using its own n, p and allowed misses k, or measure that floor's false-failure rate on independently known-correct work."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "false-failure-at-boundary",
+          "required_behavior": "Bound pilot sampling uncertainty before scale, including every hard floor, and enlarge an inadequate pilot or redesign when conservative rejection would change the decision.",
+          "due_phase": "pre-action",
+          "destination": "review-scale-gate-design",
+          "acceptance_evidence": "Estimate unit/run acceptance and each aggregate, per-unit and per-stratum floor with its own n, p and allowed misses k. For recall floor r, k = n - ceil(r*n); use P(Binomial(n, p) > k), or measure that floor's known-correct false-failure rate. The zero-miss formula applies only when k = 0. Derive p only from independently known-correct pilot or earlier-cycle items with findings adjudicated false; divide the number of distinct eligible reviewed items with at least one adjudicated false flag by all eligible reviewed items, including unflagged items; count each item once even if it has multiple false findings. Exclude genuine defects and unadjudicated records, and label p as a guess when these labels are unavailable. State the confidence level and method, pilot counts and predeclared sample size adequate for the tolerable false-failure rate at the intended scale. Use a one-sided upper confidence bound for p in every unit/run and hard-floor calculation, or a one-sided lower confidence bound on each measured floor pass rate. Zero false flags among t independent items imply p_upper = 1 - alpha^(1/t), not zero; all u independent floor passes imply q_lower = alpha^(1/u), not one. If the bounds cannot rule out material rejection, enlarge the pilot or redesign before scale; never admit on a point estimate alone. Independence/constant-rate assumptions are planning limits; prefer measured known-correct pass rates. Redesign via change scope, bounded item degradation and aggregate floors before scale when material. Missed real defects require another reviewer or deterministic check. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "a false-failure estimate made only after the scale run",
+            "a guessed p presented as a measured pilot",
+            "raw cycle findings presented as measured false positives",
+            "a zero-miss calculation applied to a floor that allows misses",
+            "zero observed false flags treated as zero risk",
+            "an empirical pass rate extrapolated without a confidence bound",
+            "raw false-finding count as the Bernoulli numerator"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.cycle-escalation",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Record the number of findings after every cycle, with the item IDs."
+          },
+          {
+            "kind": "exact_text",
+            "text": "When the count stays flat or bounces across repairs, stop spending rounds and apply rule 2."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Put the question on the owner questions page (`patterns/owner-questions-page.md`) with the per-cycle counts, what each cycle changed, and the options (for example accept the partial result with its gaps, change the gate, or have a person review the flagged items)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Track findings per cycle and stop early when they do not fall."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "cycle-escalation-at-boundary",
+          "required_behavior": "Persist findings and IDs after every cycle; stop at stall and escalate with evidence while independent units continue.",
+          "due_phase": "persistence",
+          "destination": "review-cycle-ledger",
+          "acceptance_evidence": "Every completed cycle records counts and item IDs. Flat or bouncing repairs meet the advance stall rule, stop rounds and apply item degradation. The owner questions page has counts, changes by cycle and options; independent units keep moving while the decision waits. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "cycle counts mentioned only in disposable chat",
+            "a stall declaration followed by another spend round"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.declared-authority",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "The rules shape a gate that an agent or pipeline designs, or that a project leaves open."
+          },
+          {
+            "kind": "exact_text",
+            "text": "They never lower a gate the owner or the project's authority has declared blocking."
+          },
+          {
+            "kind": "exact_text",
+            "text": "For a declared zero-finding gate, run it as declared, put the false-failure estimate and the proposed aggregate gate on the owner questions page as a proposal, and keep running the declared gate until the owner or the project authority changes it (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The pattern addresses false flags."
+          },
+          {
+            "kind": "exact_text",
+            "text": "It makes no claim about which reviewer or model is better."
+          },
+          {
+            "kind": "exact_text",
+            "text": "It adds no gate to any project and does not lower a gate that the owner or a project has declared."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Declared gates stay hard."
+          },
+          {
+            "kind": "exact_text",
+            "text": "it covers only gates whose checker is a noisy reviewer. It adds no blocking gate and lowers no declared one."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "declared-authority-at-boundary",
+          "required_behavior": "Keep declared gates hard and limit this advice to noisy-reviewer gates without adding authority or comparative claims.",
+          "due_phase": "pre-action",
+          "destination": "review-gate-authority",
+          "acceptance_evidence": "Agent-designed/open gates alone may change through this advice. A declared zero-finding gate continues as declared; false-failure and aggregate alternatives are proposals on the owner questions page until authority changes. No new blocking gate, lowered declared gate or claim of a better reviewer/model follows from this pattern.",
+          "non_substitutes": [
+            "an aggregate proposal treated as authorization to lower a declared gate",
+            "claiming the pattern proves one model better"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.review.failure-repair",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/convergent-review-acceptance-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; and put the counts on the owner questions page."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "review acceptance",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "review_round"
+              },
+              {
+                "fact": "action_classes",
+                "contains": "review_finding_judgment"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "failure-repair-at-boundary",
+          "required_behavior": "Repair an observed review-gate failure before resuming its affected action.",
+          "due_phase": "pre-action",
+          "destination": "repaired-review-gate",
+          "acceptance_evidence": "Restore the estimate, change-only review, fixed bound and stall rule, aggregate acceptance as a proposal for declared gates, item withholding with output gaps and counts on the owner questions page. Independent authorized work remains executable. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "a repair plan presented as a repaired gate"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.merge-gate.capability",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/agent-completable-merge-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "For a workstream that will merge, release, or deploy through hosted controls, list each hosted gate on that path (for example required reviews, resolved conversations, required checks, bypass limits, environment approvals, and the merge itself) from current settings evidence, not from repository files (`patterns/codex-github-operating-system.md`)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "For each gate, check that the agent can satisfy it with the permissions it actually has: account or token scopes, the connector's actions, the sandbox, and the permission or safety layer's own refusals, which can block an action the platform allows."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Check the exact action, not a neighboring one, because being able to read threads says nothing about resolving them (`patterns/reasoning-selection.md`, capability edges)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Read the permission rules or documentation that govern the action, query the settings read-only, or use a refusal already on record."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Attempt the action itself only on a destination the workstream already authorizes for such tests, such as a sandbox repository, never by creating a hosted object just to probe."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Record can or cannot for each gate in the task checkpoint."
+          },
+          {
+            "kind": "exact_text",
+            "text": "the first sign that the agent cannot complete a hosted gate comes at the merge step;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Which actions a permission layer refuses depends on the platform, the account and the layer's current configuration."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Check the exact action in the current session; do not rely on this pattern's example."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Check the gates when the workstream starts."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "hosted merge gates",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "merge_gate"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "capability-at-boundary",
+          "required_behavior": "At workstream start check and persist every hosted gate capability against current settings and exact authorized actions.",
+          "due_phase": "pre-action",
+          "destination": "gate-capability-checkpoint",
+          "acceptance_evidence": "Current hosted settings list reviews, conversations, checks, bypass/approval limits and merge on the actual path. Each can/cannot result checks account/token, connector, sandbox and permission/safety refusals in this session. Use governing rules, read-only settings or recorded refusal; attempt only exact actions on already-authorized test destinations, never create probe objects. Persist each result in the checkpoint before reaching the first merge. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "repository files substituted for live hosted settings",
+            "reading threads presented as proof that resolution is allowed"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.merge-gate.owner-decision",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/agent-completable-merge-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Put one question on the owner questions page (`patterns/owner-questions-page.md`) at the start, not at the first merge."
+          },
+          {
+            "kind": "exact_text",
+            "text": "It is the owner's decision because it changes what the platform enforces."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Name the gate in plain words, say why the agent cannot satisfy it, and give the options with a recommendation."
+          },
+          {
+            "kind": "exact_text",
+            "text": "First sort the gate."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A clerical gate records a step whose substance a check can verify, such as resolved review conversations or an up-to-date branch."
+          },
+          {
+            "kind": "exact_text",
+            "text": "An approval gate exists for independent human authorization, such as a required approving review or an environment approval, and an agent-run check cannot stand in for that separation."
+          },
+          {
+            "kind": "exact_text",
+            "text": "(the recommendation for a clerical gate; never offered for an approval gate)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "It ends the recurring clicks, and it costs the platform's own enforcement unless the check is also made a required status check."
+          },
+          {
+            "kind": "exact_text",
+            "text": "scoped to that one action, with the approval and scope written down."
+          },
+          {
+            "kind": "exact_text",
+            "text": "It keeps the platform gate and removes the clicks, and it costs tooling the owner must approve and maintain."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The agent never grants itself the permission that was refused."
+          },
+          {
+            "kind": "exact_text",
+            "text": "(the recommendation for an approval gate) when the gate exists for a person's authorization or the owner wants a person to confirm each one."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Rule 4 then applies, and the agent can attach the substance check's result so the approval rests on a verified result."
+          },
+          {
+            "kind": "exact_text",
+            "text": "An owner action that returns on every pull request signals a gate the agent cannot complete."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Raise the gate once instead of treating each return as a new request; the one decision in rule 2 covers them all."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Raise it once per workstream and gate."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Reopen it only when the gate, the agent's permissions, or the permission or safety layer changes."
+          },
+          {
+            "kind": "exact_text",
+            "text": "the owner is asked for the same gate action on a second pull request with no decision on the page;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Replacing a gate changes what the platform enforces."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The owner accepts that tradeoff in deciding; the agent states it in the question."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If the agent cannot complete a gate, raise one owner decision early."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Replace the gate with a check the agent can run that verifies substance"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Automate the gate with owner-approved tooling,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Keep the gate and the clicks,"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Do not hand the owner a recurring chore list."
+          },
+          {
+            "kind": "exact_text",
+            "text": "One question per gate."
+          },
+          {
+            "kind": "exact_text",
+            "text": "it adds one start-of-workstream check and at most one owner question per gate. It adds no blocking gate and changes no hosted setting."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "hosted merge gates",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "merge_gate"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "owner-decision-at-boundary",
+          "required_behavior": "Raise one early gate decision per workstream, classify clerical versus approval gates and present the scoped options and costs.",
+          "due_phase": "handoff",
+          "destination": "owner-questions-page",
+          "acceptance_evidence": "Name the gate plainly, explain inability and give a recommendation at start. Recommend a substance check only for clerical gates and disclose loss of platform enforcement unless required status. Offer only written owner-approved action-scoped tooling; never self-grant refused permission. Recommend keeping human approval gates and attach substance evidence. Recurrent instances reuse the decision; reopen only after gate, permissions or safety-layer change. This adds no blocking gate or hosted setting change. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "a substance check offered to replace independent human approval",
+            "a new question for each unchanged recurring gate",
+            "agent self-grant of a refused permission"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.merge-gate.substance-check",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/agent-completable-merge-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "The check passes when the latest review of the exact head commit reports nothing open, every earlier finding maps to a fix commit or to a written reason it was not changed, and the required status checks pass."
+          },
+          {
+            "kind": "exact_text",
+            "text": "When the gate it replaces is the up-to-date-branch requirement, the check also confirms that the head contains the current base commit, or runs the required checks on the exact merge result, so checks that passed on an older base cannot admit a change that conflicts with newer work."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Bind that result to the base commit it checked, and rerun it whenever the base moves before the merge, or use a merge queue that tests the exact merge."
+          },
+          {
+            "kind": "exact_text",
+            "text": "a thread is marked resolved with no fix and no written reason to point to."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The substance check is only as good as the review behind it."
+          },
+          {
+            "kind": "exact_text",
+            "text": "It does not turn an author's own review into independent review (`patterns/independent-evaluation-separation.md`), and it assumes a reviewer that reports open findings against the exact head commit."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "hosted merge gates",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "merge_gate"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "substance-check-at-boundary",
+          "required_behavior": "Bind the substance check to the exact head and current base with disposition of every prior finding and required checks.",
+          "due_phase": "pre-action",
+          "destination": "merge-eligibility-evidence",
+          "acceptance_evidence": "Latest exact-head review reports nothing open. Each prior finding maps to a fix commit or written reason and required status checks pass. A replaced up-to-date gate also proves current-base containment or exact-merge checks; bind base and rerun on base movement or use an exact-merge queue. Resolved threads alone prove nothing. Review quality limits remain and author review is never independent review. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "non_substitutes": [
+            "green checks on an older base",
+            "thread resolution with no fix or written reason",
+            "author review presented as independent review"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.merge-gate.owner-clicks",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/agent-completable-merge-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Until the gate is removed or automated, it stays in force: list each instance that still needs the owner under **For you to do**, grouped into one step with exact links (rule 4), so the page stays the complete list of his work, and attach the substance check's result to each pull request so his clicks rest on a verified result."
+          },
+          {
+            "kind": "exact_text",
+            "text": "When a click is unavoidable, batch it into one step: exact links to every target in one place (the **For you to do** section of the owner questions page),"
+          },
+          {
+            "kind": "exact_text",
+            "text": "The owner is then not asked twice, and the agent does not take \"done\" on faith."
+          },
+          {
+            "kind": "exact_text",
+            "text": "and a read-back the agent runs afterward to confirm it worked, such as a hosted query that counts the threads still open."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "hosted merge gates",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "merge_gate"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "owner-clicks-at-boundary",
+          "required_behavior": "Batch every unavoidable owner action with exact links and substance evidence.",
+          "due_phase": "handoff",
+          "destination": "owner-questions-page",
+          "acceptance_evidence": "Before the owner click, every remaining gate instance is listed under For you to do, grouped into one step with exact target links and per-change substance evidence. Keep declared gates in force until removal/automation. A reason-bound NOT_APPLICABLE receipt must establish that no owner click is required.",
+          "non_substitutes": [
+            "recurring clicks omitted from the complete owner page",
+            "an unlinked recurring chore list"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        },
+        {
+          "obligation_id": "verify-owner-action",
+          "required_behavior": "Run hosted readback after the owner action and preserve the verified result.",
+          "due_phase": "persistence",
+          "destination": "owner-action-readback",
+          "acceptance_evidence": "After each unavoidable owner action a hosted readback confirms the effect, such as remaining open-thread count. Do not trust done or ask twice. A reason-bound NOT_APPLICABLE receipt must establish no owner action has yet occurred.",
+          "non_substitutes": [
+            "a complete batch list with no readback",
+            "a done assertion substituted for hosted confirmation"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.merge-gate.authority",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/agent-completable-merge-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "A click that records a choice only the owner can make (accept a risk, approve a spend, merge a change) stays with the owner."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Nothing here lets an agent relax a hosted gate, use an owner-only bypass, merge around a refusal, or disguise a refused action behind another tool or route."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A refusal by the permission or safety layer is a boundary (`patterns/worker-self-remediation-before-owner-interruption.md`, **Fail closed on genuine boundaries**)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The agent proposes the replacement, and the owner decides (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A hosted setting counts as changed only when settings or API evidence shows it (`patterns/codex-github-operating-system.md`)."
+          },
+          {
+            "kind": "exact_text",
+            "text": "It adds no gate and grants no authority. Changing a hosted gate stays the owner's decision."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Keep owner clicks for decisions."
+          },
+          {
+            "kind": "exact_text",
+            "text": "No bypass."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A declared gate stays until the owner changes it."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "hosted merge gates",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "merge_gate"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "authority-at-boundary",
+          "required_behavior": "Preserve human decisions and genuine refusals; change declared hosted controls only through owner authority and observed settings.",
+          "due_phase": "pre-action",
+          "destination": "hosted-gate-authority",
+          "acceptance_evidence": "Risk, spend and merge choices reserved to the owner stay theirs. No relaxation, owner-only bypass, merge around refusal or disguised alternate-route action is admitted. Permission/safety refusals remain boundaries. Owner decides proposed replacements; settings/API evidence alone establishes a hosted change. This pattern grants no authority and adds no gate.",
+          "non_substitutes": [
+            "owner approval in general treated as bypass of an exact refusal",
+            "a proposed setting change treated as a live change"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
+      },
+      "relations": []
+    },
+    {
+      "rule_id": "uda.merge-gate.failure-repair",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/agent-completable-merge-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Repair: stop listing the click; put the decision on the owner questions page with a recommendation; batch the unavoidable clicks as in rule 4;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "and move the answer to **Decided** when the owner replies."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern",
+      "authority_domain": "hosted merge gates",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "merge_gate"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "failure-repair-at-boundary",
+          "required_behavior": "Repair recurring chores by persisting and handing off the gate decision with a recommendation and batched clicks.",
+          "due_phase": "handoff",
+          "destination": "owner-questions-page",
+          "acceptance_evidence": "After an observed failure, the owner questions page has the decision, recommendation and unavoidable instances. Stop treating each click as a new chore. A reason-bound NOT_APPLICABLE receipt must establish no failure requiring repair occurred.",
+          "non_substitutes": [
+            "an unanswered proposal moved to Decided",
+            "repair mentioned without the decision page update"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        },
+        {
+          "obligation_id": "record-owner-reply",
+          "required_behavior": "Move a gate answer to Decided only when the owner replies.",
+          "due_phase": "persistence",
+          "destination": "owner-questions-page",
+          "acceptance_evidence": "An actual owner reply is recorded in Decided and carries to recurring instances. A reason-bound NOT_APPLICABLE receipt must establish no owner reply has yet arrived.",
+          "non_substitutes": [
+            "an unanswered proposal moved to Decided"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
+        "review_state": "REVIEWED"
       },
       "relations": []
     }

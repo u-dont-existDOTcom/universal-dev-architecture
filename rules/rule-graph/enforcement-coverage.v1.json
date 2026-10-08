@@ -957,6 +957,365 @@
       "legacy_remainder": ""
     },
     {
+      "id": "patterns/agent-completable-merge-gates.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "STRUCTURED_ENFORCED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "STRUCTURED_TRIGGER",
+        "detail": "governance_required and merge_gate action_classes; unknown facts block"
+      },
+      "actors": [
+        "chat",
+        "work",
+        "codex",
+        "claude"
+      ],
+      "phases": [
+        "handoff",
+        "persistence",
+        "pre-action"
+      ],
+      "destinations": [
+        "gate-capability-checkpoint",
+        "hosted-gate-authority",
+        "merge-eligibility-evidence",
+        "owner-action-readback",
+        "owner-questions-page"
+      ],
+      "enforcement_types": [
+        "semantic"
+      ],
+      "task_time_records": [
+        "uda.merge-gate.capability",
+        "uda.merge-gate.owner-decision",
+        "uda.merge-gate.substance-check",
+        "uda.merge-gate.owner-clicks",
+        "uda.merge-gate.authority",
+        "uda.merge-gate.failure-repair"
+      ],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/agent-completable-merge-gates.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "patterns/logic-failure-map.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_agent_completable_merge_gates.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_uda_review_merge_slice.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_review_merge_slice.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        }
+      ],
+      "obligation_map": [
+        {
+          "sentence": "For a workstream that will merge, release, or deploy through hosted controls, list each hosted gate on that path (for example required reviews, resolved conversations, required checks, bypass limits, environment approvals, and the merge itself) from current settings evidence, not from repository files (`patterns/codex-github-operating-system.md`).",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "For each gate, check that the agent can satisfy it with the permissions it actually has: account or token scopes, the connector's actions, the sandbox, and the permission or safety layer's own refusals, which can block an action the platform allows.",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Check the exact action, not a neighboring one, because being able to read threads says nothing about resolving them (`patterns/reasoning-selection.md`, capability edges).",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Read the permission rules or documentation that govern the action, query the settings read-only, or use a refusal already on record.",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Attempt the action itself only on a destination the workstream already authorizes for such tests, such as a sandbox repository, never by creating a hosted object just to probe.",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Record can or cannot for each gate in the task checkpoint.",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "the first sign that the agent cannot complete a hosted gate comes at the merge step;",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Which actions a permission layer refuses depends on the platform, the account and the layer's current configuration.",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Check the exact action in the current session; do not rely on this pattern's example.",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Check the gates when the workstream starts.",
+          "record": "uda.merge-gate.capability",
+          "obligation_id": "capability-at-boundary"
+        },
+        {
+          "sentence": "Put one question on the owner questions page (`patterns/owner-questions-page.md`) at the start, not at the first merge.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "It is the owner's decision because it changes what the platform enforces.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Name the gate in plain words, say why the agent cannot satisfy it, and give the options with a recommendation.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "First sort the gate.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "A clerical gate records a step whose substance a check can verify, such as resolved review conversations or an up-to-date branch.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "An approval gate exists for independent human authorization, such as a required approving review or an environment approval, and an agent-run check cannot stand in for that separation.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "(the recommendation for a clerical gate; never offered for an approval gate).",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "It ends the recurring clicks, and it costs the platform's own enforcement unless the check is also made a required status check.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "scoped to that one action, with the approval and scope written down.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "It keeps the platform gate and removes the clicks, and it costs tooling the owner must approve and maintain.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "The agent never grants itself the permission that was refused.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "(the recommendation for an approval gate) when the gate exists for a person's authorization or the owner wants a person to confirm each one.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Rule 4 then applies, and the agent can attach the substance check's result so the approval rests on a verified result.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "An owner action that returns on every pull request signals a gate the agent cannot complete.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Raise the gate once instead of treating each return as a new request; the one decision in rule 2 covers them all.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Raise it once per workstream and gate.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Reopen it only when the gate, the agent's permissions, or the permission or safety layer changes.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "the owner is asked for the same gate action on a second pull request with no decision on the page;",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Replacing a gate changes what the platform enforces.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "The owner accepts that tradeoff in deciding; the agent states it in the question.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "If the agent cannot complete a gate, raise one owner decision early.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Replace the gate with a check the agent can run that verifies substance",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Automate the gate with owner-approved tooling,",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Keep the gate and the clicks,",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "Do not hand the owner a recurring chore list.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "One question per gate.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "it adds one start-of-workstream check and at most one owner question per gate. It adds no blocking gate and changes no hosted setting.",
+          "record": "uda.merge-gate.owner-decision",
+          "obligation_id": "owner-decision-at-boundary"
+        },
+        {
+          "sentence": "The check passes when the latest review of the exact head commit reports nothing open, every earlier finding maps to a fix commit or to a written reason it was not changed, and the required status checks pass.",
+          "record": "uda.merge-gate.substance-check",
+          "obligation_id": "substance-check-at-boundary"
+        },
+        {
+          "sentence": "When the gate it replaces is the up-to-date-branch requirement, the check also confirms that the head contains the current base commit, or runs the required checks on the exact merge result, so checks that passed on an older base cannot admit a change that conflicts with newer work.",
+          "record": "uda.merge-gate.substance-check",
+          "obligation_id": "substance-check-at-boundary"
+        },
+        {
+          "sentence": "Bind that result to the base commit it checked, and rerun it whenever the base moves before the merge, or use a merge queue that tests the exact merge.",
+          "record": "uda.merge-gate.substance-check",
+          "obligation_id": "substance-check-at-boundary"
+        },
+        {
+          "sentence": "a thread is marked resolved with no fix and no written reason to point to.",
+          "record": "uda.merge-gate.substance-check",
+          "obligation_id": "substance-check-at-boundary"
+        },
+        {
+          "sentence": "The substance check is only as good as the review behind it.",
+          "record": "uda.merge-gate.substance-check",
+          "obligation_id": "substance-check-at-boundary"
+        },
+        {
+          "sentence": "It does not turn an author's own review into independent review (`patterns/independent-evaluation-separation.md`), and it assumes a reviewer that reports open findings against the exact head commit.",
+          "record": "uda.merge-gate.substance-check",
+          "obligation_id": "substance-check-at-boundary"
+        },
+        {
+          "sentence": "Until the gate is removed or automated, it stays in force: list each instance that still needs the owner under **For you to do**, grouped into one step with exact links (rule 4), so the page stays the complete list of his work, and attach the substance check's result to each pull request so his clicks rest on a verified result.",
+          "record": "uda.merge-gate.owner-clicks",
+          "obligation_id": "owner-clicks-at-boundary"
+        },
+        {
+          "sentence": "When a click is unavoidable, batch it into one step: exact links to every target in one place (the **For you to do** section of the owner questions page),",
+          "record": "uda.merge-gate.owner-clicks",
+          "obligation_id": "owner-clicks-at-boundary"
+        },
+        {
+          "sentence": "The owner is then not asked twice, and the agent does not take \"done\" on faith.",
+          "record": "uda.merge-gate.owner-clicks",
+          "obligation_id": "verify-owner-action"
+        },
+        {
+          "sentence": "and a read-back the agent runs afterward to confirm it worked, such as a hosted query that counts the threads still open.",
+          "record": "uda.merge-gate.owner-clicks",
+          "obligation_id": "verify-owner-action"
+        },
+        {
+          "sentence": "A click that records a choice only the owner can make (accept a risk, approve a spend, merge a change) stays with the owner.",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "Nothing here lets an agent relax a hosted gate, use an owner-only bypass, merge around a refusal, or disguise a refused action behind another tool or route.",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "A refusal by the permission or safety layer is a boundary (`patterns/worker-self-remediation-before-owner-interruption.md`, **Fail closed on genuine boundaries**).",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "The agent proposes the replacement, and the owner decides (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**).",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "A hosted setting counts as changed only when settings or API evidence shows it (`patterns/codex-github-operating-system.md`).",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "It adds no gate and grants no authority. Changing a hosted gate stays the owner's decision.",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "Keep owner clicks for decisions.",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "No bypass.",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "A declared gate stays until the owner changes it.",
+          "record": "uda.merge-gate.authority",
+          "obligation_id": "authority-at-boundary"
+        },
+        {
+          "sentence": "Repair: stop listing the click; put the decision on the owner questions page with a recommendation; batch the unavoidable clicks as in rule 4;",
+          "record": "uda.merge-gate.failure-repair",
+          "obligation_id": "failure-repair-at-boundary"
+        },
+        {
+          "sentence": "and move the answer to **Decided** when the owner replies.",
+          "record": "uda.merge-gate.failure-repair",
+          "obligation_id": "record-owner-reply"
+        }
+      ]
+    },
+    {
       "id": "patterns/agent-to-agent-consultation.md",
       "kind": "pattern",
       "indexed": true,
@@ -2145,6 +2504,429 @@
       ],
       "exception_reason": "Specialist deterministic candidate-transformation and template-scoring workflow, with explicit separation of computational astronomy from unvalidated behavioral-symbolic interpretation; excluded from the general symbolic-method inventory.",
       "review_notes": "Live methodology, not general instruction-failure admission. No current index or exact full-path activating parent was found. Conventional scorer output must not be promoted into scientific validity."
+    },
+    {
+      "id": "patterns/convergent-review-acceptance-gates.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "STRUCTURED_ENFORCED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "STRUCTURED_TRIGGER",
+        "detail": "governance_required and review_round or review_finding_judgment action_classes; unknown facts block"
+      },
+      "actors": [
+        "chat",
+        "work",
+        "codex",
+        "claude"
+      ],
+      "phases": [
+        "persistence",
+        "pre-action"
+      ],
+      "destinations": [
+        "repaired-review-gate",
+        "review-acceptance-decision",
+        "review-accepted-output",
+        "review-cycle-ledger",
+        "review-gate-authority",
+        "review-repair-plan",
+        "review-request",
+        "review-scale-gate-design"
+      ],
+      "enforcement_types": [
+        "semantic"
+      ],
+      "task_time_records": [
+        "uda.review.change-scope",
+        "uda.review.repair-bound",
+        "uda.review.item-degradation",
+        "uda.review.acceptance-floors",
+        "uda.review.false-failure",
+        "uda.review.cycle-escalation",
+        "uda.review.declared-authority",
+        "uda.review.failure-repair"
+      ],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/convergent-review-acceptance-gates.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "patterns/logic-failure-map.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_convergent_review_acceptance_gates.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_uda_review_merge_slice.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_review_merge_slice.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        }
+      ],
+      "obligation_map": [
+        {
+          "sentence": "After a repair, send the reviewer only the earlier findings and the items the repair changed.",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "Carry forward every item that passed and did not change.",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "Give each item a stable ID when it is first produced, and match items to their earlier verdicts mechanically, by ID, exact content and the complete evaluator configuration (reviewer prompt, rubric, model/version, sampling settings and frozen reference; hashes are enough), never by asking the reviewer.",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "An item whose ID, content or evaluator configuration does not match counts as changed; a configuration change counts every affected item as changed and requires re-review before aggregate acceptance.",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "a repair cycle re-reviews items that passed and did not change under the same evaluator configuration, or carries a verdict across an evaluator configuration change;",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "Carrying an item forward assumes its verdict depends only on that item, the frozen reference and the bound evaluator configuration.",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "When a verdict depends on other items (order, duplicates, consistency across items), declare the dependency and count a change to the other item as a change to this one.",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "Re-review the change, not the whole unit.",
+          "record": "uda.review.change-scope",
+          "obligation_id": "change-scope-at-boundary"
+        },
+        {
+          "sentence": "Fix the number of repair cycles before the first cycle runs.",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "Declare a stall rule along with the repair bound, for example \"two repairs in a row that leave the count the same or higher\".",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "If a controlling directive fixes a repair limit, the stall rule can end repairs sooner and never extends them (`patterns/structured-output-failure-boundary.md`).",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "Stopping repairs does not show that the unit, the repair method, or the reviewer is wrong.",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "The next step is diagnosis or an owner decision (`patterns/outcome-advancement-and-strategy-efficacy.md`, section 9.4).",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "repairs have no bound fixed in advance, or findings per cycle are not recorded;",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "Bound the repairs and degrade by item.",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "A directive's ceiling stays a ceiling.",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "A bound ends spend and proves nothing else.",
+          "record": "uda.review.repair-bound",
+          "obligation_id": "repair-bound-at-boundary"
+        },
+        {
+          "sentence": "When the repairs run out, withhold only the items still flagged and mark them for review, keep every other item, and record each omission that is still flagged (a reference item the reviewer says the output lacks) as a gap in the output.",
+          "record": "uda.review.item-degradation",
+          "obligation_id": "item-degradation-at-boundary"
+        },
+        {
+          "sentence": "Do not discard the unit, and do not halt the pipeline: one unit's leftover flags never stop units that do not depend on it.",
+          "record": "uda.review.item-degradation",
+          "obligation_id": "item-degradation-at-boundary"
+        },
+        {
+          "sentence": "A unit that consumes or checks the withheld items waits until they are reviewed, or runs without them and records the gap; it never treats them as accepted.",
+          "record": "uda.review.item-degradation",
+          "obligation_id": "item-degradation-at-boundary"
+        },
+        {
+          "sentence": "Keep the independent units moving while the question waits.",
+          "record": "uda.review.item-degradation",
+          "obligation_id": "item-degradation-at-boundary"
+        },
+        {
+          "sentence": "a unit is discarded, or the pipeline halted, because some items stay flagged.",
+          "record": "uda.review.item-degradation",
+          "obligation_id": "item-degradation-at-boundary"
+        },
+        {
+          "sentence": "Accept a run on aggregate measures with floors stated in advance, not on every unit reaching zero findings.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Where units are not interchangeable, because each customer, source or experiment must keep its own required items, add a per-unit or per-stratum minimum to the floors: a pooled measure lets strong units hide one that kept nothing.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Freeze the reference before the gate runs, and never trade a hard floor against another measure.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Report the failed units and the error counts beside the aggregate, each measure on its own line, so a passing aggregate hides neither.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "An aggregate can hide a bad unit, which is why rule 3 reports failed units and error counts beside it.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "A frozen reference is only as sound as its own provenance.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Gate on aggregates with hard floors.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Suppose each item in a correct unit of n items draws a false flag independently with probability p.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "The unit then passes a zero-finding gate with probability (1 - p)^n.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "With p = 0.05 and n = 27 that is about 25%.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Requiring all N units to pass multiplies the chances: if each unit passes with probability q, all N pass with probability q^N.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Even q = 0.99 gives 0.99^162, about 20%, across 162 units.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Before a gate runs over many units, estimate how often it will fail correct work, using the formulas in the Problem section.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Take p from a pilot on units independently known to be correct (the frozen reference, for example), or from earlier cycles' records only for items independently known to be correct, with any findings adjudicated false.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Estimate p as the number of distinct reviewed known-correct items receiving at least one adjudicated false flag divided by all reviewed known-correct items, including unflagged items; count each item once even if it has multiple false findings, and exclude genuine defects and unadjudicated records.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "When those labels are unavailable, treat p as a guess and say so.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "State the confidence level and method, and size a representative pilot in advance for the tolerable false-failure rate at the intended scale.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Use a one-sided upper confidence bound p_upper in place of the point estimate p in every unit/run and hard-floor calculation, or a one-sided lower confidence bound on each directly measured floor pass rate.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Under the independent constant-p model, zero false flags among t known-correct items give the exact one-sided bound p_upper = 1 - alpha^(1/t) at confidence 1 - alpha; with t = 20 and alpha = 0.05 this is about 13.9%, not zero.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Likewise, if all u independent known-correct units pass a floor, its exact lower bound is q_lower = alpha^(1/u), not 1.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Report the pilot counts and bounds; if the pilot is too small to rule out material rejection, enlarge it with a predeclared sample size or redesign before scale, rather than admitting the gate on a point estimate.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Apply the estimate to each hard floor too: a zero-critical-misses floor is a zero-findings gate over the m critical items alone, so it fails correct work with probability 1 - (1 - p)^m.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "If the conservative bound would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "a gate needs zero findings from a model reviewer on every unit and no false-failure estimate was made;",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "The formulas assume false flags are independent at one constant rate p.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Real flags cluster, since one misreading can flag several items, and p differs by item type and by reviewer.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Treat the formulas as planning estimates, and prefer a pass rate measured on known-correct units with its confidence bound.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "A reviewer that misses real defects needs a different reviewer or a deterministic check.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Estimate the false-failure rate before running at scale.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Record the number of findings after every cycle, with the item IDs.",
+          "record": "uda.review.cycle-escalation",
+          "obligation_id": "cycle-escalation-at-boundary"
+        },
+        {
+          "sentence": "When the count stays flat or bounces across repairs, stop spending rounds and apply rule 2.",
+          "record": "uda.review.cycle-escalation",
+          "obligation_id": "cycle-escalation-at-boundary"
+        },
+        {
+          "sentence": "Put the question on the owner questions page (`patterns/owner-questions-page.md`) with the per-cycle counts, what each cycle changed, and the options (for example accept the partial result with its gaps, change the gate, or have a person review the flagged items).",
+          "record": "uda.review.cycle-escalation",
+          "obligation_id": "cycle-escalation-at-boundary"
+        },
+        {
+          "sentence": "Track findings per cycle and stop early when they do not fall.",
+          "record": "uda.review.cycle-escalation",
+          "obligation_id": "cycle-escalation-at-boundary"
+        },
+        {
+          "sentence": "The rules shape a gate that an agent or pipeline designs, or that a project leaves open.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "They never lower a gate the owner or the project's authority has declared blocking.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "For a declared zero-finding gate, run it as declared, put the false-failure estimate and the proposed aggregate gate on the owner questions page as a proposal, and keep running the declared gate until the owner or the project authority changes it (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**).",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "The pattern addresses false flags.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "It makes no claim about which reviewer or model is better.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "It adds no gate to any project and does not lower a gate that the owner or a project has declared.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "Declared gates stay hard.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "it covers only gates whose checker is a noisy reviewer. It adds no blocking gate and lowers no declared one.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; and put the counts on the owner questions page.",
+          "record": "uda.review.failure-repair",
+          "obligation_id": "failure-repair-at-boundary"
+        },
+        {
+          "sentence": "For a recall floor r over n known-correct reference items, the allowed misses are k = n - ceil(r*n).",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Under the same independence and constant-p model, the false-failure probability is P(Binomial(n, p) > k) = sum from j = k + 1 to n of C(n, j) p^j (1 - p)^(n - j), where C(n, j) counts combinations.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "With k = 0 this reduces to the zero-miss formula above.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "For example, r = 0.95, n = 100 and p = 0.01 allow k = 5 misses and give about 0.0535% false failures, versus about 63.4% for zero allowed misses.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Apply the binomial tail to each aggregate, per-unit and per-stratum floor using its own n, p and allowed misses k, or measure that floor's false-failure rate on independently known-correct work.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        }
+      ]
     },
     {
       "id": "patterns/conversational-prose-speakability.md",

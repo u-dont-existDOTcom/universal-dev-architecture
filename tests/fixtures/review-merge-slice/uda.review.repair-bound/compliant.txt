@@ -1,0 +1,1 @@
+Before cycle one the plan fixes at most three repairs and a stall after two repairs with a flat or rising count. The directive ceiling is two, so the effective maximum is two. Every cycle records findings. Exhaustion ends spend, with unresolved items withheld; diagnosis or an owner decision follows. Exhaustion establishes no defect attribution.

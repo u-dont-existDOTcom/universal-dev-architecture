@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The owner questions page lists every still-required instance under For you to do in one grouped step, with exact target locators target:A and target:B representing the synthetic links. Each instance has its substance result. Declared gates remain active. After the owner action a hosted query records zero open threads, confirming the effects; the agent does not trust done or ask twice.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The owner receives separate unlinked chore lists for each recurring instance, and no hosted readback follows.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Every remaining target is batched with its substance result, but after the owner says done no hosted query runs. a done assertion substituted for hosted confirmation.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "verify-owner-action",
+    "non_substitute": "a done assertion substituted for hosted confirmation"
+  }
+}

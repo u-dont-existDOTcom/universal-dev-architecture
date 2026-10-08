@@ -1,0 +1,1 @@
+After an observed failure the repaired gate now has a pre-scale estimate, change-only repair scope, fixed bound, stall rule, item withholding and persisted output gaps. An aggregate change for the declared gate stays a proposal. Counts are on the owner questions page; independent units proceed.

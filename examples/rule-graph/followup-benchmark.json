@@ -32,7 +32,7 @@
       "value": [
         "benchmark_authoring"
       ],
-      "provenance": "planned follow-up experiment"
+      "provenance": "planned follow-up experiment; review_round, review_finding_judgment and merge_gate are absent"
     },
     "owner_outcome_status": {
       "state": "KNOWN",
