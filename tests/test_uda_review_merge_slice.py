@@ -180,6 +180,22 @@ class ReviewMergeSliceTests(unittest.TestCase):
             self.assertEqual(expected, len(entry["obligation_map"]))
             self.assertFalse(any("exception" in item for item in entry["obligation_map"]))
 
+    def test_activation_slice_summary_matches_enforced_clause_maps(self):
+        total = sum(len(e["obligation_map"]) for e in self.inventory["entries"]
+                    if e["id"] in SOURCES)
+        summary = (ROOT / "patterns/task-time-lesson-activation.md").read_text().split(
+            "### Review/merge-gate migration slice 2", 1)[1]
+        self.assertIn(f"bind {total} operative clauses", summary)
+
+    def test_requirement_slice_summary_matches_enforced_clause_maps(self):
+        requirement = tt.read_json(ROOT / coverage.REQUIREMENT)
+        summary = next(f["implemented"] for f in requirement["related_findings"]
+                       if f["finding_id"] == "slice-2-review-merge")
+        for source, label in zip(SOURCES, ("review", "merge")):
+            with self.subTest(source=source):
+                entry = next(e for e in self.inventory["entries"] if e["id"] == source)
+                self.assertIn(f"{len(entry['obligation_map'])} {label} clauses", summary)
+
 
 class ReviewMergeCoverageMutations(unittest.TestCase):
     def setUp(self):

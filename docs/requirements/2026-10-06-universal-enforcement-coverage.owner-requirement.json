@@ -283,7 +283,7 @@
       "baseline_shrinkage": 6,
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
-      "implemented": "Two new identities structured: 53 review clauses / 8 obligations; 58 merge clauses / 8 obligations; 14 new records, no exceptions or backlog additions."
+      "implemented": "Two new identities structured: 60 review clauses / 8 obligations; 58 merge clauses / 8 obligations; 14 new records, no exceptions or backlog additions."
     }
   ],
   "learning_state_at_merge": [
