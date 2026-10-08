@@ -13,6 +13,11 @@ The table lists the projects whose agents are wired to check their lanes; it is 
 | `joel-articles/` | `u-dont-existDOTcom/joel-articles` | wiring section in its `AGENTS.md` |
 | `design/` | `u-dont-existDOTcom/design` | wiring section in its `AGENTS.md` |
 | `creativeTailSampling/` | `u-dont-existDOTcom/creativeTailSampling` | wiring section in its `AGENTS.md` |
+| `AskRigor-lessons/` | `u-dont-existDOTcom/AskRigor-lessons` | wiring section in its `AGENTS.md` |
+| `sites/` | `u-dont-existDOTcom/sites` | wiring section in its `AGENTS.md` |
+| `innerself/` | `u-dont-existDOTcom/innerself` | wiring section in its `AGENTS.md` |
+| `love-honestly/` | `u-dont-existDOTcom/love-honestly` | wiring section in its `AGENTS.md` |
+| `communities/` | `u-dont-existDOTcom/communities` | wiring section in its `AGENTS.md` |
 
 Suggestions for this repository are pull requests here carrying the `uda-lane` label; see [step 9 of the suggested-fix pattern](../patterns/suggested-fix-queue.md#rule).
 
