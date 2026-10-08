@@ -59,6 +59,7 @@
     "patterns/convergent-review-acceptance-gates.md": {
       "clause_count": 65,
       "clauses_sha256": "0529aca45d9fd9f05e97868987d0677ae16188f7e6954bac78cb2108d5eb318f",
+      "pre_section_sha256": "9fe60d56872542596f2a1f2ebb7b393edf56ad0f5ea351c95cf8e3d871c3adaa",
       "sections": {
         "status": {
           "clause_count": 1,
@@ -105,6 +106,7 @@
     "patterns/agent-completable-merge-gates.md": {
       "clause_count": 58,
       "clauses_sha256": "821fd0ccde08f02407576b5a0b45d7c061ee8c59e81efc6fbb442f60a154ef2f",
+      "pre_section_sha256": "36f1182cdefab625da313048024934a7e69b75832a4fbc16a98a4bce2b20ca88",
       "sections": {
         "status": {
           "clause_count": 1,

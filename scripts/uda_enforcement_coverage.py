@@ -271,12 +271,15 @@ def validate(root: Path | str) -> list[str]:
                             or manifest.get("clauses_sha256") != canonical_hash(clauses)):
                         errors.append(prefix + "obligation_map differs from independent source clause manifest")
                     if entry.get("kind") == "pattern" and source:
-                        # Whole-pattern pins protect the identity; section pins
-                        # classify every section independently and pin its full
-                        # body so new prose, even beside mapped clauses, requires review.
+                        # Independent pins cover the pre-section span and every
+                        # section body so new prose, even beside mapped clauses,
+                        # requires review.
                         section_pins = {}
                         section_manifest = manifest.get("sections")
                         headings = list(re.finditer(r"^## (.+)$", source["source"], re.M))
+                        pre_section = source["source"][:headings[0].start()] if headings else source["source"]
+                        if manifest.get("pre_section_sha256") != hashlib.sha256(pre_section.encode()).hexdigest():
+                            errors.append(prefix + "pre-section source differs from independent source pin")
                         for i, heading in enumerate(headings):
                             section = slug(heading[1])
                             if section in section_pins:

@@ -264,6 +264,32 @@ class ReviewMergeCoverageMutations(unittest.TestCase):
                 self.regenerate()
                 self.rejected("obligation_map differs from independent section clause manifests")
 
+    def test_added_pre_section_clause_blocks_even_after_regeneration(self):
+        for source, entry, rid in self.targets():
+            with self.subTest(source=source):
+                path = self.root / source
+                title, newline, remainder = path.read_text().partition("\n")
+                path.write_text(title + newline +
+                                "\nThe executor must obtain a second approval before every repair.\n" +
+                                remainder)
+                self.regenerate()
+                self.rejected("pre-section source differs from independent source pin")
+
+    def test_pre_section_source_pin_is_required_and_verified(self):
+        for source, entry, rid in self.targets():
+            for pin in (None, "0" * 64):
+                with self.subTest(source=source, pin=pin):
+                    self.restore()
+                    def change(data):
+                        manifest = data["source_clause_manifest"][source]
+                        if pin is None:
+                            manifest.pop("pre_section_sha256", None)
+                        else:
+                            manifest["pre_section_sha256"] = pin
+                    self.mutate(coverage.REQUIREMENT, change)
+                    self.regenerate()
+                    self.rejected("pre-section source differs from independent source pin")
+
     def test_non_operative_section_requires_explicit_reason_and_content_pin(self):
         source = SOURCES[0]
         section = "reference-notes"
