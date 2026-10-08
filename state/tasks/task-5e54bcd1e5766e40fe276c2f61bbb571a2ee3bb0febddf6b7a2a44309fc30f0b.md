@@ -5,7 +5,7 @@
 - Task ID: `review-follow-ups-20261008-0400`.
 - Branch: `codex/review-follow-ups-20261008-0400`.
 - Owner outcome: check every deferred finding from issues #329 and #337 against this branch; fix applicable findings with regression coverage, record each outcome, and leave changes for the runner to commit and push.
-- Root outcome: SATISFIED; both findings and their recorded outcomes are committed in `b18bf22f`. No integration of the original repairs remains; unfiltered CI validation remains separate.
+- Root outcome: SATISFIED; both findings and their recorded outcomes are committed through the reviewed head `086c827d`. No integration of the original repairs remains; unfiltered CI validation remains separate.
 
 ## Authority / baseline
 
@@ -36,7 +36,7 @@
 ## Current checkpoint
 
 - Current step: original repairs are committed; inspect CI results and reconcile only subsequent authorized changes.
-- Last verified durable boundary: `b18bf22f` contains the four original handoff files; the audit identity repair followed in `9327d6ee`.
+- Last verified durable boundary: `086c827db095c2e2933b650ba048d7ef0a0df5cf` contains the original repairs, audit identity repair and previous checkpoint correction. The reported squash `c857f261` (parent `e38abd9`) is unavailable locally and through GitHub; reconcile actual HEAD when resuming, rather than recovering from intermediate hashes. Exact history/discrepancy evidence is in the current review checkpoint below.
 - Completion claim: ARTIFACT_READY; the requested local result is complete, with no live deployment or publication claim.
 
 ## Finding outcomes
