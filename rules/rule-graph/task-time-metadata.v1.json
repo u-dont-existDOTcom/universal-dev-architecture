@@ -4044,7 +4044,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {

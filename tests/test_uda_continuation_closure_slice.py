@@ -338,6 +338,10 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                        if r['rule_id'] == 'uda.continuity.turn-end-handoff')
         handoff['refresh_on_facts'] = [f for f in handoff['refresh_on_facts']
                                      if f != 'owner_outcome_status']
+        controller = next(r for r in baseline_catalog['records']
+                          if r['rule_id'] == 'uda.continuation.controller-resume')
+        controller['refresh_on_facts'] = [f for f in controller['refresh_on_facts']
+                                        if f != 'actor']
         baseline = tt.compile_contract(baseline_catalog, self.profile,
                                        tt.read_json(ROOT / coverage.WORK_TASK), 'graph')
         projection = tt.read_json(ROOT / coverage.WORK_CONTRACT)
@@ -440,6 +444,38 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                             # Leaving the exclusive scope also invalidates old receipts.
                             self.assertEqual("BLOCKED", self.check(
                                 refreshed, phase, payload, initial_task, destination=destination, receipts=receipts)["admission"])
+
+    def test_actor_change_blocks_controller_destination_until_recompiled(self):
+        folder, record, catalog, task, _ = next(
+            case for case in self.cases()
+            if case[1]["rule_id"] == "uda.continuation.controller-resume")
+        phase, destination = record["obligations"][0]["due_phase"], record["obligations"][0]["destination"]
+        payload = (folder / "compliant.txt").read_bytes()
+        judgment = tt.read_json(folder / "verdicts.json")["compliant.txt"]
+        for mode in ("graph", "flat"):
+            with self.subTest(mode=mode):
+                initial_task = copy.deepcopy(task)
+                initial_task["facts"]["actor"]["value"] = "chat"
+                initial = tt.compile_contract(catalog, self.profile, initial_task, mode)
+                self.assertFalse(initial["selected_rules"])
+                self.assertEqual("NOT_EVALUATED", self.check(
+                    initial, phase, payload, initial_task, destination=destination)["admission"])
+                changed = copy.deepcopy(initial_task)
+                changed["facts"]["actor"]["value"] = "controller"
+                stale = self.check(initial, phase, payload, changed, destination=destination)
+                self.assertEqual("BLOCKED", stale["admission"])
+                self.assertEqual("task facts changed; recompile contract before checking", stale["reason"])
+                self.assertEqual("BLOCKED", tt.check_contract(
+                    initial, phase, payload, destination=destination)["admission"])
+                refreshed = tt.compile_contract(catalog, self.profile, changed, mode)
+                self.assertEqual([record["rule_id"]], [r["rule_id"] for r in refreshed["selected_rules"]])
+                self.assertEqual("BLOCKED", self.check(
+                    refreshed, phase, payload, changed, destination=destination)["admission"])
+                receipts = self.bind(refreshed, phase, payload, judgment)
+                self.assertEqual("ADMITTED", self.check(
+                    refreshed, phase, payload, changed, destination=destination, receipts=receipts)["admission"])
+                self.assertEqual("BLOCKED", self.check(
+                    refreshed, phase, payload, initial_task, destination=destination, receipts=receipts)["admission"])
 
     def test_one_shot_governance_instruction_adopts_both_portable_controls(self):
         task = tt.read_json(ROOT / coverage.WORK_TASK)
