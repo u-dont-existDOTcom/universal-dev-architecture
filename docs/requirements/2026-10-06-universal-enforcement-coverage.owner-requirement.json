@@ -57,16 +57,20 @@
       "clauses_sha256": "0296f83c29eb4a6e0aa59c0ad74785f72224a331282c461d1b92757531d1d6b1"
     },
     "patterns/convergent-review-acceptance-gates.md": {
-      "clause_count": 53,
-      "clauses_sha256": "7b307bf86dece82ce7e323304317d453c302bb32fd0809c7af8e44609b2bd2db",
+      "clause_count": 60,
+      "clauses_sha256": "20ab5018a25298f4d108899bc38072619d97d0f477d41fafc49fd38f4b0533ad",
       "sections": {
         "status": {
           "clause_count": 1,
           "clauses_sha256": "99691207cdcb42ba76934779fd05b47ae0426353331fdfce550f571c979d6670"
         },
+        "problem": {
+          "clause_count": 5,
+          "clauses_sha256": "4d6b0053430c72bb704dfd71909da8e6a9782c0fdefccd31a31cdecc818c1a1d"
+        },
         "rules": {
-          "clause_count": 27,
-          "clauses_sha256": "df727cf7079d2ee458cc59ea0e7b99c14694113a617bf15977be11395e2cd7e5"
+          "clause_count": 29,
+          "clauses_sha256": "578d64bca603dfd57a3f75c85ea892069ab7f350d512d8dbd02e9e1eafbfbc4b"
         },
         "bounds": {
           "clause_count": 9,

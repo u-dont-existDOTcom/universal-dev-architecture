@@ -174,7 +174,7 @@ class ReviewMergeSliceTests(unittest.TestCase):
         self.assertEqual(78, report["backlog_count"])
         self.assertEqual(6, len(report["removed_since_baseline"]))
         self.assertFalse(set(SOURCES).intersection(report["removed_since_baseline"]))
-        for source, expected in zip(SOURCES, (53, 58)):
+        for source, expected in zip(SOURCES, (60, 58)):
             entry = next(e for e in self.inventory["entries"] if e["id"] == source)
             self.assertEqual("STRUCTURED_ENFORCED", entry["disposition"])
             self.assertEqual(expected, len(entry["obligation_map"]))
@@ -269,6 +269,42 @@ class ReviewMergeCoverageMutations(unittest.TestCase):
                 path = self.root / source
                 path.write_text(path.read_text().replace(clause, "", 1))
                 self.rejected("obligation_map sentence missing or ambiguous in owning section")
+
+    def test_formula_drift_blocks_source_lock_regeneration(self):
+        for old, changed in (("(1 - p)^n", "(1 - p)^(2n)"),
+                             ("q^N", "q^(2N)"),
+                             ("1 - (1 - p)^m", "1 - (1 - p)^(2m)")):
+            with self.subTest(formula=old):
+                self.restore()
+                path = self.root / SOURCES[0]
+                self.assertEqual(1, path.read_text().count(old))
+                path.write_text(path.read_text().replace(old, changed))
+                self.rejected("obligation_map sentence missing or ambiguous in owning section")
+                with self.assertRaises(tt.RuleGraphError) as caught:
+                    self.regenerate()
+                self.assertEqual("SOURCE_SELECTOR_CARDINALITY", caught.exception.code)
+
+    def test_coordinated_formula_rewrite_cannot_evade_independent_pin(self):
+        for old, changed in (("(1 - p)^n", "(1 - p)^(2n)"),
+                             ("q^N", "q^(2N)"),
+                             ("1 - (1 - p)^m", "1 - (1 - p)^(2m)")):
+            with self.subTest(formula=old):
+                self.restore()
+                path = self.root / SOURCES[0]
+                path.write_text(path.read_text().replace(old, changed))
+                def update_map(data):
+                    entry = next(e for e in data["entries"] if e["id"] == SOURCES[0])
+                    for item in entry["obligation_map"]:
+                        item["sentence"] = item["sentence"].replace(old, changed)
+                def update_selectors(data):
+                    record = next(r for r in data["records"] if r["rule_id"] == "uda.review.false-failure")
+                    for selector in record["source"]["selectors"]:
+                        selector["text"] = selector["text"].replace(old, changed)
+                self.mutate(coverage.COVERAGE, update_map)
+                self.mutate(coverage.METADATA, update_selectors)
+                self.regenerate()
+                self.rejected("obligation_map differs from independent source clause manifest")
+                self.rejected("obligation_map differs from independent section clause manifests")
 
     def test_each_operative_section_requires_its_independent_clause_pin(self):
         for source, entry, rid in self.targets():

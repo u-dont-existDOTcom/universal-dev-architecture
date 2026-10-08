@@ -2727,12 +2727,47 @@
           "obligation_id": "acceptance-floors-at-boundary"
         },
         {
+          "sentence": "Suppose each item in a correct unit of n items draws a false flag independently with probability p.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "The unit then passes a zero-finding gate with probability (1 - p)^n.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "With p = 0.05 and n = 27 that is about 25%.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Requiring all N units to pass multiplies the chances: if each unit passes with probability q, all N pass with probability q^N.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Even q = 0.99 gives 0.99^162, about 20%, across 162 units.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
           "sentence": "Before a gate runs over many units, estimate how often it will fail correct work, using the formulas in the Problem section.",
           "record": "uda.review.false-failure",
           "obligation_id": "false-failure-at-boundary"
         },
         {
-          "sentence": "Take p from a pilot on units known to be correct (the frozen reference, for example) or from earlier cycles' records, and say so when p is a guess.",
+          "sentence": "Take p from a pilot on units independently known to be correct (the frozen reference, for example), or from earlier cycles' records only for items independently known to be correct, with any findings adjudicated false.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "Estimate p as adjudicated false flags divided by all reviewed known-correct items, including unflagged items; exclude genuine defects and unadjudicated records.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "When those labels are unavailable, treat p as a guess and say so.",
           "record": "uda.review.false-failure",
           "obligation_id": "false-failure-at-boundary"
         },

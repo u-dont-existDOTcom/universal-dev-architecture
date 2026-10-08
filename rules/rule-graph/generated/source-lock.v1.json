@@ -1,7 +1,7 @@
 {
-  "catalog_sha256": "c6b997acbd55ab9bf2d753585245adc032f3eb7fcf3fe654fa252d1ac14a5cea",
+  "catalog_sha256": "b3c8ad31a2a2e4d5b5dcad7d4ef9290aa39db1c964e9a59eee51952f858c26a7",
   "compiler_sha256": "e526ae1e706c6ff97d74d00302c55d0a7e49aafc2df41df09f703520f7e9997a",
-  "content_sha256": "201352ae04b9cda208d630065d2f81b1ad3abd6207946afe34d87ae1b6e6a692",
+  "content_sha256": "113773ada3e49654530edd8ec98f15775dd96e768a1b76768cf70381e2657dd4",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
@@ -1026,9 +1026,9 @@
     {
       "extracted_sha256": "76b4dd7362e3bde038b7673c23f2307b68cd08a8d58fd93422160b7ce0ec39cb",
       "extracted_utf8_bytes": 965,
-      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "git_blob_sha1": "e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "repository_revision": "BLOB:e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "rule_id": "uda.review.acceptance-floors",
       "selectors": [
         {
@@ -1068,9 +1068,9 @@
     {
       "extracted_sha256": "2c52ee44a7cd47f87b7b1d2ec891b2c8142282c0c08b76a0abe01aa72ae9c570",
       "extracted_utf8_bytes": 776,
-      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "git_blob_sha1": "e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "repository_revision": "BLOB:e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "rule_id": "uda.review.change-scope",
       "selectors": [
         {
@@ -1110,9 +1110,9 @@
     {
       "extracted_sha256": "e9906a5e3786af1c90aa253b4e82b42e3987fedfa61ae72f195cd3af50a1e5b4",
       "extracted_utf8_bytes": 490,
-      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "git_blob_sha1": "e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "repository_revision": "BLOB:e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "rule_id": "uda.review.cycle-escalation",
       "selectors": [
         {
@@ -1136,9 +1136,9 @@
     {
       "extracted_sha256": "3f616d735d636efbba1f81975f5f8c03edb45f605a657db6f8089107a2349064",
       "extracted_utf8_bytes": 855,
-      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "git_blob_sha1": "e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "repository_revision": "BLOB:e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "rule_id": "uda.review.declared-authority",
       "selectors": [
         {
@@ -1178,9 +1178,9 @@
     {
       "extracted_sha256": "16294aa2651f0a6d13d25bc3fd7514b127b08a64c42783fc098d1b79f8c31441",
       "extracted_utf8_bytes": 279,
-      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "git_blob_sha1": "e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "repository_revision": "BLOB:e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "rule_id": "uda.review.failure-repair",
       "selectors": [
         {
@@ -1190,20 +1190,48 @@
       ]
     },
     {
-      "extracted_sha256": "c12c83753ea888d3992b9d091e778604076d32f02cfe44c294648817d2ec95fa",
-      "extracted_utf8_bytes": 1131,
-      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "extracted_sha256": "b01c7130833462c9a951687646a285e5c1cda8b5f146abb789eba86c0dcafde0",
+      "extracted_utf8_bytes": 1835,
+      "git_blob_sha1": "e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "repository_revision": "BLOB:e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "rule_id": "uda.review.false-failure",
       "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Suppose each item in a correct unit of n items draws a false flag independently with probability p."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The unit then passes a zero-finding gate with probability (1 - p)^n."
+        },
+        {
+          "kind": "exact_text",
+          "text": "With p = 0.05 and n = 27 that is about 25%."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Requiring all N units to pass multiplies the chances: if each unit passes with probability q, all N pass with probability q^N."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Even q = 0.99 gives 0.99^162, about 20%, across 162 units."
+        },
         {
           "kind": "exact_text",
           "text": "Before a gate runs over many units, estimate how often it will fail correct work, using the formulas in the Problem section."
         },
         {
           "kind": "exact_text",
-          "text": "Take p from a pilot on units known to be correct (the frozen reference, for example) or from earlier cycles' records, and say so when p is a guess."
+          "text": "Take p from a pilot on units independently known to be correct (the frozen reference, for example), or from earlier cycles' records only for items independently known to be correct, with any findings adjudicated false."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Estimate p as adjudicated false flags divided by all reviewed known-correct items, including unflagged items; exclude genuine defects and unadjudicated records."
+        },
+        {
+          "kind": "exact_text",
+          "text": "When those labels are unavailable, treat p as a guess and say so."
         },
         {
           "kind": "exact_text",
@@ -1242,9 +1270,9 @@
     {
       "extracted_sha256": "d41588f149d477b287d172983a1d12cc4aaa58942727638334c2e8a3fb3038af",
       "extracted_utf8_bytes": 660,
-      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "git_blob_sha1": "e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "repository_revision": "BLOB:e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "rule_id": "uda.review.item-degradation",
       "selectors": [
         {
@@ -1272,9 +1300,9 @@
     {
       "extracted_sha256": "702fa5d805d8d2efc05946ab787a4d34f5fb2b8ff8dcb57201d505f03143d715",
       "extracted_utf8_bytes": 769,
-      "git_blob_sha1": "d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "git_blob_sha1": "e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:d38f8bf3361d714184436b102aa66d5ad8b516c1",
+      "repository_revision": "BLOB:e2ab89efaf9ec3975294cf1cdcd17f7d23f262c0",
       "rule_id": "uda.review.repair-bound",
       "selectors": [
         {

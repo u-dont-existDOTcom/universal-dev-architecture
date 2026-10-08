@@ -2664,18 +2664,46 @@
     },
     {
       "rule_id": "uda.review.false-failure",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/convergent-review-acceptance-gates.md",
         "selectors": [
           {
             "kind": "exact_text",
+            "text": "Suppose each item in a correct unit of n items draws a false flag independently with probability p."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The unit then passes a zero-finding gate with probability (1 - p)^n."
+          },
+          {
+            "kind": "exact_text",
+            "text": "With p = 0.05 and n = 27 that is about 25%."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Requiring all N units to pass multiplies the chances: if each unit passes with probability q, all N pass with probability q^N."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Even q = 0.99 gives 0.99^162, about 20%, across 162 units."
+          },
+          {
+            "kind": "exact_text",
             "text": "Before a gate runs over many units, estimate how often it will fail correct work, using the formulas in the Problem section."
           },
           {
             "kind": "exact_text",
-            "text": "Take p from a pilot on units known to be correct (the frozen reference, for example) or from earlier cycles' records, and say so when p is a guess."
+            "text": "Take p from a pilot on units independently known to be correct (the frozen reference, for example), or from earlier cycles' records only for items independently known to be correct, with any findings adjudicated false."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Estimate p as adjudicated false flags divided by all reviewed known-correct items, including unflagged items; exclude genuine defects and unadjudicated records."
+          },
+          {
+            "kind": "exact_text",
+            "text": "When those labels are unavailable, treat p as a guess and say so."
           },
           {
             "kind": "exact_text",
@@ -2750,10 +2778,11 @@
           "required_behavior": "Estimate false failures before scale, including each hard floor, and redesign when rejection would change the decision.",
           "due_phase": "pre-action",
           "destination": "review-scale-gate-design",
-          "acceptance_evidence": "Estimate unit/run acceptance and each hard floor with the source formulas. Identify pilot or earlier-cycle evidence for p and label guesses. Independence/constant-rate assumptions are planning limits; prefer measured known-correct pass rates. Redesign via change scope, bounded item degradation and aggregate floors before scale when material. Missed real defects require another reviewer or deterministic check. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "acceptance_evidence": "Estimate unit/run acceptance and each hard floor with the source formulas. Derive p only from independently known-correct pilot or earlier-cycle items with findings adjudicated false; divide false flags by all eligible reviewed items, including unflagged items. Exclude genuine defects and unadjudicated records, and label p as a guess when these labels are unavailable. Independence/constant-rate assumptions are planning limits; prefer measured known-correct pass rates. Redesign via change scope, bounded item degradation and aggregate floors before scale when material. Missed real defects require another reviewer or deterministic check. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
           "non_substitutes": [
             "a false-failure estimate made only after the scale run",
-            "a guessed p presented as a measured pilot"
+            "a guessed p presented as a measured pilot",
+            "raw cycle findings presented as measured false positives"
           ],
           "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",

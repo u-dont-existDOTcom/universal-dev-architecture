@@ -88,6 +88,18 @@ class ConvergentReviewAcceptanceGatesTests(unittest.TestCase):
         self.assertIn("## Source-fixed attempt ceiling", read("patterns/structured-output-failure-boundary.md"))
         self.assertIn("### 9.4 Strategy exhaustion", read("patterns/outcome-advancement-and-strategy-efficacy.md"))
 
+    def test_false_positive_rate_requires_adjudicated_known_correct_records(self) -> None:
+        rule = self.pattern.split("4. **", 1)[1].split("\n5. **", 1)[0]
+        for phrase in (
+            "earlier cycles' records only for items independently known to be correct",
+            "findings adjudicated false",
+            "adjudicated false flags divided by all reviewed known-correct items, including unflagged items",
+            "exclude genuine defects and unadjudicated records",
+            "When those labels are unavailable, treat p as a guess and say so.",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, rule)
+
     def test_routes(self) -> None:
         assert_routed_rule(self, RELATIVE, (
             "Current universal pattern, promoted 2026-10-03",
