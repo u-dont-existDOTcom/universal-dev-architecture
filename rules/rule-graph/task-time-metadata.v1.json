@@ -3889,7 +3889,7 @@
     },
     {
       "rule_id": "uda.continuation.state-reconciliation",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
@@ -3972,11 +3972,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.continuation.controller-resume",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
@@ -4032,11 +4035,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.continuation.terminal-admission",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
@@ -4172,11 +4178,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.continuation.recovery-events",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
@@ -4239,7 +4248,10 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.continuation.provider-waits",
@@ -4441,7 +4453,7 @@
     },
     {
       "rule_id": "uda.continuation.pause-semantics",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
@@ -4523,11 +4535,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.continuation.rejection-repair",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
@@ -4593,11 +4608,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.continuation.authority-limits",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/terminal-response-admission-and-autonomous-continuation.md",
@@ -4698,7 +4716,10 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.compaction.resume-reconciliation",
@@ -4997,7 +5018,7 @@
     },
     {
       "rule_id": "uda.task-lock.exclusive-controls",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5084,11 +5105,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.lock-storage",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5171,11 +5195,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.competing-sources",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5262,11 +5289,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.preflight",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5365,11 +5395,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.checkpoint-mirror",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5476,11 +5509,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.authority-resolution",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5573,11 +5609,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.blocker-scope",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5674,11 +5713,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.wait-admission",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5742,11 +5784,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.artifact-acceptance",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5885,11 +5930,14 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.terminal-states",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -5995,7 +6043,10 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.model-input-separation",
@@ -6289,7 +6340,7 @@
     },
     {
       "rule_id": "uda.task-lock.anti-substitutes",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -6402,7 +6453,10 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     },
     {
       "rule_id": "uda.task-lock.portable-instruction",
@@ -6484,7 +6538,7 @@
     },
     {
       "rule_id": "uda.task-lock.scope-authority",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/exclusive-active-task-locks.md",
@@ -6559,7 +6613,10 @@
         "origin": "owner-authorized migration slice 2a; exact existing prose",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes"
+      ]
     }
   ]
 }

@@ -359,11 +359,16 @@ def render(envelope: dict[str, Any], rules: list[dict[str, Any]], unresolved: li
     for i, (carry, repair) in enumerate(lifecycle, 1):
         lines += [f"L{i}: Carry: {carry} Repair: {repair}"]
     if refresh_boundaries:
-        lines += ["", "## Contract refresh boundaries"]
+        lines += ["", "## Contract refresh boundaries",
+                  "Before each boundary below, supply current task facts. Recompile if any listed fact's "
+                  "state/value changed, even when the matching rule was omitted at compilation."]
+        # Share reminders at identical boundaries; keep each rule's exact guard
+        # in the machine-readable contract without repeating prose in Work.
+        points: dict[tuple[str, str], set[str]] = {}
         for boundary in refresh_boundaries:
-            lines.append(f"- Before {boundary['phase']} -> {boundary['destination']}, supply current task facts "
-                         f"for {', '.join(boundary['facts'])}. Recompile if their state/value changed, "
-                         f"even when {boundary['rule_id']} was omitted at compilation.")
+            points.setdefault((boundary['phase'], boundary['destination']), set()).update(boundary['facts'])
+        for (phase, destination), names in points.items():
+            lines.append(f"- {phase} -> {destination}: {', '.join(sorted(names))}")
     if unresolved:
         lines += ["", "## Unresolved applicability", json.dumps(unresolved, sort_keys=True)]
     return "\n".join(lines).rstrip() + "\n"

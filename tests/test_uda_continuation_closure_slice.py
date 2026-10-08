@@ -343,6 +343,42 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                 self.assertEqual("ADMITTED", self.check(refreshed, phase, payload, changed, receipts=receipts)["admission"])
                 self.assertEqual("ADMITTED", self.check(refreshed, phase, payload, copy.deepcopy(changed), receipts=receipts)["admission"])
 
+    def test_becoming_exclusive_blocks_each_core_destination_until_recompiled(self):
+        for folder, record, catalog, task, _ in self.cases():
+            if BOUNDARIES[record["rule_id"]][2] is not None:
+                continue
+            payload = (folder / "compliant.txt").read_bytes()
+            judgment = tt.read_json(folder / "verdicts.json")["compliant.txt"]
+            for mode in ("graph", "flat"):
+                for initial_fact in ({"state": "KNOWN", "value": []}, {"state": "ABSENT"}):
+                    initial_task = copy.deepcopy(task)
+                    initial_task["facts"]["action_classes"] = initial_fact
+                    initial = tt.compile_contract(catalog, self.profile, initial_task, mode)
+                    self.assertFalse(initial["selected_rules"])
+                    changed = copy.deepcopy(initial_task)
+                    changed["facts"]["action_classes"] = {"state": "KNOWN", "value": ["exclusive_task"]}
+                    refreshed = tt.compile_contract(catalog, self.profile, changed, mode)
+                    self.assertEqual([record["rule_id"]], [r["rule_id"] for r in refreshed["selected_rules"]])
+                    for ob in record["obligations"]:
+                        phase, destination = ob["due_phase"], ob["destination"]
+                        with self.subTest(record=record["rule_id"], mode=mode,
+                                          initial_state=initial_fact["state"], destination=destination):
+                            self.assertEqual("NOT_EVALUATED", self.check(
+                                initial, phase, payload, initial_task, destination=destination)["admission"])
+                            stale = self.check(initial, phase, payload, changed, destination=destination)
+                            self.assertEqual("BLOCKED", stale["admission"])
+                            self.assertEqual("task facts changed; recompile contract before checking", stale["reason"])
+                            self.assertEqual("BLOCKED", tt.check_contract(
+                                initial, phase, payload, destination=destination)["admission"])
+                            self.assertEqual("BLOCKED", self.check(
+                                refreshed, phase, payload, changed, destination=destination)["admission"])
+                            receipts = self.bind(refreshed, phase, payload, judgment)
+                            self.assertEqual("ADMITTED", self.check(
+                                refreshed, phase, payload, changed, destination=destination, receipts=receipts)["admission"])
+                            # Leaving the exclusive scope also invalidates old receipts.
+                            self.assertEqual("BLOCKED", self.check(
+                                refreshed, phase, payload, initial_task, destination=destination, receipts=receipts)["admission"])
+
     def test_one_shot_governance_instruction_adopts_both_portable_controls(self):
         task = tt.read_json(ROOT / coverage.WORK_TASK)
         task["facts"]["continuity_required"]["value"] = False

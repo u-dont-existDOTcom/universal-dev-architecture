@@ -83,8 +83,8 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
 
     def test_timestamp_check_binds_literal_first_line(self):
         contract = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
-        good = task_time.check_contract(contract, "final-delivery", "2026-09-22 17:55 UTC\nResult")
-        bad = task_time.check_contract(contract, "final-delivery", "Result\n2026-09-22 17:55 UTC")
+        good = task_time.check_contract(contract, "final-delivery", "2026-09-22 17:55 UTC\nResult", current_facts=self.instruction["facts"])
+        bad = task_time.check_contract(contract, "final-delivery", "Result\n2026-09-22 17:55 UTC", current_facts=self.instruction["facts"])
         timestamp = "final-first-line-timestamp"
         self.assertEqual(next(x for x in good["results"] if x["obligation_id"] == timestamp)["status"], "PASS")
         self.assertEqual(next(x for x in bad["results"] if x["obligation_id"] == timestamp)["status"], "FAIL")
@@ -206,7 +206,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
         contract = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
         payload = "2026-09-30 09:42 UTC\nElapsed time: 2 minutes\nDone."
         readings = {"clock_start": "2026-09-30T09:40:00+00:00", "clock_end": "2026-09-30T09:42:00+00:00"}
-        good = task_time.check_contract(contract, "final-delivery", payload, **readings)
+        good = task_time.check_contract(contract, "final-delivery", payload, current_facts=self.instruction["facts"], **readings)
         self.assertEqual(good["admission"], "ADMITTED")
         self.assertEqual(next(x for x in good["results"] if x["obligation_id"] == "final-elapsed-time")["status"], "PASS")
         for changed_payload, changed_readings in (
@@ -217,7 +217,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
             (payload, {"clock_start": "2026-09-30T09:41:00+00:00", "clock_end": "2026-09-30T09:43:00+00:00"}),
             (payload, {**readings, "clock_start": "invalid"}),
         ):
-            checked = task_time.check_contract(contract, "final-delivery", changed_payload, **changed_readings)
+            checked = task_time.check_contract(contract, "final-delivery", changed_payload, current_facts=self.instruction["facts"], **changed_readings)
             self.assertEqual(checked["admission"], "BLOCKED")
 
     def test_mechanical_final_delivery_rejects_wrong_destination(self):
@@ -228,13 +228,15 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
                 contract = task_time.compile_contract(self.catalog, self.profile, self.instruction, mode)
                 for destination in (None, "owner-visible-final"):
                     good = task_time.check_contract(
-                        contract, "final-delivery", payload, destination=destination, **readings,
+                        contract, "final-delivery", payload, destination=destination,
+                        current_facts=self.instruction["facts"], **readings,
                     )
                     self.assertEqual(good["admission"], "ADMITTED")
                     self.assertTrue(good["results"])
                     self.assertTrue(all(result["status"] == "PASS" for result in good["results"]))
                 wrong = task_time.check_contract(
-                    contract, "final-delivery", payload, destination="another-surface", **readings,
+                    contract, "final-delivery", payload, destination="another-surface",
+                    current_facts=self.instruction["facts"], **readings,
                 )
                 self.assertEqual(wrong["admission"], "NOT_EVALUATED")
                 self.assertEqual(wrong["destination"], "another-surface")
@@ -256,7 +258,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
             with self.subTest(end=end, report=report):
                 checked = task_time.check_contract(
                     contract, "final-delivery", f"{first_line}\nElapsed time: {report}",
-                    clock_start=start, clock_end=end,
+                    clock_start=start, clock_end=end, current_facts=self.instruction["facts"],
                 )
                 self.assertEqual(checked["admission"], "ADMITTED")
 
@@ -267,13 +269,15 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             contract_path = Path(directory) / "contract.json"
             payload_path = Path(directory) / "final.txt"
+            task_path = Path(directory) / "task.json"
             contract_path.write_text(json.dumps(contract))
+            task_path.write_text(json.dumps(self.instruction))
             payload_path.write_text("2026-09-30 09:42 UTC\nElapsed time: 2 minutes\nDone.")
             for script in ("uda_rule_graph.py", "uda_rule_graph_task_time.py"):
                 result = subprocess.run([
                     sys.executable, str(ROOT / "scripts" / script), "check",
                     "--contract", str(contract_path), "--phase", "final-delivery",
-                    "--payload", str(payload_path),
+                    "--payload", str(payload_path), "--task", str(task_path),
                     "--clock-start", "2026-09-30T09:40:00+00:00",
                     "--clock-end", "2026-09-30T09:42:00.250+00:00",
                 ], cwd=ROOT, capture_output=True, text=True)

@@ -174,7 +174,8 @@ class SemanticReceiptTests(unittest.TestCase):
         receipt = {**self.receipt, 'contract_sha256': contract['content_sha256'], 'payload_sha256': tt.sha256(payload),
                    'rule_id': 'uda.final.timestamp', 'obligation_id': 'final-first-line-timestamp'}
         result = tt.check_contract(contract, 'final-delivery', payload, receipts=[receipt],
-                                   clock_start='2026-09-30T09:40:00Z', clock_end='2026-09-30T09:42:00Z')
+                                   clock_start='2026-09-30T09:40:00Z', clock_end='2026-09-30T09:42:00Z',
+                                   current_facts=envelope['facts'])
         self.assertEqual(result['admission'], 'BLOCKED')
         self.assertEqual(result['results'][0], {'rule_id': 'uda.final.timestamp', 'obligation_id': 'final-first-line-timestamp',
                                                'status': 'FAIL', 'evidence': 'Done.'})
@@ -184,7 +185,8 @@ class SemanticReceiptTests(unittest.TestCase):
         receipt.update(payload_sha256=tt.sha256(payload), verdict='FAIL')
         for receipts in (None, [receipt]):
             admitted = tt.check_contract(contract, 'final-delivery', payload, receipts=receipts,
-                                         clock_start='2026-09-30T09:40:00Z', clock_end='2026-09-30T09:42:00Z')
+                                         clock_start='2026-09-30T09:40:00Z', clock_end='2026-09-30T09:42:00Z',
+                                         current_facts=envelope['facts'])
             self.assertEqual(admitted['admission'], 'ADMITTED')
             self.assertTrue(all(r['status'] == 'PASS' for r in admitted['results']))
 
