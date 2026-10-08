@@ -338,10 +338,9 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                        if r['rule_id'] == 'uda.continuity.turn-end-handoff')
         handoff['refresh_on_facts'] = [f for f in handoff['refresh_on_facts']
                                      if f != 'owner_outcome_status']
-        controller = next(r for r in baseline_catalog['records']
-                          if r['rule_id'] == 'uda.continuation.controller-resume')
-        controller['refresh_on_facts'] = [f for f in controller['refresh_on_facts']
-                                        if f != 'actor']
+        for record in baseline_catalog['records']:
+            if record['rule_id'].startswith('uda.continuation.') and 'refresh_on_facts' in record:
+                record['refresh_on_facts'] = [f for f in record['refresh_on_facts'] if f != 'actor']
         baseline = tt.compile_contract(baseline_catalog, self.profile,
                                        tt.read_json(ROOT / coverage.WORK_TASK), 'graph')
         projection = tt.read_json(ROOT / coverage.WORK_CONTRACT)
@@ -356,6 +355,8 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                 continue
             with self.subTest(record=rid):
                 expected_facts = ["action_classes"]
+                if rid.startswith("uda.continuation."):
+                    expected_facts.append("actor")
                 if rid in ("uda.compaction.resume-reconciliation", "uda.compaction.completion-closeout"):
                     expected_facts.append("continuity_required")
                 self.assertEqual(expected_facts, r["refresh_on_facts"])
@@ -476,6 +477,43 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                     refreshed, phase, payload, changed, destination=destination, receipts=receipts)["admission"])
                 self.assertEqual("BLOCKED", self.check(
                     refreshed, phase, payload, initial_task, destination=destination, receipts=receipts)["admission"])
+
+    def test_actor_change_blocks_worker_continuation_destinations_until_recompiled(self):
+        for folder, record, catalog, task, _ in self.cases():
+            if (not record["rule_id"].startswith("uda.continuation.")
+                    or record["applies_to"]["actors"] != ["work", "codex", "claude"]):
+                continue
+            payload = (folder / "compliant.txt").read_bytes()
+            judgment = tt.read_json(folder / "verdicts.json")["compliant.txt"]
+            for mode in ("graph", "flat"):
+                for sender in ("chat", "controller"):
+                    initial_task = copy.deepcopy(task)
+                    initial_task["facts"]["actor"]["value"] = sender
+                    initial = tt.compile_contract(catalog, self.profile, initial_task, mode)
+                    self.assertFalse(initial["selected_rules"])
+                    for receiver in ("work", "codex", "claude"):
+                        changed = copy.deepcopy(initial_task)
+                        changed["facts"]["actor"]["value"] = receiver
+                        refreshed = tt.compile_contract(catalog, self.profile, changed, mode)
+                        self.assertEqual([record["rule_id"]], [r["rule_id"] for r in refreshed["selected_rules"]])
+                        for ob in record["obligations"]:
+                            phase, destination = ob["due_phase"], ob["destination"]
+                            with self.subTest(record=record["rule_id"], mode=mode, sender=sender,
+                                              receiver=receiver, destination=destination):
+                                self.assertEqual("NOT_EVALUATED", self.check(
+                                    initial, phase, payload, initial_task, destination=destination)["admission"])
+                                stale = self.check(initial, phase, payload, changed, destination=destination)
+                                self.assertEqual("BLOCKED", stale["admission"])
+                                self.assertEqual("task facts changed; recompile contract before checking", stale["reason"])
+                                self.assertEqual("BLOCKED", tt.check_contract(
+                                    initial, phase, payload, destination=destination)["admission"])
+                                self.assertEqual("BLOCKED", self.check(
+                                    refreshed, phase, payload, changed, destination=destination)["admission"])
+                                receipts = self.bind(refreshed, phase, payload, judgment)
+                                self.assertEqual("ADMITTED", self.check(
+                                    refreshed, phase, payload, changed, destination=destination, receipts=receipts)["admission"])
+                                self.assertEqual("BLOCKED", self.check(
+                                    refreshed, phase, payload, initial_task, destination=destination, receipts=receipts)["admission"])
 
     def test_one_shot_governance_instruction_adopts_both_portable_controls(self):
         task = tt.read_json(ROOT / coverage.WORK_TASK)
