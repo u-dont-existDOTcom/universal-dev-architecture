@@ -219,6 +219,17 @@ class ReviewMergeSliceTests(unittest.TestCase):
         self.assertIn("carried verdict from a different evaluator configuration",
                       obligation["non_substitutes"])
 
+    def test_false_failure_contract_counts_flagged_items_once(self):
+        _, _, _, _, contract = next(case for case in self.cases()
+                                    if case[1]["rule_id"] == "uda.review.false-failure")
+        obligation = contract["selected_rules"][0]["obligations"][0]
+        self.assertIn("distinct eligible reviewed items with at least one adjudicated false flag",
+                      obligation["acceptance_evidence"])
+        self.assertIn("count each item once even if it has multiple false findings",
+                      obligation["acceptance_evidence"])
+        self.assertIn("raw false-finding count as the Bernoulli numerator",
+                      obligation["non_substitutes"])
+
     def test_requirement_slice_summary_matches_enforced_clause_maps(self):
         requirement = tt.read_json(ROOT / coverage.REQUIREMENT)
         summary = next(f["implemented"] for f in requirement["related_findings"]

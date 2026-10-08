@@ -135,7 +135,7 @@ class ConvergentReviewAcceptanceGatesTests(unittest.TestCase):
         for phrase in (
             "earlier cycles' records only for items independently known to be correct",
             "findings adjudicated false",
-            "adjudicated false flags divided by all reviewed known-correct items, including unflagged items",
+            "adjudicated false flag divided by all reviewed known-correct items, including unflagged items",
             "exclude genuine defects and unadjudicated records",
             "When those labels are unavailable, treat p as a guess and say so.",
         ):
@@ -159,6 +159,16 @@ class ConvergentReviewAcceptanceGatesTests(unittest.TestCase):
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, rule)
+
+    def test_false_positive_rate_counts_flagged_items_once(self) -> None:
+        rule = self.pattern.split("4. **", 1)[1].split("\n5. **", 1)[0]
+        self.assertIn(
+            "number of distinct reviewed known-correct items receiving at least one "
+            "adjudicated false flag divided by all reviewed known-correct items, "
+            "including unflagged items", rule,
+        )
+        self.assertIn("count each item once even if it has multiple false findings", rule)
+        self.assertNotIn("Estimate p as adjudicated false flags divided by", rule)
 
     def test_zero_flag_and_all_pass_pilots_retain_uncertainty(self) -> None:
         rule = self.pattern.split("4. **", 1)[1].split("\n5. **", 1)[0]

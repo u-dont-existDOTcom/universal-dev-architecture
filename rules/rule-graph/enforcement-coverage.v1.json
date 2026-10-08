@@ -2762,7 +2762,7 @@
           "obligation_id": "false-failure-at-boundary"
         },
         {
-          "sentence": "Estimate p as adjudicated false flags divided by all reviewed known-correct items, including unflagged items; exclude genuine defects and unadjudicated records.",
+          "sentence": "Estimate p as the number of distinct reviewed known-correct items receiving at least one adjudicated false flag divided by all reviewed known-correct items, including unflagged items; count each item once even if it has multiple false findings, and exclude genuine defects and unadjudicated records.",
           "record": "uda.review.false-failure",
           "obligation_id": "false-failure-at-boundary"
         },

@@ -2665,7 +2665,7 @@
     },
     {
       "rule_id": "uda.review.false-failure",
-      "revision": 4,
+      "revision": 5,
       "status": "CURRENT",
       "source": {
         "path": "patterns/convergent-review-acceptance-gates.md",
@@ -2700,7 +2700,7 @@
           },
           {
             "kind": "exact_text",
-            "text": "Estimate p as adjudicated false flags divided by all reviewed known-correct items, including unflagged items; exclude genuine defects and unadjudicated records."
+            "text": "Estimate p as the number of distinct reviewed known-correct items receiving at least one adjudicated false flag divided by all reviewed known-correct items, including unflagged items; count each item once even if it has multiple false findings, and exclude genuine defects and unadjudicated records."
           },
           {
             "kind": "exact_text",
@@ -2819,14 +2819,15 @@
           "required_behavior": "Bound pilot sampling uncertainty before scale, including every hard floor, and enlarge an inadequate pilot or redesign when conservative rejection would change the decision.",
           "due_phase": "pre-action",
           "destination": "review-scale-gate-design",
-          "acceptance_evidence": "Estimate unit/run acceptance and each aggregate, per-unit and per-stratum floor with its own n, p and allowed misses k. For recall floor r, k = n - ceil(r*n); use P(Binomial(n, p) > k), or measure that floor's known-correct false-failure rate. The zero-miss formula applies only when k = 0. Derive p only from independently known-correct pilot or earlier-cycle items with findings adjudicated false; divide false flags by all eligible reviewed items, including unflagged items. Exclude genuine defects and unadjudicated records, and label p as a guess when these labels are unavailable. State the confidence level and method, pilot counts and predeclared sample size adequate for the tolerable false-failure rate at the intended scale. Use a one-sided upper confidence bound for p in every unit/run and hard-floor calculation, or a one-sided lower confidence bound on each measured floor pass rate. Zero false flags among t independent items imply p_upper = 1 - alpha^(1/t), not zero; all u independent floor passes imply q_lower = alpha^(1/u), not one. If the bounds cannot rule out material rejection, enlarge the pilot or redesign before scale; never admit on a point estimate alone. Independence/constant-rate assumptions are planning limits; prefer measured known-correct pass rates. Redesign via change scope, bounded item degradation and aggregate floors before scale when material. Missed real defects require another reviewer or deterministic check. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "acceptance_evidence": "Estimate unit/run acceptance and each aggregate, per-unit and per-stratum floor with its own n, p and allowed misses k. For recall floor r, k = n - ceil(r*n); use P(Binomial(n, p) > k), or measure that floor's known-correct false-failure rate. The zero-miss formula applies only when k = 0. Derive p only from independently known-correct pilot or earlier-cycle items with findings adjudicated false; divide the number of distinct eligible reviewed items with at least one adjudicated false flag by all eligible reviewed items, including unflagged items; count each item once even if it has multiple false findings. Exclude genuine defects and unadjudicated records, and label p as a guess when these labels are unavailable. State the confidence level and method, pilot counts and predeclared sample size adequate for the tolerable false-failure rate at the intended scale. Use a one-sided upper confidence bound for p in every unit/run and hard-floor calculation, or a one-sided lower confidence bound on each measured floor pass rate. Zero false flags among t independent items imply p_upper = 1 - alpha^(1/t), not zero; all u independent floor passes imply q_lower = alpha^(1/u), not one. If the bounds cannot rule out material rejection, enlarge the pilot or redesign before scale; never admit on a point estimate alone. Independence/constant-rate assumptions are planning limits; prefer measured known-correct pass rates. Redesign via change scope, bounded item degradation and aggregate floors before scale when material. Missed real defects require another reviewer or deterministic check. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
           "non_substitutes": [
             "a false-failure estimate made only after the scale run",
             "a guessed p presented as a measured pilot",
             "raw cycle findings presented as measured false positives",
             "a zero-miss calculation applied to a floor that allows misses",
             "zero observed false flags treated as zero risk",
-            "an empirical pass rate extrapolated without a confidence bound"
+            "an empirical pass rate extrapolated without a confidence bound",
+            "raw false-finding count as the Bernoulli numerator"
           ],
           "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
