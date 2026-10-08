@@ -669,8 +669,10 @@ Nine event-gated records and all nineteen core exclusive-task records declare `r
 
 | Measured production boundary | Before slice 2a | Corrected | Unchanged budget |
 |---|---:|---:|---:|
-| Compiled rendered Work contract, UTF-8 | 27,355 | 31,254 | 32,768 |
+| Compiled rendered Work contract, UTF-8 | 27,355 | 31,296 | 32,768 |
 | Mission Control injected Work block, UTF-8 | 33,139 | 37,194 | 40,960 |
+
+Continuity-scope refresh adds 42 rendered bytes to the reviewed 31,254-byte contract; the injected block remains 37,194 bytes. Both checkpoint rules retain a refresh boundary for `continuity_required` even when initially omitted, so scope expansion requires recompilation at persistence and final delivery. Manifest-backed partial entries require a nonempty obligation map before clause-pin comparison.
 
 The injected block is measured through the unchanged production adapter's ruleGraphPromptBlock/workHandoffRuleGraphProjection using Buffer.byteLength on the joined block. Its allowance is the 49,152-byte prompt cap minus the unchanged 8,192-byte wrapper/directive reserve. The production prompt regression asserts both continuity ids and reserve compliance. Source lock and projection use the documented generation commands.
 

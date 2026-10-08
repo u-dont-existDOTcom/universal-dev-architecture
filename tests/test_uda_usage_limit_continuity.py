@@ -102,6 +102,45 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                 self.assertEqual(tt.check_contract(contract, 'final-delivery', b'No checkpoint.')['admission'],
                                  'BLOCKED')
 
+    def test_expanding_continuity_scope_requires_recompile_at_each_checkpoint_boundary(self):
+        catalog = json.loads((ROOT / 'rules/rule-graph/task-time-metadata.v1.json').read_text())
+        profile = json.loads((ROOT / 'scripts/instruction-layering-profile.json').read_text())
+        for rule_id in ('uda.continuity.step-checkpoint', 'uda.continuity.turn-end-handoff'):
+            single_rule = {**catalog, 'records': [r for r in catalog['records'] if r['rule_id'] == rule_id]}
+            phase = RULES[rule_id][1]
+            case = self.cases(rule_id)[1]
+            payload = (FIXTURE / case['payload']).read_bytes()
+            for mode in ('flat', 'graph'):
+                for initial_fact in ({'state': 'KNOWN', 'value': False}, {'state': 'ABSENT'}):
+                    with self.subTest(rule=rule_id, mode=mode, initial_state=initial_fact['state']):
+                        initial_task = copy.deepcopy(self.task)
+                        initial_task['facts']['continuity_required'] = initial_fact
+                        initial = tt.compile_contract(single_rule, profile, initial_task, mode)
+                        self.assertEqual(initial['selected_rules'], [])
+                        self.assertEqual(tt.check_contract(
+                            initial, phase, payload, destination=DESTINATION,
+                            current_facts=initial_task['facts'])['admission'], 'NOT_EVALUATED')
+                        expanded = copy.deepcopy(initial_task)
+                        expanded['facts']['continuity_required'] = {'state': 'KNOWN', 'value': True}
+                        stale = tt.check_contract(initial, phase, payload, destination=DESTINATION,
+                                                  current_facts=expanded['facts'])
+                        self.assertEqual(stale['admission'], 'BLOCKED')
+                        self.assertEqual(stale['reason'], 'task facts changed; recompile contract before checking')
+                        self.assertEqual(tt.check_contract(
+                            initial, phase, payload, destination=DESTINATION)['admission'], 'BLOCKED')
+                        refreshed = tt.compile_contract(single_rule, profile, expanded, mode)
+                        self.assertEqual([r['rule_id'] for r in refreshed['selected_rules']], [rule_id])
+                        self.assertEqual(tt.check_contract(
+                            refreshed, phase, payload, destination=DESTINATION,
+                            current_facts=expanded['facts'])['admission'], 'BLOCKED')
+                        receipts = bound_receipts(refreshed, phase, payload, case)
+                        self.assertEqual(tt.check_contract(
+                            refreshed, phase, payload, destination=DESTINATION, receipts=receipts,
+                            current_facts=expanded['facts'])['admission'], 'ADMITTED')
+                        self.assertEqual(tt.check_contract(
+                            refreshed, phase, payload, destination=DESTINATION, receipts=receipts,
+                            current_facts=initial_task['facts'])['admission'], 'BLOCKED')
+
     def test_one_shot_exemption_does_not_suppress_visible_usage_warning(self):
         task = self.record_task('uda.continuity.usage-warning')
         task['facts']['continuity_required'] = {

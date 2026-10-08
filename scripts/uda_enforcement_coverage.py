@@ -267,7 +267,9 @@ def validate(root: Path | str) -> list[str]:
                 manifest = requirement.get("source_clause_manifest", {}).get(eid)
                 if not isinstance(manifest, dict):
                     errors.append(prefix + "missing independent source clause manifest")
-                elif isinstance(obligation_map, list):
+                elif not isinstance(obligation_map, list) or not obligation_map:
+                    errors.append(prefix + "manifest-backed disposition needs a nonempty obligation_map")
+                else:
                     clauses = sorted(item["sentence"] for item in obligation_map
                                      if isinstance(item, dict) and isinstance(item.get("sentence"), str))
                     if (manifest.get("clause_count") != len(clauses)

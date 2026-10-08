@@ -1002,7 +1002,10 @@
         "origin": "OWNER_REQUIRED continuity outcome; ASSISTANT_INFERENCE continuous-checkpoint and optional-warning mechanism, supplied supervisor design",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "continuity_required"
+      ]
     },
     {
       "rule_id": "uda.continuity.turn-end-handoff",
@@ -1079,7 +1082,10 @@
         "origin": "OWNER_REQUIRED continuity outcome; ASSISTANT_INFERENCE continuous-checkpoint and optional-warning mechanism, supplied supervisor design",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "continuity_required"
+      ]
     },
     {
       "rule_id": "uda.continuity.usage-warning",

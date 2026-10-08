@@ -319,6 +319,15 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                 with self.subTest(record=rid, required=clause):
                     self.assertIn(clause, evidence)
 
+    def test_requirement_work_measurement_matches_generated_contract(self):
+        requirement = tt.read_json(ROOT / coverage.REQUIREMENT)
+        finding = next(f for f in requirement['related_findings']
+                       if f['finding_id'] == 'slice-2a-continuation-closure')
+        measured = re.search(r'Work (\d+)/(\d+) bytes', finding['implemented'])
+        self.assertIsNotNone(measured)
+        projection = tt.read_json(ROOT / coverage.WORK_CONTRACT)
+        self.assertEqual(len(projection['rendered_contract'].encode('utf-8')), int(measured[1]))
+
     def test_event_fact_changes_block_until_recompiled_even_if_initially_excluded(self):
         for folder, r, catalog, task, _ in self.cases():
             rid = r["rule_id"]
@@ -453,6 +462,22 @@ class ContinuationClosureCoverageMutations(unittest.TestCase):
                 self.mutate(coverage.COVERAGE, lambda d: next(e for e in d["entries"] if e["id"] == source)["obligation_map"].pop())
                 self.regenerate()
                 self.rejected("obligation_map differs from independent source clause manifest")
+
+    def test_manifest_backed_partial_entries_require_nonempty_maps(self):
+        for source, entry, _ in self.targets():
+            if entry['disposition'] != 'STRUCTURED_PARTIAL':
+                continue
+            for value in ('missing', [], None, {}, 'invalid'):
+                self.restore()
+                with self.subTest(source=source, map=value):
+                    def change(data):
+                        target = next(e for e in data['entries'] if e['id'] == source)
+                        if value == 'missing':
+                            target.pop('obligation_map')
+                        else:
+                            target['obligation_map'] = value
+                    self.mutate(coverage.COVERAGE, change)
+                    self.rejected('manifest-backed disposition needs a nonempty obligation_map')
 
     def test_coordinated_record_and_map_deletion_still_fails(self):
         for source, entry, rid in self.targets():
