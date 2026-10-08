@@ -1,0 +1,1 @@
+The workstream first discovers that thread resolution and merge are refused at the merge step; no start checkpoint exists.

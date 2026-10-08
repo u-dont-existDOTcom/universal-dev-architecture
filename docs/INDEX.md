@@ -141,6 +141,10 @@ When a workstream needs anything from the owner, keep it on that workstream's on
 
 Before other fixes in a project, read its lane in `../suggested-fixes/`, and file suggestions for projects you aren't working on there: `../patterns/suggested-fix-queue.md`.
 
+When a pipeline accepts work units on a language-model reviewer's findings, or a repair loop re-reviews after each fix, load `../patterns/convergent-review-acceptance-gates.md`: re-review only changed items, bound the repairs, gate on aggregates with hard floors, and estimate the gate's false-failure rate before running at scale.
+
+When a workstream will merge, release, or deploy through hosted gates, load `../patterns/agent-completable-merge-gates.md` at its start: check that the agent can complete each gate with its actual permissions, and raise one early owner decision for any it cannot.
+
 For shopping research, load `../patterns/shopping-research.md` together with `../patterns/recommendation-preflight-integrity.md`.
 
 Templates live in `../templates/`. Execution plans live in `exec-plans/`.

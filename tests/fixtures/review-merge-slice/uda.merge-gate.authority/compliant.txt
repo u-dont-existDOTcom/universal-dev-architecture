@@ -1,0 +1,1 @@
+Owner-only risk, spending and merge decisions stay with the owner. Declared gates remain active and exact permission or safety refusals stop that action. No owner-only bypass or disguised route is used. The agent proposes replacements; owner decides. Only settings or API evidence establishes a changed hosted control. The pattern adds no gate and grants no authority.

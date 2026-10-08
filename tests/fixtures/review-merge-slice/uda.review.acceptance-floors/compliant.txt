@@ -1,0 +1,1 @@
+Before the gate, reference R with verified provenance and metric floors are frozen. Aggregate recall is 0.96 against 0.95; critical misses are zero against a zero ceiling. Required stratum A also passes its 0.90 floor. No measure trades off a floor. The report prints recall, critical misses, failed units and error counts on separate lines; no unit is concealed.

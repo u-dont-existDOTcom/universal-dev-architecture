@@ -1,0 +1,1 @@
+The owner receives separate unlinked chore lists for each recurring instance, and no hosted readback follows.

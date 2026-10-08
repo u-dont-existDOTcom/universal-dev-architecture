@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Before scale, the representative pilot contains 20 independently known-correct items, all unflagged. Genuine defects and unadjudicated records are excluded. The point estimate p = 0 is not used for admission. The predeclared exact one-sided 95% bound is p_upper = 1 - 0.05^(1/20), about 0.139. For n = 27, use (1 - p_upper)^27; across N independent units use q^N. For an aggregate recall floor r = 0.95 over n = 100, k = 5 and failure is P(Binomial(100, p_upper) > 5). Each per-unit, per-stratum and critical floor uses its own n and k with the upper bound. Ten critical items have failure bound 1 - (1 - p_upper)^10. A direct pilot of five independent known-correct units all passing a floor has q_lower = 0.05^(1/5), not one; scale projections use q_lower. The pilot counts and bounds cannot rule out the predeclared 10% tolerable run false-failure rate. The sample size is inadequate, so the gate is redesigned before scale using change-only reviews, bounded item degradation and aggregate floors. These are planning estimates under independence and constant-rate assumptions; measured floor pass rates with confidence bounds are preferred. A separate missed real defect uses a deterministic check.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The gate ran across many units before anyone considered its false-failure rate.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The pre-scale worksheet labels p as pilot evidence even though it was guessed and no known-correct pilot exists. a guessed p presented as a measured pilot.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "false-failure-at-boundary",
+    "non_substitute": "a guessed p presented as a measured pilot"
+  }
+}

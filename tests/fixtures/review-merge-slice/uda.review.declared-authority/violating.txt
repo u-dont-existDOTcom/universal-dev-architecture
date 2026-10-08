@@ -1,0 +1,1 @@
+The agent replaced a declared blocking zero-finding gate without an authorized decision.

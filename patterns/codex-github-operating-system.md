@@ -277,6 +277,8 @@ Prefer a GitHub ruleset protecting the default branch. Normally require:
 - force pushes and branch deletion blocked;
 - bypass limited to explicit emergency/maintenance actors.
 
+At the start of a workstream, check that the agent can complete each of these gates with its actual permissions, permission- or safety-layer refusals included. When it cannot, raise one owner decision early (replace a clerical gate with a check that verifies substance, keep an approval gate's human approval, or automate either with owner-approved tooling) instead of leaving a recurring owner click: `patterns/agent-completable-merge-gates.md`.
+
 Required status-check job names must be unique across workflows. GitHub documents that duplicate job names can make required-check results ambiguous and block merging. Establish and observe the final check name before adding it to a rule.
 
 For a solo repository, requiring an independent approval can make every PR impossible to merge. Keep the PR and status-check requirement, but require approving reviews only when an actual independent reviewer exists or the risk warrants a deliberate second person. Do not pretend self-review is independent review.

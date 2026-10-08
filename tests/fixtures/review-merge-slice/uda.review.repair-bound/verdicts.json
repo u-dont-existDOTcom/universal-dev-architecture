@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Before cycle one the plan fixes at most three repairs and a stall after two repairs with a flat or rising count. The directive ceiling is two, so the effective maximum is two. Every cycle records findings. Exhaustion ends spend, with unresolved items withheld; diagnosis or an owner decision follows. Exhaustion establishes no defect attribution.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "Five repairs ran with no advance ceiling, no stall rule and no recorded findings.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Two repairs exhausted the fixed ceiling. The report concludes this proves the reviewer wrong and accepts its unresolved items. exhaustion presented as proof that the reviewer is wrong.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "repair-bound-at-boundary",
+    "non_substitute": "exhaustion presented as proof that the reviewer is wrong"
+  }
+}

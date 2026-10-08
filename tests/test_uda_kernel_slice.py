@@ -26,7 +26,7 @@ class KernelSliceTests(unittest.TestCase):
         cls.catalog = tt.read_json(ROOT / coverage.METADATA)
         cls.profile = tt.read_json(ROOT / "scripts/instruction-layering-profile.json")
         cls.inventory = tt.read_json(ROOT / coverage.COVERAGE)
-        cls.record_ids = {rid for e in cls.inventory["entries"] if e.get("obligation_map")
+        cls.record_ids = {rid for e in cls.inventory["entries"] if e["kind"] == "kernel_section" and e.get("obligation_map")
                           for rid in e["task_time_records"]}
 
     def cases(self):

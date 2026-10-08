@@ -93,3 +93,20 @@ python3 scripts/uda_rule_graph.py impact patterns/task-time-lesson-activation.md
 ```
 
 This reports directly sourced rules plus reverse `requires` dependents whose compiled contracts/caches need refresh.
+
+
+## Action fact declarations
+
+`facts.action_classes` is a declared KNOWN list: membership selects the named action, and an omitted value declares that action false. Use ABSENT when the whole action fact is absent. Missing/UNKNOWN facts remain unresolved and block any potentially applicable record; they are not false declarations.
+
+The review/merge migration adds only these values to the existing fact:
+
+| Value | Actual governed action |
+|---|---|
+| review_round | Designing, requesting or running noisy language-model review rounds whose findings govern acceptance. |
+| review_finding_judgment | Judging or accepting those noisy-reviewer findings. |
+| merge_gate | Designing, changing or operating merge gates; deciding whether a pull request may merge; preflighting hosted merge/release/deploy gates. |
+
+Deterministic review/check loops are outside both review action values.
+
+Every example envelope in this directory explicitly declares all three values absent in the action fact's provenance and KNOWN value list. A generic Work handoff is not a review round, finding judgment or merge decision merely because it hands off work. The synthetic fixture envelopes select these actions explicitly; unknown fact scope is tested fail-closed.

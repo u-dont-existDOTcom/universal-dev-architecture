@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "After a recurring-chore failure the page now contains the one gate decision, recommendation and batched unavoidable instances. Each instance remains listed until removed or automated. The actual owner reply has since arrived and its answer is moved to Decided for future instances.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The repeated chore request continues with no decision or recommendation on the page.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The gate proposal is unanswered, but its answer has already been moved to Decided. an unanswered proposal moved to Decided.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "record-owner-reply",
+    "non_substitute": "an unanswered proposal moved to Decided"
+  }
+}

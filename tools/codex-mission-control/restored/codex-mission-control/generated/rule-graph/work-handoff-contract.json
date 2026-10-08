@@ -1,6 +1,6 @@
 {
   "catalog_schema_version": 1,
-  "content_sha256": "8bd3a3da399e976c95d98424a939af644b022e52d801b41bb745eff8dfade9a4",
+  "content_sha256": "e96bc7e1355a6a8b7e2dfd1b331e6ec7c7ed43e6839ef1d5a31ae1aaee3b2f0b",
   "direct_evaluations": {
     "uda.active-contract.boundary-binding": "FALSE",
     "uda.bootstrap.live-root": "TRUE",
@@ -26,8 +26,22 @@
     "uda.kernel.owner-interaction": "TRUE",
     "uda.kernel.target-recovery": "TRUE",
     "uda.kernel.work-permissions": "TRUE",
+    "uda.merge-gate.authority": "FALSE",
+    "uda.merge-gate.capability": "FALSE",
+    "uda.merge-gate.failure-repair": "FALSE",
+    "uda.merge-gate.owner-clicks": "FALSE",
+    "uda.merge-gate.owner-decision": "FALSE",
+    "uda.merge-gate.substance-check": "FALSE",
     "uda.owner-correction.reactivate": "FALSE",
     "uda.reasoning.dominated-alternative": "FALSE",
+    "uda.review.acceptance-floors": "FALSE",
+    "uda.review.change-scope": "FALSE",
+    "uda.review.cycle-escalation": "FALSE",
+    "uda.review.declared-authority": "FALSE",
+    "uda.review.failure-repair": "FALSE",
+    "uda.review.false-failure": "FALSE",
+    "uda.review.item-degradation": "FALSE",
+    "uda.review.repair-bound": "FALSE",
     "uda.scope.explicit-no-change": "FALSE",
     "uda.worker-directive.same-turn-delivery": "FALSE"
   },
@@ -99,9 +113,9 @@
       "source": {
         "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
         "extracted_utf8_bytes": 268,
-        "git_blob_sha1": "f7a4a5ee15e958f5e41ca0cee385fc84a35c9181",
+        "git_blob_sha1": "22b1200af650ddf42d4b2745eab1006c76be0e30",
         "path": "patterns/task-time-lesson-activation.md",
-        "repository_revision": "BLOB:f7a4a5ee15e958f5e41ca0cee385fc84a35c9181"
+        "repository_revision": "BLOB:22b1200af650ddf42d4b2745eab1006c76be0e30"
       },
       "source_text": "An instruction is satisfied only where its required effect must exist. Reading, understanding, planning, simulating, or mentioning it elsewhere does not discharge the obligation. This extends the existing Active Lesson Contract; do not create a second parallel ledger."
     },
@@ -221,9 +235,9 @@
       "source": {
         "extracted_sha256": "c4c005310588dc9c93324725cd4a6093fc3a677f179219ea030efa613bbb6a1a",
         "extracted_utf8_bytes": 224,
-        "git_blob_sha1": "da3c76476991f68d20049344569059f2fe3428b3",
+        "git_blob_sha1": "352c213933dbbe005a82f6c54ed602a83fdca93c",
         "path": "patterns/codex-github-operating-system.md",
-        "repository_revision": "BLOB:da3c76476991f68d20049344569059f2fe3428b3"
+        "repository_revision": "BLOB:352c213933dbbe005a82f6c54ed602a83fdca93c"
       },
       "source_text": "- If the parent outcome is OPEN and a safe, authorized, executable next action exists, perform it in the current turn. A plan, explanation, saved diagnosis, promise, or list of next steps is not a substitute for that action."
     },
@@ -1090,7 +1104,7 @@
       "source_text": "Work selects authorized task-scoped access and the automatic reviewer; do not ask the owner to choose routine permissions.\n\nThis adds no semantic, spending, publication, representation, destructive, or self-approval authority."
     }
   ],
-  "task_envelope_sha256": "763ba8143ef6e9ceeb5faf25d589f29cfebc0115c1f203b3e2090e1662e3623d",
+  "task_envelope_sha256": "15e3330dd6d6479a035bc0378679cfc87674aff3f319075c2520af422baa6fea",
   "task_id": "example:mission-control-work-handoff",
   "uda_activation": {
     "state": "ACTIVE",

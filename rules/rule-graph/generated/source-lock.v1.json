@@ -1,14 +1,14 @@
 {
-  "catalog_sha256": "ac6785d954e5401f133790872ae84c5e927ab98917d378c9773dc523c34f3494",
+  "catalog_sha256": "ccbba4509d49c2a4b44e9223b4234a31b13a86a9db65d65225bd2492180e4af2",
   "compiler_sha256": "e526ae1e706c6ff97d74d00302c55d0a7e49aafc2df41df09f703520f7e9997a",
-  "content_sha256": "a2c635322fc17bd89e334211e90c2143dfdbfe5cb3fb60c00dea9fd601dd916f",
+  "content_sha256": "f6569b962d567b93985532da6cc6a037d3f8ab14e154dfe70fb8527bab3cbfad",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
       "extracted_utf8_bytes": 268,
-      "git_blob_sha1": "f7a4a5ee15e958f5e41ca0cee385fc84a35c9181",
+      "git_blob_sha1": "22b1200af650ddf42d4b2745eab1006c76be0e30",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:f7a4a5ee15e958f5e41ca0cee385fc84a35c9181",
+      "repository_revision": "BLOB:22b1200af650ddf42d4b2745eab1006c76be0e30",
       "rule_id": "uda.active-contract.boundary-binding",
       "selectors": [
         {
@@ -56,9 +56,9 @@
     {
       "extracted_sha256": "c4c005310588dc9c93324725cd4a6093fc3a677f179219ea030efa613bbb6a1a",
       "extracted_utf8_bytes": 224,
-      "git_blob_sha1": "da3c76476991f68d20049344569059f2fe3428b3",
+      "git_blob_sha1": "352c213933dbbe005a82f6c54ed602a83fdca93c",
       "path": "patterns/codex-github-operating-system.md",
-      "repository_revision": "BLOB:da3c76476991f68d20049344569059f2fe3428b3",
+      "repository_revision": "BLOB:352c213933dbbe005a82f6c54ed602a83fdca93c",
       "rule_id": "uda.continuation.open-outcome",
       "selectors": [
         {
@@ -704,11 +704,303 @@
       ]
     },
     {
+      "extracted_sha256": "479ddd4455cd99eec0a4aa8d10f28d14120d0e5e5ae19bf9b0ee80921effb253",
+      "extracted_utf8_bytes": 924,
+      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "path": "patterns/agent-completable-merge-gates.md",
+      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "rule_id": "uda.merge-gate.authority",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "A click that records a choice only the owner can make (accept a risk, approve a spend, merge a change) stays with the owner."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Nothing here lets an agent relax a hosted gate, use an owner-only bypass, merge around a refusal, or disguise a refused action behind another tool or route."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A refusal by the permission or safety layer is a boundary (`patterns/worker-self-remediation-before-owner-interruption.md`, **Fail closed on genuine boundaries**)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The agent proposes the replacement, and the owner decides (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A hosted setting counts as changed only when settings or API evidence shows it (`patterns/codex-github-operating-system.md`)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "It adds no gate and grants no authority. Changing a hosted gate stays the owner's decision."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Keep owner clicks for decisions."
+        },
+        {
+          "kind": "exact_text",
+          "text": "No bypass."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A declared gate stays until the owner changes it."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "38f7714fa98a42c3926e874f9c3d68a539ec6c748970013ec623e2ba0e65c93f",
+      "extracted_utf8_bytes": 1480,
+      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "path": "patterns/agent-completable-merge-gates.md",
+      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "rule_id": "uda.merge-gate.capability",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "For a workstream that will merge, release, or deploy through hosted controls, list each hosted gate on that path (for example required reviews, resolved conversations, required checks, bypass limits, environment approvals, and the merge itself) from current settings evidence, not from repository files (`patterns/codex-github-operating-system.md`)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "For each gate, check that the agent can satisfy it with the permissions it actually has: account or token scopes, the connector's actions, the sandbox, and the permission or safety layer's own refusals, which can block an action the platform allows."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Check the exact action, not a neighboring one, because being able to read threads says nothing about resolving them (`patterns/reasoning-selection.md`, capability edges)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Read the permission rules or documentation that govern the action, query the settings read-only, or use a refusal already on record."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Attempt the action itself only on a destination the workstream already authorizes for such tests, such as a sandbox repository, never by creating a hosted object just to probe."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Record can or cannot for each gate in the task checkpoint."
+        },
+        {
+          "kind": "exact_text",
+          "text": "the first sign that the agent cannot complete a hosted gate comes at the merge step;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Which actions a permission layer refuses depends on the platform, the account and the layer's current configuration."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Check the exact action in the current session; do not rely on this pattern's example."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Check the gates when the workstream starts."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "c96ebd68e86b6b699c249757a29626f1398cc8f20e9c5811a9209530194ee6bc",
+      "extracted_utf8_bytes": 202,
+      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "path": "patterns/agent-completable-merge-gates.md",
+      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "rule_id": "uda.merge-gate.failure-repair",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Repair: stop listing the click; put the decision on the owner questions page with a recommendation; batch the unavoidable clicks as in rule 4;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "and move the answer to **Decided** when the owner replies."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "542b0d53e9ed2d204699f551b4a17fa5c1a3251b72c38c077e67a1ec5169fe34",
+      "extracted_utf8_bytes": 689,
+      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "path": "patterns/agent-completable-merge-gates.md",
+      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "rule_id": "uda.merge-gate.owner-clicks",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Until the gate is removed or automated, it stays in force: list each instance that still needs the owner under **For you to do**, grouped into one step with exact links (rule 4), so the page stays the complete list of his work, and attach the substance check's result to each pull request so his clicks rest on a verified result."
+        },
+        {
+          "kind": "exact_text",
+          "text": "When a click is unavoidable, batch it into one step: exact links to every target in one place (the **For you to do** section of the owner questions page),"
+        },
+        {
+          "kind": "exact_text",
+          "text": "The owner is then not asked twice, and the agent does not take \"done\" on faith."
+        },
+        {
+          "kind": "exact_text",
+          "text": "and a read-back the agent runs afterward to confirm it worked, such as a hosted query that counts the threads still open."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "4df2ccce2ed5d4a2aac2733d308ba0246dea11586d759222a322df972332f96f",
+      "extracted_utf8_bytes": 2374,
+      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "path": "patterns/agent-completable-merge-gates.md",
+      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "rule_id": "uda.merge-gate.owner-decision",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Put one question on the owner questions page (`patterns/owner-questions-page.md`) at the start, not at the first merge."
+        },
+        {
+          "kind": "exact_text",
+          "text": "It is the owner's decision because it changes what the platform enforces."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Name the gate in plain words, say why the agent cannot satisfy it, and give the options with a recommendation."
+        },
+        {
+          "kind": "exact_text",
+          "text": "First sort the gate."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A clerical gate records a step whose substance a check can verify, such as resolved review conversations or an up-to-date branch."
+        },
+        {
+          "kind": "exact_text",
+          "text": "An approval gate exists for independent human authorization, such as a required approving review or an environment approval, and an agent-run check cannot stand in for that separation."
+        },
+        {
+          "kind": "exact_text",
+          "text": "(the recommendation for a clerical gate; never offered for an approval gate)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "It ends the recurring clicks, and it costs the platform's own enforcement unless the check is also made a required status check."
+        },
+        {
+          "kind": "exact_text",
+          "text": "scoped to that one action, with the approval and scope written down."
+        },
+        {
+          "kind": "exact_text",
+          "text": "It keeps the platform gate and removes the clicks, and it costs tooling the owner must approve and maintain."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The agent never grants itself the permission that was refused."
+        },
+        {
+          "kind": "exact_text",
+          "text": "(the recommendation for an approval gate) when the gate exists for a person's authorization or the owner wants a person to confirm each one."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Rule 4 then applies, and the agent can attach the substance check's result so the approval rests on a verified result."
+        },
+        {
+          "kind": "exact_text",
+          "text": "An owner action that returns on every pull request signals a gate the agent cannot complete."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Raise the gate once instead of treating each return as a new request; the one decision in rule 2 covers them all."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Raise it once per workstream and gate."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Reopen it only when the gate, the agent's permissions, or the permission or safety layer changes."
+        },
+        {
+          "kind": "exact_text",
+          "text": "the owner is asked for the same gate action on a second pull request with no decision on the page;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Replacing a gate changes what the platform enforces."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The owner accepts that tradeoff in deciding; the agent states it in the question."
+        },
+        {
+          "kind": "exact_text",
+          "text": "If the agent cannot complete a gate, raise one owner decision early."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Replace the gate with a check the agent can run that verifies substance"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Automate the gate with owner-approved tooling,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Keep the gate and the clicks,"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Do not hand the owner a recurring chore list."
+        },
+        {
+          "kind": "exact_text",
+          "text": "One question per gate."
+        },
+        {
+          "kind": "exact_text",
+          "text": "it adds one start-of-workstream check and at most one owner question per gate. It adds no blocking gate and changes no hosted setting."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "4dc985822ab729d3fbbc087065cc16a3b281f20ba2c6143b0248ddd2829a178c",
+      "extracted_utf8_bytes": 985,
+      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "path": "patterns/agent-completable-merge-gates.md",
+      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "rule_id": "uda.merge-gate.substance-check",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "The check passes when the latest review of the exact head commit reports nothing open, every earlier finding maps to a fix commit or to a written reason it was not changed, and the required status checks pass."
+        },
+        {
+          "kind": "exact_text",
+          "text": "When the gate it replaces is the up-to-date-branch requirement, the check also confirms that the head contains the current base commit, or runs the required checks on the exact merge result, so checks that passed on an older base cannot admit a change that conflicts with newer work."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Bind that result to the base commit it checked, and rerun it whenever the base moves before the merge, or use a merge queue that tests the exact merge."
+        },
+        {
+          "kind": "exact_text",
+          "text": "a thread is marked resolved with no fix and no written reason to point to."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The substance check is only as good as the review behind it."
+        },
+        {
+          "kind": "exact_text",
+          "text": "It does not turn an author's own review into independent review (`patterns/independent-evaluation-separation.md`), and it assumes a reviewer that reports open findings against the exact head commit."
+        }
+      ]
+    },
+    {
       "extracted_sha256": "20246d4cb4a4c9f5f46331555fae123081c44aa8fb779019e93784f7f4a0fd24",
       "extracted_utf8_bytes": 116,
-      "git_blob_sha1": "f7a4a5ee15e958f5e41ca0cee385fc84a35c9181",
+      "git_blob_sha1": "22b1200af650ddf42d4b2745eab1006c76be0e30",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:f7a4a5ee15e958f5e41ca0cee385fc84a35c9181",
+      "repository_revision": "BLOB:22b1200af650ddf42d4b2745eab1006c76be0e30",
       "rule_id": "uda.owner-correction.reactivate",
       "selectors": [
         {
@@ -732,11 +1024,371 @@
       ]
     },
     {
+      "extracted_sha256": "76b4dd7362e3bde038b7673c23f2307b68cd08a8d58fd93422160b7ce0ec39cb",
+      "extracted_utf8_bytes": 965,
+      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "rule_id": "uda.review.acceptance-floors",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Accept a run on aggregate measures with floors stated in advance, not on every unit reaching zero findings."
+        },
+        {
+          "kind": "exact_text",
+          "text": "An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Where units are not interchangeable, because each customer, source or experiment must keep its own required items, add a per-unit or per-stratum minimum to the floors: a pooled measure lets strong units hide one that kept nothing."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Freeze the reference before the gate runs, and never trade a hard floor against another measure."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Report the failed units and the error counts beside the aggregate, each measure on its own line, so a passing aggregate hides neither."
+        },
+        {
+          "kind": "exact_text",
+          "text": "An aggregate can hide a bad unit, which is why rule 3 reports failed units and error counts beside it."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A frozen reference is only as sound as its own provenance."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Gate on aggregates with hard floors."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "a4bcc2d17730492dd2c173345237c52fcad8c6c28182966e6efabb7e677404a0",
+      "extracted_utf8_bytes": 1170,
+      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "rule_id": "uda.review.change-scope",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "After a repair, send the reviewer only the earlier findings and the items the repair changed."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Carry forward every item that passed and did not change."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Give each item a stable ID when it is first produced, and match items to their earlier verdicts mechanically, by ID, exact content and the complete evaluator configuration (reviewer prompt, rubric, model/version, sampling settings and frozen reference; hashes are enough), never by asking the reviewer."
+        },
+        {
+          "kind": "exact_text",
+          "text": "An item whose ID, content or evaluator configuration does not match counts as changed; a configuration change counts every affected item as changed and requires re-review before aggregate acceptance."
+        },
+        {
+          "kind": "exact_text",
+          "text": "a repair cycle re-reviews items that passed and did not change under the same evaluator configuration, or carries a verdict across an evaluator configuration change;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Carrying an item forward assumes its verdict depends only on that item, the frozen reference and the bound evaluator configuration."
+        },
+        {
+          "kind": "exact_text",
+          "text": "When a verdict depends on other items (order, duplicates, consistency across items), declare the dependency and count a change to the other item as a change to this one."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Re-review the change, not the whole unit."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "e9906a5e3786af1c90aa253b4e82b42e3987fedfa61ae72f195cd3af50a1e5b4",
+      "extracted_utf8_bytes": 490,
+      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "rule_id": "uda.review.cycle-escalation",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Record the number of findings after every cycle, with the item IDs."
+        },
+        {
+          "kind": "exact_text",
+          "text": "When the count stays flat or bounces across repairs, stop spending rounds and apply rule 2."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Put the question on the owner questions page (`patterns/owner-questions-page.md`) with the per-cycle counts, what each cycle changed, and the options (for example accept the partial result with its gaps, change the gate, or have a person review the flagged items)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Track findings per cycle and stop early when they do not fall."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "3f616d735d636efbba1f81975f5f8c03edb45f605a657db6f8089107a2349064",
+      "extracted_utf8_bytes": 855,
+      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "rule_id": "uda.review.declared-authority",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "The rules shape a gate that an agent or pipeline designs, or that a project leaves open."
+        },
+        {
+          "kind": "exact_text",
+          "text": "They never lower a gate the owner or the project's authority has declared blocking."
+        },
+        {
+          "kind": "exact_text",
+          "text": "For a declared zero-finding gate, run it as declared, put the false-failure estimate and the proposed aggregate gate on the owner questions page as a proposal, and keep running the declared gate until the owner or the project authority changes it (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The pattern addresses false flags."
+        },
+        {
+          "kind": "exact_text",
+          "text": "It makes no claim about which reviewer or model is better."
+        },
+        {
+          "kind": "exact_text",
+          "text": "It adds no gate to any project and does not lower a gate that the owner or a project has declared."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Declared gates stay hard."
+        },
+        {
+          "kind": "exact_text",
+          "text": "it covers only gates whose checker is a noisy reviewer. It adds no blocking gate and lowers no declared one."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "16294aa2651f0a6d13d25bc3fd7514b127b08a64c42783fc098d1b79f8c31441",
+      "extracted_utf8_bytes": 279,
+      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "rule_id": "uda.review.failure-repair",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; and put the counts on the owner questions page."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "6f4539cbe33e9061b1e4f01c6a05cba9cb91c293228ccfa09ec2d8150267740a",
+      "extracted_utf8_bytes": 3626,
+      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "rule_id": "uda.review.false-failure",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Suppose each item in a correct unit of n items draws a false flag independently with probability p."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The unit then passes a zero-finding gate with probability (1 - p)^n."
+        },
+        {
+          "kind": "exact_text",
+          "text": "With p = 0.05 and n = 27 that is about 25%."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Requiring all N units to pass multiplies the chances: if each unit passes with probability q, all N pass with probability q^N."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Even q = 0.99 gives 0.99^162, about 20%, across 162 units."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Before a gate runs over many units, estimate how often it will fail correct work, using the formulas in the Problem section."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Take p from a pilot on units independently known to be correct (the frozen reference, for example), or from earlier cycles' records only for items independently known to be correct, with any findings adjudicated false."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Estimate p as the number of distinct reviewed known-correct items receiving at least one adjudicated false flag divided by all reviewed known-correct items, including unflagged items; count each item once even if it has multiple false findings, and exclude genuine defects and unadjudicated records."
+        },
+        {
+          "kind": "exact_text",
+          "text": "When those labels are unavailable, treat p as a guess and say so."
+        },
+        {
+          "kind": "exact_text",
+          "text": "State the confidence level and method, and size a representative pilot in advance for the tolerable false-failure rate at the intended scale."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Use a one-sided upper confidence bound p_upper in place of the point estimate p in every unit/run and hard-floor calculation, or a one-sided lower confidence bound on each directly measured floor pass rate."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Under the independent constant-p model, zero false flags among t known-correct items give the exact one-sided bound p_upper = 1 - alpha^(1/t) at confidence 1 - alpha; with t = 20 and alpha = 0.05 this is about 13.9%, not zero."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Likewise, if all u independent known-correct units pass a floor, its exact lower bound is q_lower = alpha^(1/u), not 1."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Report the pilot counts and bounds; if the pilot is too small to rule out material rejection, enlarge it with a predeclared sample size or redesign before scale, rather than admitting the gate on a point estimate."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Apply the estimate to each hard floor too: a zero-critical-misses floor is a zero-findings gate over the m critical items alone, so it fails correct work with probability 1 - (1 - p)^m."
+        },
+        {
+          "kind": "exact_text",
+          "text": "If the conservative bound would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after."
+        },
+        {
+          "kind": "exact_text",
+          "text": "a gate needs zero findings from a model reviewer on every unit and no false-failure estimate was made;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "The formulas assume false flags are independent at one constant rate p."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Real flags cluster, since one misreading can flag several items, and p differs by item type and by reviewer."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Treat the formulas as planning estimates, and prefer a pass rate measured on known-correct units with its confidence bound."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A reviewer that misses real defects needs a different reviewer or a deterministic check."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Estimate the false-failure rate before running at scale."
+        },
+        {
+          "kind": "exact_text",
+          "text": "For a recall floor r over n known-correct reference items, the allowed misses are k = n - ceil(r*n)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Under the same independence and constant-p model, the false-failure probability is P(Binomial(n, p) > k) = sum from j = k + 1 to n of C(n, j) p^j (1 - p)^(n - j), where C(n, j) counts combinations."
+        },
+        {
+          "kind": "exact_text",
+          "text": "With k = 0 this reduces to the zero-miss formula above."
+        },
+        {
+          "kind": "exact_text",
+          "text": "For example, r = 0.95, n = 100 and p = 0.01 allow k = 5 misses and give about 0.0535% false failures, versus about 63.4% for zero allowed misses."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Apply the binomial tail to each aggregate, per-unit and per-stratum floor using its own n, p and allowed misses k, or measure that floor's false-failure rate on independently known-correct work."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "d41588f149d477b287d172983a1d12cc4aaa58942727638334c2e8a3fb3038af",
+      "extracted_utf8_bytes": 660,
+      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "rule_id": "uda.review.item-degradation",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "When the repairs run out, withhold only the items still flagged and mark them for review, keep every other item, and record each omission that is still flagged (a reference item the reviewer says the output lacks) as a gap in the output."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Do not discard the unit, and do not halt the pipeline: one unit's leftover flags never stop units that do not depend on it."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A unit that consumes or checks the withheld items waits until they are reviewed, or runs without them and records the gap; it never treats them as accepted."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Keep the independent units moving while the question waits."
+        },
+        {
+          "kind": "exact_text",
+          "text": "a unit is discarded, or the pipeline halted, because some items stay flagged."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "702fa5d805d8d2efc05946ab787a4d34f5fb2b8ff8dcb57201d505f03143d715",
+      "extracted_utf8_bytes": 769,
+      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "path": "patterns/convergent-review-acceptance-gates.md",
+      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "rule_id": "uda.review.repair-bound",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Fix the number of repair cycles before the first cycle runs."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Declare a stall rule along with the repair bound, for example \"two repairs in a row that leave the count the same or higher\"."
+        },
+        {
+          "kind": "exact_text",
+          "text": "If a controlling directive fixes a repair limit, the stall rule can end repairs sooner and never extends them (`patterns/structured-output-failure-boundary.md`)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Stopping repairs does not show that the unit, the repair method, or the reviewer is wrong."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The next step is diagnosis or an owner decision (`patterns/outcome-advancement-and-strategy-efficacy.md`, section 9.4)."
+        },
+        {
+          "kind": "exact_text",
+          "text": "repairs have no bound fixed in advance, or findings per cycle are not recorded;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Bound the repairs and degrade by item."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A directive's ceiling stays a ceiling."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A bound ends spend and proves nothing else."
+        }
+      ]
+    },
+    {
       "extracted_sha256": "8703d565eb4aa57f15c21a2bd998f5f89ebbfe85c20c95cb5e21f69f3bf37424",
       "extracted_utf8_bytes": 301,
-      "git_blob_sha1": "da3c76476991f68d20049344569059f2fe3428b3",
+      "git_blob_sha1": "352c213933dbbe005a82f6c54ed602a83fdca93c",
       "path": "patterns/codex-github-operating-system.md",
-      "repository_revision": "BLOB:da3c76476991f68d20049344569059f2fe3428b3",
+      "repository_revision": "BLOB:352c213933dbbe005a82f6c54ed602a83fdca93c",
       "rule_id": "uda.scope.explicit-no-change",
       "selectors": [
         {

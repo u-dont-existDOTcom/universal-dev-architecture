@@ -1,0 +1,1 @@
+Pooled recall passes because stratum B is strong, while required stratum A kept nothing and has no floor. a pooled pass that conceals an empty required unit.

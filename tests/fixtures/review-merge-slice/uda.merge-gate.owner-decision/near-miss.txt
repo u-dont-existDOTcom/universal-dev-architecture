@@ -1,0 +1,1 @@
+Human approval gate C is replaced by an agent-run substance check because it is convenient. a substance check offered to replace independent human approval.
