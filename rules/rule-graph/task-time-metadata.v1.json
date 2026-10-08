@@ -5124,7 +5124,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -5214,7 +5215,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -5308,7 +5310,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -5414,7 +5417,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -5528,7 +5532,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -5628,7 +5633,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -5732,7 +5738,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -5803,7 +5810,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -5949,7 +5957,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -6062,7 +6071,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -6148,7 +6158,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -6254,7 +6265,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -6352,7 +6364,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -6472,7 +6485,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -6550,7 +6564,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -6632,7 +6647,8 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor"
       ]
     }
   ]
