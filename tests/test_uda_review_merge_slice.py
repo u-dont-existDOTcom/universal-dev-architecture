@@ -5,6 +5,7 @@ semantic truth, hosted permissions, reviewer independence or live tool actions.
 """
 
 import copy
+import hashlib
 import json
 import shutil
 import tempfile
@@ -242,6 +243,73 @@ class ReviewMergeCoverageMutations(unittest.TestCase):
     def rejected(self, fragment):
         errors = coverage.validate(self.root)
         self.assertTrue(any(fragment in e for e in errors), errors)
+
+    def test_new_unmapped_section_blocks_even_after_regeneration(self):
+        for source, entry, rid in self.targets():
+            with self.subTest(source=source):
+                path = self.root / source
+                path.write_text(path.read_text() +
+                                "\n## Additional obligation\n\n"
+                                "The executor must obtain a second approval before every repair.\n")
+                self.regenerate()
+                self.rejected("section needs mapped clauses or explicit non-operative classification: additional-obligation")
+
+    def test_non_operative_section_requires_explicit_reason_and_content_pin(self):
+        source = SOURCES[0]
+        section = "reference-notes"
+        body = "\n\nHistorical examples explain the origin of this pattern.\n"
+        path = self.root / source
+        path.write_text(path.read_text() + "\n## Reference notes" + body)
+        pin = {"classification": "NON_OPERATIVE",
+               "reason": "These historical examples provide context without adding any behavioral rule.",
+               "source_sha256": hashlib.sha256(body.encode()).hexdigest()}
+        def declare(value):
+            self.mutate(coverage.REQUIREMENT,
+                        lambda d: d["source_clause_manifest"][source]["sections"].update({section: value}))
+        declare(pin)
+        self.regenerate()
+        self.assertEqual([], coverage.validate(self.root))
+        for key, value in (("classification", "MAPPED"), ("reason", ""),
+                           ("reason", "reference only"), ("source_sha256", "0" * 64)):
+            with self.subTest(field=key, value=value):
+                declare({**pin, key: value})
+                self.assertTrue(coverage.validate(self.root))
+        for key in pin:
+            with self.subTest(missing=key):
+                declare({k: v for k, v in pin.items() if k != key})
+                self.rejected("obligation_map differs from independent section clause manifests")
+        declare({"clause_count": 0, "clauses_sha256": coverage.canonical_hash([])})
+        self.rejected("section needs mapped clauses or explicit non-operative classification: " + section)
+
+    def test_existing_non_operative_sections_cannot_be_omitted_or_changed(self):
+        for source, entry, rid in self.targets():
+            manifest = tt.read_json(self.root / coverage.REQUIREMENT)["source_clause_manifest"][source]
+            sections = [s for s, pin in manifest["sections"].items()
+                        if pin.get("classification") == "NON_OPERATIVE"]
+            self.assertTrue(sections)
+            for section in sections:
+                with self.subTest(source=source, section=section):
+                    self.restore()
+                    self.mutate(coverage.REQUIREMENT,
+                                lambda d: d["source_clause_manifest"][source]["sections"].pop(section))
+                    self.rejected("section needs mapped clauses or explicit non-operative classification: " + section)
+                    self.restore()
+                    path = self.root / source
+                    heading = next(h for h in path.read_text().splitlines()
+                                   if h.startswith("## ") and coverage.slug(h[3:]) == section)
+                    path.write_text(path.read_text().replace(
+                        heading + "\n", heading + "\n\nThe executor must obtain a second approval before every repair.\n", 1))
+                    self.regenerate()
+                    self.rejected("obligation_map differs from independent section clause manifests")
+
+    def test_duplicate_section_identity_blocks_even_after_regeneration(self):
+        for source, entry, rid in self.targets():
+            with self.subTest(source=source):
+                path = self.root / source
+                path.write_text(path.read_text() +
+                                "\n## Rules!\n\nThe executor must obtain a second approval before every repair.\n")
+                self.regenerate()
+                self.rejected("duplicate structured section: rules")
 
     def test_removing_record_blocks_both_patterns(self):
         for source, entry, rid in self.targets():

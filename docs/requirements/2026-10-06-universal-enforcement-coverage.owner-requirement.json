@@ -80,6 +80,11 @@
           "clause_count": 5,
           "clauses_sha256": "168907e422f3d49562b82e52f9d4ce33f3896800ada8cb0f474a3be09681ffeb"
         },
+        "relationship-to-other-patterns": {
+          "classification": "NON_OPERATIVE",
+          "reason": "Cross-pattern references summarize the mapped review rules and identify their existing normative owners; they add no independent obligation.",
+          "source_sha256": "756809a5303a7d4b29d22d7049374f146f62c41e8dc7bdf8625bdb7461c3119d"
+        },
         "requirement-accretion-declaration": {
           "clause_count": 1,
           "clauses_sha256": "2b1979a568bf0415afa9c01d79679ab63f8dea074ad3297c10240a5f1665f248"
@@ -98,6 +103,11 @@
           "clause_count": 1,
           "clauses_sha256": "2b196683168c52671ec211051d15409c471edef216bafebdffcd09a942dbba5a"
         },
+        "problem": {
+          "classification": "NON_OPERATIVE",
+          "reason": "Historical incident description explains the merge-gate motivation without prescribing independent behavior; operative duties are mapped in Rules and Bounds.",
+          "source_sha256": "8a1726ab75653ae8c7443706407e1982c06ecf0e5f6663faa1a5f16a5b574e19"
+        },
         "rules": {
           "clause_count": 36,
           "clauses_sha256": "98e2b44582bb49d3a6e98db847be0370e8910f5ece763822b96914a7ee6bedcd"
@@ -109,6 +119,11 @@
         "failure-condition-and-repair": {
           "clause_count": 5,
           "clauses_sha256": "3a431c2d184330cd504b47cff803b73cc05d21b9fa0ab3044cc05a2c008dd009"
+        },
+        "relationship-to-other-patterns": {
+          "classification": "NON_OPERATIVE",
+          "reason": "Cross-pattern references describe existing hosted-gate rule ownership and routing without adding an independent obligation beyond the mapped sections.",
+          "source_sha256": "e057abb2b2c767990eb1b59ce3ca65119fdc2e4cbaa7222913092434e3106d89"
         },
         "requirement-accretion-declaration": {
           "clause_count": 1,

@@ -272,16 +272,30 @@ def validate(root: Path | str) -> list[str]:
                         errors.append(prefix + "obligation_map differs from independent source clause manifest")
                     if entry.get("kind") == "pattern" and source:
                         # Whole-pattern pins protect the identity; section pins
-                        # preserve each operative section independently, using
-                        # the same sorted exact-clause method as kernel slice 1.
+                        # classify every section independently. Non-operative
+                        # declarations pin the body so edits require review.
                         section_pins = {}
+                        section_manifest = manifest.get("sections")
                         headings = list(re.finditer(r"^## (.+)$", source["source"], re.M))
                         for i, heading in enumerate(headings):
+                            section = slug(heading[1])
+                            if section in section_pins:
+                                errors.append(prefix + "duplicate structured section: " + section)
                             body = source["source"][heading.end():headings[i + 1].start() if i + 1 < len(headings) else len(source["source"])]
                             owned = sorted(c for c in clauses if body.count(c) == 1)
                             if owned:
-                                section_pins[slug(heading[1])] = {
+                                section_pins[section] = {
                                     "clause_count": len(owned), "clauses_sha256": canonical_hash(owned)}
+                            else:
+                                declared = section_manifest.get(section) if isinstance(section_manifest, dict) else None
+                                reason = declared.get("reason") if isinstance(declared, dict) else None
+                                if (not isinstance(declared, dict)
+                                        or declared.get("classification") != "NON_OPERATIVE"
+                                        or not specific_reason(reason)):
+                                    errors.append(prefix + "section needs mapped clauses or explicit non-operative classification: " + section)
+                                section_pins[section] = {
+                                    "classification": "NON_OPERATIVE", "reason": reason,
+                                    "source_sha256": hashlib.sha256(body.encode()).hexdigest()}
                         if manifest.get("sections") != section_pins:
                             errors.append(prefix + "obligation_map differs from independent section clause manifests")
             mapped_obligations = set()
