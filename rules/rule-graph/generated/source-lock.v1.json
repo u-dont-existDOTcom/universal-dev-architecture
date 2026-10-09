@@ -1,7 +1,7 @@
 {
   "catalog_sha256": "ffc2cbbfb82026e33bc439970683dcc7a69c5772c037faaeea392f0d9c20b97e",
   "compiler_sha256": "7ea7e14d49c8e2d10a5c015119a71b4457392fb6090a30f4cb38c9777be10509",
-  "content_sha256": "48b8dbc9c3e478cd1c7dec48442cdaf14c31bcbb365dc8a4f134077c23b75c3d",
+  "content_sha256": "5f3c46561dc709d93aceef5615b4b119d28d501b5bab12c589e3341ecc4f731e",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
@@ -1632,9 +1632,9 @@
     {
       "extracted_sha256": "b5e06a1f9807cc621e98a87e95fc177ed7df7cef7db842efbdc2195a2f815dc2",
       "extracted_utf8_bytes": 367,
-      "git_blob_sha1": "381ab63be69a20dcbe882dabd640e36d82df71da",
+      "git_blob_sha1": "71b51fb2b5aceb74d4572f2576a4a4a207537e5e",
       "path": "patterns/reasoning-selection.md",
-      "repository_revision": "BLOB:381ab63be69a20dcbe882dabd640e36d82df71da",
+      "repository_revision": "BLOB:71b51fb2b5aceb74d4572f2576a4a4a207537e5e",
       "rule_id": "uda.reasoning.dominated-alternative",
       "selectors": [
         {
