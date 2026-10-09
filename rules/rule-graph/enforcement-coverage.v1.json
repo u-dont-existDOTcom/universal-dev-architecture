@@ -5216,7 +5216,7 @@
       "behavioral": true,
       "activation_route": {
         "kind": "INDEX_TRIGGER",
-        "detail": "When selecting a reasoning method or evaluating a claim"
+        "detail": "When selecting a reasoning method, evaluating a claim, or building or extending a check that decides something about text"
       },
       "actors": [
         "reasoning/writing agent",
