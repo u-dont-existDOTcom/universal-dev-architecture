@@ -11,13 +11,14 @@ Requirements: Node.js 22.5+ and npm.
 ```bash
 npm install
 export MISSION_CONTROL_OWNER_TOKEN='<32+ random characters>'
-export MISSION_CONTROL_SESSION_SECRET='<different 32+ random characters>'
+export MISSION_CONTROL_SESSION_SECRET='<different random secret>'
 npm run dev
 ```
 
-Generate the session secret once, save it securely outside the repository, and
-export that same value on every launch, including from a new terminal. If it is
-unset, `npm run dev` generates a temporary secret and restarting signs browsers out.
+Generate the session secret once with at least 32 random characters, save it
+securely outside the repository, and export that same value on every launch,
+including from a new terminal. If it is unset, `npm run dev` generates a temporary
+secret and restarting signs browsers out.
 
 `npm run dev` starts:
 

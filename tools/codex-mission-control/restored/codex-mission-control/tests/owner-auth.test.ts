@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test, { type TestContext } from "node:test";
 import { POST as login } from "../app/api/auth/login/route";
@@ -50,6 +50,23 @@ test("documented local startup exports the session secret before starting the st
   assert.ok(secretExport, "Local startup must supply a reusable session-signing secret.");
   const startup = setup[1].indexOf("npm run dev");
   assert.ok(startup >= 0 && setup[1].indexOf(secretExport[0]) < startup);
+});
+
+test("documented session-secret placeholder cannot create or authenticate owner sessions", (t) => {
+  configureOwner(t);
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const setup = readme.match(/## Run locally[\s\S]*?```bash\n([\s\S]*?)```/);
+  assert.ok(setup);
+  const secretExport = setup[1].match(/^export MISSION_CONTROL_SESSION_SECRET=['"]([^'"]+)['"]$/m);
+  assert.ok(secretExport);
+  process.env.MISSION_CONTROL_SESSION_SECRET = secretExport[1];
+  assert.throws(() => createOwnerSession(), /must contain at least 32 characters/);
+
+  const body = Buffer.from(JSON.stringify({
+    type: "owner_session", sub: "owner:test", issued_at: issuedAt, expires_at: issuedAt + yearMilliseconds,
+  })).toString("base64url");
+  const signature = createHmac("sha256", secretExport[1]).update(body).digest("base64url");
+  assert.equal(verifyOwnerSessionToken(`${body}.${signature}`), null);
 });
 
 test("new owner sessions and default cookie options last exactly 365 days", (t) => {
