@@ -88,5 +88,12 @@
     "patterns/worker-github-publication-and-recovery.md",
     "patterns/worker-self-remediation-before-owner-interruption.md"
   ],
-  "owner_authorized_additions": []
+  "owner_authorized_additions": [
+    {
+      "id": "patterns/stand-in-pipeline-design-admission.md",
+      "owner_quote": "make sure you send the lessons to UDA because UDA should have blocked this stupid design from the beginning",
+      "date": "2026-10-09",
+      "source": "Owner message to the InnerSignal journal-import Claude session, 2026-10-09 22:32 UTC; the lesson is filed as index-routed backlog for the maintainer to wire structured enforcement."
+    }
+  ]
 }
