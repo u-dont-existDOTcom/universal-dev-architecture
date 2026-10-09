@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import test, { type TestContext } from "node:test";
 import { POST as login } from "../app/api/auth/login/route";
 import {
@@ -40,6 +41,16 @@ function loginRequest(token: string) {
     body: JSON.stringify({ token }),
   });
 }
+
+test("documented local startup exports the session secret before starting the stack", () => {
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const setup = readme.match(/## Run locally[\s\S]*?```bash\n([\s\S]*?)```/);
+  assert.ok(setup, "The local setup must include a shell example.");
+  const secretExport = setup[1].match(/^export MISSION_CONTROL_SESSION_SECRET=['"][^'"]+['"]$/m);
+  assert.ok(secretExport, "Local startup must supply a reusable session-signing secret.");
+  const startup = setup[1].indexOf("npm run dev");
+  assert.ok(startup >= 0 && setup[1].indexOf(secretExport[0]) < startup);
+});
 
 test("new owner sessions and default cookie options last exactly 365 days", (t) => {
   configureOwner(t);
