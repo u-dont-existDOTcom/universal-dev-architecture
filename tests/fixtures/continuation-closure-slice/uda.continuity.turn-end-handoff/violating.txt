@@ -1,0 +1,1 @@
+The earlier checkpoint still describes yesterday. The current next action and private state were not saved.

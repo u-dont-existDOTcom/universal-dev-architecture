@@ -1,0 +1,1 @@
+The worker resumed the stale checkpoint without inspecting current artifacts or reloading its gates.

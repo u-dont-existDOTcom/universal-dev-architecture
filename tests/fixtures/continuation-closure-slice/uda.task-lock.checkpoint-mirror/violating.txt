@@ -1,0 +1,1 @@
+An old checkpoint next action is still controlling above the active lock.

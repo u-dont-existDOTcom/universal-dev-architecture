@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "After interruption the worker inspected the repository and dirty tree, bootstrap/index/checkpoint, relevant commits and artifacts. It repaired stale checkpoint fields, established survived/remaining work, reloaded current task gates and their enforcement points, then resumed the latest verified boundary without repeats. Exact artifacts and newer owner authority outrank summaries.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The worker resumed the stale checkpoint without inspecting current artifacts or reloading its gates.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Accurate repository reconciliation cannot substitute for current task-gate reactivation.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "resume-reconciliation-at-boundary",
+    "non_substitute": "a summary naming a rule instead of reactivation"
+  }
+}

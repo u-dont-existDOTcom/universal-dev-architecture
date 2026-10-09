@@ -1,0 +1,1 @@
+The worker reports that it consulted finalization immediately before the answer and saw permission to close. It retained no command output, exit status, decision or state hash.

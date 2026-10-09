@@ -1,0 +1,1 @@
+The task lock authorizes continuation, so the worker publishes the private dataset despite its privacy restriction.

@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The consequential multistep task uses an exclusive source-controlled branch-bound machine lock, identity preflight, actual-artifact acceptance command and distinct incomplete, blocked, ready and complete states. Task recovery comes from durable repository state.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "A long conversation replaces the lock and green tests are treated as artifact acceptance.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The consequential multistep task uses an exclusive source-controlled branch-bound machine lock, identity preflight, actual-artifact acceptance command and distinct incomplete, blocked, ready and complete states. Task recovery comes from durable repository state. The claimed evidence instead relies on a long prompt used as the task lock.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "exclusive-controls-at-boundary",
+    "non_substitute": "a long prompt used as the task lock"
+  }
+}

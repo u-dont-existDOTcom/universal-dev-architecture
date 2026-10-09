@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { buildDirectWorkPrompt } from "../lib/chatgpt-work-cloud-autodispatch";
-import { ruleGraphPromptBlock, workHandoffRuleGraphProjection, WORK_PROMPT_MAX_BYTES } from "../lib/rule-graph-contract";
+import { ruleGraphPromptBlock, workHandoffRuleGraphProjection, WORK_PROMPT_MAX_BYTES, WORK_DIRECTIVE_RESERVE_BYTES } from "../lib/rule-graph-contract";
 
 test("shadow mode validates the compiled Work contract without changing the prompt", () => {
   const projection = workHandoffRuleGraphProjection({ MISSION_CONTROL_RULE_GRAPH_MODE: "shadow" });
@@ -43,6 +43,10 @@ test("graph mode injects the receiver contract within the complete prompt budget
     assert.doesNotMatch(prompt, /uda\.worker-directive\.same-turn-delivery/);
     assert.match(prompt, /uda\.kernel\.work-permissions/);
     assert.match(prompt, /automatic-task-access-review/);
+    assert.match(prompt, /uda\.continuity\.step-checkpoint/);
+    assert.match(prompt, /uda\.continuity\.turn-end-handoff/);
+    const block = ruleGraphPromptBlock(workHandoffRuleGraphProjection({ MISSION_CONTROL_RULE_GRAPH_MODE: "graph" })).join("\n");
+    assert.ok(Buffer.byteLength(block, "utf8") <= WORK_PROMPT_MAX_BYTES - WORK_DIRECTIVE_RESERVE_BYTES);
     assert.ok(Buffer.byteLength(prompt, "utf8") <= WORK_PROMPT_MAX_BYTES);
     const begin = prompt.indexOf("ACTIVE_LESSON_CONTRACT_GRAPH_V1_BEGIN");
     const directive = prompt.indexOf("EXACT_BOUNDED_DIRECTIVE_BEGIN");

@@ -1,0 +1,1 @@
+The checkpoint identifies the next missing ordinal. On reopening, the worker reruns the previous verified ordinal to rebuild its chat context.

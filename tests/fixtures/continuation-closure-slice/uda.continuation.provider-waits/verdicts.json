@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Actual admitted wait output records the changing provider condition and horizon, configured bounded polling and resume mechanism, and independent safe work already advanced. Durable controller evidence establishes whether all remaining authorized work is blocked. A cooldown is not an owner decision; later polling and automatic resume remain lifetime evidence outside this receipt.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The provider is cooling down. Independent local work is runnable, yet the worker asks the owner whether to wait.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "A correctly bounded provider wait cannot stall the independent artifact check.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "provider-waits-at-boundary",
+    "non_substitute": "waiting while independent safe work remains"
+  }
+}

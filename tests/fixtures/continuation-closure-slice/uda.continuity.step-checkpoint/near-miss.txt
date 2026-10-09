@@ -1,0 +1,1 @@
+The worker pushed code and wrote done, next and the exact command. The checkpoint dropped an owner-imposed blocking gate, so a fresh account would execute that command without it.

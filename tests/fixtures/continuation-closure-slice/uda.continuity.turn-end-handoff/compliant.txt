@@ -1,0 +1,1 @@
+This turn is saved with done, next, exact next action and the one-line resume command. Private supervisor state is in a durable store reachable by the successor. The account-bound scheduled check-in must be recreated; there are no other account items.

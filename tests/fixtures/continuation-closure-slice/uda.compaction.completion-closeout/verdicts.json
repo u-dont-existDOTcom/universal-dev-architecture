@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The project implementation, test and research gates passed. Current durable final state records completed work, remaining follow-up and exact evidence/commits. Transferable lessons received their normal closeout disposition separately from the checkpoint.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The tests passed and the task was closed without current durable final state.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "A complete recovery file does not establish the separate transferable lesson closeout.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "completion-closeout-at-boundary",
+    "non_substitute": "a current-state file substituted for lesson promotion"
+  }
+}

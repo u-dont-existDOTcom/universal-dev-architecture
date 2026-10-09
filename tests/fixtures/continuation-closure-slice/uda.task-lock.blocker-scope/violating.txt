@@ -1,0 +1,1 @@
+A security-policy blocker is labeled operationally independent and discarded without a resolver finding.

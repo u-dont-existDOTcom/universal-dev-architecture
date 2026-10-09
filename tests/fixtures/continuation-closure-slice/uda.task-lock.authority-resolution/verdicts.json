@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The independently captured latest owner source is checked before the exact checkpoint path/ref/commit/blob/content hash, task, branch and owner epoch/hash. Actual resolver output contains CURRENT_OWNER_STOP for the newest stop and TASK_LOCAL_CHECKPOINT_CONTENT_SHA256_MISMATCH for the substituted checkpoint; it denies continuation. Task-local prose and global labels do not override either finding.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The latest independent source says stop. An older checkpoint is used to authorize another mutation.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Matching labels cannot override the actual resolver content-hash mismatch finding.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "authority-resolution-at-boundary",
+    "non_substitute": "matching task prose substituted for exact checkpoint identity"
+  }
+}

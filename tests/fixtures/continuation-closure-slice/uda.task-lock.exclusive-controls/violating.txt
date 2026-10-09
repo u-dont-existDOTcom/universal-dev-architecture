@@ -1,0 +1,1 @@
+A long conversation replaces the lock and green tests are treated as artifact acceptance.

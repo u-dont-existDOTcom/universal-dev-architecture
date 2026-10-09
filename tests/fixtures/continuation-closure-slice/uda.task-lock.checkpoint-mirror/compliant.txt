@@ -1,0 +1,1 @@
+The checkpoint prominently names task, exact branch and applicable review reference, first preflight and acceptance commands, partial progress, remaining acceptance, suspended sources and tests as prerequisites. Historical compliance state remains subordinate with its next action suspended. Newer authorized policy change supersedes obsolete prohibitions.

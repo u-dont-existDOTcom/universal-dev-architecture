@@ -1,0 +1,1 @@
+The input-separation harness reports a leaked framework hint, but all campaign result files exist and the worker waives the leak.

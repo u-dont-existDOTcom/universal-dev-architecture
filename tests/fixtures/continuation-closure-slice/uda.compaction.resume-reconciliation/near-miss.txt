@@ -1,0 +1,1 @@
+The repository and dirty tree are reconciled and the next command is correct. The summary names a binding gate, but the current rule and enforcement point were never reloaded.

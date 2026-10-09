@@ -1,10 +1,10 @@
-# UDA enforcement coverage — first integration, continuity and migration slices 1–2
+# UDA enforcement coverage — first integration, continuity and migration slices 1–2a
 
 Rules can be readable and easy to find without ever changing an answer or blocking an action. This inventory makes that gap visible. It checks declared coverage, not the semantic truth of an agent's judgment or live enforcement across every consumer. The owner outcome remains OPEN.
 
 ## Dispositions
 
-- **STRUCTURED_ENFORCED:** all behavioral obligations in this source have exact task-time records and an evaluable admission path. Large files with a narrow slice do not qualify. Slices 1–2 have six kernel sections and two complete behavioral patterns in this state; other large pattern sources still have unstructured remainders. An obligation-level bootstrap exception is carried outside activated UDA, not represented as an admitted obligation.
+- **STRUCTURED_ENFORCED:** all behavioral obligations in this source have exact task-time records and an evaluable admission path. Large files with a narrow slice do not qualify. After supervisor correction of slice 2a, six kernel sections and three complete behavioral patterns are in this state; other large pattern sources still have unstructured remainders. An obligation-level bootstrap exception is carried outside activated UDA, not represented as an admitted obligation.
 - **STRUCTURED_PARTIAL:** some obligations have exact records; the entry names the remaining operative obligations in `legacy_remainder`. It stays in the migration backlog. Semantic records now accept exact-candidate receipts and fail closed with UNKNOWN when no matching, well-formed receipt supplies a judgment.
 - **WORKFLOW_ONLY:** the source is a specialist authoritative workflow or reference, with a source-specific explanation. This is an explicit exception, not a claim of semantic task-time enforcement. Some specialist workflows do contain behavior; that fact stays visible.
 - **LEGACY_UNSTRUCTURED:** a behavioral rule still relies on prose/index application. Its exact identity and migration priority are reported. Routing does not count as enforcement.
@@ -26,7 +26,7 @@ The kernel profile uses the required `repository_kind: uda-kernel` classificatio
 
 1. Read the full source and its applicable authority. A new pattern file or root level-two section immediately joins the computed universe.
 2. Add exactly one entry in `rules/rule-graph/enforcement-coverage.v1.json`, with canonical id, behavioral classification, actors, phases, destinations, evidence and a real activation route.
-3. For structured coverage, list every exact `task_time_records` id. Each record must exist, match this source (and root section), and be claimed once. Supply both ADMISSION and BEHAVIORAL_REGRESSION evidence for a fully structured section. Enumerate every operative sentence or clause in its obligation_map and capture its independent source_clause_manifest in the owner requirement record; use partial coverage with an exact legacy_remainder when obligations remain. A fully enforced pattern also requires `pre_section_sha256` for the complete source before its first level-two heading (the entire source if there is no such heading). Every level-two section in a fully enforced pattern must have a manifest entry: mapped clause pins plus `source_sha256` of the complete section body, or `classification: NON_OPERATIVE` with a specific `reason` and `source_sha256` of the exact section body (after the heading, before the next level-two heading). Non-operative declarations require human review; the validator verifies their shape and content binding, not their semantic truth.
+3. For structured coverage, list every exact `task_time_records` id. Each record must exist, match this source (and root section), and be claimed once. Supply both ADMISSION and BEHAVIORAL_REGRESSION evidence for a fully structured section. Enumerate every operative sentence or clause in its obligation_map and capture its independent source_clause_manifest in the owner requirement record; use partial coverage with an exact legacy_remainder when obligations remain. Pin every manifest-backed identity separately in that record's `manifest_backed_ids`, including STRUCTURED_PARTIAL entries. The existing promoted-entry ratchet rejects loss of its manifest, obligation_map or manifest-backed status; an exact `owner_authorized_additions` record is required to release that protection into backlog. An authorized partial coverage correction alone retains the manifest and map. A fully enforced pattern also requires `pre_section_sha256` for the complete source before its first level-two heading (the entire source if there is no such heading). Every level-two section in a fully enforced pattern must have a manifest entry: mapped clause pins plus `source_sha256` of the complete section body, or `classification: NON_OPERATIVE` with a specific `reason` and `source_sha256` of the exact section body (after the heading, before the next level-two heading). Non-operative declarations require human review; the validator verifies their shape and content binding, not their semantic truth.
 4. For a specialist workflow exception, explain the actual domain and authoritative workflow. For retirement, name the reason and successor. Neither disposition hides a live missing route.
 5. New backlog is forbidden. The baseline identity pin stays unchanged; current backlog shrinks only through STRUCTURED_ENFORCED identities reported in removed_since_baseline. Additions require `owner_authorized_additions` with exact id, owner quote, ISO date and source. The baseline pins identities, not just a total, and must match the initial count and canonical identity-list SHA-256 preserved in the owner requirement record. Editing that pin alone cannot authorize growth; owner quotes and coordinated policy rewrites still require human authority review.
 6. Update docs counts/backlog and run `python3 scripts/uda_enforcement_coverage.py validate` and `python3 scripts/uda_enforcement_coverage.py report`. The deterministic repository audit runs validation at error level. If task-time metadata or bound source changes, regenerate the lock with `python3 scripts/uda_rule_graph.py validate --write-lock rules/rule-graph/generated/source-lock.v1.json` and regenerate the representative Mission Control projection with `python3 scripts/uda_rule_graph.py compile --task examples/rule-graph/work-handoff.json --mode graph --output tools/codex-mission-control/restored/codex-mission-control/generated/rule-graph/work-handoff-contract.json`. These are derived artifacts, not Mission Control runtime changes.
@@ -43,23 +43,25 @@ Inventory entries: 98
 
 Indexed patterns: 84
 
-Migration backlog: 78
+Migration backlog: 77
 
-Task-time records: 42, sourced from 10 files, with 2 mechanical and 49 semantic obligations (23 kernel behaviors, 9 earlier pattern obligations, 3 usage-limit continuity obligations and 16 review/merge-gate behaviors).
+Task-time records: 70, sourced from 12 files, with 2 mechanical and 78 semantic obligations. Corrected slice 2a adds 28 records and extends three continuity records; its 31 records carry 32 semantic behaviors and 281 mapped clause rows.
 
 | Disposition | Count |
 |---|---:|
-| STRUCTURED_ENFORCED | 8 |
-| STRUCTURED_PARTIAL | 7 |
+| STRUCTURED_ENFORCED | 9 |
+| STRUCTURED_PARTIAL | 8 |
 | WORKFLOW_ONLY | 10 |
-| LEGACY_UNSTRUCTURED | 71 |
+| LEGACY_UNSTRUCTURED | 69 |
 | NOT_ACTIVE | 2 |
 
-Six root sections and both new review/merge-gate patterns are STRUCTURED_ENFORCED after slices 1–2. The seven partial pattern sources are task-time lesson activation, owner-goal follow-up, Chat/Work execution routing, the repository operating system, worker-directive/output delivery, reasoning selection and context-compaction resilience. Reasoning selection structures the dominated-route obligation; context-compaction resilience structures only §3 Usage limits and account switches. Their exact unstructured remainders stay in backlog; the parent owner outcome remains OPEN.
+Six root sections, the two review/merge patterns and exclusive active-task locks are STRUCTURED_ENFORCED. Context-compaction resilience and terminal admission are STRUCTURED_PARTIAL with exact operative remainders, alongside the six earlier partial sources. The parent owner outcome remains OPEN for owner-outcome/operating-system slice 2b and later priorities.
 
-The immutable baseline pins 84 identities. Current backlog is 78: six fully structured baseline sections removed, no additions. The two new pattern identities were never baseline members; structuring them prevents growth and does not count as baseline shrinkage. P1 falls from 22 to 16; P2 remains 47 and P3 remains 15. The report's removed_since_baseline lists only those six sections. The original pass-1/pass-2 counts remain historical requirement findings.
+The immutable baseline pins 84 identities. Corrected backlog falls from 78 before slice 2a to 77: only the task-lock pattern is a complete promotion. Seven baseline identities are removed, with zero additions. P1 is 15, P2 is 47 and P3 is 15. The two review/merge identities never belonged to the baseline. The owner explicitly required correcting overstated dispositions; the requirement records that authority and pins partial clause maps without authorizing new baseline identities.
 
 ## Kernel slice 1 obligation map
+
+When a check receives the current task envelope (`check --task task.json` in either CLI or `check_contract(current_task=...)`), it verifies the task ID and the full envelope against the contract's `task_envelope_sha256` before refresh-boundary or receipt evaluation, at every phase and destination. The hash uses the compiler's canonical JSON: sorted object keys, compact separators and unescaped Unicode, encoded as UTF-8. Different task IDs retain their specific diagnostic; any other envelope change, including `owner_correction`, the literal `request` or fact provenance, blocks until recompilation and new contract-bound receipts, even if rule selection and refresh facts stay unchanged. Equivalent JSON formatting, key order and Unicode escapes preserve admission. Checks without a current envelope retain their existing facts-only refresh and receipt behavior.
 
 Each row below matches the inventory's obligation_map exactly. One obligation covers each coherent behavior at its boundary. The 103 unchanged clause rows map to 23 structured behaviors and one unchanged exception; 102 clauses are structured. Detail remains in exact selectors, acceptance evidence and non-substitutes rather than requiring a receipt for each sentence. These are declared source coverage and receipt-admission regressions, not proof of universal runtime invocation or semantic truth.
 
@@ -69,7 +71,7 @@ Payload/action-dependent obligations remain selected with not_applicable_allowed
 
 The final-first-line-timestamp and final-elapsed-time obligations retain the built-in final_timestamp_first_line and final_elapsed_time predicates. A bound semantic PASS cannot admit a missing or misplaced timestamp, an absent elapsed-time report or incorrect duration arithmetic. Supply both clock readings for the elapsed predicate; it also matches the final stamp to the supplied second reading. The existing semantic two-read-cadence obligation judges actual current-turn clock provenance separately. Receipts cannot override mechanical PASS or FAIL results. Owner-input continuation permits reason-bound NOT_APPLICABLE when the turn is not an answer, correction, upload or requested clarification to an active task.
 
-The representative rendered Work handoff is 27,355 bytes, below the 32 KiB (32,768-byte) rendering cap; the first slice draft was 79,386 bytes, and the usage-limit continuity records added 3,288 bytes when they joined it. Its envelope selects the receiving work actor, activating the Work/codex permission boundary rather than Chat-only handoff obligations. The Work adapter emits each selected record's exact normative source once with acceptance/non-substitute boundary rows and shared provenance/lifecycle values; redundant behavior summaries remain in structured selected_rules. Authority owner/domain and every exact source binding reach the prompt. Mission Control's injected Work block is 33,139 bytes. Its prompt limit is 48 KiB: a regression keeps at least 8 KiB of it for the wrapper and the bounded directive, and the actual outgoing prompt, including its directive, is measured against the limit. Both boundaries reject oversized UTF-8 payloads before dispatch. The earlier 24 KiB and 32 KiB figures were borrowed from Codex's AGENTS.md discovery budget, which does not apply to a Work prompt; with the continuity records they would have refused every graph-mode Work dispatch, so the limits were revalidated instead of removing records from Work. No selectors or enumerated clauses were removed.
+Before slice 2a, the representative rendered Work handoff was 27,355 bytes, below the 32 KiB (32,768-byte) rendering cap; the first slice draft was 79,386 bytes, and the usage-limit continuity records added 3,288 bytes when they joined it. Its envelope selects the receiving work actor, activating the Work/codex permission boundary rather than Chat-only handoff obligations. The Work adapter emits each selected record's exact normative source once with acceptance/non-substitute boundary rows and shared provenance/lifecycle values; redundant behavior summaries remain in structured selected_rules. Authority owner/domain and every exact source binding reach the prompt. Before slice 2a, Mission Control's injected Work block was 33,139 bytes. Its prompt limit is 48 KiB: a regression keeps at least 8 KiB of it for the wrapper and the bounded directive, and the actual outgoing prompt, including its directive, is measured against the limit. Both boundaries reject oversized UTF-8 payloads before dispatch. The earlier 24 KiB and 32 KiB figures were borrowed from Codex's AGENTS.md discovery budget, which does not apply to a Work prompt; with the continuity records they would have refused every graph-mode Work dispatch, so the limits were revalidated instead of removing records from Work. No selectors or enumerated clauses were removed.
 
 
 | Section | Before structured obligations | After consolidated obligations | Preserved map clauses | Exceptions |
@@ -237,7 +239,7 @@ The 2026-10-07 maintainer-handoff addition in `patterns/suggested-fix-queue.md` 
 
 ## Exact migration backlog
 
-P1 retains 16 of the issue's 22 high-leverage identities after the six kernel sections are removed. Other general behavioral entries are P2 (47); mechanics specific to a project or infrastructure surface are P3 (15), including Mission Control supervision/relay, browser automation, worker permissions and Work cloud dispatch. Every P1 entry is behavioral, checked by the validator.
+P1 retains 15 high-leverage identities; P2 has 47 and P3 has 15. Every P1 entry is behavioral. Corrected partial compaction and terminal-admission coverage stays visible here.
 
 Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_TURN, FREQUENT, CONDITIONAL, SPECIALIST; use the id only to break ties. Frequency classes are declared routing estimates, not measured usage. Each entry retains its specific next step. The report uses this same order.
 
@@ -245,20 +247,19 @@ Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_
 |---|---|---|
 | `patterns/chat-work-execution-routing-threshold.md` | P1 | FREQUENT |
 | `patterns/codex-github-operating-system.md` | P1 | FREQUENT |
+| `patterns/context-compaction-resilience.md` | P1 | FREQUENT |
 | `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md` | P1 | FREQUENT |
 | `patterns/reasoning-selection.md` | P1 | FREQUENT |
 | `patterns/source-interpretation-provenance.md` | P1 | FREQUENT |
 | `patterns/task-time-lesson-activation.md` | P1 | FREQUENT |
+| `patterns/terminal-response-admission-and-autonomous-continuation.md` | P1 | FREQUENT |
 | `patterns/worker-directive-delivery-and-chat-output-budget.md` | P1 | FREQUENT |
 | `patterns/chatgpt-client-surface-capability-and-thread-recovery.md` | P1 | CONDITIONAL |
-| `patterns/context-compaction-resilience.md` | P1 | CONDITIONAL |
 | `patterns/cross-family-reasoning-check.md` | P1 | CONDITIONAL |
-| `patterns/exclusive-active-task-locks.md` | P1 | CONDITIONAL |
 | `patterns/logic-failure-map.md` | P1 | CONDITIONAL |
 | `patterns/owner-goal-followup-and-requirement-accretion.md` | P1 | CONDITIONAL |
 | `patterns/recommendation-preflight-integrity.md` | P1 | CONDITIONAL |
 | `patterns/shopping-research.md` | P1 | CONDITIONAL |
-| `patterns/terminal-response-admission-and-autonomous-continuation.md` | P1 | CONDITIONAL |
 | `AGENTS.md#authority` | P2 | EVERY_TURN |
 | `AGENTS.md#code-review-rules` | P2 | EVERY_TURN |
 | `AGENTS.md#universal-and-owner-specific-infrastructure-boundary` | P2 | EVERY_TURN |
@@ -406,7 +407,7 @@ The twelve new direct routes use these leading clauses:
 
 ## Review/merge-gate integration reconciliation (slice 2)
 
-The maintainer lane chose structured admission for the review-convergence policy change on 2026-10-07. Both new behavioral patterns are STRUCTURED_ENFORCED; no specialist exception or legacy addition was used, and no owner quotation or authorization entry was added. The immutable 84-identity baseline remains unchanged and the authorized live backlog stays 78 before and after. The integration draft temporarily listed both new identities as legacy, producing an invalid 80-entry backlog; that was never authorized backlog growth. Earlier integration findings remain historical. The newest slice finding records live disposition counts.
+The maintainer lane chose structured admission for the review-convergence policy change on 2026-10-07. Both new behavioral patterns are STRUCTURED_ENFORCED; no specialist exception or legacy addition was used, and no owner quotation or authorization entry was added. The immutable 84-identity baseline remains unchanged and the backlog stayed 78 before and after that historical review/merge slice; corrected slice 2a now leaves 77. The integration draft temporarily listed both new identities as legacy, producing an invalid 80-entry backlog; that was never authorized backlog growth. Earlier integration findings remain historical. The newest slice finding records live disposition counts.
 
 The review pattern contributes 70 operative clauses in 8 records and 8 obligations. The unchanged merge-gate pattern contributes 58 clauses in 6 records and 8 obligations. Enumerated clauses include operative scope/authority limits, failure and repair clauses, transfer qualifications and the Problem section formulas and assumptions used by rule 4; incident history and relationships to other patterns remain explanatory context. The formula-use obligation binds unit/run and hard-floor estimates, independently known-correct items with findings adjudicated false, the eligible denominator including unflagged items, and labelled guesses when those labels are unavailable. Pilot size must support the predeclared scale decision; upper error-rate or lower measured-pass-rate confidence bounds, including zero-flag/all-pass cases, carry sampling uncertainty into every floor and unit/run estimate. An inadequate pilot is enlarged with a predeclared sample size or the gate redesigned before scale. The review-fix round adds five formula/assumption clauses and replaces one evidence clause with three; it adds no records or obligations. Each source has a whole-pattern independent clause pin and independent count/hash pins for every operative level-two section, using sorted exact clause strings in source_clause_manifest. Every level-two section also pins its complete body, so added prose beside existing mapped clauses cannot evade review through lock/projection regeneration. Nonzero-miss floors use the binomial tail for each floor's own n, p and allowed misses k, or a measured known-correct false-failure rate; the zero-miss formulas retain their original scope. Record/map deletion and same-count selector shortening fail even after regenerating the lock and projection. Pin hashes establish preservation, not completeness or semantic truth.
 
@@ -414,7 +415,7 @@ All new records apply to chat, work, codex and claude under governance_required.
 
 Boundaries are the actual review request/plan, scale design, acceptance decision, output/cycle persistence, hosted-capability checkpoint, merge-eligibility check, owner questions handoff and post-action persistence. Owner-click batching and hosted readback are separate obligations; failure escalation and recording a later owner reply are separate too. All 16 obligations are semantic: the current task-time predicates cannot certify their complete meaning in both directions. Bound receipts retain acceptance evidence, non-substitutes, carry-through and repair. Fourteen payload-dependent obligations remain selected with not_applicable_allowed: true and require a reason-bound receipt for an absent action; the two authority invariants do not allow NOT_APPLICABLE. There are no new obligation exceptions. Golden synthetic judgments test admission, not semantic truth, live gate operations or authenticated reviewer independence.
 
-The rendered generic Work projection stays 27,355 bytes before and after (32,768-byte cap). Mission Control's actual injected block stays 33,139 bytes (49,152-byte prompt limit, with 8,192 bytes reserved for the wrapper/directive; 7,821 bytes of additional headroom). Sizes were measured with the current adapter; no limits or runtime code changed beyond incoming main's machinery. The documented regeneration commands produced both derived files. The generic handoff selects none of the 14 new records.
+At that historical review/merge boundary the rendered generic Work projection stayed 27,355 bytes before and after (32,768-byte cap). At that boundary Mission Control's actual injected block stayed 33,139 bytes (49,152-byte prompt limit, with 8,192 bytes reserved for the wrapper/directive; 7,821 bytes of additional headroom). Sizes were measured with the current adapter; no limits or runtime code changed beyond incoming main's machinery. The documented regeneration commands produced both derived files. The generic handoff selects none of the 14 new records.
 
 The table-driven fixture folders in tests/fixtures/review-merge-slice/ contain one neutral envelope, violating/compliant/near-miss candidates and hash-free verdicts per record. Receipts bind at test time. Regressions cover failure, compliance, non-substitutes, per-obligation missing/FAIL receipts, cross-candidate and rewrite replay, reason-bound NOT_APPLICABLE, actor/action scope, UNKNOWN facts, clause maps and source pins. Existing pattern text tests remain separate TEXT_PRESENCE evidence.
 
@@ -568,7 +569,7 @@ Compile the current task after loading its authority. The compile output binds t
 ```sh
 python3 scripts/uda_rule_graph_task_time.py compile --task task.json --output contract.json
 python3 scripts/uda_rule_graph_task_time.py receipt --contract contract.json --phase final-delivery --payload final.txt --output receipts.json
-python3 scripts/uda_rule_graph_task_time.py check --contract contract.json --phase final-delivery --destination owner-visible-final --payload final.txt --receipts receipts.json
+python3 scripts/uda_rule_graph_task_time.py check --contract contract.json --task task.json --phase final-delivery --destination owner-visible-final --payload final.txt --receipts receipts.json
 ```
 
 The skeleton contains a receipt for each semantic obligation due in that phase. Fill `verdict` with PASS, FAIL or NOT_APPLICABLE; give short `evidence` about the literal candidate, the asserting actor's `id`, `kind` and `relation` (SAME_AGENT or INDEPENDENT), and an ISO date/time with timezone in `issued_at`. For NOT_APPLICABLE, also give `not_applicable_reason`; it is accepted only when the obligation explicitly sets `not_applicable_allowed: true`. The blank skeleton itself cannot admit work. This CLI and the `scripts/uda_rule_graph.py` facade support the same receipt and check commands.
@@ -607,7 +608,7 @@ This is an owner-side instruction draft; this repository change does not edit ow
 
 The fixtures in `tests/fixtures/dominated-route/` use abstract inputs/outputs. The old final presents a two-command route, then the same transform command's direct-output option, and calls the latter preferable: its golden FAIL receipt blocks. The repaired one-command final's PASS receipt admits and stays one line (under 160 characters). Replaying a PASS receipt for the old payload or rewriting the final without a new receipt blocks. When intermediate approval before output is a real material tradeoff, both alternatives remain and the golden PASS receipt admits them. These fixtures pin source provenance to the exact source blob for commit-independent golden bindings; production compilation preserves repository-revision provenance. The isolated regression checks the dominated-route slice; the existing mechanical suites separately check timestamps and elapsed time.
 
-Both passes of the first integration are implemented. This establishes inventory, activation-state reporting, semantic binding admission and a behavioral regression; it does not establish universal live behavioral enforcement. The parent owner outcome remains OPEN with 78 partial/legacy identities after kernel slice 1. Later slices migrate the remaining P1 patterns and subsequent priorities. The baseline pin remains unchanged: no added identities and six fully structured removals are reported.
+Both passes of the first integration are implemented. This establishes inventory, activation-state reporting, semantic binding admission and a behavioral regression; it does not establish universal live behavioral enforcement. The parent owner outcome remains OPEN; kernel slice 1 left 78 partial/legacy identities, and corrected slice 2a leaves 77. Later slices migrate the remaining P1 patterns and subsequent priorities. The baseline pin remains unchanged: no added identities and seven fully structured removals are now reported.
 
 ## Usage-limit continuity slice
 
@@ -642,11 +643,341 @@ The report now counts the following evidence classes. An entry may occur in seve
 | TEXT_PRESENCE | 92 |
 | ROUTING | 82 |
 | COMPILATION | 8 |
-| ADMISSION | 26 |
-| BEHAVIORAL_REGRESSION | 23 |
+| ADMISSION | 27 |
+| BEHAVIORAL_REGRESSION | 24 |
 
 At its historical integration boundary, the continuity slice changed one LEGACY_UNSTRUCTURED entry to STRUCTURED_PARTIAL, with 96 entries, 82 indexed patterns and 84 backlog identities (P1 22, P2 47, P3 15), zero additions and removals. The current counts above include the later kernel and review/merge migrations. No baseline pin was changed. The source lock and representative Work handoff projection are regenerated; Mission Control runtime and owner settings are untouched. A worker that never loaded UDA remains outside its protection, and an optional status-line warning remains surface-specific.
 
-## Review judgment limits
+## Continuation and closure migration slice 2a
 
-`patterns/living-mermaid-workflow-maps.md` is treated as specialist documentation maintenance; `patterns/github-actions-pr-ref-namespace-safety.md` as specialist workflow ref/log topology. Neither exception proves downstream adoption, and both should be reviewed if the owner wants their authoring behavior structured. The six symbolic-analysis exceptions retain their live domain constraints and scientific-validation limits. Evidence classes are declared after reading tests, but file-level evidence can contain several types of check; the report never upgrades routing to admission.
+Supervisor correction preserves the three canonical pattern files byte-for-byte. Task locks are fully structured; terminal admission and compaction retain exact operative remainders. Whole-pattern/pre-section and per-section source pins remain, including for these partial maps. The validator permits this corrective reclassification only with the owner-authorized exact baseline identity, date, quote, source and reason; it does not count a correction as a new backlog addition.
+
+| Pattern | Reviewed clause rows | Mapped | Literal remainder | Records / behaviors | Disposition |
+|---|---:|---:|---:|---:|---|
+| Terminal response admission | 68 | 65 | 3 | 9 / 9 | STRUCTURED_PARTIAL |
+| Context-compaction resilience | 90 | 73 | 17 plus wider persistence scope | 6 / 6 | STRUCTURED_PARTIAL |
+| Exclusive active-task locks | 143 | 143 | 0 | 16 / 17 | STRUCTURED_ENFORCED |
+| Total | 301 | 281 | 20 plus wider scope | 31 / 32 | |
+
+The representative Work handoff restores `continuity_required:true` with its original provenance, “multi-step work requires durable recovery across turns or sessions.” It always selects step-checkpoint and turn-end-handoff. Their original regression expectations are restored. Durable-memory, recovery-checkpoint and durable-boundaries clauses share the continuity persistence record's unchanged exact selectors and expanded evidence. The catch-all “whenever losing the current chat would otherwise create ambiguity or rework” and the distinction between compaction efficiency and persistence are explicit. No selector is shortened and no cap is increased.
+
+Restoring continuity alone reproduces the 33,814-byte oversized render. Consolidation still exceeds the cap after mandatory event refresh. Distinct reasoning-outcome, recovery-limit and successor-recovery clauses therefore remain in compaction's exact `legacy_remainder`, rather than being silently dropped or triggered on unrelated facts. The consolidated persistence record retains its original OPEN executable-work trigger; the broader diagnostic/stopped/satisfied-task persistence scope is also recorded as remainder. Its indexed, trigger-selected compaction source stays STRUCTURED_PARTIAL.
+
+At claim time each terminal label requires its entry evidence: INCOMPLETE while findings remain; BLOCKED only with durable evidence naming the genuine boundary; READY_FOR_PROTECTED_MERGE only after task acceptance passed on the exact head with cited output and no open findings; COMPLETE only after protected merge, readback and immutable receipt. Wrong-head acceptance and READY with findings are explicit non-substitutes. Anti-substitutes retain pre-action task selection and a separate final-delivery claim obligation, including the exact contradictory work-in-progress PR claim.
+
+Terminal receipts require actual final-response command output: exit status, terminalResponseAllowed, decision and terminalStateVectorSha256. Server-side clauses cite native Mission Control final-response and worker-route tests. Authority evidence keeps privacy and security, removes the unsourced revalidation addition, and carries the operational relationship to all four predecessor controls. All thirteen required findings must come from actual active-task authority resolver output in the authority, blocker and wait receipts. All nine recovery events are prohibited substitutes in final-delivery terminal admission; persistence still owns saving and recovering progress.
+
+Nine event-gated records and all nineteen core exclusive-task records refresh on `action_classes`; compaction resume-reconciliation and completion-closeout also refresh on `continuity_required`. Even an initially excluded record retains its refresh guard at the real phase/destination; entering or leaving exclusive scope and other action-class changes block until recompilation and fresh receipts. Missing current facts block; unchanged facts preserve existing admission behavior. Metadata and coverage validation derive required refresh inputs by observing reads through the compiler's actual applicability (`scope` and `evaluate`) and `selection_context` code, rather than maintaining a second selector list. Eager evaluation covers every all/any/not trigger arm and eq/in/contains/present leaf; populated applies_to.roles, actors, destinations and action_classes read role, actor, destination and action_classes respectively. The same context code reads bootstrap for activation and legacy_rule_ids for legacy selection. Their whole-field observations use the reserved envelope.bootstrap and envelope.legacy_rule_ids names; trigger facts cannot use the envelope.* namespace. Missing required inputs fail with TRIGGER_FACTS_NOT_REFRESHED (the retained error code now covers all selection inputs); absent or empty policies also fail. All 70 records satisfy this invariant. The compiler carries all 80 per-record boundaries regardless of initial selection, including an empty contract with a known external role. A correction to universal_internal blocks the stale destination check until recompilation and fresh receipts. Both CLI entrypoints pass the full --task envelope; Python callers use current_task, or supply all namespaced observations explicitly in current_facts. The third supervisor repair adds only role, envelope.bootstrap and envelope.legacy_rule_ids to each of the 70 records, exactly 210 missing memberships. Triggers, selectors, evidence and due phases are unchanged. The preceding trigger/actor repair added exactly 125 missing memberships to 67 records: governance_required (59), actor (41), action_classes (18), task_mode (2), and owner_requires_live_root, explicit_boundary_binding_requested, owner_correction_present, owner_outcome_status and request_kind (one each). Existing extra guards are retained. Rendered reminders state the inputs common to every boundary once, use shared F# lists for additional facts and group identical phase/fact boundaries with semicolon-separated destinations; the structured contract retains all 80 per-rule guards, including guards for initially excluded records. Both portable instructions select governance plus instruction_maintenance for one-shot adoption and retain reason-bound NOT_APPLICABLE. Independent table pins protect every record's trigger, due phase and N/A permission, including both anti-substitute phases.
+
+| Measured production boundary | Before slice 2a | Corrected | Unchanged budget |
+|---|---:|---:|---:|
+| Compiled rendered Work contract, UTF-8 | 27,355 | 32,429 | 32,768 |
+| Mission Control injected Work block, UTF-8 | 33,139 | 37,194 | 40,960 |
+
+Continuity-scope refresh adds 63 rendered bytes to the earlier 31,254-byte contract (42 for the checkpoint guards, then 21 for resume/closeout guards), yielding the reviewed 31,317-byte baseline. Turn-end handoff outcome-status refresh adds 22 bytes, yielding 31,339; controller actor refresh adds 69 bytes, yielding 31,408; worker continuation actor refresh adds 35 bytes, yielding 31,443; task-lock actor refresh adds 84 bytes, yielding 31,527; continuity task-mode/actor and compaction actor refresh adds 36 bytes, yielding 31,563; persistence outcome-status refresh adds 22 bytes, yielding 31,585. All three continuity records refresh on `task_mode` and `actor`; both compaction records refresh on `actor`, retaining guards even when an instruction-only task or controller actor initially omits the rules. Switching to implementation or handing off to chat/work/codex/claude requires recompilation and fresh destination-bound receipts. The complete trigger-fact policies raised the uncompressed render to 34,346 bytes. Sharing fact lists and grouping destinations reduced that earlier contract to 32,439 bytes. Complete selection-input refresh with common inputs stated once now measures 32,429 rendered bytes; the injected block remains 37,194 bytes. No guards were dropped; triggers, selectors, evidence, phases, caps, runtime code and example envelopes are unchanged. All three continuity records refresh on `owner_outcome_status`; reopening or completion blocks until recompilation selects or drops them. Controller resume refreshes on `actor` even when initially omitted, so a chat-to-controller transition requires recompilation at `controller-continuation-state` and then a controller receipt. The seven worker-only continuation records also refresh on `actor` when omitted from chat/controller contracts, blocking receiving work/codex/claude destination checks until recompilation and fresh receipts. Both checkpoint rules and compaction resume-reconciliation/completion-closeout retain a refresh boundary for `continuity_required` even when initially omitted, so scope expansion requires recompilation at their persistence, pre-action and final-delivery destinations. Manifest-backed partial entries require a nonempty obligation map before clause-pin comparison.
+
+The injected block is measured through the unchanged production adapter's ruleGraphPromptBlock/workHandoffRuleGraphProjection using Buffer.byteLength on the joined block. Its allowance is the 49,152-byte prompt cap minus the unchanged 8,192-byte wrapper/directive reserve. The production prompt regression asserts both continuity ids and reserve compliance. Source lock and projection use the documented generation commands.
+
+Twenty fixture sets now have bespoke near-misses that omit or violate a particular clause. No template or literal non-substitute sentence is required in a candidate. The suite still proves exact binding, actor/trigger/phase/destination admission, stale-receipt rejection and source/deletion protection, not semantic truth. The mechanical timestamp case now isolates bad elapsed-time reporting while preserving a valid first-line timestamp.
+
+Coverage limits remain explicit: action classes and continuity scope are self-declared; event triggers do not independently prove the real event; reason-bound N/A on already declared events still needs correct semantic judgment. Future provider polling and resume-on-clear cannot be established by one admission receipt. Those multi-event controller clauses remain in terminal admission's exact legacy remainder. No live universal behavior, protected merge, publication or independent review is claimed.
+
+### patterns/terminal-response-admission-and-autonomous-continuation.md
+
+| Exact sentence or clause | Record / obligation |
+|---|---|
+| Before any worker emits a terminal response, it must reconcile the current authoritative execution state: | uda.continuation.state-reconciliation / state-reconciliation-at-boundary |
+| 1. current owner instruction or correction; | uda.continuation.state-reconciliation / state-reconciliation-at-boundary |
+| 2. branch-bound active-task lock; | uda.continuation.state-reconciliation / state-reconciliation-at-boundary |
+| 3. canonical durable current-state checkpoint; | uda.continuation.state-reconciliation / state-reconciliation-at-boundary |
+| 4. live artifact/evidence ledger and current queue; | uda.continuation.state-reconciliation / state-reconciliation-at-boundary |
+| 5. current Mission Control terminal comparison and structured blockers; | uda.continuation.state-reconciliation / state-reconciliation-at-boundary |
+| 6. current chat-authored directive and any required reasoning handoff. | uda.continuation.state-reconciliation / state-reconciliation-at-boundary |
+| It does **not** close the root task. | uda.continuation.controller-resume / controller-resume-at-boundary |
+| For an exclusive active task, **ending a response is a controlled terminal action**. | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| A terminal response is admitted only when at least one of these current, source-bound conditions is true: | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - the requested root outcome is complete under its actual acceptance/terminal evidence gate; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - the owner has explicitly canceled, stopped, or replaced the current outcome; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - a genuine owner decision is required and no independent safe in-scope work remains; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - a genuine external blocker prevents the required frontier, has no admitted workaround or independent safe work remaining, and is durably recorded; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - a bounded execution directive has reached a real reasoning-review stop and the exact factual receipt has already been routed automatically to the configured reasoning chat. | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| A reasoning-review or external-blocker pause ends only the current execution turn. | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| Treat these as recovery events. | uda.continuation.recovery-events / recovery-events-at-boundary |
+| Persist state, compact/reopen/restart as necessary, then recover the active task and continue from the first missing or stale action without repeating verified work. | uda.continuation.recovery-events / recovery-events-at-boundary |
+| When a required provider action is temporarily unavailable: | uda.continuation.provider-waits / provider-waits-at-boundary |
+| 1. record the exact changing condition and admitted wait horizon; | uda.continuation.provider-waits / provider-waits-at-boundary |
+| 2. advance independent safe in-scope work that does not depend on the provider; | uda.continuation.provider-waits / provider-waits-at-boundary |
+| 5. terminally pause only when the wait is a genuine external blocker for **all** remaining authorized work and the controller has durable evidence of that state. | uda.continuation.provider-waits / provider-waits-at-boundary |
+| A cooldown is not an owner decision. | uda.continuation.provider-waits / provider-waits-at-boundary |
+| Mission Control-managed execution workers must consult the deterministic final-response gate immediately before an owner-facing terminal response: | uda.continuation.mission-control-gate / mission-control-gate-at-boundary |
+| ```text GET /api/worker-channel/<worker>/finalization ``` | uda.continuation.mission-control-gate / mission-control-gate-at-boundary |
+| The endpoint authenticates the execution worker but does not accept worker-supplied terminal facts. | uda.continuation.mission-control-gate / mission-control-gate-at-boundary |
+| Mission Control reads its own current projected ledger and returns either: | uda.continuation.mission-control-gate / mission-control-gate-at-boundary |
+| ```text 200 terminalResponseAllowed:true ``` | uda.continuation.mission-control-gate / mission-control-gate-at-boundary |
+| or: | uda.continuation.mission-control-gate / mission-control-gate-at-boundary |
+| ```text 409 terminalResponseAllowed:false mustContinue:true requiredNextAction:<durably derived next action> ``` | uda.continuation.mission-control-gate / mission-control-gate-at-boundary |
+| A `409` means the worker must not emit a terminal handoff. | uda.continuation.mission-control-gate / mission-control-gate-at-boundary |
+| It must execute or route the returned safe next action within existing authority. | uda.continuation.mission-control-gate / mission-control-gate-at-boundary |
+| The gate reuses the canonical Mission Control terminal comparator rather than creating a second completion model. | uda.continuation.mission-control-gate / mission-control-gate-at-boundary |
+| It additionally checks current READY/IN_PROGRESS queue work, durable checkpoint next steps, structured blocker ownership/workarounds, recoverable wait conditions, whether a required reasoning-review route is newer than the stop/blocker it claims to satisfy, and whether an owner-decision pause is backed by the authoritative Mission Control owner-obligation projection rather than merely a worker-authored `needsOwner` assertion. | uda.continuation.mission-control-gate / mission-control-gate-at-boundary |
+| Use precise semantics: | uda.continuation.pause-semantics / pause-semantics-at-boundary |
+| - `ALLOW_ROOT_CLOSE` — the source-bound terminal comparator permits actual task completion. | uda.continuation.pause-semantics / pause-semantics-at-boundary |
+| - `ALLOW_OWNER_CANCELLATION` — current owner authority canceled the outcome. | uda.continuation.pause-semantics / pause-semantics-at-boundary |
+| - `ALLOW_OWNER_DECISION_PAUSE` — a current owner obligation exists and no independent safe work remains. | uda.continuation.pause-semantics / pause-semantics-at-boundary |
+| - `ALLOW_EXTERNAL_BLOCKED_PAUSE` — a genuine external blocker prevents all remaining authorized work, with no workaround. | uda.continuation.pause-semantics / pause-semantics-at-boundary |
+| - `ALLOW_REASONING_HANDOFF_PAUSE` — the current bounded execution turn stopped for reasoning and the exact factual handoff is already durably routed after the current stop receipt. | uda.continuation.pause-semantics / pause-semantics-at-boundary |
+| All pause states except root close/cancellation leave the root task open. | uda.continuation.pause-semantics / pause-semantics-at-boundary |
+| A rejected terminal attempt should preserve an explicit reason such as: | uda.continuation.rejection-repair / rejection-repair-at-boundary |
+| ```text REJECT_SAFE_WORK_REMAINS REJECT_RECOVERABLE_WAIT_TERMINALIZATION REJECT_UNROUTED_REASONING_STOP REJECT_SELF_OWNED_BLOCKER REJECT_BLOCKER_WITH_WORKAROUND REJECT_OWNER_DECISION_AUTHORITY_MISSING REJECT_UNVERIFIED_BLOCKED_STATE REJECT_TERMINAL_PROOF_MISSING ``` | uda.continuation.rejection-repair / rejection-repair-at-boundary |
+| Do not convert these into an owner question when the required next action is already mechanically known. | uda.continuation.rejection-repair / rejection-repair-at-boundary |
+| It does not broaden task scope or authority. | uda.continuation.authority-limits / authority-limits-at-boundary |
+| Safety, privacy, security, permission, spending, publication, irreversible-action, and explicit owner-stop boundaries remain controlling. | uda.continuation.authority-limits / authority-limits-at-boundary |
+| - The gate can only be as current as the Mission Control ledger and project recovery artifacts it projects. | uda.continuation.authority-limits / authority-limits-at-boundary |
+| - A true semantic ambiguity must still go to the authorized reasoning chat; deterministic continuation may not invent strategy. | uda.continuation.authority-limits / authority-limits-at-boundary |
+| - A real safety, permission, spending, publication, access, or irreversible-action boundary is not bypassed merely because other execution is possible. | uda.continuation.authority-limits / authority-limits-at-boundary |
+| - Tiny one-shot tasks without an exclusive active-task contract do not require this machinery. | uda.continuation.authority-limits / authority-limits-at-boundary |
+| This rule operationalizes, rather than replaces: | uda.continuation.authority-limits / authority-limits-at-boundary |
+| - `patterns/exclusive-active-task-locks.md`; | uda.continuation.authority-limits / authority-limits-at-boundary |
+| - the standing continuous-next-step rule in `patterns/codex-github-operating-system.md`; | uda.continuation.authority-limits / authority-limits-at-boundary |
+| - `templates/CURRENT-CODEX-WORKER-SUPERVISION-BOOTSTRAP.md`; | uda.continuation.authority-limits / authority-limits-at-boundary |
+| - the Mission Control terminal comparator. | uda.continuation.authority-limits / authority-limits-at-boundary |
+| None of the following is, by itself, permission for a terminal response: | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - context compaction or context-window pressure; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - response/token-budget pressure; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - many tool calls or a long-running turn; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - a checkpoint or recovery commit; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - browser-tab cleanup or browser-memory pressure; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - a provider cooldown, temporary rate limit, retry/backoff interval, or transient tool outage; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - the end of a batch when the next batch/ordinal is already determined; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - ordinary green tests while task acceptance remains open; | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+| - a worker-authored `blocked`, `done`, or handoff statement without current structured authority/evidence. | uda.continuation.terminal-admission / terminal-admission-at-boundary |
+
+Operative remainder: Lifetime continuation after admission is not established by a single pre-action receipt: The controller must preserve resumability and continue automatically when the new directive arrives or the blocking condition clears. 3. keep checking the changing condition at the configured bounded interval; 4. resume the blocked frontier automatically when it clears; Runtime polling, cleared-condition detection and automatic continuation require multi-event controller evidence; current final-response gate tests cover terminal decisions, not the complete lifetime.
+
+### patterns/context-compaction-resilience.md
+
+| Exact sentence or clause | Record / obligation |
+|---|---|
+| A project must therefore be designed so that losing old chat detail does not mean losing project state. | uda.continuity.step-checkpoint / save-completed-step |
+| Use this hierarchy: | uda.continuity.step-checkpoint / save-completed-step |
+| - **conversation/context = working RAM**; | uda.continuity.step-checkpoint / save-completed-step |
+| - **canonical repository = durable project memory**; | uda.continuity.step-checkpoint / save-completed-step |
+| - **Git history = durable audit trail and rollback path**; | uda.continuity.step-checkpoint / save-completed-step |
+| - **current-state/checkpoint file = recovery entry point**; | uda.continuity.step-checkpoint / save-completed-step |
+| - **exact project artifacts/evidence = authority for factual implementation state**. | uda.continuity.step-checkpoint / save-completed-step |
+| Any decision, constraint, discovery, architecture choice, completed step, or unresolved blocker that would matter after a new thread or context compaction must be written into the canonical repository rather than left only in chat. | uda.continuity.step-checkpoint / save-completed-step |
+| For any project with multi-step, multi-session, or long autonomous work, maintain a concise canonical recovery file such as `CURRENT-STATE.md`, `state/CURRENT-STATE.md`, or an equivalent machine-readable state file chosen by the project. | uda.continuity.step-checkpoint / save-completed-step |
+| The exact filename may vary, but there must be one obvious current recovery entry point referenced by the project's main index/bootstrap. | uda.continuity.step-checkpoint / save-completed-step |
+| With concurrent branches, keep that entry point for repository-level state and give each task its own checkpoint. | uda.continuity.step-checkpoint / save-completed-step |
+| Per-task files avoid merge conflicts while the recovery entry point stays obvious. | uda.continuity.step-checkpoint / save-completed-step |
+| At minimum, the state checkpoint should record: | uda.continuity.step-checkpoint / save-completed-step |
+| - current goal / task; | uda.continuity.step-checkpoint / save-completed-step |
+| - authoritative baseline or relevant commit/ref; | uda.continuity.step-checkpoint / save-completed-step |
+| - important active decisions and owner constraints; | uda.continuity.step-checkpoint / save-completed-step |
+| - bootstrap requirements and blocking gates that the task directive or handoff established, so they stay active after compaction; | uda.continuity.step-checkpoint / save-completed-step |
+| - completed work that must not be repeated; | uda.continuity.step-checkpoint / save-completed-step |
+| - current step / last durable checkpoint; | uda.continuity.step-checkpoint / save-completed-step |
+| - remaining work; | uda.continuity.step-checkpoint / save-completed-step |
+| - blockers or unresolved questions; | uda.continuity.step-checkpoint / save-completed-step |
+| - relevant artifacts, evidence, tests, logs, branches, and commits; | uda.continuity.step-checkpoint / save-completed-step |
+| - uncommitted/dirty-working-tree status when relevant; | uda.continuity.step-checkpoint / save-completed-step |
+| - the next safe resume action or command. | uda.continuity.step-checkpoint / save-completed-step |
+| Keep this file concise and operational. | uda.continuity.step-checkpoint / save-completed-step |
+| It is a recovery map, not a transcript dump. | uda.continuity.step-checkpoint / save-completed-step |
+| Plan usage limits, like context limits, can end a turn without warning. | uda.continuity.step-checkpoint / save-completed-step |
+| Never defer saving to a usage threshold. | uda.continuity.step-checkpoint / save-completed-step |
+| At each completed step, push the work to the task branch (work-in-progress commits are fine) and update the checkpoint's done, next, and exact next action. | uda.continuity.step-checkpoint / save-completed-step |
+| A fresh session in any account must be able to resume from durable state alone. | uda.continuity.step-checkpoint / save-completed-step |
+| The worker that holds the context writes the checkpoint; do not launch a separate helper at the limit to save work. | uda.continuity.step-checkpoint / save-completed-step |
+| - Tiny one-shot tasks do not need a dedicated current-state file. | uda.continuity.step-checkpoint / save-completed-step |
+| Before ending a turn on OPEN work, make the durable checkpoint reflect that turn's state and include a one-line resume instruction. | uda.continuity.turn-end-handoff / save-turn-end-handoff |
+| Keep owner-private supervisor state that cannot go in a public repository in a private durable store the successor can reach. | uda.continuity.turn-end-handoff / save-turn-end-handoff |
+| List anything bound to one account that the successor must recreate, such as scheduled check-ins and memory. | uda.continuity.turn-end-handoff / save-turn-end-handoff |
+| When a usage signal is visible at or above a warning level (about 90%), checkpoint immediately and take only small, restartable steps. | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
+| This warning supplements continuous checkpoints and never replaces them. | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
+| If only a model-specific weekly limit is reached, switching model family in the same account is a valid way to continue. | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
+| Update the current-state file whenever losing the current chat would otherwise create ambiguity or rework, especially: | uda.continuity.step-checkpoint / save-completed-step |
+| - after a meaningful implementation/research/editorial milestone; | uda.continuity.step-checkpoint / save-completed-step |
+| - after a consequential owner decision or constraint change; | uda.continuity.step-checkpoint / save-completed-step |
+| - after discovering a blocker or falsifying an approach; | uda.continuity.step-checkpoint / save-completed-step |
+| - before/after risky migrations or long autonomous runs; | uda.continuity.step-checkpoint / save-completed-step |
+| - before handing work to another agent/thread; | uda.continuity.step-checkpoint / save-completed-step |
+| - before claiming a multi-step task complete. | uda.continuity.step-checkpoint / save-completed-step |
+| Do not wait for the model to detect that compaction is imminent. | uda.continuity.step-checkpoint / save-completed-step |
+| Context limits are implementation details and may not be visible to the worker. | uda.continuity.step-checkpoint / save-completed-step |
+| After interruption, a new thread, a model switch, or suspected context loss: | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
+| 1. inspect the canonical repository and working tree; | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
+| 2. read the project bootstrap/index and current-state checkpoint; | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
+| 3. inspect recent relevant Git commits and durable artifacts; | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
+| 4. reconcile the checkpoint against actual repository state; | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
+| 5. identify exactly what survived and what remains; | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
+| 6. update stale checkpoint data before continuing; | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
+| 7. resume from the latest verified durable boundary without repeating completed work. | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
+| Re-activating the task's gates is part of resuming. | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
+| A summary that names a rule does not make it active; reload the rule and its enforcement point (see `patterns/task-time-lesson-activation.md`). | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
+| The checkpoint is a routing document, not higher authority than the repository itself. | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
+| If it conflicts with exact Git state, current artifacts, tests, or newer owner instructions, the newer verified evidence wins and the checkpoint must be repaired. | uda.compaction.resume-reconciliation / resume-reconciliation-at-boundary |
+| For substantive long-running work, completion requires both: | uda.compaction.completion-closeout / completion-closeout-at-boundary |
+| - the project's normal implementation/test/research gates; and | uda.compaction.completion-closeout / completion-closeout-at-boundary |
+| - a current durable checkpoint or final state that accurately records what was completed, remaining follow-up, and relevant evidence/commits. | uda.compaction.completion-closeout / completion-closeout-at-boundary |
+| Transferable lessons discovered during the work must still pass the normal lesson-closeout/disposition process. | uda.compaction.completion-closeout / completion-closeout-at-boundary |
+| The current-state file is not a substitute for durable lesson promotion. | uda.compaction.completion-closeout / completion-closeout-at-boundary |
+| Use or adapt this invariant: | uda.compaction.portable-instruction / portable-instruction-at-boundary |
+| > Treat chat context as disposable working memory. | uda.compaction.portable-instruction / portable-instruction-at-boundary |
+| Maintain project continuity in Git. | uda.compaction.portable-instruction / portable-instruction-at-boundary |
+| For long-running or multi-session work, keep one canonical current-state checkpoint containing goal, decisions, completed work, current step, remaining work, blockers, evidence/commits, and next safe action. | uda.compaction.portable-instruction / portable-instruction-at-boundary |
+| Push work and update the checkpoint at each completed step; never wait for a usage threshold. | uda.compaction.portable-instruction / portable-instruction-at-boundary |
+| Before ending a turn on OPEN work, save that turn's state, reachable private supervisor state, account-bound items to recreate, and a one-line resume instruction. | uda.compaction.portable-instruction / portable-instruction-at-boundary |
+| The worker holding the context saves it; a visible usage warning calls for an immediate checkpoint and small, restartable steps. | uda.compaction.portable-instruction / portable-instruction-at-boundary |
+| On any new thread, interruption, context compaction, model switch, or account switch, reconcile the checkpoint against actual repository state and resume from the latest verified checkpoint without repeating completed work. | uda.compaction.portable-instruction / portable-instruction-at-boundary |
+| Automatic model-context compaction is an efficiency mechanism, not a persistence mechanism. | uda.continuity.step-checkpoint / save-completed-step |
+
+Operative remainder: Unselected operative clauses retained in prose after consolidation and mandatory refresh exceed the unchanged rendered budget: Do not attempt to preserve private model reasoning or every exploratory thought. Persist the user-relevant engineering/research outcomes needed for continuity: - decisions and why they were chosen; - rejected approaches when repeating them would waste time or recreate a known failure; - invariants and constraints; - evidence pointers; - test/validation results; - unresolved uncertainty; - next action. - Do not treat a stale `CURRENT-STATE` file as more authoritative than actual Git state or newer owner instructions. - Do not store secrets, credentials, tokens, or private chain-of-thought in recovery files. - Do not duplicate large logs or raw evidence into the checkpoint; link to their canonical locations. - Projects may use a machine-readable ledger/database instead of Markdown if it provides the same recovery guarantees. The general durable-memory/checkpoint/boundary clauses now carried in uda.continuity.step-checkpoint cover OPEN executable continuity; their broader multi-step diagnostic, stopped or satisfied-task persistence scope remains prose-governed. Repository-alone successor recovery at its handoff boundary also remains prose-governed: A robust project should tolerate starting a completely fresh agent conversation at any time. The test is: > Could a competent new worker, with repository access but without the old chat transcript, recover the correct current state and continue without repeating completed work or silently losing important constraints? If not, project state is insufficiently durable.
+
+### patterns/exclusive-active-task-locks.md
+
+| Exact sentence or clause | Record / obligation |
+|---|---|
+| For consequential multi-session work in a repository with competing task sources, make the active task **exclusive, source-controlled, branch-bound, and machine-gated**. | uda.task-lock.exclusive-controls / exclusive-controls-at-boundary |
+| Use four distinct controls: | uda.task-lock.exclusive-controls / exclusive-controls-at-boundary |
+| 1. a machine-readable active-task lock; | uda.task-lock.exclusive-controls / exclusive-controls-at-boundary |
+| 2. a preflight that verifies task and branch identity; | uda.task-lock.exclusive-controls / exclusive-controls-at-boundary |
+| 3. a task-specific acceptance command that inspects required evidence; | uda.task-lock.exclusive-controls / exclusive-controls-at-boundary |
+| 4. explicit terminal-state semantics that distinguish incomplete, blocked, ready to merge, and complete. | uda.task-lock.exclusive-controls / exclusive-controls-at-boundary |
+| Conversation is still disposable working memory. | uda.task-lock.exclusive-controls / exclusive-controls-at-boundary |
+| The active task is recovered from Git. | uda.task-lock.exclusive-controls / exclusive-controls-at-boundary |
+| Use a repository-local file such as: | uda.task-lock.lock-storage / lock-storage-at-boundary |
+| ```text tasks/ACTIVE-TASK.json ``` | uda.task-lock.lock-storage / lock-storage-at-boundary |
+| At minimum it should record: | uda.task-lock.lock-storage / lock-storage-at-boundary |
+| ```json {   "schemaVersion": 1,   "taskId": "example-task-v1",   "status": "active",   "exclusive": true,   "requiredBranch": "agent/example-task",   "pullRequest": 123,   "preflightCommand": "npm run task:preflight",   "completionCommand": "npm run task:acceptance",   "suspendedTaskSources": [     "old handoffs",     "global roadmap selection",     "unrelated worktrees",     "release queues"   ] } ``` | uda.task-lock.lock-storage / lock-storage-at-boundary |
+| The lock belongs in the **target repository and task branch**, not only in a source repository, external note, or prior chat. | uda.task-lock.lock-storage / lock-storage-at-boundary |
+| The lock does not grant new authority. | uda.task-lock.lock-storage / lock-storage-at-boundary |
+| Current owner requirements, safety boundaries, access constraints, spending, publication, and irreversible actions retain their normal gates. | uda.task-lock.lock-storage / lock-storage-at-boundary |
+| An exclusive task lock means: | uda.task-lock.competing-sources / competing-sources-at-boundary |
+| - other branches and worktrees remain intact; | uda.task-lock.competing-sources / competing-sources-at-boundary |
+| - historical handoffs remain evidence; | uda.task-lock.competing-sources / competing-sources-at-boundary |
+| - global roadmaps remain valid for later use; | uda.task-lock.competing-sources / competing-sources-at-boundary |
+| - unrelated compliance or release blockers remain true; | uda.task-lock.competing-sources / competing-sources-at-boundary |
+| - none of those sources may select the current worker's next task while the lock is active. | uda.task-lock.competing-sources / competing-sources-at-boundary |
+| Name the suspended competing sources explicitly. | uda.task-lock.competing-sources / competing-sources-at-boundary |
+| Do not rely on a generic sentence such as “focus on this task.” | uda.task-lock.competing-sources / competing-sources-at-boundary |
+| After a fresh start, resume, context compaction, or model switch, the first repository command should verify: | uda.task-lock.preflight / preflight-at-boundary |
+| - the active-task file exists and parses; | uda.task-lock.preflight / preflight-at-boundary |
+| - `exclusive` is true when required; | uda.task-lock.preflight / preflight-at-boundary |
+| - the current branch/worktree matches `requiredBranch`; | uda.task-lock.preflight / preflight-at-boundary |
+| - the canonical current-state checkpoint names the same `taskId`; | uda.task-lock.preflight / preflight-at-boundary |
+| - the checkpoint names the task-specific completion command; | uda.task-lock.preflight / preflight-at-boundary |
+| - competing task sources are explicitly suspended. | uda.task-lock.preflight / preflight-at-boundary |
+| A wrong branch is a **hard preflight failure**. | uda.task-lock.preflight / preflight-at-boundary |
+| It is not permission to choose a different task from the repository. | uda.task-lock.preflight / preflight-at-boundary |
+| If the worker is in an old S001, guide-packet, compliance, release, or roadmap worktree, it should stop that task-selection process and move to the exact active-task worktree. | uda.task-lock.preflight / preflight-at-boundary |
+| It should not reinterpret the owner request to match the current directory. | uda.task-lock.preflight / preflight-at-boundary |
+| The canonical recovery checkpoint should prominently state: | uda.task-lock.checkpoint-mirror / checkpoint-mirror-at-boundary |
+| - task ID; | uda.task-lock.checkpoint-mirror / checkpoint-mirror-at-boundary |
+| - exact branch or worktree; | uda.task-lock.checkpoint-mirror / checkpoint-mirror-at-boundary |
+| - pull request when applicable; | uda.task-lock.checkpoint-mirror / checkpoint-mirror-at-boundary |
+| - first preflight command; | uda.task-lock.checkpoint-mirror / checkpoint-mirror-at-boundary |
+| - task-specific acceptance command; | uda.task-lock.checkpoint-mirror / checkpoint-mirror-at-boundary |
+| - current partial progress; | uda.task-lock.checkpoint-mirror / checkpoint-mirror-at-boundary |
+| - remaining acceptance conditions; | uda.task-lock.checkpoint-mirror / checkpoint-mirror-at-boundary |
+| - suspended competing task sources; | uda.task-lock.checkpoint-mirror / checkpoint-mirror-at-boundary |
+| - the rule that ordinary green tests are prerequisites, not completion. | uda.task-lock.checkpoint-mirror / checkpoint-mirror-at-boundary |
+| If a repository must preserve an older compliance checkpoint verbatim for audit integrity, keep it as subordinate evidence. | uda.task-lock.checkpoint-mirror / checkpoint-mirror-at-boundary |
+| Put the exclusive task lock above it and say explicitly that the older “next safe action” is suspended for the active task. | uda.task-lock.checkpoint-mirror / checkpoint-mirror-at-boundary |
+| Do not allow a branch-local current-state file to continue saying “do not change this policy” after a newer owner-authorized branch exists specifically to change it. | uda.task-lock.checkpoint-mirror / checkpoint-mirror-at-boundary |
+| File order is not authority order. | uda.task-lock.authority-resolution / authority-resolution-at-boundary |
+| For continuation of a validated active task, use: | uda.task-lock.authority-resolution / authority-resolution-at-boundary |
+| ```text current exact owner instruction or correction -> active-task lock and matching task-local checkpoint -> task-local plan and current chat-authored directive -> task PR/code/tests/CI and execution evidence -> repository-global operational state where causally applicable -> historical task state, old issues, old handoffs, archived checkpoints ``` | uda.task-lock.authority-resolution / authority-resolution-at-boundary |
+| Repository-wide safety, privacy, security, permission, spending, publication, and irreversible-action policies remain controlling for affected operations. | uda.task-lock.authority-resolution / authority-resolution-at-boundary |
+| A more specific task-local checkpoint cannot waive them. | uda.task-lock.authority-resolution / authority-resolution-at-boundary |
+| But a generic global `BLOCKED`, `WAITING`, or `OWNER_DECISION_REQUIRED` label is not transitive across task IDs. | uda.task-lock.authority-resolution / authority-resolution-at-boundary |
+| The active-task lock selects one checkpoint by exact source path, Git ref, commit/blob identity, content SHA-256, task ID, branch, and owner-outcome epoch/hash. | uda.task-lock.authority-resolution / authority-resolution-at-boundary |
+| Resolve the latest independently captured owner-source/correction record first; a newer valid owner stop or amendment invalidates continuation. | uda.task-lock.authority-resolution / authority-resolution-at-boundary |
+| Do not accept matching prose or task fields from a substituted checkpoint whose exact identity differs. | uda.task-lock.authority-resolution / authority-resolution-at-boundary |
+| Before a blocker changes the active task state, require a machine-readable `templates/SCOPED-BLOCKER.json` record proving that it is unresolved, current enough, scoped to this task/frontier/operation, causally required, not superseded, and not displaced by higher-precedence authority that establishes independence. | uda.task-lock.blocker-scope / blocker-scope-at-boundary |
+| Use these repository-global relations: | uda.task-lock.blocker-scope / blocker-scope-at-boundary |
+| ```text CURRENT_AND_APPLICABLE CURRENT_BUT_UNRELATED STALE_BUT_APPLICABLE_REVALIDATION_REQUIRED STALE_AND_UNRELATED AMBIGUOUS ``` | uda.task-lock.blocker-scope / blocker-scope-at-boundary |
+| When a global blocker is unrelated, preserve it as `SUSPENDED_COMPETING_SOURCE`, leave the task-local execution state unchanged, and raise the applicable finding rather than deleting history. | uda.task-lock.blocker-scope / blocker-scope-at-boundary |
+| When scope is semantic or ambiguous, route to the reasoning chat; Codex does not decide. | uda.task-lock.blocker-scope / blocker-scope-at-boundary |
+| Blocker independence is valid only for `OPERATIONAL` blockers. | uda.task-lock.blocker-scope / blocker-scope-at-boundary |
+| An applicable safety, privacy, security, permission, spending, publication, or irreversible-action policy cannot be waived by listing its blocker ID as independent. | uda.task-lock.blocker-scope / blocker-scope-at-boundary |
+| Project affected-frontier authorization separately from the task's descriptive state and fail closed on applicable, stale-applicable, ambiguous, or invalid authority. | uda.task-lock.blocker-scope / blocker-scope-at-boundary |
+| Required findings include: | uda.task-lock.blocker-scope / blocker-scope-at-boundary |
+| ```text STALE_GLOBAL_BLOCKER_INHERITED BLOCKER_SCOPE_MISMATCH BLOCKER_CAUSAL_DEPENDENCY_MISSING GLOBAL_STATE_STALE_FOR_ACTIVE_TASK WAIT_CONDITION_NOT_ACTIONABLE WAIT_WITHOUT_ADMISSION GITHUB_UPDATE_WAIT_WITHOUT_CAUSAL_DEPENDENCY CROSS_TASK_BLOCKER_LEAKAGE INVALID_TASK_INDEPENDENCE_OVERRIDE TASK_LOCAL_CHECKPOINT_CONTENT_SHA256_MISMATCH CURRENT_OWNER_STOP WAIT_REASONING_HANDOFF_MISSING WAIT_NEXT_CHECK_OUTSIDE_HORIZON ``` | uda.task-lock.blocker-scope / blocker-scope-at-boundary |
+| Waiting is a separate controlled action. `templates/WAIT-ADMISSION.json` binds the active task, exact blocker or reasoning request, causal dependency, exact changing condition, source, actor/mechanism, poll or notification identity, next check, maximum horizon, horizon-expiry state, owner action, and unrelated-work policy. | uda.task-lock.wait-admission / wait-admission-at-boundary |
+| A bare `wait for GitHub to update`, `wait for CI`, `wait for issue`, or `wait for owner` fails closed. | uda.task-lock.wait-admission / wait-admission-at-boundary |
+| A task-specific command such as: | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| ```bash npm run task:acceptance ``` | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| should fail closed until the actual owner deliverables exist. | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| It should inspect durable artifacts rather than infer completion from prose. | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| Depending on the task, checks may include: | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| - exact corpus count and unique IDs; | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| - separation of model input from grader-only expectations; | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| - deterministic per-case results; | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| - actual non-mock model-run receipts; | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| - multi-turn trajectory results; | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| - comparison or ablation tables; | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| - aggregate metrics and explicit retain/simplify decisions; | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| - source provenance and runtime crosswalk; | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| - unresolved severe-failure count; | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| - exact-head verification commands; | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| - stable/release boundaries; | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| - article or source immutability; | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| - protected merge and post-merge receipt. | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| The acceptance command should print structured findings such as: | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| ```text CORPUS_MANIFEST_MISSING LIVE_CAMPAIGN_BLOCKED ABLATION_SUMMARY_MISSING QUERY_INPUT_GRADER_LEAK VERIFICATION_RECEIPT_MISSING ``` | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| This turns “what remains?” into a deterministic query rather than a model judgment. | uda.task-lock.artifact-acceptance / artifact-acceptance-at-boundary |
+| Use this distinction: | uda.task-lock.terminal-states / terminal-states-at-boundary |
+| ```text ordinary test suite   = implemented repository behavior is internally green  task-specific acceptance   = the owner-requested work products and evidence exist  protected merge + immutable receipt   = task closeout is complete ``` | uda.task-lock.terminal-states / terminal-states-at-boundary |
+| A worker may not use `npm test`, `npm run verify`, green CI, a passing mock replay, or a handful of synthetic tests as proof that a 49-case comparison, migration, audit, or live-validation campaign was completed. | uda.task-lock.terminal-states / terminal-states-at-boundary |
+| Recommended vocabulary: | uda.task-lock.terminal-states / terminal-states-at-boundary |
+| - `INCOMPLETE` — acceptance findings remain and work can continue; | uda.task-lock.terminal-states / terminal-states-at-boundary |
+| - `BLOCKED` — a genuine external permission, credential, access, spending, safety, publication, or provider boundary prevents a required step and durable evidence names it; | uda.task-lock.terminal-states / terminal-states-at-boundary |
+| - `READY_FOR_PROTECTED_MERGE` — task acceptance passes, but protected integration and receipt remain; | uda.task-lock.terminal-states / terminal-states-at-boundary |
+| - `COMPLETE` — protected merge/readback and immutable closeout receipt exist. | uda.task-lock.terminal-states / terminal-states-at-boundary |
+| Do not call missing implementation a blocker. | uda.task-lock.terminal-states / terminal-states-at-boundary |
+| Do not call a provider timeout a model rejection. | uda.task-lock.terminal-states / terminal-states-at-boundary |
+| Do not call a blocked live campaign complete. | uda.task-lock.terminal-states / terminal-states-at-boundary |
+| For black-box model testing, the lock and acceptance harness should mechanically separate: | uda.task-lock.model-input-separation / model-input-separation-at-boundary |
+| ```text model-facing query ``` | uda.task-lock.model-input-separation / model-input-separation-at-boundary |
+| from: | uda.task-lock.model-input-separation / model-input-separation-at-boundary |
+| ```text expected route prohibited behavior assertions grader metadata framework hints ``` | uda.task-lock.model-input-separation / model-input-separation-at-boundary |
+| The acceptance gate should fail if grader fields leak into model input, even if all campaign result files exist. | uda.task-lock.model-input-separation / model-input-separation-at-boundary |
+| The task lock should not become a permanent competing authority. | uda.task-lock.retirement / retirement-at-boundary |
+| After protected merge: | uda.task-lock.retirement / retirement-at-boundary |
+| 1. record exact source and merged SHAs; | uda.task-lock.retirement / retirement-at-boundary |
+| 2. record required check results; | uda.task-lock.retirement / retirement-at-boundary |
+| 3. record immutable post-merge receipt; | uda.task-lock.retirement / retirement-at-boundary |
+| 4. set task status to complete or archive the lock under a historical task path; | uda.task-lock.retirement / retirement-at-boundary |
+| 5. update the canonical current-state checkpoint; | uda.task-lock.retirement / retirement-at-boundary |
+| 6. re-enable normal roadmap selection only after closeout. | uda.task-lock.retirement / retirement-at-boundary |
+| A later task creates a new lock with a new task ID. | uda.task-lock.retirement / retirement-at-boundary |
+| It must not silently repurpose an old task lock. | uda.task-lock.retirement / retirement-at-boundary |
+| At minimum test that: | uda.task-lock.control-plane-regressions / control-plane-regressions-at-boundary |
+| - preflight rejects the wrong branch; | uda.task-lock.control-plane-regressions / control-plane-regressions-at-boundary |
+| - preflight rejects a stale current-state task identity; | uda.task-lock.control-plane-regressions / control-plane-regressions-at-boundary |
+| - preliminary code plus ordinary green tests cannot satisfy acceptance; | uda.task-lock.control-plane-regressions / control-plane-regressions-at-boundary |
+| - acceptance passes only when all declared artifacts exist; | uda.task-lock.control-plane-regressions / control-plane-regressions-at-boundary |
+| - a blocked live campaign yields `BLOCKED`, not `COMPLETE`; | uda.task-lock.control-plane-regressions / control-plane-regressions-at-boundary |
+| - model-input/grader leakage fails closed; | uda.task-lock.control-plane-regressions / control-plane-regressions-at-boundary |
+| - unrelated roadmap or worktree state is not selected while the task is exclusive. | uda.task-lock.control-plane-regressions / control-plane-regressions-at-boundary |
+| Do not rely on: | uda.task-lock.anti-substitutes / anti-substitutes-at-boundary |
+| - a long prompt alone; | uda.task-lock.anti-substitutes / anti-substitutes-at-boundary |
+| - a resumed conversation's hidden memory of the handoff; | uda.task-lock.anti-substitutes / anti-substitutes-at-boundary |
+| - `continue` or `what's next` as task selectors; | uda.task-lock.anti-substitutes / anti-substitutes-at-boundary |
+| - a global roadmap when a branch-specific owner task is active; | uda.task-lock.anti-substitutes / anti-substitutes-at-boundary |
+| - a current-state file from another branch; | uda.task-lock.anti-substitutes / anti-substitutes-at-boundary |
+| - ordinary CI as proof of owner-task completion; | uda.task-lock.anti-substitutes / anti-substitutes-at-claim |
+| - a PR body that says “work in progress” while the worker reports complete; | uda.task-lock.anti-substitutes / anti-substitutes-at-claim |
+| - conversational promises to compare without per-case comparison artifacts; | uda.task-lock.anti-substitutes / anti-substitutes-at-claim |
+| - deleting parallel worktrees merely to prevent task drift. | uda.task-lock.anti-substitutes / anti-substitutes-at-boundary |
+| > For consequential multi-session work with competing repository task sources, maintain one machine-readable exclusive active-task lock in the target branch. | uda.task-lock.portable-instruction / portable-instruction-at-boundary |
+| After any fresh start, resume, compaction, or model switch, run the task preflight before consulting old handoffs or global roadmaps. | uda.task-lock.portable-instruction / portable-instruction-at-boundary |
+| A branch mismatch fails closed. | uda.task-lock.portable-instruction / portable-instruction-at-boundary |
+| Ordinary tests are prerequisites, not task completion. | uda.task-lock.portable-instruction / portable-instruction-at-boundary |
+| - Tiny one-shot tasks do not need a dedicated lock. | uda.task-lock.scope-authority / scope-authority-at-boundary |
+| - A lock cannot override newer owner instructions, safety policy, legal constraints, permissions, spending, publication, or irreversible-action gates. | uda.task-lock.scope-authority / scope-authority-at-boundary |
+| - A task-specific acceptance script is only as strong as its artifact schemas and tests; keep it reviewed and mutation-sensitive. | uda.task-lock.scope-authority / scope-authority-at-boundary |
+| - Parallel agents may have separate locks in separate worktrees, but shared mutable state must still be serialized. | uda.task-lock.scope-authority / scope-authority-at-boundary |
+| - A lock prevents task drift; it does not prove the substantive implementation is correct. | uda.task-lock.scope-authority / scope-authority-at-boundary |
+| Claim readiness only when the task-specific acceptance command verifies every required artifact; claim completion only after protected merge and an immutable receipt. | uda.task-lock.terminal-states / terminal-states-at-boundary |

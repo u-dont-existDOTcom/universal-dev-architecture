@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "After restart the saved checkpoint identifies the active task and first missing action. Verified artifacts are retained and work resumes there without repeating them; the checkpoint confers no terminal permission.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The worker restarted without saved progress and reruns the verified batch.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Recovery must preserve verified progress rather than repeat work to reconstruct conversational memory.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "recovery-events-at-boundary",
+    "non_substitute": "verified work repeated after restart"
+  }
+}

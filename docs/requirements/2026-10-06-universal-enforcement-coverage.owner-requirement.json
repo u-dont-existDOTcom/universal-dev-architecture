@@ -31,6 +31,19 @@
     "UDA distinguishes an activated, enforced task from one that is NOT_ACTIVATED or OUTSIDE_UDA.",
     "The external simple-turn bootstrap exemption is reported truthfully, with the exact owner-side instruction change."
   ],
+  "manifest_backed_ids": [
+    "AGENTS.md#follow-up-goal-derivation-and-assistant-added-requirements",
+    "AGENTS.md#instruction-composition",
+    "AGENTS.md#owner-facing-operational-references",
+    "AGENTS.md#per-turn-bootstrap-invariants",
+    "AGENTS.md#pre-final-continuation-invariant",
+    "AGENTS.md#workflow",
+    "patterns/agent-completable-merge-gates.md",
+    "patterns/context-compaction-resilience.md",
+    "patterns/convergent-review-acceptance-gates.md",
+    "patterns/exclusive-active-task-locks.md",
+    "patterns/terminal-response-admission-and-autonomous-continuation.md"
+  ],
   "source_clause_manifest": {
     "AGENTS.md#follow-up-goal-derivation-and-assistant-added-requirements": {
       "clause_count": 16,
@@ -149,6 +162,187 @@
           "source_sha256": "e508398fb79e213562e4c53668bbecd6f013c200061661ba9cea2b3a7fd891ef"
         }
       }
+    },
+    "patterns/terminal-response-admission-and-autonomous-continuation.md": {
+      "clause_count": 65,
+      "clauses_sha256": "37aa104f24e01c8e79bc902474a5f471a343af14a8ed3d96a1d5a0b86b7cdd71",
+      "pre_section_sha256": "435a30a6f726a4c4e78b237f3dfed517016e1a8eb1c961c08b26ebb443aa8b2b",
+      "sections": {
+        "problem": {
+          "classification": "NON_OPERATIVE",
+          "reason": "Incident motivation describes premature conversational closure; behavioral rules live in the mapped admission and limits sections.",
+          "source_sha256": "2690112d25dab3d95a214bfd854542d1709ce064e90bac03b99ac3830e4edf30"
+        },
+        "universal-rule": {
+          "clause_count": 16,
+          "clauses_sha256": "c01a5ef83166307d80e1ba5b6202a74e4893cdef1e297fdd5d22ab84ac84a9f2",
+          "source_sha256": "287e4933de4f001fa140c3bad988ee1a25db1f6afd37f78150c98a235d9dc719"
+        },
+        "non-terminal-recovery-events": {
+          "clause_count": 12,
+          "clauses_sha256": "f6192ba79ee36d56a3d57af9742fca650feb6644234759e4c681ac5a243cc4e3",
+          "source_sha256": "2681136af50f4e83f94610a3890895fda62cdac19f6bc431ac7c9d9c3bfe10db"
+        },
+        "provider-waits-and-cooldowns": {
+          "clause_count": 5,
+          "clauses_sha256": "d883e792e8a7a15f068ec7c1689e6f89644271fc874a037876c6c5ca2e4fb5df",
+          "source_sha256": "0611d78fcf35bf52db10e088e9d2e5bf4d7650a2c18c27fbc7df581988d50779"
+        },
+        "mission-control-mechanical-gate": {
+          "clause_count": 11,
+          "clauses_sha256": "f70fa417997256feb6fa217ae800b5841d02c26dbd4fb3bc6555f3428226dd5c",
+          "source_sha256": "ad3b9a2df4ca37a50115041abeba043f5e8a397394227bd8d0e96033b9373443"
+        },
+        "legitimate-pause-semantics": {
+          "clause_count": 7,
+          "clauses_sha256": "5d4bba0049a97c22ccd7b0a3d782291cf07aef82650abea18b35495a40f8a346",
+          "source_sha256": "5e40d3de0fabfa193706b736623c89a453648cd2e121cf37f009b3af01a8a9e7"
+        },
+        "fail-closed-findings": {
+          "clause_count": 3,
+          "clauses_sha256": "49c50eb2d2b8e759ea2fa46f58ddeda7af867fdd55318816a3332082b378cbb5",
+          "source_sha256": "7e2038815f747eff4d2a50be8197f09050b1a88fb142e0c5e665904bad726632"
+        },
+        "relation-to-other-controls": {
+          "clause_count": 7,
+          "clauses_sha256": "7820d7325e212c14ed1602a1d612c592940cd1660f5a55e000dab31d5ac4ab41",
+          "source_sha256": "c7a22b21ba152e88a8cfeaf61c8c6768df892e2b21c7233fe6e27648f2d930ce"
+        },
+        "origin--transfer-rationale": {
+          "classification": "NON_OPERATIVE",
+          "reason": "Historical incident and transfer rationale, including the unrelated later evaluator boundary; no new task-time behavior.",
+          "source_sha256": "2918c7d085250bb897c0cd9c395f8421910bd9996777090cd093cf02d818f5d2"
+        },
+        "limits": {
+          "clause_count": 4,
+          "clauses_sha256": "7f8926f837ccfbe2da62e58d85833d68e54af2c7de0a5a722c700462c031e6e9",
+          "source_sha256": "f422d4819474310b691ce5324e86f812d090ddc581145384b3c8a67dca32ba3f"
+        }
+      }
+    },
+    "patterns/context-compaction-resilience.md": {
+      "clause_count": 73,
+      "clauses_sha256": "74cbfd7a98f6c34c19e16afb66cf8a50fef09a564b61bb002c50dd55a80bdfab",
+      "pre_section_sha256": "867545769e503df2dc7ce3f161c627c84a275b8caa11a9a5c5d35626f1b6e475",
+      "sections": {
+        "problem": {
+          "clause_count": 1,
+          "clauses_sha256": "7d3407c3dcd9a209bdcf25cd2a6ade88911cd1ae9471329dbbf24e8a9161b99a",
+          "source_sha256": "9f040a7e81f980ea20af5e6adf682e596248cfa2f7c2e4580a69b24be1ec9b94"
+        },
+        "universal-pattern": {
+          "clause_count": 63,
+          "clauses_sha256": "8371178771dd02e52a5fb11d05132685c85a0cff8a74cbd140f9eed70c279c8a",
+          "source_sha256": "47d52fb25990835eed5bca2b33a37d9bff676090c59c8e62d59975ab0a599943"
+        },
+        "recommended-project-instruction": {
+          "clause_count": 8,
+          "clauses_sha256": "de364ae71698f5ea4427242d8d292eb5181591ebb1f3620f0af424a5a2f6ab06",
+          "source_sha256": "e42764ab35b62e48198778b49697a565f61718217cc454441e2b674013141dba"
+        },
+        "origin--evidence": {
+          "classification": "NON_OPERATIVE",
+          "reason": "Historical generalization of the checkpoint pattern; independent operative guidance is mapped in the other sections.",
+          "source_sha256": "e6e4454abf32fdf6f630ca78dc2e9eac7de318a2e9bb9a6fcd7def455481b759"
+        },
+        "limits": {
+          "clause_count": 1,
+          "clauses_sha256": "b0e492e68cd1ffa0bb99fa99c934a9c848123cc41f2427de4ce6cba6ab61a538",
+          "source_sha256": "6b7f4353621705de4e4009873101d1b0e6a8764e2c0d6d7baf99bc4df4e0d059"
+        }
+      }
+    },
+    "patterns/exclusive-active-task-locks.md": {
+      "clause_count": 143,
+      "clauses_sha256": "5cf0ed3aab97252a1756dca4b5820a4c1ea74671f3ab75e900cdc2d9708c1310",
+      "pre_section_sha256": "a25ca5765c49677dc7ef596de8d5666f62a339fd953619d5760a411929b5ba88",
+      "sections": {
+        "problem": {
+          "classification": "NON_OPERATIVE",
+          "reason": "Historical competing-source and test-completeness motivation; duties are mapped in the numbered controls and limits.",
+          "source_sha256": "3a98b4341e13ab568f56efcf2920573a35ac307354c79bfcd3a95bf9b523eccd"
+        },
+        "universal-rule": {
+          "clause_count": 8,
+          "clauses_sha256": "0bf957dd63b464f4cb81be4388727eb8c8987d8ac98e638f7af28ad343c72a83",
+          "source_sha256": "a107180a7eeb64c0a27e84baf1678ce79d83347c843c665fbd8f2b721d15f12a"
+        },
+        "1-store-one-machine-readable-active-task-lock": {
+          "clause_count": 7,
+          "clauses_sha256": "2b907447e2b25058525b90a54ba139c9bcc941391d8c09b4eab04cc20cc3ae58",
+          "source_sha256": "f83ed080288f36c50a8ed0938c6d289e693a3fc70ec3454428a79dd4cc13517d"
+        },
+        "2-make-the-task-exclusive-without-deleting-other-valid-state": {
+          "clause_count": 8,
+          "clauses_sha256": "1673bc4c49405ff0bd373634efa2d97a94e77c7336526b41bf3c13dcfd99b565",
+          "source_sha256": "f3b123d54be1d19a36ca7ab53046b943feb748d627010f3c07a0b4465b718175"
+        },
+        "3-run-task-preflight-before-reading-roadmaps-or-old-handoffs": {
+          "clause_count": 11,
+          "clauses_sha256": "f26567a48852628a95d0811ff8d23a78961c8fde70d6cadf72674a9cc83f8811",
+          "source_sha256": "d6d7d4c7082a5a7603354af9e50ae7e95f0fb015ba342ecb2cdb2caf367e47b2"
+        },
+        "4-mirror-the-lock-in-the-human-readable-current-state-checkpoint": {
+          "clause_count": 13,
+          "clauses_sha256": "9e1bc2c5eb4a84a7b501914ad820f66b2d9a6a20e6338cb7aacce71f46b4ce19",
+          "source_sha256": "a770568fa9dde3f1bbf1d2779dae6ab921b360381466b73cc9266d54d39e15af"
+        },
+        "4a-resolve-task-authority-before-global-execution-status": {
+          "clause_count": 21,
+          "clauses_sha256": "6b2b4c0f9e2dada26d9097fd08fb8a40d7b2d3ec50f2e9063fc68beb725caca6",
+          "source_sha256": "117fb9daa2aac9922ee01c0c011ce51e0cc9deb7fd22f30255e6326b2053967d"
+        },
+        "5-use-an-artifact-based-acceptance-command": {
+          "clause_count": 21,
+          "clauses_sha256": "e832a2e0d625f137406477b57dd3835f74abc00b54cdb08c3b9b421b12cc8b45",
+          "source_sha256": "3e6ecb1ac85a7506c04a18903acb0a2ded6fa305a399e7735b63a255f3f7d52b"
+        },
+        "6-separate-repository-correctness-from-task-completeness": {
+          "clause_count": 3,
+          "clauses_sha256": "ad6b2c20787c3dc1677727b7b064566b5cbb7aaf9c8d01581fb5fd67dd8033c9",
+          "source_sha256": "c3b443e6d276839be76acb1adb99d9576ccf1ac756b5708f10a72c1fbd4d3179"
+        },
+        "7-use-explicit-terminal-states": {
+          "clause_count": 8,
+          "clauses_sha256": "eaf47b6579f753cc46835ac40bd80492dda615d340f4bf3a7c8da1d3747f06fc",
+          "source_sha256": "19fc8f39e0573a490d4ea8bc53c5cd05c81ff9e8cdf81f5624b61855433b1b7c"
+        },
+        "8-keep-expected-answers-out-of-model-input": {
+          "clause_count": 5,
+          "clauses_sha256": "6eb2d39ab793744d2cbf849f537083224229b581ebbecf77d614de49e2f9cf9a",
+          "source_sha256": "22fbbdd5ceab652491e7243753e2a082490ff94a102dcf1330cf4ecb91f1e8a9"
+        },
+        "9-define-closeout-and-retirement": {
+          "clause_count": 10,
+          "clauses_sha256": "271aec419c6ee2df9917ed40a223ee201c2146e75dab87d3403fb4d206327b82",
+          "source_sha256": "9db0a56d554cf7a3cc3d15fbf6c607a4be52747a784a983a12ec357d2c0d2e15"
+        },
+        "10-regression-tests-for-the-control-plane": {
+          "clause_count": 8,
+          "clauses_sha256": "ff2abdcbb514e22cf240f86e8232ec21116cf1b7fb8a0ddfe490fdfcd75d8f7f",
+          "source_sha256": "0cd75225ae20a6fd579a467ef95fca7381f8e3d61542974608d6e5c2f645e2cb"
+        },
+        "anti-patterns": {
+          "clause_count": 10,
+          "clauses_sha256": "edcf68ab82bd3b29e061b7933d33ca9031dc4c7000d81a7857d9ae08b19e5f75",
+          "source_sha256": "127d22071c56d17a1105d5a5cd63352560f5c5f8c9164f4da28157c5799ddc81"
+        },
+        "recommended-project-instruction": {
+          "clause_count": 5,
+          "clauses_sha256": "1588b3b719942407b86af09b01e22994ab8faaf7f61c4368ee47b1dd1b180bd4",
+          "source_sha256": "cd05b1b4d3939293252141d18c0aceb1f2e2b8a25d806be1a81c4800c428dc1a"
+        },
+        "origin--evidence": {
+          "classification": "NON_OPERATIVE",
+          "reason": "Origin incident, historical source identities and project repairs explain transfer without prescribing independent universal behavior.",
+          "source_sha256": "00cee4d3f708421f58377f2334baa186e7490ee4c1a545a46599dc789c1781e5"
+        },
+        "limits": {
+          "clause_count": 5,
+          "clauses_sha256": "bfc139b23ee21df44a311ad58bdf81a9ec51ecc94ea9a52fdd87dfaeea9e0818",
+          "source_sha256": "a3a250fcc45089459627a2508cc55bc15235836cd9b6b5345ef88b0c3f4964ab"
+        }
+      }
     }
   },
   "review_changes": [
@@ -171,6 +365,11 @@
       "review": "pass-2 execution readback",
       "finding": "Receipts must survive exact-byte input handling and reject malformed JSON or invalid UTF-8 receipt files; an owner correction must stale a receipt even when selection stays the same.",
       "disposition": "Both CLI entrypoints read payload bytes, malformed receipt files leave UNKNOWN, the whole envelope enters the contract hash, and direct CLI/binding regressions cover these boundaries."
+    },
+    {
+      "review": "owner supervisor corrections before review rounds, 2026-10-08",
+      "finding": "Work continuity removal, missing claim/gate/resolver clauses, stale event selection, phase drift and overstated complete-pattern coverage.",
+      "disposition": "2026-10-08 supervisor corrections: restored representative Work continuity/provenance and original continuity-test expectations; consolidated persistence selectors without shortening them; exact-head status gates; actual Mission Control command and authority-resolver outputs; stop-time recovery exclusions; phase/trigger/N/A pins; action-class refresh; one-shot instruction adoption; bespoke near-misses; corrected partial dispositions with explicit owner authority, unchanged baseline and budgets."
     }
   ],
   "regression": "Coverage, receipt, activation-state and dominated-route tests; mutation-style checks that remove or corrupt an enforcement link.",
@@ -215,7 +414,7 @@
         "active_graph_nodes": 36,
         "superseded_graph_nodes": 1
       },
-      "basis": "supplied branch before pass 1 changes; main merged; live fetch unavailable in sandbox",
+      "basis": "supplied pre-edit branch; live fetch unavailable",
       "main_revision": "991c7a08b7d9f831327d9075175b8d70c34c37e6"
     },
     {
@@ -263,16 +462,16 @@
       "root_owner_outcome": "OPEN",
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
-      "implemented": "Bound semantic receipts, explicit bootstrap/protection state, dominated-route regression; no claim of universal live enforcement."
+      "implemented": "Receipt binding, activation states and dominated-route regression; not universal enforcement."
     },
     {
       "finding_id": "policy-pr-312-reconciliation",
-      "basis": "Maintainer chose structured admission on 2026-10-07; no backlog-addition authorization.",
+      "basis": "Structured admission chosen 2026-10-07; no backlog growth.",
       "new_pattern_ids": [
         "patterns/agent-completable-merge-gates.md",
         "patterns/convergent-review-acceptance-gates.md"
       ],
-      "required_second_merge_action": "Completed: both are STRUCTURED_ENFORCED with maps, pins and bound admission regressions; no backlog additions."
+      "required_second_merge_action": "Completed: maps, pins and bound regressions; no additions."
     },
     {
       "finding_id": "slice-1-kernel",
@@ -286,18 +485,10 @@
       },
       "backlog_count": 78,
       "baseline_shrinkage": 6,
-      "excepted": 1,
-      "remaining_in_six_sections": 0,
       "new_records": 15,
       "root_owner_outcome": "OPEN",
-      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
-      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
-      "implemented": "Six sections, 103 clauses, one exception, 23 behaviors and a budget-tested projection. Later slices remain.",
-      "clauses_found": 103,
-      "structured_clauses": 102,
-      "consolidated_obligations": 23,
-      "rendered_work_utf8_bytes": 27355,
-      "rendered_work_budget_bytes": 32768
+      "implemented": "103 clauses/23 behaviors; one exception; later slices OPEN.",
+      "rendered_work_utf8_bytes": 27355
     },
     {
       "finding_id": "slice-2-review-merge",
@@ -311,9 +502,24 @@
       },
       "backlog_count": 78,
       "baseline_shrinkage": 6,
+      "implemented": "70 review clauses / 8 behaviors; 58 merge clauses / 8 behaviors; 14 records; no exceptions/additions."
+    },
+    {
+      "finding_id": "slice-2a-continuation-closure",
+      "date": "2026-10-08",
+      "identity_counts_by_disposition": {
+        "STRUCTURED_ENFORCED": 9,
+        "STRUCTURED_PARTIAL": 8,
+        "WORKFLOW_ONLY": 10,
+        "LEGACY_UNSTRUCTURED": 69,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 77,
+      "baseline_shrinkage": 7,
+      "root_owner_outcome": "OPEN",
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
-      "implemented": "Two new identities structured: 70 review clauses / 8 obligations; 58 merge clauses / 8 obligations; 14 new records, no exceptions or backlog additions."
+      "implemented": "65/73/143 mapped rows; 28 new/3 extended records, 32 behaviors. Locks enforced; terminal/compaction partial. Work 32429/37194 bytes (31339 pre-actor; 31317 pre-outcome; 31254 pre-scope). Slice 2b/later OPEN."
     }
   ],
   "learning_state_at_merge": [
@@ -322,5 +528,23 @@
   "nonclaims": [
     "A matching receipt verifies the binding and attributes an asserted judgment to an actor; it does not prove application, semantic truth, actor identity or actual independence. SAME_AGENT is application evidence, not independent verification.",
     "Turns that never load UDA are outside its protection; the repository cannot enforce them."
+  ],
+  "owner_authorized_coverage_corrections": [
+    {
+      "id": "patterns/context-compaction-resilience.md",
+      "disposition": "STRUCTURED_PARTIAL",
+      "date": "2026-10-08",
+      "source": "current owner supervisor review of migration slice 2a before review rounds",
+      "owner_quote": "After the fixes, mark a pattern STRUCTURED_ENFORCED only where every operative clause is carried at its real boundary by evidence that demands it; otherwise STRUCTURED_PARTIAL with the exact legacy_remainder.",
+      "reason": "Supervisor review found overstated whole-pattern enforcement; retain exact clause pins, structured admission and the explicit remaining operative boundaries rather than claim a completed promotion."
+    },
+    {
+      "id": "patterns/terminal-response-admission-and-autonomous-continuation.md",
+      "disposition": "STRUCTURED_PARTIAL",
+      "date": "2026-10-08",
+      "source": "current owner supervisor review of migration slice 2a before review rounds",
+      "owner_quote": "After the fixes, mark a pattern STRUCTURED_ENFORCED only where every operative clause is carried at its real boundary by evidence that demands it; otherwise STRUCTURED_PARTIAL with the exact legacy_remainder.",
+      "reason": "Supervisor review found overstated whole-pattern enforcement; retain exact clause pins, structured admission and the explicit remaining operative boundaries rather than claim a completed promotion."
+    }
   ]
 }

@@ -1,0 +1,1 @@
+The new instruction keeps the full checkpoint field list and continuous pushes, but it omits the one-line OPEN-turn resume instruction.

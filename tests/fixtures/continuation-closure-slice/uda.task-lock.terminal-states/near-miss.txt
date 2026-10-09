@@ -1,0 +1,1 @@
+The last task acceptance command passed with every artifact on candidate-A and its output is cited. Since then candidate-B changed the artifact manifest. The worker claims candidate-B is READY_FOR_PROTECTED_MERGE using acceptance output from a different head.

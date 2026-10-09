@@ -1,0 +1,1 @@
+This turn has a fresh checkpoint and resume line. The private supervision decision is saved only in the departing account, which the successor cannot access.

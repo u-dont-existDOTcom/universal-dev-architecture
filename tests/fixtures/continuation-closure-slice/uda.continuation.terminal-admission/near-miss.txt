@@ -1,0 +1,1 @@
+The checkpoint is durable and the browser tabs were cleaned up. Acceptance is still open and the next command is authorized, but browser-tab cleanup or browser-memory pressure is offered as terminal evidence.

@@ -1,0 +1,1 @@
+After protected merge, source/merged identities, required checks and immutable post-merge receipt are recorded. The lock is completed/archived and canonical state updated before roadmap selection resumes; a later task receives a new identity and lock.

@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "ALLOW_REASONING_HANDOFF_PAUSE describes this execution-turn pause: the exact factual handoff is durably routed after the current stop receipt. Root closure and cancellation require their own current source evidence; other pauses leave the root open.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "A reasoning pause is labeled ALLOW_ROOT_CLOSE even though root acceptance is missing.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "ALLOW_REASONING_HANDOFF_PAUSE describes this execution-turn pause: the exact factual handoff is durably routed after the current stop receipt. Root closure and cancellation require their own current source evidence; other pauses leave the root open. The claimed evidence instead relies on a generic done label for a review pause.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "pause-semantics-at-boundary",
+    "non_substitute": "a generic done label for a review pause"
+  }
+}

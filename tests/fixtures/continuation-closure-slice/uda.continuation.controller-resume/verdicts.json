@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Controller state keeps the root task open at the reasoning pause and records the exact paused frontier, current directive/blocker and resumable recovery identity. Later automatic continuation requires additional lifetime evidence.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The reasoning pause is recorded as complete for the root outcome.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The owner must not become a scheduler for an already configured authorized route.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "controller-resume-at-boundary",
+    "non_substitute": "owner reminder used as scheduler"
+  }
+}

@@ -119,6 +119,8 @@ def validate_trigger(expr: Any, where: str) -> None:
         return
     if not isinstance(expr.get("fact"), str):
         raise RuleGraphError("INVALID_TRIGGER", f"{where}.fact")
+    if expr["fact"].startswith("envelope."):
+        raise RuleGraphError("RESERVED_FACT_NAMESPACE", f"{where}: envelope.* names bind top-level inputs")
     ops = set(expr) - {"fact"}
     if len(ops) != 1 or next(iter(ops)) not in {"eq", "in", "contains", "present"}:
         raise RuleGraphError("UNSUPPORTED_TRIGGER_OPERATOR", where)
@@ -127,6 +129,20 @@ def validate_trigger(expr: Any, where: str) -> None:
         raise RuleGraphError("INVALID_TRIGGER", f"{where}.in")
     if op == "present" and not isinstance(expr[op], bool):
         raise RuleGraphError("INVALID_TRIGGER", f"{where}.present")
+
+
+def validate_refresh_facts(rule: dict[str, Any], profile: dict[str, Any]) -> None:
+    rid = rule["rule_id"]
+    refresh = rule.get("refresh_on_facts", [])
+    if (not isinstance(refresh, list) or any(not isinstance(name, str) or not name for name in refresh)
+            or len(set(refresh)) != len(refresh)):
+        raise RuleGraphError("INVALID_REFRESH_FACTS", rid)
+    required = selection_inputs(rule, profile)
+    missing = sorted(required - set(refresh))
+    if missing:
+        raise RuleGraphError("TRIGGER_FACTS_NOT_REFRESHED",
+                             f"{rid}: refresh_on_facts missing selection inputs: {', '.join(missing)}",
+                             {"rule_id": rid, "missing_facts": missing})
 
 
 def role_closure(profile: dict[str, Any], role: str) -> set[str]:
@@ -183,10 +199,7 @@ def validate(catalog: dict[str, Any], profile: dict[str, Any], *, root: Path | N
         if rule.get("status") not in {"CANDIDATE", "CURRENT", "HISTORICAL"} or not isinstance(rule.get("revision"), int):
             raise RuleGraphError("INVALID_RULE_STATE", rid)
         validate_trigger(rule.get("trigger"), rid)
-        refresh = rule.get("refresh_on_facts", [])
-        if (not isinstance(refresh, list) or any(not isinstance(name, str) or not name for name in refresh)
-                or len(set(refresh)) != len(refresh)):
-            raise RuleGraphError("INVALID_REFRESH_FACTS", rid)
+        validate_refresh_facts(rule, profile)
         for role in rule.get("applies_to", {}).get("roles", []):
             if role not in roles:
                 raise RuleGraphError("UNKNOWN_RULE_ROLE", f"{rid}:{role}")
@@ -299,6 +312,57 @@ def applicability(rule: dict[str, Any], envelope: dict[str, Any], profile: dict[
     return tri_all([scope(rule, envelope, profile), evaluate(rule["trigger"], envelope["facts"])])
 
 
+def selection_context(envelope: dict[str, Any]) -> tuple[Any, bool, list[str]]:
+    """The envelope controls used by compilation for activation/legacy selection."""
+    bootstrap = envelope.get("bootstrap", {})
+    loaded = isinstance(bootstrap, dict) and bootstrap.get("state") == "LOADED"
+    return bootstrap, loaded, envelope.get("legacy_rule_ids", [])
+
+
+class SelectionReadProbe(dict):
+    """Observe input reads through the compiler's own eager selection paths."""
+
+    def __init__(self, inputs: set[str], *, envelope: bool = False):
+        super().__init__()
+        self.inputs = inputs
+        self.envelope = envelope
+        if envelope:
+            self["facts"] = SelectionReadProbe(inputs)
+
+    def __getitem__(self, name: str) -> Any:
+        if self.envelope and name == "facts":
+            return super().__getitem__(name)
+        return self.get(name)
+
+    def get(self, name: str, default: Any = None) -> Any:
+        if self.envelope and name == "facts":
+            return super().__getitem__(name)
+        self.inputs.add(f"envelope.{name}" if self.envelope else name)
+        # UNKNOWN avoids value-dependent role traversal. scope/evaluate inspect
+        # all populated dimensions and all trigger arms without short-circuiting.
+        return default if self.envelope else {"state": "UNKNOWN"}
+
+
+def selection_inputs(rule: dict[str, Any], profile: dict[str, Any]) -> set[str]:
+    inputs: set[str] = set()
+    envelope = SelectionReadProbe(inputs, envelope=True)
+    selection_context(envelope)
+    applicability(rule, envelope, profile)
+    return inputs
+
+
+def refresh_observations(names: list[str] | dict[str, Any], envelope: dict[str, Any]) -> dict[str, Any]:
+    observed = {}
+    for name in names:
+        if name.startswith("envelope."):
+            field = name.removeprefix("envelope.")
+            item = {"state": "KNOWN", "value": envelope[field]} if field in envelope else {"state": "ABSENT"}
+        else:
+            item = fact(envelope.get("facts", {}), name)
+        observed[name] = {k: v for k, v in item.items() if k in {"state", "value"}}
+    return observed
+
+
 def order_rules(selected: set[str], by_id: dict[str, dict[str, Any]]) -> list[str]:
     emitted, active, ordered = set(), set(), []
     def visit(rid: str) -> None:
@@ -359,11 +423,25 @@ def render(envelope: dict[str, Any], rules: list[dict[str, Any]], unresolved: li
     for i, (carry, repair) in enumerate(lifecycle, 1):
         lines += [f"L{i}: Carry: {carry} Repair: {repair}"]
     if refresh_boundaries:
-        lines += ["", "## Contract refresh boundaries"]
+        lines += ["", "## Contract refresh boundaries",
+                  "Before each boundary below, supply current task facts. Recompile if any listed fact's "
+                  "state/value changed, even when the matching rule was omitted at compilation."]
+        # Share reminders at identical boundaries; keep each rule's exact guard
+        # in the machine-readable contract without repeating prose in Work.
+        points: dict[tuple[str, str], set[str]] = {}
         for boundary in refresh_boundaries:
-            lines.append(f"- Before {boundary['phase']} -> {boundary['destination']}, supply current task facts "
-                         f"for {', '.join(boundary['facts'])}. Recompile if their state/value changed, "
-                         f"even when {boundary['rule_id']} was omitted at compilation.")
+            points.setdefault((boundary['phase'], boundary['destination']), set()).update(boundary['facts'])
+        common = set.intersection(*points.values())
+        if common:
+            lines.append("Every boundary: " + ", ".join(sorted(common)))
+        fact_lists = list(dict.fromkeys(tuple(sorted(names - common)) for names in points.values()))
+        for i, names in enumerate(fact_lists, 1):
+            lines.append(f"F{i}: {', '.join(names) or '(common only)'}")
+        grouped: dict[tuple[str, tuple[str, ...]], list[str]] = {}
+        for (phase, destination), names in points.items():
+            grouped.setdefault((phase, tuple(sorted(names - common))), []).append(destination)
+        for (phase, names), destinations in grouped.items():
+            lines.append(f"- {phase} -> {'; '.join(destinations)}: F{fact_lists.index(names) + 1}")
     if unresolved:
         lines += ["", "## Unresolved applicability", json.dumps(unresolved, sort_keys=True)]
     return "\n".join(lines).rstrip() + "\n"
@@ -374,23 +452,19 @@ def compile_contract(catalog: dict[str, Any], profile: dict[str, Any], envelope:
     by_id, locks = state["by_id"], state["locks"]
     if envelope.get("schema_version") != 1 or not isinstance(envelope.get("facts"), dict):
         raise RuleGraphError("INVALID_TASK_ENVELOPE", "schema_version=1 and facts required")
-    bootstrap = envelope.get("bootstrap", {})
-    loaded = isinstance(bootstrap, dict) and bootstrap.get("state") == "LOADED"
+    bootstrap, loaded, legacy_rule_ids = selection_context(envelope)
     evaluations, direct, unresolved, refresh_boundaries = {}, set(), [], []
     for rid, rule in sorted(by_id.items()):
-        if rule["status"] != "CURRENT":
-            continue
         refresh = rule.get("refresh_on_facts", [])
-        # Retain the guard for rules this mode can select, even with a false trigger.
-        potential = {**envelope, "facts": {**envelope["facts"],
-                     **{name: {"state": "UNKNOWN"} for name in refresh}}}
-        if (refresh and (mode != "legacy" or rid in envelope.get("legacy_rule_ids", []))
-                and applicability(rule, potential, profile) != FALSE):
-            observed = {name: {k: v for k, v in fact(envelope["facts"], name).items()
-                              if k in {"state", "value"}} for name in refresh}
+        # Corrections can activate omitted records, including via legacy IDs or
+        # dependency closure. Never prune a refresh guard by current selection.
+        if refresh:
+            observed = refresh_observations(refresh, envelope)
             for ob in rule["obligations"]:
                 refresh_boundaries.append({"rule_id": rid, "phase": ob["due_phase"],
                                            "destination": ob["destination"], "facts": observed})
+        if rule["status"] != "CURRENT":
+            continue
         value = applicability(rule, envelope, profile)
         evaluations[rid] = value
         if value == TRUE:
@@ -399,7 +473,7 @@ def compile_contract(catalog: dict[str, Any], profile: dict[str, Any], envelope:
             unresolved.append({"rule_id": rid, "reason": "UNKNOWN_APPLICABILITY"})
     reasons: dict[str, list[dict[str, Any]]] = defaultdict(list)
     if mode == "legacy":
-        selected = set(envelope.get("legacy_rule_ids", []))
+        selected = set(legacy_rule_ids)
         unknown = selected - set(by_id)
         if unknown:
             raise RuleGraphError("UNKNOWN_LEGACY_RULE", ",".join(sorted(unknown)))
@@ -580,7 +654,8 @@ def semantic_result(contract: dict[str, Any], rule: dict[str, Any], ob: dict[str
 def check_contract(contract: dict[str, Any] | None, phase: str, payload: str | bytes,
                    clock_start: str | None = None, clock_end: str | None = None,
                    receipts: Any = None, destination: str | None = None,
-                   current_facts: dict[str, Any] | None = None) -> dict[str, Any]:
+                   current_facts: dict[str, Any] | None = None, *,
+                   current_task: dict[str, Any] | None = None) -> dict[str, Any]:
     scope_result = {"destination": destination, "out_of_scope": []} if destination is not None else {}
     if (not isinstance(contract, dict) or contract.get("uda_protection") != "UDA_GOVERNED"
             or not isinstance(contract.get("uda_activation"), dict)
@@ -592,14 +667,28 @@ def check_contract(contract: dict[str, Any] | None, phase: str, payload: str | b
     if len(content) != len(CONTRACT_CONTENT_FIELDS) or sha256(canonical(content).encode()) != contract.get("content_sha256"):
         return {**scope_result, "schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
                 "reason": "contract content hash mismatch"}
+    # The full task envelope is a contract-wide binding, independent of selector facts
+    # and the phase/destination-specific refresh and receipt checks below.
+    if isinstance(current_task, dict) and current_task.get("task_id") != contract["task_id"]:
+        return {**scope_result, "schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
+                "reason": "current task ID does not match contract task ID; recompile contract for this task",
+                "contract_task_id": contract["task_id"], "current_task_id": current_task.get("task_id")}
+    if isinstance(current_task, dict) and sha256(canonical(current_task).encode()) != contract["task_envelope_sha256"]:
+        return {**scope_result, "schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
+                "reason": "current task envelope hash does not match contract; recompile contract before checking"}
     for boundary in contract["refresh_boundaries"]:
         if boundary["phase"] != phase or (destination is not None and boundary["destination"] != destination):
             continue
-        if not isinstance(current_facts, dict):
+        if not isinstance(current_task, dict) and not isinstance(current_facts, dict):
             return {**scope_result, "schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
                     "reason": "current task facts required at contract refresh boundary"}
-        observed = {name: {k: v for k, v in fact(current_facts, name).items() if k in {"state", "value"}}
-                    for name in boundary["facts"]}
+        if isinstance(current_task, dict):
+            observed = refresh_observations(boundary["facts"], current_task)
+        else:
+            # Facts-only callers must explicitly supply observations for the
+            # envelope.* controls too; do not infer them from stale compilation.
+            observed = {name: {k: v for k, v in fact(current_facts, name).items() if k in {"state", "value"}}
+                        for name in boundary["facts"]}
         if observed != boundary["facts"]:
             return {**scope_result, "schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
                     "reason": "task facts changed; recompile contract before checking",
@@ -704,7 +793,7 @@ def main() -> int:
     v = sub.add_parser("validate"); v.add_argument("--write-lock")
     for name in ["compile", "explain"]:
         p = sub.add_parser(name); p.add_argument("--task", required=True); p.add_argument("--mode", choices=["legacy", "flat", "graph"], default="graph"); p.add_argument("--output")
-    c = sub.add_parser("check"); c.add_argument("--contract"); c.add_argument("--phase", choices=PHASES, required=True); c.add_argument("--payload", required=True); c.add_argument("--clock-start"); c.add_argument("--clock-end"); c.add_argument("--receipts"); c.add_argument("--destination"); c.add_argument("--task", help="current task envelope for contract refresh boundaries"); c.add_argument("--output")
+    c = sub.add_parser("check"); c.add_argument("--contract"); c.add_argument("--phase", choices=PHASES, required=True); c.add_argument("--payload", required=True); c.add_argument("--clock-start"); c.add_argument("--clock-end"); c.add_argument("--receipts"); c.add_argument("--destination"); c.add_argument("--task", help="current task envelope for contract freshness and refresh boundaries"); c.add_argument("--output")
     r = sub.add_parser("receipt"); r.add_argument("--contract", required=True); r.add_argument("--phase", choices=PHASES, required=True); r.add_argument("--payload", required=True); r.add_argument("--output")
     i = sub.add_parser("impact"); i.add_argument("paths", nargs="+"); i.add_argument("--output")
     x = sub.add_parser("compare"); x.add_argument("--task", required=True); x.add_argument("--output")
@@ -734,7 +823,7 @@ def main() -> int:
         result = check_contract(read_json(Path(args.contract)) if args.contract else None, args.phase,
                                 Path(args.payload).read_bytes(), args.clock_start, args.clock_end,
                                 read_receipts(args.receipts), args.destination,
-                                read_json(Path(args.task)).get("facts") if args.task else None)
+                                current_task=read_json(Path(args.task)) if args.task else None)
         emit(args.output, result)
         return 0 if result["admission"] == "ADMITTED" else 4
     if args.command == "receipt":

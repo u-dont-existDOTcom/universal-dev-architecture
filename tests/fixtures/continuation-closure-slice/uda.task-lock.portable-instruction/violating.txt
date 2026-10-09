@@ -1,0 +1,1 @@
+The edited instruction permits ordinary green tests to establish owner-task completion.

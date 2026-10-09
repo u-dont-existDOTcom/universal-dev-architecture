@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Current head candidate-B has acceptance command output exit 0, all required artifacts verified and no open findings, so the claim is READY_FOR_PROTECTED_MERGE; integration and the receipt remain. With findings remaining it would be INCOMPLETE; a BLOCKED claim must cite durable evidence of the actual external boundary. COMPLETE is reserved for protected merge, readback and an immutable closeout receipt. Ordinary CI is only internal correctness, and a provider timeout is not a model rejection.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "Current head candidate-B is claimed READY_FOR_PROTECTED_MERGE. Its acceptance command reports two open findings: missing comparison artifacts and missing live receipts. READY claimed with open acceptance findings.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The cited acceptance output passed on candidate-A, not the candidate-B head whose readiness is claimed.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "terminal-states-at-boundary",
+    "non_substitute": "acceptance output from a different head"
+  }
+}

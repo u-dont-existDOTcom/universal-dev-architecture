@@ -1,0 +1,1 @@
+The wait has an actor, condition and bounded horizon. Its reasoning route is missing; the resolver emitted WAIT_REASONING_HANDOFF_MISSING. The worker replaces that result with an assertion that its handoff exists.

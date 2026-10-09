@@ -1,0 +1,1 @@
+Controller state keeps the root task open at the reasoning pause and records the exact paused frontier, current directive/blocker and resumable recovery identity. Later automatic continuation requires additional lifetime evidence.

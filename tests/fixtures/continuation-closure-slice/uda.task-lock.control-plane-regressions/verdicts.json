@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Executed control-plane cases reject wrong branch, stale task identity, preliminary green code, missing artifacts, COMPLETE for blocked live work, input/grader leakage and unrelated roadmap selection; only all declared artifacts admit acceptance. The receipt includes execution results.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The worker reports control-plane coverage without running any of its cases.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "An enumerated plan does not prove the required control-plane regressions ran.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "control-plane-regressions-at-boundary",
+    "non_substitute": "test names listed without executing the control-plane regressions"
+  }
+}

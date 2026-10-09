@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Tiny tasks need no dedicated lock. Newer owner instructions, legal and safety policy, permissions, spending, publication and irreversible gates remain controlling. Acceptance schemas and mutation-sensitive tests remain reviewed. Separate worktree locks still serialize shared mutation. Drift prevention does not prove correctness.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "Separate task locks justify simultaneous writes to shared mutable state.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Tiny tasks need no dedicated lock. Newer owner instructions, legal and safety policy, permissions, spending, publication and irreversible gates remain controlling. Acceptance schemas and mutation-sensitive tests remain reviewed. Separate worktree locks still serialize shared mutation. Drift prevention does not prove correctness. The claimed evidence instead relies on separate locks used to justify concurrent shared mutation.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "scope-authority-at-boundary",
+    "non_substitute": "separate locks used to justify concurrent shared mutation"
+  }
+}
