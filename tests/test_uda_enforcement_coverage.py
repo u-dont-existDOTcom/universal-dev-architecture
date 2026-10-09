@@ -63,6 +63,21 @@ class EnforcementCoverageTests(unittest.TestCase):
             self.assertEqual(1, sum(e["id"] == eid for e in entries))
             self.assertNotEqual("NOT_ACTIVE", next(e for e in entries if e["id"] == eid)["disposition"])
 
+    def test_refresh_validation_rejects_missing_trigger_fact_or_absent_policy(self):
+        original = self.read(coverage.METADATA)
+        for rid, name in (("uda.final.timestamp", None),
+                          ("uda.continuation.controller-resume", "actor"),
+                          ("uda.task-lock.exclusive-controls", "governance_required")):
+            with self.subTest(rule=rid, fact=name):
+                catalog = json.loads(json.dumps(original))
+                rule = next(r for r in catalog["records"] if r["rule_id"] == rid)
+                if name is None:
+                    rule.pop("refresh_on_facts")
+                else:
+                    rule["refresh_on_facts"].remove(name)
+                self.write(coverage.METADATA, catalog)
+                self.rejected(rid + ": TRIGGER_FACTS_NOT_REFRESHED")
+
     def test_active_indexed_pattern_without_disposition_fails(self):
         self.change(lambda entries: entries.remove(next(e for e in entries if e["indexed"])))
         self.rejected("missing disposition")

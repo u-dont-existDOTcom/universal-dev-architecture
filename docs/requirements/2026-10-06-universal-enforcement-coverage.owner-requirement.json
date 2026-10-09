@@ -506,7 +506,7 @@
       "root_owner_outcome": "OPEN",
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
-      "implemented": "65/73/143 mapped rows; 28 new/3 extended records, 32 behaviors. Locks enforced; terminal/compaction partial. Work 31585/37194 bytes (31339 pre-actor; 31317 pre-outcome; 31254 pre-scope). Slice 2b/later OPEN."
+      "implemented": "65/73/143 mapped rows; 28 new/3 extended records, 32 behaviors. Locks enforced; terminal/compaction partial. Work 32439/37194 bytes (31339 pre-actor; 31317 pre-outcome; 31254 pre-scope). Slice 2b/later OPEN."
     }
   ],
   "learning_state_at_merge": [

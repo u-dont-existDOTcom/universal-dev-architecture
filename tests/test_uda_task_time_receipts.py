@@ -29,6 +29,7 @@ class SemanticReceiptTests(unittest.TestCase):
         return tt.compile_contract(self.catalog, self.profile, self.task, 'graph')
 
     def check(self, receipts=None, **kwargs):
+        kwargs.setdefault('current_facts', self.task['facts'])
         return tt.check_contract(self.contract, 'final-delivery', self.payload, receipts=receipts, **kwargs)
 
     def test_missing_receipt_blocks(self):
@@ -194,6 +195,8 @@ class SemanticReceiptTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             contract, payload, receipts = (root / name for name in ('contract.json', 'payload.txt', 'receipts.json'))
+            task = root / 'task.json'
+            task.write_text(json.dumps(self.task))
             contract.write_text(json.dumps(self.contract))
             payload.write_bytes(self.payload.replace(b'\n', b'\r\n'))
             for script in ('uda_rule_graph_task_time.py', 'uda_rule_graph.py'):
@@ -205,12 +208,12 @@ class SemanticReceiptTests(unittest.TestCase):
                 self.assertEqual(skeleton['receipts'][0]['payload_sha256'], tt.sha256(payload.read_bytes()))
                 skeleton['receipts'][0].update({k: self.receipt[k] for k in ('verdict', 'evidence', 'actor', 'issued_at')})
                 receipts.write_text(json.dumps(skeleton))
-                result = subprocess.run(args + ['check'] + bound + ['--receipts', str(receipts)], capture_output=True, text=True, cwd=ROOT)
+                result = subprocess.run(args + ['check'] + bound + ['--receipts', str(receipts), '--task', str(task)], capture_output=True, text=True, cwd=ROOT)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertEqual(json.loads(result.stdout)['admission'], 'ADMITTED')
                 for malformed in (b'{malformed', b'\xff\xfe'):
                     receipts.write_bytes(malformed)
-                    result = subprocess.run(args + ['check'] + bound + ['--receipts', str(receipts)], capture_output=True, text=True, cwd=ROOT)
+                    result = subprocess.run(args + ['check'] + bound + ['--receipts', str(receipts), '--task', str(task)], capture_output=True, text=True, cwd=ROOT)
                     self.assertEqual(result.returncode, 4)
                     self.assertEqual(json.loads(result.stdout)['results'][0]['status'], 'UNKNOWN')
 

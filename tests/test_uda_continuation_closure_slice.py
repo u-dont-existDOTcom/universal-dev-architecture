@@ -255,7 +255,7 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                           "destination": o["destination"], "evidence": "Synthetic contradictory assertion.",
                           "actor": {"id": "fixture", "kind": "fixture", "relation": "SAME_AGENT"},
                           "issued_at": "2030-01-02T10:02:00Z"} for o in record["obligations"]]}
-            result = tt.check_contract(contract, "final-delivery", payload, receipts=receipts, **clocks)
+            result = tt.check_contract(contract, "final-delivery", payload, receipts=receipts, current_facts=task["facts"], **clocks)
             actual = {row["obligation_id"]: row["status"] for row in result["results"]}
             self.assertEqual(expected, (actual["final-first-line-timestamp"], actual["final-elapsed-time"]))
 
@@ -346,12 +346,13 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                                              if f not in ('owner_outcome_status', 'task_mode', 'actor')]
             elif record['rule_id'] in ('uda.compaction.resume-reconciliation', 'uda.compaction.completion-closeout'):
                 record['refresh_on_facts'] = [f for f in record['refresh_on_facts'] if f != 'actor']
-        baseline = tt.compile_contract(baseline_catalog, self.profile,
-                                       tt.read_json(ROOT / coverage.WORK_TASK), 'graph')
+        # Historical incomplete refresh policies are no longer compilable.
+        with self.assertRaises(tt.RuleGraphError) as caught:
+            tt.validate(baseline_catalog, self.profile)
+        self.assertEqual('TRIGGER_FACTS_NOT_REFRESHED', caught.exception.code)
         projection = tt.read_json(ROOT / coverage.WORK_CONTRACT)
-        for index, contract in ((1, baseline), (2, projection)):
-            self.assertEqual(len(contract['rendered_contract'].encode('utf-8')),
-                             int(measured[index].replace(',', '')))
+        self.assertEqual(len(projection['rendered_contract'].encode('utf-8')),
+                         int(measured[2].replace(',', '')))
 
     def test_event_fact_changes_block_until_recompiled_even_if_initially_excluded(self):
         for folder, r, catalog, task, _ in self.cases():
@@ -364,6 +365,9 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                     expected_facts.append("actor")
                 if rid in ("uda.compaction.resume-reconciliation", "uda.compaction.completion-closeout"):
                     expected_facts += ["continuity_required", "actor"]
+                elif rid == "uda.compaction.portable-instruction":
+                    expected_facts.append("actor")
+                expected_facts.append("governance_required")
                 self.assertEqual(expected_facts, r["refresh_on_facts"])
                 task["facts"]["action_classes"]["value"] = ["exclusive_task"]
                 initial = tt.compile_contract(catalog, self.profile, task, "graph")

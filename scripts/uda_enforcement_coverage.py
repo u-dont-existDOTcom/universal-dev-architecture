@@ -144,6 +144,12 @@ def validate(root: Path | str) -> list[str]:
         if len(record_ids) != len(set(record_ids)):
             errors.append("duplicate task-time record")
         by_record = {r["rule_id"]: r for r in records}
+        for record in records:
+            try:
+                validate_trigger(record.get("trigger"), record["rule_id"])
+                task_time.validate_refresh_facts(record)
+            except RuleGraphError as exc:
+                errors.append(f"{record['rule_id']}: {exc.code}: {exc}")
         lock_ids = [e["rule_id"] for e in lock["entries"]]
         if Counter(lock_ids) != Counter(record_ids):
             errors.append("task-time records differ from source lock (deleted or added mapping)")

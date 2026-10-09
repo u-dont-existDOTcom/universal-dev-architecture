@@ -129,6 +129,34 @@ def validate_trigger(expr: Any, where: str) -> None:
         raise RuleGraphError("INVALID_TRIGGER", f"{where}.present")
 
 
+def trigger_facts(expr: dict[str, Any]) -> set[str]:
+    """Collect every fact read by a validated trigger, including inactive arms."""
+    for op in ("all", "any"):
+        if op in expr:
+            return set().union(*(trigger_facts(child) for child in expr[op]))
+    if "not" in expr:
+        return trigger_facts(expr["not"])
+    return {expr["fact"]}
+
+
+def validate_refresh_facts(rule: dict[str, Any]) -> None:
+    rid = rule["rule_id"]
+    refresh = rule.get("refresh_on_facts", [])
+    if (not isinstance(refresh, list) or any(not isinstance(name, str) or not name for name in refresh)
+            or len(set(refresh)) != len(refresh)):
+        raise RuleGraphError("INVALID_REFRESH_FACTS", rid)
+    required = trigger_facts(rule["trigger"])
+    # Actor scope is an implicit predicate in applicability(), even when the
+    # explicit trigger has no actor leaf. It must survive actor handoffs too.
+    if rule.get("applies_to", {}).get("actors"):
+        required.add("actor")
+    missing = sorted(required - set(refresh))
+    if missing:
+        raise RuleGraphError("TRIGGER_FACTS_NOT_REFRESHED",
+                             f"{rid}: refresh_on_facts missing trigger facts: {', '.join(missing)}",
+                             {"rule_id": rid, "missing_facts": missing})
+
+
 def role_closure(profile: dict[str, Any], role: str) -> set[str]:
     roles = profile["roles"]
     result: set[str] = set()
@@ -183,10 +211,7 @@ def validate(catalog: dict[str, Any], profile: dict[str, Any], *, root: Path | N
         if rule.get("status") not in {"CANDIDATE", "CURRENT", "HISTORICAL"} or not isinstance(rule.get("revision"), int):
             raise RuleGraphError("INVALID_RULE_STATE", rid)
         validate_trigger(rule.get("trigger"), rid)
-        refresh = rule.get("refresh_on_facts", [])
-        if (not isinstance(refresh, list) or any(not isinstance(name, str) or not name for name in refresh)
-                or len(set(refresh)) != len(refresh)):
-            raise RuleGraphError("INVALID_REFRESH_FACTS", rid)
+        validate_refresh_facts(rule)
         for role in rule.get("applies_to", {}).get("roles", []):
             if role not in roles:
                 raise RuleGraphError("UNKNOWN_RULE_ROLE", f"{rid}:{role}")
@@ -367,8 +392,14 @@ def render(envelope: dict[str, Any], rules: list[dict[str, Any]], unresolved: li
         points: dict[tuple[str, str], set[str]] = {}
         for boundary in refresh_boundaries:
             points.setdefault((boundary['phase'], boundary['destination']), set()).update(boundary['facts'])
+        fact_lists = list(dict.fromkeys(tuple(sorted(names)) for names in points.values()))
+        for i, names in enumerate(fact_lists, 1):
+            lines.append(f"F{i}: {', '.join(names)}")
+        grouped: dict[tuple[str, tuple[str, ...]], list[str]] = {}
         for (phase, destination), names in points.items():
-            lines.append(f"- {phase} -> {destination}: {', '.join(sorted(names))}")
+            grouped.setdefault((phase, tuple(sorted(names))), []).append(destination)
+        for (phase, names), destinations in grouped.items():
+            lines.append(f"- {phase} -> {'; '.join(destinations)}: F{fact_lists.index(names) + 1}")
     if unresolved:
         lines += ["", "## Unresolved applicability", json.dumps(unresolved, sort_keys=True)]
     return "\n".join(lines).rstrip() + "\n"

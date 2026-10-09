@@ -129,7 +129,11 @@
         "origin": "owner-validated root invariant",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.bootstrap.live-root",
@@ -201,7 +205,12 @@
         "origin": "current owner bootstrap requirement",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required",
+        "owner_requires_live_root"
+      ]
     },
     {
       "rule_id": "uda.active-contract.boundary-binding",
@@ -254,7 +263,11 @@
         "origin": "task-time lesson activation",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "explicit_boundary_binding_requested"
+      ]
     },
     {
       "rule_id": "uda.owner-correction.reactivate",
@@ -314,6 +327,10 @@
             "correction carry-through and destination binding"
           ]
         }
+      ],
+      "refresh_on_facts": [
+        "actor",
+        "owner_correction_present"
       ]
     },
     {
@@ -426,6 +443,10 @@
             "follow-up definition and acceptance-criterion boundary binding"
           ]
         }
+      ],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -489,6 +510,10 @@
             "handoff boundary binding"
           ]
         }
+      ],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -566,6 +591,11 @@
             "continuation stop boundary"
           ]
         }
+      ],
+      "refresh_on_facts": [
+        "actor",
+        "owner_outcome_status",
+        "task_mode"
       ]
     },
     {
@@ -631,6 +661,10 @@
             "pre-action scope boundary"
           ]
         }
+      ],
+      "refresh_on_facts": [
+        "actor",
+        "task_mode"
       ]
     },
     {
@@ -705,6 +739,10 @@
             "actual recipient and delivery evidence"
           ]
         }
+      ],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor"
       ]
     },
     {
@@ -766,7 +804,11 @@
         "origin": "owner issue #317; pass-2 supervisor design",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "request_kind"
+      ]
     },
     {
       "rule_id": "uda.continuity.step-checkpoint",
@@ -1292,7 +1334,11 @@
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.kernel.output-budget",
@@ -1351,7 +1397,11 @@
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.kernel.continuation",
@@ -1430,7 +1480,11 @@
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.kernel.instruction-activation",
@@ -1534,7 +1588,11 @@
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.kernel.instruction-maintenance",
@@ -1611,7 +1669,12 @@
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.kernel.coordination",
@@ -1690,7 +1753,11 @@
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.kernel.owner-input-continuation",
@@ -1759,7 +1826,11 @@
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.kernel.work-permissions",
@@ -1816,7 +1887,11 @@
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.kernel.owner-interaction",
@@ -1930,7 +2005,11 @@
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.kernel.target-recovery",
@@ -2014,7 +2093,11 @@
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.kernel.operation-commitments",
@@ -2083,7 +2166,11 @@
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.kernel.followup-derivation",
@@ -2242,7 +2329,11 @@
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.kernel.operational-references",
@@ -2301,7 +2392,11 @@
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.kernel.outbound-links",
@@ -2370,7 +2465,11 @@
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.kernel.artifact-delivery",
@@ -2434,7 +2533,11 @@
         "origin": "owner-authored kernel; migration slice 1",
         "review_state": "OWNER_DIRECT"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.review.change-scope",
@@ -2534,7 +2637,12 @@
         "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.review.repair-bound",
@@ -2637,7 +2745,12 @@
         "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.review.item-degradation",
@@ -2724,7 +2837,12 @@
         "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.review.acceptance-floors",
@@ -2823,7 +2941,12 @@
         "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.review.false-failure",
@@ -3003,7 +3126,12 @@
         "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.review.cycle-escalation",
@@ -3086,7 +3214,12 @@
         "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.review.declared-authority",
@@ -3185,7 +3318,12 @@
         "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.review.failure-repair",
@@ -3255,7 +3393,12 @@
         "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.merge-gate.capability",
@@ -3358,7 +3501,12 @@
         "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.merge-gate.owner-decision",
@@ -3530,7 +3678,12 @@
         "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.merge-gate.substance-check",
@@ -3618,7 +3771,12 @@
         "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.merge-gate.owner-clicks",
@@ -3714,7 +3872,12 @@
         "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.merge-gate.authority",
@@ -3813,7 +3976,12 @@
         "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.merge-gate.failure-repair",
@@ -3900,7 +4068,12 @@
         "origin": "agent-filed portable pattern; maintainer structuring for pr-312",
         "review_state": "REVIEWED"
       },
-      "relations": []
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required"
+      ]
     },
     {
       "rule_id": "uda.continuation.state-reconciliation",
@@ -3990,7 +4163,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -4054,7 +4228,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -4198,7 +4373,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -4269,7 +4445,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -4356,7 +4533,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -4469,7 +4647,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -4559,7 +4738,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -4633,7 +4813,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -4741,7 +4922,9 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -4858,7 +5041,8 @@
       "refresh_on_facts": [
         "action_classes",
         "continuity_required",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -4946,7 +5130,8 @@
       "refresh_on_facts": [
         "action_classes",
         "continuity_required",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -5040,7 +5225,9 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "action_classes"
+        "action_classes",
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -5135,7 +5322,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -5226,7 +5414,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -5321,7 +5510,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -5428,7 +5618,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -5543,7 +5734,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -5644,7 +5836,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -5749,7 +5942,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -5821,7 +6015,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -5968,7 +6163,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -6082,7 +6278,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -6169,7 +6366,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -6276,7 +6474,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -6375,7 +6574,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -6496,7 +6696,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -6575,7 +6776,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     },
     {
@@ -6658,7 +6860,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "actor"
+        "actor",
+        "governance_required"
       ]
     }
   ]
