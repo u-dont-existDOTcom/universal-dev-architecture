@@ -21,8 +21,10 @@ npm run dev
 
 Open the dashboard route. It seeds six deterministic supervision fixtures into `data/mission-control.db` unless `MISSION_CONTROL_SKIP_SEED=1` is set. Override the database with `MISSION_CONTROL_DB=/absolute/path/mission-control.db` and the daemon with `MISSION_CONTROL_DAEMON_URL=http://127.0.0.1:4100`.
 
-The stack never generates or prints an owner token. Supply an owner-only
-`MISSION_CONTROL_OWNER_TOKEN` and use it at `/login`. Production operators
+The stack never generates or prints an owner token. The owner signs in once
+per browser at `/login` with the owner access token (`MISSION_CONTROL_OWNER_TOKEN`),
+and the session then lasts a year. Rotating `MISSION_CONTROL_SESSION_SECRET`
+signs every browser out. Production operators
 must also provide distinct `MISSION_CONTROL_INTERNAL_TOKEN`,
 `MISSION_CONTROL_OWNER_ID`, and `MISSION_CONTROL_SESSION_SECRET` values;
 production startup fails closed when any is missing.
