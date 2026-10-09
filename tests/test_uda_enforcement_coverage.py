@@ -284,6 +284,100 @@ class EnforcementCoverageTests(unittest.TestCase):
                 else:
                     self.rejected("unauthorized promoted coverage regression")
 
+    def test_manifest_backed_identity_pin_covers_enforced_and_partial_entries(self):
+        requirement = self.read(coverage.REQUIREMENT)
+        entries = {e["id"]: e for e in self.read(coverage.COVERAGE)["entries"]}
+        self.assertEqual(sorted(requirement["source_clause_manifest"]),
+                         requirement["manifest_backed_ids"])
+        self.assertEqual({"STRUCTURED_ENFORCED", "STRUCTURED_PARTIAL"},
+                         {entries[eid]["disposition"] for eid in requirement["manifest_backed_ids"]})
+        self.assertEqual([], coverage.validate(self.root))
+
+    def test_manifest_backed_partials_pass_unchanged_and_fail_coordinated_deletion(self):
+        original_requirement = self.read(coverage.REQUIREMENT)
+        original_coverage = self.read(coverage.COVERAGE)
+        for target in ("patterns/context-compaction-resilience.md",
+                       "patterns/terminal-response-admission-and-autonomous-continuation.md"):
+            for deleted in (False, True):
+                with self.subTest(target=target, deleted=deleted):
+                    requirement = json.loads(json.dumps(original_requirement))
+                    inventory = json.loads(json.dumps(original_coverage))
+                    entry = next(e for e in inventory["entries"] if e["id"] == target)
+                    self.assertEqual("STRUCTURED_PARTIAL", entry["disposition"])
+                    if deleted:
+                        requirement["source_clause_manifest"].pop(target)
+                        entry.pop("obligation_map")
+                    self.write(coverage.REQUIREMENT, requirement)
+                    self.write(coverage.COVERAGE, inventory)
+                    result = subprocess.run(
+                        [sys.executable, str(ROOT / "scripts/uda_enforcement_coverage.py"),
+                         "validate", "--root", str(self.root)],
+                        capture_output=True, text=True)
+                    self.assertEqual(1 if deleted else 0, result.returncode, result.stdout + result.stderr)
+                    if deleted:
+                        self.assertIn("unauthorized promoted coverage regression: " + target, result.stdout)
+                    else:
+                        self.assertEqual("VALID", json.loads(result.stdout)["status"])
+
+    def test_manifest_backed_entries_reject_individual_evidence_loss(self):
+        original_requirement = self.read(coverage.REQUIREMENT)
+        original_coverage = self.read(coverage.COVERAGE)
+        for target in original_requirement["source_clause_manifest"]:
+            for missing in ("manifest", "obligation_map", "structured_status"):
+                with self.subTest(target=target, missing=missing):
+                    requirement = json.loads(json.dumps(original_requirement))
+                    inventory = json.loads(json.dumps(original_coverage))
+                    entry = next(e for e in inventory["entries"] if e["id"] == target)
+                    if missing == "manifest":
+                        requirement["source_clause_manifest"].pop(target)
+                    elif missing == "obligation_map":
+                        entry.pop("obligation_map")
+                    else:
+                        entry["disposition"] = "LEGACY_UNSTRUCTURED"
+                    self.write(coverage.REQUIREMENT, requirement)
+                    self.write(coverage.COVERAGE, inventory)
+                    self.rejected("unauthorized promoted coverage regression: " + target)
+
+    def test_existing_owner_authorization_can_release_partial_manifest_evidence(self):
+        original_requirement = self.read(coverage.REQUIREMENT)
+        original_coverage = self.read(coverage.COVERAGE)
+        baseline = self.read(coverage.BASELINE)
+        original_additions = list(baseline.get("owner_authorized_additions", []))
+        for target in ("patterns/context-compaction-resilience.md",
+                       "patterns/terminal-response-admission-and-autonomous-continuation.md"):
+            baseline["owner_authorized_additions"] = original_additions + [{
+                "id": target, "date": "2026-10-09", "owner_quote": "Approved.",
+                "source": "test-only owner directive"}]
+            self.write(coverage.BASELINE, baseline)
+            for missing in ("manifest", "obligation_map", "both"):
+                with self.subTest(target=target, missing=missing):
+                    requirement = json.loads(json.dumps(original_requirement))
+                    inventory = json.loads(json.dumps(original_coverage))
+                    if missing in {"manifest", "both"}:
+                        requirement["source_clause_manifest"].pop(target)
+                    if missing in {"obligation_map", "both"}:
+                        next(e for e in inventory["entries"] if e["id"] == target).pop("obligation_map")
+                    self.write(coverage.REQUIREMENT, requirement)
+                    self.write(coverage.COVERAGE, inventory)
+                    self.assertEqual([], coverage.validate(self.root))
+
+    def test_manifest_identity_pin_is_required_exact_and_complete(self):
+        original = self.read(coverage.REQUIREMENT)
+        for pin in (None, [], "patterns/context-compaction-resilience.md",
+                    ["patterns/*"], list(original["source_clause_manifest"]) * 2):
+            with self.subTest(pin=pin):
+                requirement = json.loads(json.dumps(original))
+                if pin is None:
+                    requirement.pop("manifest_backed_ids", None)
+                else:
+                    requirement["manifest_backed_ids"] = pin
+                self.write(coverage.REQUIREMENT, requirement)
+                self.rejected("manifest_backed_ids must be a nonempty unique list of exact source identities")
+        requirement = json.loads(json.dumps(original))
+        requirement["manifest_backed_ids"] = sorted(original["source_clause_manifest"])[1:]
+        self.write(coverage.REQUIREMENT, requirement)
+        self.rejected("source clause manifest identity is not independently pinned")
+
     def test_missing_exception_reason_fails(self):
         self.change(lambda entries: self.workflow(entries).pop("exception_reason"))
         self.rejected("missing or generic exception_reason")

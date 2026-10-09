@@ -31,6 +31,19 @@
     "UDA distinguishes an activated, enforced task from one that is NOT_ACTIVATED or OUTSIDE_UDA.",
     "The external simple-turn bootstrap exemption is reported truthfully, with the exact owner-side instruction change."
   ],
+  "manifest_backed_ids": [
+    "AGENTS.md#follow-up-goal-derivation-and-assistant-added-requirements",
+    "AGENTS.md#instruction-composition",
+    "AGENTS.md#owner-facing-operational-references",
+    "AGENTS.md#per-turn-bootstrap-invariants",
+    "AGENTS.md#pre-final-continuation-invariant",
+    "AGENTS.md#workflow",
+    "patterns/agent-completable-merge-gates.md",
+    "patterns/context-compaction-resilience.md",
+    "patterns/convergent-review-acceptance-gates.md",
+    "patterns/exclusive-active-task-locks.md",
+    "patterns/terminal-response-admission-and-autonomous-continuation.md"
+  ],
   "source_clause_manifest": {
     "AGENTS.md#follow-up-goal-derivation-and-assistant-added-requirements": {
       "clause_count": 16,
