@@ -349,8 +349,16 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                        if f['finding_id'] == 'slice-2a-continuation-closure')
         measured = re.search(r'Work (\d+)/(\d+) bytes', finding['implemented'])
         self.assertIsNotNone(measured)
+        # Later slice guards may grow Work without rewriting slice 2a history.
+        slice_2a = {**self.catalog, 'records': [r for r in self.catalog['records']
+                    if not r['rule_id'].startswith('uda.owner-outcome.')]}
+        historical = tt.compile_contract(slice_2a, self.profile, tt.read_json(ROOT / coverage.WORK_TASK), 'graph')
+        self.assertEqual(len(historical['rendered_contract'].encode('utf-8')), int(measured[1]))
+        current = next(f for f in reversed(requirement['related_findings']) if f['finding_id'].startswith('slice-'))
+        measured_current = re.search(r'-> (\d+)/(\d+) bytes', current['implemented'])
+        self.assertIsNotNone(measured_current)
         projection = tt.read_json(ROOT / coverage.WORK_CONTRACT)
-        self.assertEqual(len(projection['rendered_contract'].encode('utf-8')), int(measured[1]))
+        self.assertEqual(len(projection['rendered_contract'].encode('utf-8')), int(measured_current[1]))
 
     def test_canonical_work_measurements_match_rendered_utf8_bytes(self):
         summary = (ROOT / 'patterns/task-time-lesson-activation.md').read_text()
@@ -374,9 +382,15 @@ class ContinuationClosureSliceTests(unittest.TestCase):
         with self.assertRaises(tt.RuleGraphError) as caught:
             tt.validate(baseline_catalog, self.profile)
         self.assertEqual('TRIGGER_FACTS_NOT_REFRESHED', caught.exception.code)
-        projection = tt.read_json(ROOT / coverage.WORK_CONTRACT)
-        self.assertEqual(len(projection['rendered_contract'].encode('utf-8')),
+        slice_2a = {**self.catalog, 'records': [r for r in self.catalog['records']
+                    if not r['rule_id'].startswith('uda.owner-outcome.')]}
+        historical = tt.compile_contract(slice_2a, self.profile, tt.read_json(ROOT / coverage.WORK_TASK), 'graph')
+        self.assertEqual(len(historical['rendered_contract'].encode('utf-8')),
                          int(measured[2].replace(',', '')))
+        current = re.search(r'representative Work: [\d,]+/[\d,]+ becomes ([\d,]+)/([\d,]+)', summary)
+        self.assertIsNotNone(current)
+        projection = tt.read_json(ROOT / coverage.WORK_CONTRACT)
+        self.assertEqual(len(projection['rendered_contract'].encode('utf-8')), int(current[1].replace(',', '')))
 
     def test_event_fact_changes_block_until_recompiled_even_if_initially_excluded(self):
         for folder, r, catalog, task, _ in self.cases():

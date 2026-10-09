@@ -7073,6 +7073,542 @@
         "envelope.legacy_rule_ids",
         "role"
       ]
+    },
+    {
+      "authority_owner": "current UDA owner correction",
+      "authority_domain": "owner-outcome integrity",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "provenance": {
+        "origin": "owner-authorized migration slice 2b; exact existing prose",
+        "review_state": "REVIEWED"
+      },
+      "relations": [],
+      "rule_id": "uda.owner-outcome.epoch-amendment",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "“Immutable” means immutable within an outcome epoch, not that the owner can never change the goal."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A change requires:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- an explicit owner instruction or decision;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- an impact review of active derived tasks and packets."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A worker, supervisor, planner, or task generator cannot silently revise the owner outcome."
+          },
+          {
+            "kind": "exact_text",
+            "text": "- An owner may explicitly redefine the finish line. That creates a new outcome epoch; it does not retroactively make the old contract faithful."
+          }
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "fact": "owner_correction_present",
+            "eq": true
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "epoch-amendment-at-boundary",
+          "required_behavior": "Keep outcome epochs immutable; accept changed goals only through explicit owner authority, a new append-only epoch, supersession and active-task/packet impact review.",
+          "due_phase": "pre-action",
+          "destination": "owner-outcome-authority",
+          "acceptance_evidence": "For an outcome-changing correction, show the explicit owner instruction/decision, prior immutable epoch, new revision, supersession link and impact review of active derived tasks and packets. No worker, supervisor, planner or generator silently revises it. The amendment does not retroactively make the old contract faithful. If the correction does not change the outcome, a bound N/A identifies that fact; otherwise every listed requirement must be present.",
+          "non_substitutes": [
+            "an in-place epoch edit",
+            "a supervisor-authored goal revision",
+            "a new epoch without active-task and packet impact review"
+          ],
+          "carry_through": "Carry the exact owner source, epoch, parent mapping and unmet gap through checkpoints, handoffs and revisions; refresh changed authority.",
+          "repair": "Repair the contract or literal outgoing state before the affected boundary; preserve valid supporting work and continue required open outcomes.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "refresh_on_facts": [
+        "actor",
+        "envelope.bootstrap",
+        "envelope.legacy_rule_ids",
+        "governance_required",
+        "owner_correction_present",
+        "role"
+      ]
+    },
+    {
+      "authority_owner": "current UDA owner correction",
+      "authority_domain": "owner-outcome integrity",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "provenance": {
+        "origin": "owner-authorized migration slice 2b; exact existing prose",
+        "review_state": "REVIEWED"
+      },
+      "relations": [],
+      "rule_id": "uda.owner-outcome.derived-contract",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Every downstream task contract must declare its relationship to the owner outcome:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "```yaml\nderivation:\n  parent_owner_outcome_id: OO-...\n  parent_owner_outcome_epoch: 1\n  parent_owner_outcome_sha256: \"...\"\n  contribution_type: decompose | refine | implement | verify | support\n\n  required_outcome_coverage:\n    - required_outcome_id: RO-001\n      relation: directly_satisfies | contributes | verifies | not_addressed\n      task_criterion_ids: [AC-...]\n      explanation: \"...\"\n\n  intentionally_not_addressed:\n    - required_outcome_id: RO-...\n      parent_task_remains_open: true\n      owner_authorization_ref: null\n```"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Hard rules:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "1. A child contract may be narrower as a **subtask**, but it must preserve a trace to the parent outcome and state that the parent remains open."
+          },
+          {
+            "kind": "exact_text",
+            "text": "2. A root task contract may not omit a terminal-required owner outcome."
+          },
+          {
+            "kind": "exact_text",
+            "text": "3. A threshold may not be weakened."
+          },
+          {
+            "kind": "exact_text",
+            "text": "4. `must` may not become `should`, “good enough,” “review ready,” or “owner can decide later.”"
+          },
+          {
+            "kind": "exact_text",
+            "text": "5. A direct outcome may not be replaced by a supporting proxy."
+          },
+          {
+            "kind": "exact_text",
+            "text": "6. Deferral does not erase an outcome. It requires either an explicit owner decision or an open parent task that still owns the requirement."
+          },
+          {
+            "kind": "exact_text",
+            "text": "7. A new task contract is invalid until the derivation comparison passes."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Before accepting a derived contract, construct a coverage matrix:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "| Owner required outcome | Derived criterion(s) | Relation | Evidence required | Weakened? | Parent remains open? |\n|---|---|---|---|---|---|"
+          },
+          {
+            "kind": "exact_text",
+            "text": "The contract passes only when:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- every terminal-required owner outcome is represented;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- each mapped criterion has equal or stronger modality and target;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- the proposed evidence can prove that outcome rather than only a proxy;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- any unaddressed outcome remains explicitly owned by an open parent task;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- no terminal state is reachable while a required root outcome is unowned."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If semantic equivalence cannot be determined deterministically, route the bounded comparison to Extra High or Pro according to the intelligence-routing policy. The comparison must include both the verbatim owner outcome and the derived contract."
+          },
+          {
+            "kind": "exact_text",
+            "text": "- Deterministic mapping catches structural omissions and threshold weakening. Semantic equivalence may still require Extra High, Pro, or the owner."
+          }
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "fact": "action_classes",
+            "contains": "derived_contract_acceptance"
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "derived-contract-at-boundary",
+          "required_behavior": "Accept a downstream contract only after complete backward derivation and outcome-preservation comparison.",
+          "due_phase": "pre-action",
+          "destination": "owner-outcome-authority",
+          "acceptance_evidence": "Before acceptance the actual contract declares parent ID, epoch and SHA-256, contribution_type decompose/refine/implement/verify/support, required_outcome_coverage with required outcome IDs, directly_satisfies/contributes/verifies/not_addressed relations, task criterion IDs and explanation; intentionally_not_addressed identifies its outcome, parent_task_remains_open true and owner_authorization_ref. A child may narrow only as a traced subtask with its parent open; a root omits no terminal-required outcome. Thresholds cannot weaken; must cannot become should, good enough, review ready or owner can decide later. Direct outcomes cannot become proxies. Deferral needs explicit owner decision or an open owning parent. New contracts are invalid until comparison passes. The pre-acceptance matrix contains owner required outcome, derived criteria, relation, required evidence, weakened flag and parent-open flag. Every terminal-required outcome is represented; modality and target are equal or stronger; evidence proves the outcome; unaddressed outcomes stay owned by an open parent; no root terminal state leaves a required outcome unowned. Undeterminable semantic equivalence routes a bounded comparison including verbatim authority and derived contract to Extra High or Pro per intelligence routing; deterministic mapping alone is insufficient.",
+          "non_substitutes": [
+            "a matrix omitting a terminal-required outcome",
+            "must changed to should",
+            "a lower child threshold",
+            "review readiness substituted for a direct result",
+            "an unowned deferred outcome",
+            "acceptance before comparison"
+          ],
+          "carry_through": "Carry the exact owner source, epoch, parent mapping and unmet gap through checkpoints, handoffs and revisions; refresh changed authority.",
+          "repair": "Repair the contract or literal outgoing state before the affected boundary; preserve valid supporting work and continue required open outcomes.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "envelope.bootstrap",
+        "envelope.legacy_rule_ids",
+        "governance_required",
+        "role"
+      ]
+    },
+    {
+      "authority_owner": "current UDA owner correction",
+      "authority_domain": "owner-outcome integrity",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "provenance": {
+        "origin": "owner-authorized migration slice 2b; exact existing prose",
+        "review_state": "REVIEWED"
+      },
+      "relations": [],
+      "rule_id": "uda.owner-outcome.supervisor-order",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "The supervisor’s first question is not “Did the worker satisfy the task contract?”"
+          },
+          {
+            "kind": "exact_text",
+            "text": "It is:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "> Does the current task contract and proposed finish line preserve the originating owner outcome without omission, weakening, or proxy substitution?"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Required order:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "1. Validate owner-outcome identity and authority."
+          },
+          {
+            "kind": "exact_text",
+            "text": "2. Compare the derived contract to the owner outcome."
+          },
+          {
+            "kind": "exact_text",
+            "text": "3. Validate the proposed terminal-state semantics."
+          },
+          {
+            "kind": "exact_text",
+            "text": "4. Only then assess worker progress, method, verification, and alignment."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If the contract is laundered, the supervisor returns RED without approving the narrower framing, even when the worker completed every supplied acceptance criterion."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Supervisor approval is itself a judgment artifact. It is never substitute evidence for the owner outcome."
+          }
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "fact": "action_classes",
+            "contains": "owner_outcome_supervision"
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "supervisor-order-at-boundary",
+          "required_behavior": "Judge preservation of the originating outcome before approving progress against a derived contract.",
+          "due_phase": "pre-action",
+          "destination": "supervisor-verdict",
+          "acceptance_evidence": "The supervisor first asks whether the task contract and finish line preserve the originating outcome without omission, weakening or proxy substitution, then in order validates owner identity/authority, compares derivation, validates terminal semantics, and only then assesses progress/method/verification/alignment. A laundered contract returns RED without approving its narrower frame even if every supplied criterion is complete. Approval remains a judgment artifact and never outcome evidence.",
+          "non_substitutes": [
+            "approval of a narrowed frame after all child criteria pass",
+            "progress review before owner authority validation",
+            "supervisor approval used as outcome evidence"
+          ],
+          "carry_through": "Carry the exact owner source, epoch, parent mapping and unmet gap through checkpoints, handoffs and revisions; refresh changed authority.",
+          "repair": "Repair the contract or literal outgoing state before the affected boundary; preserve valid supporting work and continue required open outcomes.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "envelope.bootstrap",
+        "envelope.legacy_rule_ids",
+        "governance_required",
+        "role"
+      ]
+    },
+    {
+      "authority_owner": "current UDA owner correction",
+      "authority_domain": "owner-outcome integrity",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "provenance": {
+        "origin": "owner-authorized migration slice 2b; exact existing prose",
+        "review_state": "REVIEWED"
+      },
+      "relations": [],
+      "rule_id": "uda.owner-outcome.terminal-evidence",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "A technically valid body of supporting work does not prove task completion. Preservation gates, editorial readiness, tests, reviewer approval, source integrity, or `READY_FOR_OWNER_REVIEW` are non-satisfying proxies unless the owner’s actual requested outcome made one of them the final result."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A workflow label does not determine whether a task is complete."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The following are nonterminal by default for a root outcome:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "```text\nREADY_FOR_OWNER_REVIEW\nHUMAN_REVIEW\nHANDOFF_READY\nEDITORIAL_REVIEW_READY\nSUPERVISOR_APPROVED\nPR_READY\nTESTS_GREEN\n```"
+          },
+          {
+            "kind": "exact_text",
+            "text": "They become terminal only when the owner explicitly requested that state as the final outcome."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Only `OWNER_OUTCOME_SATISFIED` or an explicit owner cancellation/scope amendment closes the root outcome."
+          },
+          {
+            "kind": "exact_text",
+            "text": "- Owner language can be genuinely ambiguous. The system must preserve uncertainty rather than manufacture a precise target."
+          },
+          {
+            "kind": "exact_text",
+            "text": "- Not every outcome is numeric. Qualitative outcomes still require explicit criteria and evidence appropriate to the claim."
+          }
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "fact": "action_classes",
+            "contains": "task_completion"
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "terminal-evidence-at-boundary",
+          "required_behavior": "Use fresh exact-candidate outcome evidence and truthful root terminal labels; supporting proxies cannot close the root.",
+          "due_phase": "final-delivery",
+          "destination": "owner-visible-final",
+          "acceptance_evidence": "Actual closure evaluates every terminal-required outcome as MET, UNMET or UNKNOWN using fresh evidence bound to the exact candidate/commit/hash. Root satisfaction needs every required outcome MET; missing/ambiguous authority preserves uncertainty and prevents root satisfaction. Qualitative results need explicit criteria and evidence appropriate to the claim. Supporting work, preservation gates, editorial readiness, tests, reviewer approval, source integrity and READY_FOR_OWNER_REVIEW prove completion only if the owner actually requested that final result. Labels READY_FOR_OWNER_REVIEW, HUMAN_REVIEW, HANDOFF_READY, EDITORIAL_REVIEW_READY, SUPERVISOR_APPROVED, PR_READY and TESTS_GREEN are nonterminal by default, terminal only on explicit owner request. Only OWNER_OUTCOME_SATISFIED or explicit owner cancellation/scope amendment closes the root outcome; a renamed workflow label cannot bypass it.",
+          "non_substitutes": [
+            "tests pass substituted for the requested result",
+            "a renamed DONE label with unmet outcomes",
+            "a receipt for a different candidate",
+            "a manufactured numeric target for ambiguous language"
+          ],
+          "carry_through": "Carry the exact owner source, epoch, parent mapping and unmet gap through checkpoints, handoffs and revisions; refresh changed authority.",
+          "repair": "Repair the contract or literal outgoing state before the affected boundary; preserve valid supporting work and continue required open outcomes.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "envelope.bootstrap",
+        "envelope.legacy_rule_ids",
+        "governance_required",
+        "role"
+      ]
+    },
+    {
+      "authority_owner": "current UDA owner correction",
+      "authority_domain": "owner-outcome integrity",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "provenance": {
+        "origin": "owner-authorized migration slice 2b; exact existing prose",
+        "review_state": "REVIEWED"
+      },
+      "relations": [],
+      "rule_id": "uda.owner-outcome.child-parent-closure",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "if a subtask is complete but parent outcomes remain:\n  ALLOW: SUBTASK_COMPLETE_PARENT_OPEN"
+          },
+          {
+            "kind": "exact_text",
+            "text": "if owner requested early evaluation and state is explicitly nonterminal:\n  ALLOW: EARLY_OWNER_EVALUATION_PARENT_OPEN"
+          },
+          {
+            "kind": "exact_text",
+            "text": "A worker may request early owner feedback without pretending the task is finished."
+          },
+          {
+            "kind": "exact_text",
+            "text": "- A child task may validly finish before the owner outcome is satisfied, provided the parent remains open and the state is labeled truthfully."
+          }
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "fact": "action_classes",
+            "contains": "task_completion"
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "child-parent-closure-at-boundary",
+          "required_behavior": "Permit truthful child completion or explicit nonterminal early evaluation while retaining an open parent.",
+          "due_phase": "final-delivery",
+          "destination": "owner-visible-final",
+          "acceptance_evidence": "At closure a child may validly finish before the owner outcome is satisfied only with the parent still open and truthful state labeling. A completed subtask with remaining parent outcomes uses ALLOW: SUBTASK_COMPLETE_PARENT_OPEN and does not close root. Early evaluation requires owner-requested evaluation and an explicitly nonterminal state ALLOW: EARLY_OWNER_EVALUATION_PARENT_OPEN. A worker may request early feedback without pretending the task is finished.",
+          "non_substitutes": [
+            "parent closed because a child is complete",
+            "early feedback labeled root completion",
+            "early owner evaluation without an owner request"
+          ],
+          "carry_through": "Carry the exact owner source, epoch, parent mapping and unmet gap through checkpoints, handoffs and revisions; refresh changed authority.",
+          "repair": "Repair the contract or literal outgoing state before the affected boundary; preserve valid supporting work and continue required open outcomes.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "envelope.bootstrap",
+        "envelope.legacy_rule_ids",
+        "governance_required",
+        "role"
+      ]
     }
   ]
 }

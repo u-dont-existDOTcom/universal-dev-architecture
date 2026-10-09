@@ -42,6 +42,7 @@
     "patterns/context-compaction-resilience.md",
     "patterns/convergent-review-acceptance-gates.md",
     "patterns/exclusive-active-task-locks.md",
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
     "patterns/terminal-response-admission-and-autonomous-continuation.md"
   ],
   "source_clause_manifest": {
@@ -343,6 +344,104 @@
           "source_sha256": "a3a250fcc45089459627a2508cc55bc15235836cd9b6b5345ef88b0c3f4964ab"
         }
       }
+    },
+    "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md": {
+      "clause_count": 158,
+      "clauses_sha256": "3488aa65d8a8569796990d5d77ebb2405bf56d3a6737720a68ebd95cec3a4031",
+      "bindings_sha256": "b5908e5dac1941fd3cd98bdec98019d1e04d9411b8326ca56d0743216c92d4ea",
+      "source_sha256": "842807c4b01338c2d070fbcdaa83ce13c89fe2a4bb829988aa80870a0e2b92bb",
+      "pre_section_sha256": "5ed6ebb67f016d5d295f1b84e62c172158b04c2c7583ca0eb20ed2cac4b7ab8c",
+      "sections": {
+        "1-normative-correction": {
+          "clause_count": 5,
+          "clauses_sha256": "bf30646028ba33b2a8cc752cd34b3297c879e5a78a6a8c3ab6b1219fd78d0892",
+          "source_sha256": "3b357cbe684ecb9e55539df89246c16d89cb4d2c548ab97ee9192559fcc6ddc9"
+        },
+        "2-failure-model": {
+          "clause_count": 8,
+          "clauses_sha256": "1fff1f9b7718c6422e1236320d90d8a5f7cc1a6773d5a98490f89e7b0b7d287c",
+          "source_sha256": "d43ebdda16d2a9218046392ff64914526a241b0feacaef9d4ceed9e75c455359"
+        },
+        "3-established-work-basis-and-adaptation-decision": {
+          "clause_count": 1,
+          "clauses_sha256": "e99a3d7e80b1c84e1733300d9c1af1d5558ad8317a627478bf96ad5482ae51e0",
+          "source_sha256": "0a17d4da584630f4a8fd9edc082347c648f8b7ad8ec872182dcbed6ccfab6a0e"
+        },
+        "4-owner-outcome-authority": {
+          "clause_count": 19,
+          "clauses_sha256": "d5bab9c9214b920ac2d578b921f0a3b8742be9d2fce6da88b47d70b635a2123b",
+          "source_sha256": "52b070d39599dd912c0f934ea8f22f21cd80231707ff5d5e69140f54f0fc2568"
+        },
+        "5-required-owner-outcome-schema": {
+          "clause_count": 3,
+          "clauses_sha256": "87e37ca9d18e9c1dfe04426b712e2b2e26ed8f23e9172f6f9fddbc56f91f00c2",
+          "source_sha256": "d228746b3e547e9beca586eeb240f4977b8c164d5538aca14cced0c0d9d33142"
+        },
+        "6-derived-task-contract-requirements": {
+          "clause_count": 10,
+          "clauses_sha256": "03ee485ff960f076489319aa015dffc5a2be4b228667667894d901db77bb707c",
+          "source_sha256": "0a9a79a7007cf025f0c0e0ccbfa6e6b75ce68fed1e12eea6cf53b0534928eff6"
+        },
+        "7-outcome-preservation-proof": {
+          "clause_count": 9,
+          "clauses_sha256": "2cdb7e4013306aac55fcc40a4b2920182607c01331e1777d25f48239cfcbf0e4",
+          "source_sha256": "24c56f30aec0cd66dabe01c648b4a2c3bd85e9e809b56246a8fd3123d52b525a"
+        },
+        "8-checkpoint-and-packet-requirements": {
+          "clause_count": 14,
+          "clauses_sha256": "50d102e306ee4d0988813b0916b21ed31ea65503baa53d6712e5a8bc18a2c52e",
+          "source_sha256": "f6b3e7ee7115224996c167a3b8a0f8668ca320decccf179b23f8793e62314b10"
+        },
+        "9-supervisor-order-of-operations": {
+          "clause_count": 10,
+          "clauses_sha256": "f04e02a1b4af794d576e23b0ff0b3761b38412dab32bfd8594ea341393049448",
+          "source_sha256": "74f4eb2236d0fa85722f7a5aab7c9d39d25a2e1215fa38289cf53eee08fae117"
+        },
+        "10-deterministic-terminal-state-comparator": {
+          "clause_count": 21,
+          "clauses_sha256": "d77611c8b394cdb333400f79398fd00ad698e01416bd30f58b2ccd2e887682c5",
+          "source_sha256": "c20f00934a77b5fb6293acad0cc71fe119e9a01e4cd95f36b19ea64520f737cb"
+        },
+        "11-workflow-state-semantics": {
+          "clause_count": 5,
+          "clauses_sha256": "d5e5a97dd196bbd4ee3d595e439e1ef72ab8201549bb1014b319233095933fc5",
+          "source_sha256": "7eb961be224b60e1f054aa395ba1ee855b0eae6ccd86553cce3d99fcfc6c2a71"
+        },
+        "12-dashboard-requirements": {
+          "clause_count": 12,
+          "clauses_sha256": "acea56a946315b3ed498a5692748f89c2685a1139ab482745c1ae09ccea9a00c",
+          "source_sha256": "5d1bac34a5220b39d579e3bd7ab907a9655ef201fee1f8e8dc8c3882870646a6"
+        },
+        "13-exact-regression-scenario-article-humanization-at-1382": {
+          "clause_count": 3,
+          "clauses_sha256": "8041835c47da14fdcee1bc7b74016d414f14f2811adc4578886522aa5b7522aa",
+          "source_sha256": "857506ec13ab418422541496ee5e62176301a662a2136cdb2e35a1e324f748c9"
+        },
+        "14-existing-task-migration": {
+          "clause_count": 10,
+          "clauses_sha256": "267291764a1a90983b2a3efc3fdbaaf237b05371addc3e4c439f81477eaf1adf",
+          "source_sha256": "2ae5ae8f8c6200cf508ce34db7be196a27d0748766302285585aa2dd96f3d40c"
+        },
+        "15-required-implementation-tests": {
+          "clause_count": 22,
+          "clauses_sha256": "424ad1acdb0dfc75536548f5655679aea97079cc1e1193a31e0bfda9ad2cc976",
+          "source_sha256": "5f924b09ca6a44ab70f5af9a47aec4c9fdeeebb69803a273097c3417e4d09940"
+        },
+        "16-limits": {
+          "clause_count": 5,
+          "clauses_sha256": "46571f451f37648fa0bc7d0aaa4a22b7810bc3eb1770a0a403bc597f9abb06e2",
+          "source_sha256": "95a68786f5d177d9a44e663fc52546e75c644906d05956b0b0092877dda67ea9"
+        },
+        "17-required-relationship-to-other-mission-control-patterns": {
+          "clause_count": 1,
+          "clauses_sha256": "c7af6e3bc57df51816c801346802cc469745a4435e8b4e5bfe90f99235a8a087",
+          "source_sha256": "9ca73a31d049030349c23c3231f26742e2f8a1abc45da0fbebe690c99b5a7fc7"
+        }
+      },
+      "deferred_catalog": {
+        "path": "rules/rule-graph/owner-outcome-budget-deferred.v1.json",
+        "sha256": "d34a537b379151a3391e711cc7447d219fbf9067b0cfd18c6ed4371dc2f2372e"
+      }
     }
   },
   "review_changes": [
@@ -520,6 +619,23 @@
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
       "implemented": "65/73/143 mapped rows; 28 new/3 extended records, 32 behaviors. Locks enforced; terminal/compaction partial. Work 32429/37194 bytes (31339 pre-actor; 31317 pre-outcome; 31254 pre-scope). Slice 2b/later OPEN."
+    },
+    {
+      "finding_id": "slice-2b-owner-outcome",
+      "date": "2026-10-09",
+      "identity_counts_by_disposition": {
+        "STRUCTURED_ENFORCED": 9,
+        "STRUCTURED_PARTIAL": 9,
+        "WORKFLOW_ONLY": 10,
+        "LEGACY_UNSTRUCTURED": 68,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 77,
+      "baseline_shrinkage": 7,
+      "root_owner_outcome": "OPEN",
+      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "Five semantic records; exact server-test obligations; every operative section pinned. Three genuinely selected Work candidates deferred; no exceptions/facts/envelope/runtime changes. Work 32429/37194 -> 32561/37194 bytes; backlog unchanged, slice 2c/later OPEN."
     }
   ],
   "learning_state_at_merge": [
@@ -545,6 +661,14 @@
       "source": "current owner supervisor review of migration slice 2a before review rounds",
       "owner_quote": "After the fixes, mark a pattern STRUCTURED_ENFORCED only where every operative clause is carried at its real boundary by evidence that demands it; otherwise STRUCTURED_PARTIAL with the exact legacy_remainder.",
       "reason": "Supervisor review found overstated whole-pattern enforcement; retain exact clause pins, structured admission and the explicit remaining operative boundaries rather than claim a completed promotion."
+    },
+    {
+      "id": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+      "disposition": "STRUCTURED_PARTIAL",
+      "owner_quote": "STRUCTURED_ENFORCED only when every operative clause is carried at its real boundary by evidence that demands it; otherwise STRUCTURED_PARTIAL with an exact legacy_remainder. An honest PARTIAL is a good result.",
+      "date": "2026-10-09",
+      "source": "current owner migration slice 2b directive (issue #317, task pr-344)",
+      "reason": "Initial partial promotion retains exact source and carrier pins for missing server clauses and worker records exceeding unchanged Work budgets."
     }
   ]
 }

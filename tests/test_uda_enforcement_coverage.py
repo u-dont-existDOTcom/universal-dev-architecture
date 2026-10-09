@@ -463,7 +463,9 @@ class EnforcementCoverageTests(unittest.TestCase):
 
     def test_condensed_requirement_retains_counts_and_exact_list_pointers(self):
         findings = self.read(coverage.REQUIREMENT)["related_findings"]
-        self.assertLess(len(json.dumps(findings, indent=2, ensure_ascii=False).encode()), 4096)
+        # Each slice adds a short finding; earlier historical findings remain intact.
+        for finding in findings:
+            self.assertLess(len(json.dumps(finding, indent=2, ensure_ascii=False).encode()), 4096)
         historical = next(f for f in findings if f["finding_id"] == "pass-2-inventory")
         # A later migration must not rewrite the pass-2 historical snapshot.
         counts = historical["identity_counts_by_disposition"]

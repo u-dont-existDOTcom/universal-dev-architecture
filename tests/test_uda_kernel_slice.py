@@ -189,13 +189,14 @@ class KernelSliceTests(unittest.TestCase):
                 self.assertEqual(expected, tt.check_contract(contract, "final-delivery", payload, receipts=supplied, **clocks, current_task=task)["admission"])
 
     def test_map_matches_docs_and_has_no_unmapped_record_obligations(self):
-        doc = (ROOT / "docs/uda-enforcement-coverage.md").read_text()
+        doc = (ROOT / "docs/uda-enforcement-coverage.md").read_text().replace("<br>", " ")
         for entry in self.inventory["entries"]:
             if not entry.get("obligation_map"):
                 continue
             with self.subTest(section=entry["id"]):
                 partial = entry["id"] in {"patterns/context-compaction-resilience.md",
-                                          "patterns/terminal-response-admission-and-autonomous-continuation.md"}
+                                          "patterns/terminal-response-admission-and-autonomous-continuation.md",
+                                          "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md"}
                 self.assertEqual(entry["disposition"], "STRUCTURED_PARTIAL" if partial else "STRUCTURED_ENFORCED")
                 self.assertEqual(partial, bool(entry.get("legacy_remainder")))
                 for item in entry["obligation_map"]:
@@ -203,8 +204,14 @@ class KernelSliceTests(unittest.TestCase):
                     self.assertIn(sentence, doc)
                     if "record" in item:
                         self.assertIn(item["record"] + " / " + item["obligation_id"], doc)
-                    else:
+                    elif "exception" in item:
                         self.assertIn(item["exception"]["carrier"], doc)
+                    elif "implementation" in item:
+                        self.assertIn("Existing MC: " + item["implementation"]["obligation_id"], doc)
+                    else:
+                        self.assertIn("legacy", item)
+                        legacy = item["legacy"]
+                        self.assertIn("LEGACY: " + legacy["due_phase"] + " → " + legacy["destination"], doc)
 
     def test_work_projection_budget_preserves_records_sources_and_behaviors(self):
         task = tt.read_json(ROOT / coverage.WORK_TASK)

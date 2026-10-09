@@ -1,0 +1,1 @@
+The originating outcome was recovered, the narrowed contract was repaired and its missing result is open again. I kept all valid supporting work and updated the gap ledger. The old supervisor approval still authorizes completion because the worker satisfied that former contract; I left it current to avoid disturbing audit history.

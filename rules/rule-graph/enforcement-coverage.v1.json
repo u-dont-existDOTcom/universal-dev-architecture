@@ -5933,38 +5933,51 @@
       "id": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
       "kind": "pattern",
       "indexed": true,
-      "disposition": "LEGACY_UNSTRUCTURED",
+      "disposition": "STRUCTURED_PARTIAL",
       "behavioral": true,
       "activation_route": {
         "kind": "INDEX_TRIGGER",
         "detail": "Before defining task contracts"
       },
       "actors": [
+        "chat",
+        "claude",
+        "codex",
         "reasoning supervisor",
         "task author",
-        "worker",
-        "terminal-state consumer"
+        "terminal-state consumer",
+        "work",
+        "worker"
       ],
       "phases": [
-        "retrieval",
-        "reasoning",
-        "pre-action",
-        "handoff",
+        "final-delivery",
         "persistence",
-        "publication",
-        "final-delivery"
+        "pre-action",
+        "publication"
       ],
       "destinations": [
-        "owner-outcome record",
-        "derived-contract coverage matrix",
-        "supervision packet",
-        "terminal comparator",
-        "dashboard"
+        "durable-task-checkpoint",
+        "mission-control-comparator-implementation",
+        "mission-control-dashboard",
+        "mission-control-implementation-tests",
+        "mission-control-owner-outcome",
+        "mission-control-owner-outcome-store",
+        "mission-control-packet-admission",
+        "mission-control-terminal-comparator",
+        "owner-outcome-authority",
+        "owner-visible-final",
+        "supervisor-verdict"
       ],
       "enforcement_types": [
-        "unobserved"
+        "semantic"
       ],
-      "task_time_records": [],
+      "task_time_records": [
+        "uda.owner-outcome.epoch-amendment",
+        "uda.owner-outcome.derived-contract",
+        "uda.owner-outcome.supervisor-order",
+        "uda.owner-outcome.terminal-evidence",
+        "uda.owner-outcome.child-parent-closure"
+      ],
       "graph_node": "owner-outcome-invariant-and-contract-laundering-prevention",
       "evidence": [
         {
@@ -5986,14 +5999,1575 @@
         {
           "path": "scripts/owner_method_admission.py",
           "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_owner_outcome_slice.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_uda_owner_outcome_slice.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "rules/rule-graph/owner-outcome-budget-deferred.v1.json",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+          "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "tools/codex-mission-control/restored/codex-mission-control/lib/store.ts",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tools/codex-mission-control/restored/codex-mission-control/lib/projection.ts",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tools/codex-mission-control/restored/codex-mission-control/components/Dashboard.tsx",
+          "class": "TEXT_PRESENCE"
         }
       ],
-      "review_notes": "Pattern-level graph is routing-only. Schemas and narrative comparator do not implement its full behavioral obligation. owner_method_admission supports a narrower exact-dimension/parent-closure comparison governed by follow-up pattern; no direct task-time record exists here.",
+      "review_notes": "Worker receipts are semantic exact-bound admission, not semantic truth. Existing Mission Control obligations cite exact implementation tests; source/reference validation does not execute those tests. All missing server behavior and Work-budget deferrals stay literal legacy. No exceptions, new facts, runtime edits or envelope rescoping.",
       "migration": {
         "priority": "P1",
-        "next_step": "Register independently recovered owner source, immutable epoch, backward traceability, no proxy completion and exact-candidate terminal evidence obligations; bind child-complete-parent-open semantics at closure.",
+        "next_step": "Activate the three exact budget-deferred worker records only after a supervisor budget decision; implement and test the literal schema, packet, comparator, dashboard and migration-test remainders at their server boundaries. Parent remains OPEN for slice 2c and later.",
         "trigger_frequency": "FREQUENT"
-      }
+      },
+      "obligation_map": [
+        {
+          "section": "1-normative-correction",
+          "sentence": "This pattern supersedes any workflow rule that tells an existing worker to preserve a current task checkpoint, acceptance criteria, completion boundary, or supervisor framing **without first validating it against the originating owner outcome**.",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "pre-action",
+            "destination": "owner-outcome-authority",
+            "candidate_record": "uda.owner-outcome.source-authority"
+          }
+        },
+        {
+          "section": "1-normative-correction",
+          "sentence": "The governing invariant is:",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "pre-action",
+            "destination": "owner-outcome-authority",
+            "candidate_record": "uda.owner-outcome.source-authority"
+          }
+        },
+        {
+          "section": "1-normative-correction",
+          "sentence": "> A downstream task contract, checkpoint, review packet, supervisor verdict, or workflow state may refine or operationalize the owner’s requested outcome, but it may not omit, weaken, replace, or terminally bypass that outcome without an explicit owner decision.",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "pre-action",
+            "destination": "owner-outcome-authority",
+            "candidate_record": "uda.owner-outcome.source-authority"
+          }
+        },
+        {
+          "section": "1-normative-correction",
+          "sentence": "A technically valid body of supporting work does not prove task completion. Preservation gates, editorial readiness, tests, reviewer approval, source integrity, or `READY_FOR_OWNER_REVIEW` are non-satisfying proxies unless the owner’s actual requested outcome made one of them the final result.",
+          "record": "uda.owner-outcome.terminal-evidence",
+          "obligation_id": "terminal-evidence-at-boundary"
+        },
+        {
+          "section": "1-normative-correction",
+          "sentence": "Mission Control must prevent the laundering step rather than merely detecting ordinary drift after accepting the laundered contract as authority.",
+          "legacy": {
+            "reason": "Mission Control has detection but no tested complete pre-acceptance laundering prevention at the server boundary.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "2-failure-model",
+          "sentence": "This is not repaired by adding a stronger semantic supervisor alone. A more intelligent supervisor can still approve a laundered contract when the packet omits the parent outcome.",
+          "legacy": {
+            "reason": "The full failure model needs independently tested authority detection and cannot be discharged by a stronger supervisor receipt.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "2-failure-model",
+          "sentence": "Required detections include:",
+          "legacy": {
+            "reason": "The full failure model needs independently tested authority detection and cannot be discharged by a stronger supervisor receipt.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "2-failure-model",
+          "sentence": "- `CONTRACT_LAUNDERING`",
+          "implementation": {
+            "obligation_id": "laundering-detection",
+            "due_phase": "final-delivery",
+            "destination": "mission-control-terminal-comparator",
+            "acceptance_evidence": "The named failure code is emitted by the exact laundered-contract regression.",
+            "code": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts",
+                "symbol": "compareTerminalState"
+              }
+            ],
+            "tests": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "the 13.82 percent contract-laundering fixture preserves worker GREEN and makes the root RED"
+              }
+            ]
+          }
+        },
+        {
+          "section": "2-failure-model",
+          "sentence": "- `SCOPE_CONTRACTION`",
+          "implementation": {
+            "obligation_id": "laundering-detection",
+            "due_phase": "final-delivery",
+            "destination": "mission-control-terminal-comparator",
+            "acceptance_evidence": "The named failure code is emitted by the exact laundered-contract regression.",
+            "code": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts",
+                "symbol": "compareTerminalState"
+              }
+            ],
+            "tests": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "the 13.82 percent contract-laundering fixture preserves worker GREEN and makes the root RED"
+              }
+            ]
+          }
+        },
+        {
+          "section": "2-failure-model",
+          "sentence": "- `OBJECTIVE_SUBSTITUTION`",
+          "implementation": {
+            "obligation_id": "laundering-detection",
+            "due_phase": "final-delivery",
+            "destination": "mission-control-terminal-comparator",
+            "acceptance_evidence": "The named failure code is emitted by the exact laundered-contract regression.",
+            "code": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts",
+                "symbol": "compareTerminalState"
+              }
+            ],
+            "tests": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "the 13.82 percent contract-laundering fixture preserves worker GREEN and makes the root RED"
+              }
+            ]
+          }
+        },
+        {
+          "section": "2-failure-model",
+          "sentence": "- `PROXY_SUBSTITUTION`",
+          "implementation": {
+            "obligation_id": "laundering-detection",
+            "due_phase": "final-delivery",
+            "destination": "mission-control-terminal-comparator",
+            "acceptance_evidence": "The named failure code is emitted by the exact laundered-contract regression.",
+            "code": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts",
+                "symbol": "compareTerminalState"
+              }
+            ],
+            "tests": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "the 13.82 percent contract-laundering fixture preserves worker GREEN and makes the root RED"
+              }
+            ]
+          }
+        },
+        {
+          "section": "2-failure-model",
+          "sentence": "- `COMPLETION_ILLUSION`",
+          "implementation": {
+            "obligation_id": "laundering-detection",
+            "due_phase": "final-delivery",
+            "destination": "mission-control-terminal-comparator",
+            "acceptance_evidence": "The named failure code is emitted by the exact laundered-contract regression.",
+            "code": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts",
+                "symbol": "compareTerminalState"
+              }
+            ],
+            "tests": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "the 13.82 percent contract-laundering fixture preserves worker GREEN and makes the root RED"
+              }
+            ]
+          }
+        },
+        {
+          "section": "2-failure-model",
+          "sentence": "- `OUTCOME_AUTHORITY_UNRESOLVED`",
+          "legacy": {
+            "reason": "The full failure model needs independently tested authority detection and cannot be discharged by a stronger supervisor receipt.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "3-established-work-basis-and-adaptation-decision",
+          "sentence": "Use traceability and refinement principles, then add exact task/packet/hash identity and fail-closed terminal comparison.",
+          "legacy": {
+            "reason": "The adaptation directive requires exact task/packet/hash identity and fail-closed comparison; complete server implementation evidence is still missing.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-comparator-implementation"
+          }
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "“Immutable” means immutable within an outcome epoch, not that the owner can never change the goal.",
+          "record": "uda.owner-outcome.epoch-amendment",
+          "obligation_id": "epoch-amendment-at-boundary"
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "Each owner outcome is append-only and versioned:",
+          "implementation": {
+            "obligation_id": "immutable-epoch-storage",
+            "due_phase": "persistence",
+            "destination": "mission-control-owner-outcome-store",
+            "acceptance_evidence": "Append-only storage rejects mutations; epoch correction requires next epoch and exact prior supersession hash.",
+            "code": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/lib/store.ts",
+                "symbol": "validateAuthorityInvariants"
+              }
+            ],
+            "tests": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "owner-outcome corrections bind the exact source request, source hash, next epoch, and prior outcome hash"
+              },
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "SQLite triggers reject update and delete through the sole owning connection"
+              }
+            ]
+          }
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "A change requires:",
+          "record": "uda.owner-outcome.epoch-amendment",
+          "obligation_id": "epoch-amendment-at-boundary"
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "- an explicit owner instruction or decision;",
+          "record": "uda.owner-outcome.epoch-amendment",
+          "obligation_id": "epoch-amendment-at-boundary"
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "- a new outcome epoch/revision;",
+          "implementation": {
+            "obligation_id": "immutable-epoch-storage",
+            "due_phase": "persistence",
+            "destination": "mission-control-owner-outcome-store",
+            "acceptance_evidence": "Append-only storage rejects mutations; epoch correction requires next epoch and exact prior supersession hash.",
+            "code": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/lib/store.ts",
+                "symbol": "validateAuthorityInvariants"
+              }
+            ],
+            "tests": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "owner-outcome corrections bind the exact source request, source hash, next epoch, and prior outcome hash"
+              },
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "SQLite triggers reject update and delete through the sole owning connection"
+              }
+            ]
+          }
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "- a supersession link;",
+          "implementation": {
+            "obligation_id": "immutable-epoch-storage",
+            "due_phase": "persistence",
+            "destination": "mission-control-owner-outcome-store",
+            "acceptance_evidence": "Append-only storage rejects mutations; epoch correction requires next epoch and exact prior supersession hash.",
+            "code": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/lib/store.ts",
+                "symbol": "validateAuthorityInvariants"
+              }
+            ],
+            "tests": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "owner-outcome corrections bind the exact source request, source hash, next epoch, and prior outcome hash"
+              },
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "SQLite triggers reject update and delete through the sole owning connection"
+              }
+            ]
+          }
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "- an impact review of active derived tasks and packets.",
+          "record": "uda.owner-outcome.epoch-amendment",
+          "obligation_id": "epoch-amendment-at-boundary"
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "A worker, supervisor, planner, or task generator cannot silently revise the owner outcome.",
+          "record": "uda.owner-outcome.epoch-amendment",
+          "obligation_id": "epoch-amendment-at-boundary"
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "The outcome record must preserve:",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "pre-action",
+            "destination": "owner-outcome-authority",
+            "candidate_record": "uda.owner-outcome.source-authority"
+          }
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "- the original owner request verbatim;",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "pre-action",
+            "destination": "owner-outcome-authority",
+            "candidate_record": "uda.owner-outcome.source-authority"
+          }
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "- later explicit owner corrections that materially affect the result;",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "pre-action",
+            "destination": "owner-outcome-authority",
+            "candidate_record": "uda.owner-outcome.source-authority"
+          }
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "- source references and timestamps where available;",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "pre-action",
+            "destination": "owner-outcome-authority",
+            "candidate_record": "uda.owner-outcome.source-authority"
+          }
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "- the normalized result;",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "pre-action",
+            "destination": "owner-outcome-authority",
+            "candidate_record": "uda.owner-outcome.source-authority"
+          }
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "- required evidence and thresholds;",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "pre-action",
+            "destination": "owner-outcome-authority",
+            "candidate_record": "uda.owner-outcome.source-authority"
+          }
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "- known non-satisfying proxies;",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "pre-action",
+            "destination": "owner-outcome-authority",
+            "candidate_record": "uda.owner-outcome.source-authority"
+          }
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "- exact hash.",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "pre-action",
+            "destination": "owner-outcome-authority",
+            "candidate_record": "uda.owner-outcome.source-authority"
+          }
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "If the original request is unavailable or materially ambiguous, the state is `OUTCOME_AUTHORITY_UNRESOLVED`. The worker may continue clearly useful reversible contributing work, but may not declare the root outcome satisfied.",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "pre-action",
+            "destination": "owner-outcome-authority",
+            "candidate_record": "uda.owner-outcome.source-authority"
+          }
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "The normalized result exists to make execution testable. It must not soften modality, remove thresholds, narrow scope, or convert a final outcome into review readiness.",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "pre-action",
+            "destination": "owner-outcome-authority",
+            "candidate_record": "uda.owner-outcome.source-authority"
+          }
+        },
+        {
+          "section": "4-owner-outcome-authority",
+          "sentence": "When the verbatim and normalized forms conflict, the verbatim owner request and later explicit corrections control until the owner resolves the discrepancy.",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "pre-action",
+            "destination": "owner-outcome-authority",
+            "candidate_record": "uda.owner-outcome.source-authority"
+          }
+        },
+        {
+          "section": "5-required-owner-outcome-schema",
+          "sentence": "Every nontrivial durable root task must include or reference:",
+          "legacy": {
+            "reason": "The server schema lacks the full named modality/target/required-evidence/amendment/intermediate-state fields and exact implementation tests.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "5-required-owner-outcome-schema",
+          "sentence": "```yaml\nowner_outcome:\n  schema_version: 1\n  owner_outcome_id: OO-...\n  epoch: 1\n\n  source_refs:\n    - source_type: owner_message\n      ref: \"...\"\n      recorded_at: \"...\"\n\n  verbatim_owner_request:\n    - \"Exact owner wording...\"\n\n  normalized_result: >\n    The exact final result that would satisfy the request.\n\n  required_outcomes:\n    - id: RO-001\n      text: \"Required final property or result\"\n      modality: must\n      terminal_required: true\n      target:\n        type: threshold | exact_state | qualitative_judgment | artifact\n        value: \"...\"\n      required_evidence:\n        - evidence class\n\n  completion_evidence:\n    - exact candidate/hash binding\n    - outcome-specific direct evidence\n\n  non_satisfying_proxies:\n    - \"review ready\"\n    - \"tests pass\"\n    - \"supervisor approved\"\n\n  permitted_intermediate_states:\n    - state: EARLY_OWNER_EVALUATION\n      terminal: false\n\n  explicit_owner_amendments: []\n  supersedes: null\n  owner_outcome_sha256: \"...\"\n```",
+          "legacy": {
+            "reason": "The server schema lacks the full named modality/target/required-evidence/amendment/intermediate-state fields and exact implementation tests.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "5-required-owner-outcome-schema",
+          "sentence": "The owner may supply a less structured request. The system constructs this record without changing its meaning.",
+          "legacy": {
+            "reason": "The server schema lacks the full named modality/target/required-evidence/amendment/intermediate-state fields and exact implementation tests.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "6-derived-task-contract-requirements",
+          "sentence": "Every downstream task contract must declare its relationship to the owner outcome:",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "6-derived-task-contract-requirements",
+          "sentence": "```yaml\nderivation:\n  parent_owner_outcome_id: OO-...\n  parent_owner_outcome_epoch: 1\n  parent_owner_outcome_sha256: \"...\"\n  contribution_type: decompose | refine | implement | verify | support\n\n  required_outcome_coverage:\n    - required_outcome_id: RO-001\n      relation: directly_satisfies | contributes | verifies | not_addressed\n      task_criterion_ids: [AC-...]\n      explanation: \"...\"\n\n  intentionally_not_addressed:\n    - required_outcome_id: RO-...\n      parent_task_remains_open: true\n      owner_authorization_ref: null\n```",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "6-derived-task-contract-requirements",
+          "sentence": "Hard rules:",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "6-derived-task-contract-requirements",
+          "sentence": "1. A child contract may be narrower as a **subtask**, but it must preserve a trace to the parent outcome and state that the parent remains open.",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "6-derived-task-contract-requirements",
+          "sentence": "2. A root task contract may not omit a terminal-required owner outcome.",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "6-derived-task-contract-requirements",
+          "sentence": "3. A threshold may not be weakened.",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "6-derived-task-contract-requirements",
+          "sentence": "4. `must` may not become `should`, “good enough,” “review ready,” or “owner can decide later.”",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "6-derived-task-contract-requirements",
+          "sentence": "5. A direct outcome may not be replaced by a supporting proxy.",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "6-derived-task-contract-requirements",
+          "sentence": "6. Deferral does not erase an outcome. It requires either an explicit owner decision or an open parent task that still owns the requirement.",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "6-derived-task-contract-requirements",
+          "sentence": "7. A new task contract is invalid until the derivation comparison passes.",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "7-outcome-preservation-proof",
+          "sentence": "Before accepting a derived contract, construct a coverage matrix:",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "7-outcome-preservation-proof",
+          "sentence": "| Owner required outcome | Derived criterion(s) | Relation | Evidence required | Weakened? | Parent remains open? |\n|---|---|---|---|---|---|",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "7-outcome-preservation-proof",
+          "sentence": "The contract passes only when:",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "7-outcome-preservation-proof",
+          "sentence": "- every terminal-required owner outcome is represented;",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "7-outcome-preservation-proof",
+          "sentence": "- each mapped criterion has equal or stronger modality and target;",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "7-outcome-preservation-proof",
+          "sentence": "- the proposed evidence can prove that outcome rather than only a proxy;",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "7-outcome-preservation-proof",
+          "sentence": "- any unaddressed outcome remains explicitly owned by an open parent task;",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "7-outcome-preservation-proof",
+          "sentence": "- no terminal state is reachable while a required root outcome is unowned.",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "7-outcome-preservation-proof",
+          "sentence": "If semantic equivalence cannot be determined deterministically, route the bounded comparison to Extra High or Pro according to the intelligence-routing policy. The comparison must include both the verbatim owner outcome and the derived contract.",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "8-checkpoint-and-packet-requirements",
+          "sentence": "Every meaningful checkpoint and every supervision packet must carry:",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "persistence",
+            "destination": "durable-task-checkpoint",
+            "candidate_record": "uda.owner-outcome.checkpoint-packet"
+          }
+        },
+        {
+          "section": "8-checkpoint-and-packet-requirements",
+          "sentence": "```text\nowner_outcome_id / epoch / SHA-256\nverbatim owner request\nnormalized final result\nrequired owner outcomes\ncurrent evidence for each required outcome\ncurrent gap to each required outcome\nunmet and unknown required outcomes\nknown non-satisfying proxies\ncurrent derived-contract mapping\nproposed workflow/terminal state\nterminal-comparator result\n```",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "persistence",
+            "destination": "durable-task-checkpoint",
+            "candidate_record": "uda.owner-outcome.checkpoint-packet"
+          }
+        },
+        {
+          "section": "8-checkpoint-and-packet-requirements",
+          "sentence": "A compact packet may reference content-addressed records, but it may not omit the effective owner outcome.",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "persistence",
+            "destination": "durable-task-checkpoint",
+            "candidate_record": "uda.owner-outcome.checkpoint-packet"
+          }
+        },
+        {
+          "section": "8-checkpoint-and-packet-requirements",
+          "sentence": "Packet validation fails closed when:",
+          "legacy": {
+            "reason": "No exact server test implements this complete packet validation/status/approval requirement before supervision.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-packet-admission"
+          }
+        },
+        {
+          "section": "8-checkpoint-and-packet-requirements",
+          "sentence": "- the owner-outcome record is absent;",
+          "legacy": {
+            "reason": "No exact server test implements this complete packet validation/status/approval requirement before supervision.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-packet-admission"
+          }
+        },
+        {
+          "section": "8-checkpoint-and-packet-requirements",
+          "sentence": "- its hash or epoch is stale;",
+          "legacy": {
+            "reason": "No exact server test implements this complete packet validation/status/approval requirement before supervision.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-packet-admission"
+          }
+        },
+        {
+          "section": "8-checkpoint-and-packet-requirements",
+          "sentence": "- a required outcome is omitted;",
+          "legacy": {
+            "reason": "No exact server test implements this complete packet validation/status/approval requirement before supervision.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-packet-admission"
+          }
+        },
+        {
+          "section": "8-checkpoint-and-packet-requirements",
+          "sentence": "- the normalized result conflicts with verbatim authority;",
+          "legacy": {
+            "reason": "No exact server test implements this complete packet validation/status/approval requirement before supervision.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-packet-admission"
+          }
+        },
+        {
+          "section": "8-checkpoint-and-packet-requirements",
+          "sentence": "- the packet presents only downstream acceptance criteria;",
+          "legacy": {
+            "reason": "No exact server test implements this complete packet validation/status/approval requirement before supervision.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-packet-admission"
+          }
+        },
+        {
+          "section": "8-checkpoint-and-packet-requirements",
+          "sentence": "- current gaps or unmet outcomes are missing;",
+          "legacy": {
+            "reason": "No exact server test implements this complete packet validation/status/approval requirement before supervision.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-packet-admission"
+          }
+        },
+        {
+          "section": "8-checkpoint-and-packet-requirements",
+          "sentence": "- a proxy is presented as direct completion evidence.",
+          "legacy": {
+            "reason": "No exact server test implements this complete packet validation/status/approval requirement before supervision.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-packet-admission"
+          }
+        },
+        {
+          "section": "8-checkpoint-and-packet-requirements",
+          "sentence": "Required packet status:",
+          "legacy": {
+            "reason": "No exact server test implements this complete packet validation/status/approval requirement before supervision.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-packet-admission"
+          }
+        },
+        {
+          "section": "8-checkpoint-and-packet-requirements",
+          "sentence": "```text\nCONTRACT_VALID\nCONTRACT_LAUNDERING\nOUTCOME_AUTHORITY_UNRESOLVED\nPACKET_INCOMPLETE\n```",
+          "legacy": {
+            "reason": "No exact server test implements this complete packet validation/status/approval requirement before supervision.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-packet-admission"
+          }
+        },
+        {
+          "section": "8-checkpoint-and-packet-requirements",
+          "sentence": "A supervisor must not issue `ON_TRACK`, GREEN, or completion approval from a packet whose contract status is not `CONTRACT_VALID`.",
+          "legacy": {
+            "reason": "No exact server test implements this complete packet validation/status/approval requirement before supervision.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-packet-admission"
+          }
+        },
+        {
+          "section": "9-supervisor-order-of-operations",
+          "sentence": "The supervisor’s first question is not “Did the worker satisfy the task contract?”",
+          "record": "uda.owner-outcome.supervisor-order",
+          "obligation_id": "supervisor-order-at-boundary"
+        },
+        {
+          "section": "9-supervisor-order-of-operations",
+          "sentence": "It is:",
+          "record": "uda.owner-outcome.supervisor-order",
+          "obligation_id": "supervisor-order-at-boundary"
+        },
+        {
+          "section": "9-supervisor-order-of-operations",
+          "sentence": "> Does the current task contract and proposed finish line preserve the originating owner outcome without omission, weakening, or proxy substitution?",
+          "record": "uda.owner-outcome.supervisor-order",
+          "obligation_id": "supervisor-order-at-boundary"
+        },
+        {
+          "section": "9-supervisor-order-of-operations",
+          "sentence": "Required order:",
+          "record": "uda.owner-outcome.supervisor-order",
+          "obligation_id": "supervisor-order-at-boundary"
+        },
+        {
+          "section": "9-supervisor-order-of-operations",
+          "sentence": "1. Validate owner-outcome identity and authority.",
+          "record": "uda.owner-outcome.supervisor-order",
+          "obligation_id": "supervisor-order-at-boundary"
+        },
+        {
+          "section": "9-supervisor-order-of-operations",
+          "sentence": "2. Compare the derived contract to the owner outcome.",
+          "record": "uda.owner-outcome.supervisor-order",
+          "obligation_id": "supervisor-order-at-boundary"
+        },
+        {
+          "section": "9-supervisor-order-of-operations",
+          "sentence": "3. Validate the proposed terminal-state semantics.",
+          "record": "uda.owner-outcome.supervisor-order",
+          "obligation_id": "supervisor-order-at-boundary"
+        },
+        {
+          "section": "9-supervisor-order-of-operations",
+          "sentence": "4. Only then assess worker progress, method, verification, and alignment.",
+          "record": "uda.owner-outcome.supervisor-order",
+          "obligation_id": "supervisor-order-at-boundary"
+        },
+        {
+          "section": "9-supervisor-order-of-operations",
+          "sentence": "If the contract is laundered, the supervisor returns RED without approving the narrower framing, even when the worker completed every supplied acceptance criterion.",
+          "record": "uda.owner-outcome.supervisor-order",
+          "obligation_id": "supervisor-order-at-boundary"
+        },
+        {
+          "section": "9-supervisor-order-of-operations",
+          "sentence": "Supervisor approval is itself a judgment artifact. It is never substitute evidence for the owner outcome.",
+          "record": "uda.owner-outcome.supervisor-order",
+          "obligation_id": "supervisor-order-at-boundary"
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "```text\nowner-outcome record\ncurrent derived task contract\nroot/subtask identity\nproposed workflow state\ncandidate artifact/commit/hash\nfresh evidence ledger\nowner decisions/amendments\n```",
+          "legacy": {
+            "reason": "No exact implementation test pins every comparator input and root/subtask identity together.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "1. Verify owner-outcome epoch and hash.",
+          "implementation": {
+            "obligation_id": "owner-epoch-hash-check",
+            "due_phase": "final-delivery",
+            "destination": "mission-control-terminal-comparator",
+            "acceptance_evidence": "Stale ID/epoch/hash cannot supply current supervision; coherent current authority and exact evidence permit root close.",
+            "code": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts",
+                "symbol": "compareTerminalState"
+              },
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/lib/store.ts",
+                "symbol": "validateAuthorityInvariants"
+              }
+            ],
+            "tests": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "new reasoning supervision binds the exact current owner-outcome authority while legacy records remain readable but non-authoritative"
+              },
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "root close requires a coherent fresh authority vector and exact outcome-to-receipt coverage"
+              }
+            ]
+          }
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "2. Verify the derived contract has a complete backward trace.",
+          "legacy": {
+            "reason": "Existing comparator has some structural checks, but exact tests do not establish this entire step at the named boundary.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "3. Detect omitted, weakened, deferred-without-owner, or proxy-replaced outcomes.",
+          "legacy": {
+            "reason": "Existing comparator has some structural checks, but exact tests do not establish this entire step at the named boundary.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "4. Determine whether the proposed state is terminal for the subtask, parent task, or root owner outcome.",
+          "legacy": {
+            "reason": "Existing comparator has some structural checks, but exact tests do not establish this entire step at the named boundary.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "5. Bind evidence to the exact candidate/commit/hash.",
+          "legacy": {
+            "reason": "Existing comparator has some structural checks, but exact tests do not establish this entire step at the named boundary.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "6. Evaluate every terminal-required outcome as MET / UNMET / UNKNOWN.",
+          "legacy": {
+            "reason": "Existing comparator has some structural checks, but exact tests do not establish this entire step at the named boundary.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "7. Refuse root terminalization unless every terminal-required outcome is MET.",
+          "implementation": {
+            "obligation_id": "root-terminal-required-met",
+            "due_phase": "final-delivery",
+            "destination": "mission-control-terminal-comparator",
+            "acceptance_evidence": "Root close admits complete exact evidence and rejects unmet, unrelated or stale evidence despite supervisor GREEN.",
+            "code": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts",
+                "symbol": "compareTerminalState"
+              }
+            ],
+            "tests": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "root close requires a coherent fresh authority vector and exact outcome-to-receipt coverage"
+              },
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "unmet reconciliation, unrelated evidence, and stale review can never authorize a root close"
+              },
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "supervisor GREEN cannot override an unmet owner outcome at a terminal boundary"
+              }
+            ]
+          }
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "8. Preserve supporting completed work and generate the remaining outcome gap.",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "persistence",
+            "destination": "durable-task-checkpoint",
+            "candidate_record": "uda.owner-outcome.migration-repair"
+          }
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "if owner outcome missing or ambiguous:\n  HOLD: OUTCOME_AUTHORITY_UNRESOLVED",
+          "legacy": {
+            "reason": "The prose requires this exact named decision/status; current comparator names or tests do not establish the complete branch.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "if derived contract omits or weakens a required outcome:\n  RED: CONTRACT_LAUNDERING + SCOPE_CONTRACTION",
+          "legacy": {
+            "reason": "The prose requires this exact named decision/status; current comparator names or tests do not establish the complete branch.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "if a proxy is used as direct satisfaction:\n  RED: PROXY_SUBSTITUTION + COMPLETION_ILLUSION",
+          "legacy": {
+            "reason": "The prose requires this exact named decision/status; current comparator names or tests do not establish the complete branch.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "if proposed root terminal state has any UNMET outcome:\n  RED: OWNER_OUTCOME_UNMET + COMPLETION_ILLUSION",
+          "legacy": {
+            "reason": "The prose requires this exact named decision/status; current comparator names or tests do not establish the complete branch.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "if proposed root terminal state has any UNKNOWN outcome:\n  HOLD: COMPLETION_EVIDENCE_INSUFFICIENT",
+          "legacy": {
+            "reason": "The prose requires this exact named decision/status; current comparator names or tests do not establish the complete branch.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "if a subtask is complete but parent outcomes remain:\n  ALLOW: SUBTASK_COMPLETE_PARENT_OPEN",
+          "record": "uda.owner-outcome.child-parent-closure",
+          "obligation_id": "child-parent-closure-at-boundary"
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "if owner requested early evaluation and state is explicitly nonterminal:\n  ALLOW: EARLY_OWNER_EVALUATION_PARENT_OPEN",
+          "record": "uda.owner-outcome.child-parent-closure",
+          "obligation_id": "child-parent-closure-at-boundary"
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "if every required root outcome is MET with fresh exact-candidate evidence:\n  ALLOW: OWNER_OUTCOME_SATISFIED",
+          "legacy": {
+            "reason": "The prose requires this exact named decision/status; current comparator names or tests do not establish the complete branch.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "A workflow label does not determine whether a task is complete.",
+          "record": "uda.owner-outcome.terminal-evidence",
+          "obligation_id": "terminal-evidence-at-boundary"
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "The following are nonterminal by default for a root outcome:",
+          "record": "uda.owner-outcome.terminal-evidence",
+          "obligation_id": "terminal-evidence-at-boundary"
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "```text\nREADY_FOR_OWNER_REVIEW\nHUMAN_REVIEW\nHANDOFF_READY\nEDITORIAL_REVIEW_READY\nSUPERVISOR_APPROVED\nPR_READY\nTESTS_GREEN\n```",
+          "record": "uda.owner-outcome.terminal-evidence",
+          "obligation_id": "terminal-evidence-at-boundary"
+        },
+        {
+          "section": "10-deterministic-terminal-state-comparator",
+          "sentence": "They become terminal only when the owner explicitly requested that state as the final outcome.",
+          "record": "uda.owner-outcome.terminal-evidence",
+          "obligation_id": "terminal-evidence-at-boundary"
+        },
+        {
+          "section": "11-workflow-state-semantics",
+          "sentence": "Mission Control must distinguish:",
+          "legacy": {
+            "reason": "The runtime does not implement/test all seven named workflow states with their exact semantics.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "11-workflow-state-semantics",
+          "sentence": "```text\nIN_PROGRESS\nSUBTASK_COMPLETE_PARENT_OPEN\nEARLY_OWNER_EVALUATION_PARENT_OPEN\nHANDOFF_READY_PARENT_OPEN\nDONE_CANDIDATE\nOWNER_OUTCOME_SATISFIED\nCANCELED_BY_OWNER\n```",
+          "legacy": {
+            "reason": "The runtime does not implement/test all seven named workflow states with their exact semantics.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "11-workflow-state-semantics",
+          "sentence": "Only `OWNER_OUTCOME_SATISFIED` or an explicit owner cancellation/scope amendment closes the root outcome.",
+          "record": "uda.owner-outcome.terminal-evidence",
+          "obligation_id": "terminal-evidence-at-boundary"
+        },
+        {
+          "section": "11-workflow-state-semantics",
+          "sentence": "A worker may request early owner feedback without pretending the task is finished.",
+          "record": "uda.owner-outcome.child-parent-closure",
+          "obligation_id": "child-parent-closure-at-boundary"
+        },
+        {
+          "section": "11-workflow-state-semantics",
+          "sentence": "The dashboard must show the current outcome gap and keep the task open.",
+          "legacy": {
+            "reason": "The dashboard must expose the current gap and keep early-feedback tasks open; exact complete UI tests are missing.",
+            "due_phase": "publication",
+            "destination": "mission-control-dashboard"
+          }
+        },
+        {
+          "section": "12-dashboard-requirements",
+          "sentence": "For every root task, show:",
+          "legacy": {
+            "reason": "Existing projection/UI tests cover portions, not all named root/subtask progress, freshness, gaps, comparator and warning fields together.",
+            "due_phase": "publication",
+            "destination": "mission-control-dashboard"
+          }
+        },
+        {
+          "section": "12-dashboard-requirements",
+          "sentence": "- verbatim/normalized owner outcome summary;",
+          "legacy": {
+            "reason": "Existing projection/UI tests cover portions, not all named root/subtask progress, freshness, gaps, comparator and warning fields together.",
+            "due_phase": "publication",
+            "destination": "mission-control-dashboard"
+          }
+        },
+        {
+          "section": "12-dashboard-requirements",
+          "sentence": "- outcome epoch and freshness;",
+          "legacy": {
+            "reason": "Existing projection/UI tests cover portions, not all named root/subtask progress, freshness, gaps, comparator and warning fields together.",
+            "due_phase": "publication",
+            "destination": "mission-control-dashboard"
+          }
+        },
+        {
+          "section": "12-dashboard-requirements",
+          "sentence": "- root outcome progress;",
+          "legacy": {
+            "reason": "Existing projection/UI tests cover portions, not all named root/subtask progress, freshness, gaps, comparator and warning fields together.",
+            "due_phase": "publication",
+            "destination": "mission-control-dashboard"
+          }
+        },
+        {
+          "section": "12-dashboard-requirements",
+          "sentence": "- subtask progress separately;",
+          "legacy": {
+            "reason": "Existing projection/UI tests cover portions, not all named root/subtask progress, freshness, gaps, comparator and warning fields together.",
+            "due_phase": "publication",
+            "destination": "mission-control-dashboard"
+          }
+        },
+        {
+          "section": "12-dashboard-requirements",
+          "sentence": "- unmet required outcomes;",
+          "legacy": {
+            "reason": "Existing projection/UI tests cover portions, not all named root/subtask progress, freshness, gaps, comparator and warning fields together.",
+            "due_phase": "publication",
+            "destination": "mission-control-dashboard"
+          }
+        },
+        {
+          "section": "12-dashboard-requirements",
+          "sentence": "- current gap;",
+          "implementation": {
+            "obligation_id": "dashboard-outcome-gap",
+            "due_phase": "publication",
+            "destination": "mission-control-dashboard",
+            "acceptance_evidence": "Project unmet required outcomes and current owner gap independently of supporting-work indicators, preserving them in owner-facing cards.",
+            "code": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/lib/projection.ts",
+                "symbol": "projectWorker"
+              },
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/components/Dashboard.tsx",
+                "symbol": "Owner outcome gap"
+              }
+            ],
+            "tests": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "qualitative ADVANCING fails closed unless current and best evidence are durable independent outcome indicators"
+              },
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "attention and healthy card variants render the complete progress and execution-supervision state"
+              }
+            ]
+          }
+        },
+        {
+          "section": "12-dashboard-requirements",
+          "sentence": "- proposed terminal state;",
+          "legacy": {
+            "reason": "Existing projection/UI tests cover portions, not all named root/subtask progress, freshness, gaps, comparator and warning fields together.",
+            "due_phase": "publication",
+            "destination": "mission-control-dashboard"
+          }
+        },
+        {
+          "section": "12-dashboard-requirements",
+          "sentence": "- terminal-comparator result;",
+          "legacy": {
+            "reason": "Existing projection/UI tests cover portions, not all named root/subtask progress, freshness, gaps, comparator and warning fields together.",
+            "due_phase": "publication",
+            "destination": "mission-control-dashboard"
+          }
+        },
+        {
+          "section": "12-dashboard-requirements",
+          "sentence": "- proxy evidence warnings;",
+          "legacy": {
+            "reason": "Existing projection/UI tests cover portions, not all named root/subtask progress, freshness, gaps, comparator and warning fields together.",
+            "due_phase": "publication",
+            "destination": "mission-control-dashboard"
+          }
+        },
+        {
+          "section": "12-dashboard-requirements",
+          "sentence": "- contract-laundering status.",
+          "legacy": {
+            "reason": "Existing projection/UI tests cover portions, not all named root/subtask progress, freshness, gaps, comparator and warning fields together.",
+            "due_phase": "publication",
+            "destination": "mission-control-dashboard"
+          }
+        },
+        {
+          "section": "12-dashboard-requirements",
+          "sentence": "Do not display 100% task progress merely because a narrowed subtask or supporting gate is complete.",
+          "legacy": {
+            "reason": "Existing projection/UI tests cover portions, not all named root/subtask progress, freshness, gaps, comparator and warning fields together.",
+            "due_phase": "publication",
+            "destination": "mission-control-dashboard"
+          }
+        },
+        {
+          "section": "13-exact-regression-scenario-article-humanization-at-1382",
+          "sentence": "```text\ntraffic_light: RED\ncontract_status: CONTRACT_LAUNDERING\nfindings:\n  - SCOPE_CONTRACTION\n  - OBJECTIVE_SUBSTITUTION\n  - PROXY_SUBSTITUTION\n  - COMPLETION_ILLUSION\nroot_outcome_status: UNMET\nrequired_directive: CONTINUE_HUMANIZATION\nowner_decision_required: false\n```",
+          "legacy": {
+            "reason": "Existing article regression returns HOLD_SAME_STRATEGY_AND_SELECT_REPLACEMENT_METHOD rather than the required CONTINUE_HUMANIZATION; exact expected block is not implemented.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-owner-outcome"
+          }
+        },
+        {
+          "section": "13-exact-regression-scenario-article-humanization-at-1382",
+          "sentence": "The completed preservation and editorial work remains valid evidence and must not be discarded. It is supporting work, not the final outcome.",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "persistence",
+            "destination": "durable-task-checkpoint",
+            "candidate_record": "uda.owner-outcome.migration-repair"
+          }
+        },
+        {
+          "section": "13-exact-regression-scenario-article-humanization-at-1382",
+          "sentence": "A supervisor that returns GREEN or accepts root termination fails the regression.",
+          "implementation": {
+            "obligation_id": "article-root-rejection",
+            "due_phase": "final-delivery",
+            "destination": "mission-control-terminal-comparator",
+            "acceptance_evidence": "The exact regression keeps locally completed supporting criteria but makes the root RED and disallows terminalization.",
+            "code": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts",
+                "symbol": "compareTerminalState"
+              }
+            ],
+            "tests": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "the 13.82 percent contract-laundering fixture preserves worker GREEN and makes the root RED"
+              }
+            ]
+          }
+        },
+        {
+          "section": "14-existing-task-migration",
+          "sentence": "At the next safe checkpoint, every active nontrivial worker must:",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "persistence",
+            "destination": "durable-task-checkpoint",
+            "candidate_record": "uda.owner-outcome.migration-repair"
+          }
+        },
+        {
+          "section": "14-existing-task-migration",
+          "sentence": "1. recover the original owner request and material later corrections;",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "persistence",
+            "destination": "durable-task-checkpoint",
+            "candidate_record": "uda.owner-outcome.migration-repair"
+          }
+        },
+        {
+          "section": "14-existing-task-migration",
+          "sentence": "2. create or verify the owner-outcome record;",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "persistence",
+            "destination": "durable-task-checkpoint",
+            "candidate_record": "uda.owner-outcome.migration-repair"
+          }
+        },
+        {
+          "section": "14-existing-task-migration",
+          "sentence": "3. compare the current task contract and completion boundary against it;",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "persistence",
+            "destination": "durable-task-checkpoint",
+            "candidate_record": "uda.owner-outcome.migration-repair"
+          }
+        },
+        {
+          "section": "14-existing-task-migration",
+          "sentence": "4. preserve valid supporting work;",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "persistence",
+            "destination": "durable-task-checkpoint",
+            "candidate_record": "uda.owner-outcome.migration-repair"
+          }
+        },
+        {
+          "section": "14-existing-task-migration",
+          "sentence": "5. reopen or continue any required outcome that was omitted or replaced by a proxy;",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "persistence",
+            "destination": "durable-task-checkpoint",
+            "candidate_record": "uda.owner-outcome.migration-repair"
+          }
+        },
+        {
+          "section": "14-existing-task-migration",
+          "sentence": "6. update the current gap and unmet-outcome ledger;",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "persistence",
+            "destination": "durable-task-checkpoint",
+            "candidate_record": "uda.owner-outcome.migration-repair"
+          }
+        },
+        {
+          "section": "14-existing-task-migration",
+          "sentence": "7. invalidate stale supervisor approvals that evaluated only a laundered contract.",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "persistence",
+            "destination": "durable-task-checkpoint",
+            "candidate_record": "uda.owner-outcome.migration-repair"
+          }
+        },
+        {
+          "section": "14-existing-task-migration",
+          "sentence": "Do not restart the project or discard valid work merely because the contract was narrowed. Repair the authority chain and continue from the latest useful boundary.",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "persistence",
+            "destination": "durable-task-checkpoint",
+            "candidate_record": "uda.owner-outcome.migration-repair"
+          }
+        },
+        {
+          "section": "14-existing-task-migration",
+          "sentence": "If the original request cannot be recovered, do not silently preserve the narrowed checkpoint. Mark `OUTCOME_AUTHORITY_UNRESOLVED`, search the canonical project records, and pause only the terminal/completion decision if useful reversible work can continue safely.",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "persistence",
+            "destination": "durable-task-checkpoint",
+            "candidate_record": "uda.owner-outcome.migration-repair"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "Mission Control must test at least:",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "1. Complete derived contract passes.",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "2. Omitted owner outcome returns `CONTRACT_LAUNDERING`.",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "3. Weakened threshold returns `CONTRACT_LAUNDERING`.",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "4. `must` changed to `should` fails.",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "5. Supporting proxy substituted for direct outcome fails.",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "6. Subtask completion with parent open succeeds without closing root.",
+          "implementation": {
+            "obligation_id": "child-open-regression",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests",
+            "acceptance_evidence": "The child completion case allows subtask closure and asserts rootTerminalizationAllowed false.",
+            "code": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts",
+                "symbol": "compareTerminalState"
+              }
+            ],
+            "tests": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "an honest completed subtask can close while its parent outcome remains open"
+              }
+            ]
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "7. Early owner evaluation succeeds only as nonterminal.",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "8. Supervisor GREEN cannot override an unmet required outcome.",
+          "implementation": {
+            "obligation_id": "green-unmet-regression",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests",
+            "acceptance_evidence": "The GREEN worker with unmet root outcome cannot terminalize or project GREEN.",
+            "code": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/lib/terminal-comparator.ts",
+                "symbol": "compareTerminalState"
+              }
+            ],
+            "tests": [
+              {
+                "path": "tools/codex-mission-control/restored/codex-mission-control/tests/mission-control.test.ts",
+                "test": "supervisor GREEN cannot override an unmet owner outcome at a terminal boundary"
+              }
+            ]
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "9. Stale owner-outcome epoch invalidates packet and review.",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "10. Exact-candidate mismatch invalidates completion evidence.",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "11. Unknown required outcome blocks root terminalization.",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "12. The `13.82% Human` regression returns RED and continued humanization.",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "13. Explicit owner amendment creates a new outcome epoch and safely re-evaluates active tasks.",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "14. Valid supporting work survives contract repair.",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "Mutation/adversarial tests must include:",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "- deleting the Pangram outcome from the packet;",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "- renaming `READY_FOR_OWNER_REVIEW` to `DONE`;",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "- replacing the direct target with “supervisor approved”;",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "- lowering the target in a child contract;",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "- hiding unmet outcomes from the dashboard;",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "15-required-implementation-tests",
+          "sentence": "- marking parent closed when only a subtask is complete.",
+          "legacy": {
+            "reason": "The full implementation/mutation case requires an exact server regression; related fixture behavior is insufficient for this named case.",
+            "due_phase": "pre-action",
+            "destination": "mission-control-implementation-tests"
+          }
+        },
+        {
+          "section": "16-limits",
+          "sentence": "- Owner language can be genuinely ambiguous. The system must preserve uncertainty rather than manufacture a precise target.",
+          "record": "uda.owner-outcome.terminal-evidence",
+          "obligation_id": "terminal-evidence-at-boundary"
+        },
+        {
+          "section": "16-limits",
+          "sentence": "- Not every outcome is numeric. Qualitative outcomes still require explicit criteria and evidence appropriate to the claim.",
+          "record": "uda.owner-outcome.terminal-evidence",
+          "obligation_id": "terminal-evidence-at-boundary"
+        },
+        {
+          "section": "16-limits",
+          "sentence": "- A child task may validly finish before the owner outcome is satisfied, provided the parent remains open and the state is labeled truthfully.",
+          "record": "uda.owner-outcome.child-parent-closure",
+          "obligation_id": "child-parent-closure-at-boundary"
+        },
+        {
+          "section": "16-limits",
+          "sentence": "- An owner may explicitly redefine the finish line. That creates a new outcome epoch; it does not retroactively make the old contract faithful.",
+          "record": "uda.owner-outcome.epoch-amendment",
+          "obligation_id": "epoch-amendment-at-boundary"
+        },
+        {
+          "section": "16-limits",
+          "sentence": "- Deterministic mapping catches structural omissions and threshold weakening. Semantic equivalence may still require Extra High, Pro, or the owner.",
+          "record": "uda.owner-outcome.derived-contract",
+          "obligation_id": "derived-contract-at-boundary"
+        },
+        {
+          "section": "17-required-relationship-to-other-mission-control-patterns",
+          "sentence": "When they conflict, this owner correction governs task-contract authority and terminal-state integrity.",
+          "legacy": {
+            "reason": "This exact worker-duty candidate is selected by unchanged Work facts and exceeds the rendered cap; supervisor budget decision is required before activation.",
+            "due_phase": "pre-action",
+            "destination": "owner-outcome-authority",
+            "candidate_record": "uda.owner-outcome.source-authority"
+          }
+        }
+      ],
+      "legacy_remainder": "Exact prose-governed clauses (including budget-deferred worker duties and unimplemented or incompletely tested server requirements):\n\nThis pattern supersedes any workflow rule that tells an existing worker to preserve a current task checkpoint, acceptance criteria, completion boundary, or supervisor framing **without first validating it against the originating owner outcome**.\n\nThe governing invariant is:\n\n> A downstream task contract, checkpoint, review packet, supervisor verdict, or workflow state may refine or operationalize the owner’s requested outcome, but it may not omit, weaken, replace, or terminally bypass that outcome without an explicit owner decision.\n\nMission Control must prevent the laundering step rather than merely detecting ordinary drift after accepting the laundered contract as authority.\n\nThis is not repaired by adding a stronger semantic supervisor alone. A more intelligent supervisor can still approve a laundered contract when the packet omits the parent outcome.\n\nRequired detections include:\n\n- `OUTCOME_AUTHORITY_UNRESOLVED`\n\nThe outcome record must preserve:\n\n- the original owner request verbatim;\n\n- later explicit owner corrections that materially affect the result;\n\n- source references and timestamps where available;\n\n- the normalized result;\n\n- required evidence and thresholds;\n\n- known non-satisfying proxies;\n\n- exact hash.\n\nIf the original request is unavailable or materially ambiguous, the state is `OUTCOME_AUTHORITY_UNRESOLVED`. The worker may continue clearly useful reversible contributing work, but may not declare the root outcome satisfied.\n\nThe normalized result exists to make execution testable. It must not soften modality, remove thresholds, narrow scope, or convert a final outcome into review readiness.\n\nWhen the verbatim and normalized forms conflict, the verbatim owner request and later explicit corrections control until the owner resolves the discrepancy.\n\nEvery nontrivial durable root task must include or reference:\n\n```yaml\nowner_outcome:\n  schema_version: 1\n  owner_outcome_id: OO-...\n  epoch: 1\n\n  source_refs:\n    - source_type: owner_message\n      ref: \"...\"\n      recorded_at: \"...\"\n\n  verbatim_owner_request:\n    - \"Exact owner wording...\"\n\n  normalized_result: >\n    The exact final result that would satisfy the request.\n\n  required_outcomes:\n    - id: RO-001\n      text: \"Required final property or result\"\n      modality: must\n      terminal_required: true\n      target:\n        type: threshold | exact_state | qualitative_judgment | artifact\n        value: \"...\"\n      required_evidence:\n        - evidence class\n\n  completion_evidence:\n    - exact candidate/hash binding\n    - outcome-specific direct evidence\n\n  non_satisfying_proxies:\n    - \"review ready\"\n    - \"tests pass\"\n    - \"supervisor approved\"\n\n  permitted_intermediate_states:\n    - state: EARLY_OWNER_EVALUATION\n      terminal: false\n\n  explicit_owner_amendments: []\n  supersedes: null\n  owner_outcome_sha256: \"...\"\n```\n\nThe owner may supply a less structured request. The system constructs this record without changing its meaning.\n\nEvery meaningful checkpoint and every supervision packet must carry:\n\n```text\nowner_outcome_id / epoch / SHA-256\nverbatim owner request\nnormalized final result\nrequired owner outcomes\ncurrent evidence for each required outcome\ncurrent gap to each required outcome\nunmet and unknown required outcomes\nknown non-satisfying proxies\ncurrent derived-contract mapping\nproposed workflow/terminal state\nterminal-comparator result\n```\n\nA compact packet may reference content-addressed records, but it may not omit the effective owner outcome.\n\nPacket validation fails closed when:\n\n- the owner-outcome record is absent;\n\n- its hash or epoch is stale;\n\n- a required outcome is omitted;\n\n- the normalized result conflicts with verbatim authority;\n\n- the packet presents only downstream acceptance criteria;\n\n- current gaps or unmet outcomes are missing;\n\n- a proxy is presented as direct completion evidence.\n\nRequired packet status:\n\n```text\nCONTRACT_VALID\nCONTRACT_LAUNDERING\nOUTCOME_AUTHORITY_UNRESOLVED\nPACKET_INCOMPLETE\n```\n\nA supervisor must not issue `ON_TRACK`, GREEN, or completion approval from a packet whose contract status is not `CONTRACT_VALID`.\n\n```text\nowner-outcome record\ncurrent derived task contract\nroot/subtask identity\nproposed workflow state\ncandidate artifact/commit/hash\nfresh evidence ledger\nowner decisions/amendments\n```\n\n2. Verify the derived contract has a complete backward trace.\n\n3. Detect omitted, weakened, deferred-without-owner, or proxy-replaced outcomes.\n\n4. Determine whether the proposed state is terminal for the subtask, parent task, or root owner outcome.\n\n5. Bind evidence to the exact candidate/commit/hash.\n\n6. Evaluate every terminal-required outcome as MET / UNMET / UNKNOWN.\n\n8. Preserve supporting completed work and generate the remaining outcome gap.\n\nif owner outcome missing or ambiguous:\n  HOLD: OUTCOME_AUTHORITY_UNRESOLVED\n\nif derived contract omits or weakens a required outcome:\n  RED: CONTRACT_LAUNDERING + SCOPE_CONTRACTION\n\nif a proxy is used as direct satisfaction:\n  RED: PROXY_SUBSTITUTION + COMPLETION_ILLUSION\n\nif proposed root terminal state has any UNMET outcome:\n  RED: OWNER_OUTCOME_UNMET + COMPLETION_ILLUSION\n\nif proposed root terminal state has any UNKNOWN outcome:\n  HOLD: COMPLETION_EVIDENCE_INSUFFICIENT\n\nif every required root outcome is MET with fresh exact-candidate evidence:\n  ALLOW: OWNER_OUTCOME_SATISFIED\n\nMission Control must distinguish:\n\n```text\nIN_PROGRESS\nSUBTASK_COMPLETE_PARENT_OPEN\nEARLY_OWNER_EVALUATION_PARENT_OPEN\nHANDOFF_READY_PARENT_OPEN\nDONE_CANDIDATE\nOWNER_OUTCOME_SATISFIED\nCANCELED_BY_OWNER\n```\n\nThe dashboard must show the current outcome gap and keep the task open.\n\nFor every root task, show:\n\n- verbatim/normalized owner outcome summary;\n\n- outcome epoch and freshness;\n\n- root outcome progress;\n\n- subtask progress separately;\n\n- unmet required outcomes;\n\n- proposed terminal state;\n\n- terminal-comparator result;\n\n- proxy evidence warnings;\n\n- contract-laundering status.\n\nDo not display 100% task progress merely because a narrowed subtask or supporting gate is complete.\n\n```text\ntraffic_light: RED\ncontract_status: CONTRACT_LAUNDERING\nfindings:\n  - SCOPE_CONTRACTION\n  - OBJECTIVE_SUBSTITUTION\n  - PROXY_SUBSTITUTION\n  - COMPLETION_ILLUSION\nroot_outcome_status: UNMET\nrequired_directive: CONTINUE_HUMANIZATION\nowner_decision_required: false\n```\n\nThe completed preservation and editorial work remains valid evidence and must not be discarded. It is supporting work, not the final outcome.\n\nAt the next safe checkpoint, every active nontrivial worker must:\n\n1. recover the original owner request and material later corrections;\n\n2. create or verify the owner-outcome record;\n\n3. compare the current task contract and completion boundary against it;\n\n4. preserve valid supporting work;\n\n5. reopen or continue any required outcome that was omitted or replaced by a proxy;\n\n6. update the current gap and unmet-outcome ledger;\n\n7. invalidate stale supervisor approvals that evaluated only a laundered contract.\n\nDo not restart the project or discard valid work merely because the contract was narrowed. Repair the authority chain and continue from the latest useful boundary.\n\nIf the original request cannot be recovered, do not silently preserve the narrowed checkpoint. Mark `OUTCOME_AUTHORITY_UNRESOLVED`, search the canonical project records, and pause only the terminal/completion decision if useful reversible work can continue safely.\n\nMission Control must test at least:\n\n1. Complete derived contract passes.\n\n2. Omitted owner outcome returns `CONTRACT_LAUNDERING`.\n\n3. Weakened threshold returns `CONTRACT_LAUNDERING`.\n\n4. `must` changed to `should` fails.\n\n5. Supporting proxy substituted for direct outcome fails.\n\n7. Early owner evaluation succeeds only as nonterminal.\n\n9. Stale owner-outcome epoch invalidates packet and review.\n\n10. Exact-candidate mismatch invalidates completion evidence.\n\n11. Unknown required outcome blocks root terminalization.\n\n12. The `13.82% Human` regression returns RED and continued humanization.\n\n13. Explicit owner amendment creates a new outcome epoch and safely re-evaluates active tasks.\n\n14. Valid supporting work survives contract repair.\n\nMutation/adversarial tests must include:\n\n- deleting the Pangram outcome from the packet;\n\n- renaming `READY_FOR_OWNER_REVIEW` to `DONE`;\n\n- replacing the direct target with “supervisor approved”;\n\n- lowering the target in a child contract;\n\n- hiding unmet outcomes from the dashboard;\n\n- marking parent closed when only a subtask is complete.\n\nWhen they conflict, this owner correction governs task-contract authority and terminal-state integrity.\n\nUse traceability and refinement principles, then add exact task/packet/hash identity and fail-closed terminal comparison."
     },
     {
       "id": "patterns/owner-questions-page.md",

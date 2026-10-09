@@ -1,14 +1,14 @@
 {
-  "catalog_sha256": "ffc2cbbfb82026e33bc439970683dcc7a69c5772c037faaeea392f0d9c20b97e",
+  "catalog_sha256": "63bf42f14d80f6dee9cc8101f8cb6ca54e5260f51840d50cf6c44f18a099a30d",
   "compiler_sha256": "7ea7e14d49c8e2d10a5c015119a71b4457392fb6090a30f4cb38c9777be10509",
-  "content_sha256": "fda6bb929ed11434db9b6f0c9d031d3f35fabf0c139a5361a9d8d9b7c6c615c1",
+  "content_sha256": "7f5bfd6670acadcdda5e365cf7fa0e22f3079016fa07d63541a6fe6aec5f9c62",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
       "extracted_utf8_bytes": 268,
-      "git_blob_sha1": "b45dcddfe80aa56a56fbaf1e9e916941d52ae50f",
+      "git_blob_sha1": "3e01dbab00e98d0ee13528bd1adcfe4fae66ecd9",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:b45dcddfe80aa56a56fbaf1e9e916941d52ae50f",
+      "repository_revision": "BLOB:3e01dbab00e98d0ee13528bd1adcfe4fae66ecd9",
       "rule_id": "uda.active-contract.boundary-binding",
       "selectors": [
         {
@@ -1618,14 +1618,256 @@
     {
       "extracted_sha256": "20246d4cb4a4c9f5f46331555fae123081c44aa8fb779019e93784f7f4a0fd24",
       "extracted_utf8_bytes": 116,
-      "git_blob_sha1": "b45dcddfe80aa56a56fbaf1e9e916941d52ae50f",
+      "git_blob_sha1": "3e01dbab00e98d0ee13528bd1adcfe4fae66ecd9",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:b45dcddfe80aa56a56fbaf1e9e916941d52ae50f",
+      "repository_revision": "BLOB:3e01dbab00e98d0ee13528bd1adcfe4fae66ecd9",
       "rule_id": "uda.owner-correction.reactivate",
       "selectors": [
         {
           "kind": "exact_text",
           "text": "A direct owner correction should normally be activated before the next attempt, not merely saved for later closeout."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "3fc5fd4b57e96e2024fad5036b5bfecf3de6ad205c7c7185ef6ba29362d8bcdf",
+      "extracted_utf8_bytes": 436,
+      "git_blob_sha1": "29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+      "repository_revision": "BLOB:29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "rule_id": "uda.owner-outcome.child-parent-closure",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "if a subtask is complete but parent outcomes remain:\n  ALLOW: SUBTASK_COMPLETE_PARENT_OPEN"
+        },
+        {
+          "kind": "exact_text",
+          "text": "if owner requested early evaluation and state is explicitly nonterminal:\n  ALLOW: EARLY_OWNER_EVALUATION_PARENT_OPEN"
+        },
+        {
+          "kind": "exact_text",
+          "text": "A worker may request early owner feedback without pretending the task is finished."
+        },
+        {
+          "kind": "exact_text",
+          "text": "- A child task may validly finish before the owner outcome is satisfied, provided the parent remains open and the state is labeled truthfully."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "4973eca758b87bac4267d2121ae97777b9b4620d5995df12b30f9546d40a418d",
+      "extracted_utf8_bytes": 2267,
+      "git_blob_sha1": "29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+      "repository_revision": "BLOB:29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "rule_id": "uda.owner-outcome.derived-contract",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Every downstream task contract must declare its relationship to the owner outcome:"
+        },
+        {
+          "kind": "exact_text",
+          "text": "```yaml\nderivation:\n  parent_owner_outcome_id: OO-...\n  parent_owner_outcome_epoch: 1\n  parent_owner_outcome_sha256: \"...\"\n  contribution_type: decompose | refine | implement | verify | support\n\n  required_outcome_coverage:\n    - required_outcome_id: RO-001\n      relation: directly_satisfies | contributes | verifies | not_addressed\n      task_criterion_ids: [AC-...]\n      explanation: \"...\"\n\n  intentionally_not_addressed:\n    - required_outcome_id: RO-...\n      parent_task_remains_open: true\n      owner_authorization_ref: null\n```"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Hard rules:"
+        },
+        {
+          "kind": "exact_text",
+          "text": "1. A child contract may be narrower as a **subtask**, but it must preserve a trace to the parent outcome and state that the parent remains open."
+        },
+        {
+          "kind": "exact_text",
+          "text": "2. A root task contract may not omit a terminal-required owner outcome."
+        },
+        {
+          "kind": "exact_text",
+          "text": "3. A threshold may not be weakened."
+        },
+        {
+          "kind": "exact_text",
+          "text": "4. `must` may not become `should`, “good enough,” “review ready,” or “owner can decide later.”"
+        },
+        {
+          "kind": "exact_text",
+          "text": "5. A direct outcome may not be replaced by a supporting proxy."
+        },
+        {
+          "kind": "exact_text",
+          "text": "6. Deferral does not erase an outcome. It requires either an explicit owner decision or an open parent task that still owns the requirement."
+        },
+        {
+          "kind": "exact_text",
+          "text": "7. A new task contract is invalid until the derivation comparison passes."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Before accepting a derived contract, construct a coverage matrix:"
+        },
+        {
+          "kind": "exact_text",
+          "text": "| Owner required outcome | Derived criterion(s) | Relation | Evidence required | Weakened? | Parent remains open? |\n|---|---|---|---|---|---|"
+        },
+        {
+          "kind": "exact_text",
+          "text": "The contract passes only when:"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- every terminal-required owner outcome is represented;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- each mapped criterion has equal or stronger modality and target;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- the proposed evidence can prove that outcome rather than only a proxy;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- any unaddressed outcome remains explicitly owned by an open parent task;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- no terminal state is reachable while a required root outcome is unowned."
+        },
+        {
+          "kind": "exact_text",
+          "text": "If semantic equivalence cannot be determined deterministically, route the bounded comparison to Extra High or Pro according to the intelligence-routing policy. The comparison must include both the verbatim owner outcome and the derived contract."
+        },
+        {
+          "kind": "exact_text",
+          "text": "- Deterministic mapping catches structural omissions and threshold weakening. Semantic equivalence may still require Extra High, Pro, or the owner."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "3370cd4dbacdb9f93fa5a264e9d1dc0a941f4dc56cce1e8eb5f88152bea9f763",
+      "extracted_utf8_bytes": 462,
+      "git_blob_sha1": "29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+      "repository_revision": "BLOB:29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "rule_id": "uda.owner-outcome.epoch-amendment",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "“Immutable” means immutable within an outcome epoch, not that the owner can never change the goal."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A change requires:"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- an explicit owner instruction or decision;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "- an impact review of active derived tasks and packets."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A worker, supervisor, planner, or task generator cannot silently revise the owner outcome."
+        },
+        {
+          "kind": "exact_text",
+          "text": "- An owner may explicitly redefine the finish line. That creates a new outcome epoch; it does not retroactively make the old contract faithful."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "62b9dccbd5ee82dc360a2a563f4fdfd2037798a9546e91d34ddd237b9d2a4c62",
+      "extracted_utf8_bytes": 769,
+      "git_blob_sha1": "29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+      "repository_revision": "BLOB:29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "rule_id": "uda.owner-outcome.supervisor-order",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "The supervisor’s first question is not “Did the worker satisfy the task contract?”"
+        },
+        {
+          "kind": "exact_text",
+          "text": "It is:"
+        },
+        {
+          "kind": "exact_text",
+          "text": "> Does the current task contract and proposed finish line preserve the originating owner outcome without omission, weakening, or proxy substitution?"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Required order:"
+        },
+        {
+          "kind": "exact_text",
+          "text": "1. Validate owner-outcome identity and authority."
+        },
+        {
+          "kind": "exact_text",
+          "text": "2. Compare the derived contract to the owner outcome."
+        },
+        {
+          "kind": "exact_text",
+          "text": "3. Validate the proposed terminal-state semantics."
+        },
+        {
+          "kind": "exact_text",
+          "text": "4. Only then assess worker progress, method, verification, and alignment."
+        },
+        {
+          "kind": "exact_text",
+          "text": "If the contract is laundered, the supervisor returns RED without approving the narrower framing, even when the worker completed every supplied acceptance criterion."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Supervisor approval is itself a judgment artifact. It is never substitute evidence for the owner outcome."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "448c57cdf233c58813d9b25f7e5b6549ecef32c082ff0bc0c48df08c503c8d73",
+      "extracted_utf8_bytes": 1003,
+      "git_blob_sha1": "29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+      "repository_revision": "BLOB:29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "rule_id": "uda.owner-outcome.terminal-evidence",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "A technically valid body of supporting work does not prove task completion. Preservation gates, editorial readiness, tests, reviewer approval, source integrity, or `READY_FOR_OWNER_REVIEW` are non-satisfying proxies unless the owner’s actual requested outcome made one of them the final result."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A workflow label does not determine whether a task is complete."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The following are nonterminal by default for a root outcome:"
+        },
+        {
+          "kind": "exact_text",
+          "text": "```text\nREADY_FOR_OWNER_REVIEW\nHUMAN_REVIEW\nHANDOFF_READY\nEDITORIAL_REVIEW_READY\nSUPERVISOR_APPROVED\nPR_READY\nTESTS_GREEN\n```"
+        },
+        {
+          "kind": "exact_text",
+          "text": "They become terminal only when the owner explicitly requested that state as the final outcome."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Only `OWNER_OUTCOME_SATISFIED` or an explicit owner cancellation/scope amendment closes the root outcome."
+        },
+        {
+          "kind": "exact_text",
+          "text": "- Owner language can be genuinely ambiguous. The system must preserve uncertainty rather than manufacture a precise target."
+        },
+        {
+          "kind": "exact_text",
+          "text": "- Not every outcome is numeric. Qualitative outcomes still require explicit criteria and evidence appropriate to the claim."
         }
       ]
     },
