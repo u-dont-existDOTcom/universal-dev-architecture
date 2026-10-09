@@ -188,6 +188,52 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
     def test_actor_handoff_requires_recompile_at_each_checkpoint(self):
         self.assert_scope_change_requires_recompile('actor', ('controller',), ('chat', 'work', 'codex', 'claude'))
 
+    def test_outcome_status_change_requires_recompile_at_each_persistence_boundary(self):
+        catalog = tt.read_json(ROOT / 'rules/rule-graph/task-time-metadata.v1.json')
+        profile = tt.read_json(ROOT / 'scripts/instruction-layering-profile.json')
+        for rule_id in ('uda.continuity.step-checkpoint', 'uda.continuity.usage-warning'):
+            single_rule = {**catalog, 'records': [r for r in catalog['records'] if r['rule_id'] == rule_id]}
+            case = self.cases(rule_id)[1]
+            payload = (FIXTURE / case['payload']).read_bytes()
+            for mode in ('flat', 'graph'):
+                for initial_status, current_status in (('SATISFIED', 'OPEN'), ('OPEN', 'SATISFIED')):
+                    with self.subTest(rule=rule_id, mode=mode, initial=initial_status, current=current_status):
+                        task = self.record_task(rule_id)
+                        task['facts']['owner_outcome_status']['value'] = initial_status
+                        initial = tt.compile_contract(single_rule, profile, task, mode)
+                        receipts = bound_receipts(initial, 'persistence', payload, case)
+                        expected = 'ADMITTED' if initial_status == 'OPEN' else 'NOT_EVALUATED'
+                        self.assertEqual(tt.check_contract(
+                            initial, 'persistence', payload, destination=DESTINATION,
+                            receipts=receipts, current_facts=task['facts'])['admission'], expected)
+
+                        changed = copy.deepcopy(task)
+                        changed['facts']['owner_outcome_status']['value'] = current_status
+                        for prior_receipts in (receipts, None):
+                            stale = tt.check_contract(
+                                initial, 'persistence', payload, destination=DESTINATION,
+                                receipts=prior_receipts, current_facts=changed['facts'])
+                            self.assertEqual(stale['admission'], 'BLOCKED')
+                            self.assertEqual(stale['reason'], 'task facts changed; recompile contract before checking')
+
+                        refreshed = tt.compile_contract(single_rule, profile, changed, mode)
+                        if current_status == 'OPEN':
+                            self.assertEqual([r['rule_id'] for r in refreshed['selected_rules']], [rule_id])
+                            for prior_receipts in (receipts, None):
+                                self.assertEqual(tt.check_contract(
+                                    refreshed, 'persistence', payload, destination=DESTINATION,
+                                    receipts=prior_receipts, current_facts=changed['facts'])['admission'], 'BLOCKED')
+                            fresh_receipts = bound_receipts(refreshed, 'persistence', payload, case)
+                            self.assertEqual(tt.check_contract(
+                                refreshed, 'persistence', payload, destination=DESTINATION,
+                                receipts=fresh_receipts, current_facts=changed['facts'])['admission'], 'ADMITTED')
+                        else:
+                            self.assertEqual(refreshed['selected_rules'], [])
+                            self.assertEqual(tt.receipt_skeleton(refreshed, 'persistence', payload)['receipts'], [])
+                            self.assertEqual(tt.check_contract(
+                                refreshed, 'persistence', payload, destination=DESTINATION,
+                                current_facts=changed['facts'])['admission'], 'NOT_EVALUATED')
+
     def test_closing_outcome_requires_recompile_before_final_handoff(self):
         rule_id = 'uda.continuity.turn-end-handoff'
         catalog = tt.read_json(ROOT / 'rules/rule-graph/task-time-metadata.v1.json')

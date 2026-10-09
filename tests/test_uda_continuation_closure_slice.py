@@ -342,7 +342,8 @@ class ContinuationClosureSliceTests(unittest.TestCase):
             if record['rule_id'].startswith(('uda.continuation.', 'uda.task-lock.')) and 'refresh_on_facts' in record:
                 record['refresh_on_facts'] = [f for f in record['refresh_on_facts'] if f != 'actor']
             elif record['rule_id'].startswith('uda.continuity.'):
-                record['refresh_on_facts'] = [f for f in record['refresh_on_facts'] if f not in ('task_mode', 'actor')]
+                record['refresh_on_facts'] = [f for f in record['refresh_on_facts']
+                                             if f not in ('owner_outcome_status', 'task_mode', 'actor')]
             elif record['rule_id'] in ('uda.compaction.resume-reconciliation', 'uda.compaction.completion-closeout'):
                 record['refresh_on_facts'] = [f for f in record['refresh_on_facts'] if f != 'actor']
         baseline = tt.compile_contract(baseline_catalog, self.profile,

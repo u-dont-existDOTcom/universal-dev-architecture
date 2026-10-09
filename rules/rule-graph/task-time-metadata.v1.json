@@ -1005,6 +1005,7 @@
       "relations": [],
       "refresh_on_facts": [
         "continuity_required",
+        "owner_outcome_status",
         "task_mode",
         "actor"
       ]
@@ -1124,6 +1125,7 @@
       },
       "refresh_on_facts": [
         "usage_warning_visible",
+        "owner_outcome_status",
         "task_mode",
         "actor"
       ],
