@@ -118,6 +118,30 @@ class ContinuationClosureSliceTests(unittest.TestCase):
     def check(self, contract, phase, payload, task, **kwargs):
         return tt.check_contract(contract, phase, payload, current_task=task, **kwargs)
 
+    def test_task_lock_and_preflight_receipts_reject_another_task_id(self):
+        for rule_id in ("uda.task-lock.exclusive-controls", "uda.task-lock.preflight"):
+            record = next(r for r in self.records if r["rule_id"] == rule_id)
+            catalog = {**self.catalog, "records": [record]}
+            folder = FIXTURES / rule_id
+            task = tt.read_json(folder / "task.json")
+            payload = (folder / "compliant.txt").read_bytes()
+            judgment = tt.read_json(folder / "verdicts.json")["compliant.txt"]
+            for mode in ("graph", "flat"):
+                contract = tt.compile_contract(catalog, self.profile, task, mode)
+                receipts = self.bind(contract, "pre-action", payload, judgment)
+                for destination in (None, "task-lock-preflight"):
+                    with self.subTest(rule=rule_id, mode=mode, destination=destination):
+                        options = dict(receipts=receipts, destination=destination)
+                        admitted = self.check(contract, "pre-action", payload, task, **options)
+                        self.assertEqual("ADMITTED", admitted["admission"])
+                        other = {**task, "task_id": "completely-different-task"}
+                        self.assertEqual(task["facts"], other["facts"])
+                        rejected = self.check(contract, "pre-action", payload, other, **options)
+                        self.assertEqual("BLOCKED", rejected["admission"])
+                        self.assertIn("task ID", rejected["reason"])
+                        self.assertEqual([], rejected["results"])
+                        self.assertEqual(admitted, self.check(contract, "pre-action", payload, task, **options))
+
     def test_complete_fixture_table_is_domain_neutral_and_hash_free(self):
         self.assertEqual(31, len(self.records))
         self.assertEqual({r["rule_id"] for r in self.records}, {p.name for p in FIXTURES.iterdir()})

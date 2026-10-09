@@ -667,6 +667,12 @@ def check_contract(contract: dict[str, Any] | None, phase: str, payload: str | b
     if len(content) != len(CONTRACT_CONTENT_FIELDS) or sha256(canonical(content).encode()) != contract.get("content_sha256"):
         return {**scope_result, "schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
                 "reason": "contract content hash mismatch"}
+    # Task identity is a contract-wide binding, independent of selector facts
+    # and the phase/destination-specific refresh and receipt checks below.
+    if isinstance(current_task, dict) and current_task.get("task_id") != contract["task_id"]:
+        return {**scope_result, "schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
+                "reason": "current task ID does not match contract task ID; recompile contract for this task",
+                "contract_task_id": contract["task_id"], "current_task_id": current_task.get("task_id")}
     for boundary in contract["refresh_boundaries"]:
         if boundary["phase"] != phase or (destination is not None and boundary["destination"] != destination):
             continue

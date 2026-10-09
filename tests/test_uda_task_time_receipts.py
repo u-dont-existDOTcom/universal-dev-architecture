@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts import uda_rule_graph_task_time as tt
 from uda_test_helpers import predicate_catalog
@@ -43,6 +44,62 @@ class SemanticReceiptTests(unittest.TestCase):
         self.assertEqual(result['results'][0]['binding_status'], 'RECEIPT_BINDING_VERIFIED')
         self.assertEqual(result['results'][0]['asserted_by'], self.receipt['actor'])
         self.assertIs(result['results'][0]['judgment_proved'], False)
+
+    def test_receipts_cannot_be_replayed_for_a_different_current_task(self):
+        self.task['task_id'] = 'synthetic-boundary-task'
+        for mode in ('graph', 'flat'):
+            contract = tt.compile_contract(self.catalog, self.profile, self.task, mode)
+            receipt = {**self.receipt, 'contract_sha256': contract['content_sha256']}
+            for destination in (None, receipt['destination'], 'another-surface'):
+                with self.subTest(mode=mode, destination=destination):
+                    options = dict(receipts=[receipt], destination=destination)
+                    same = tt.check_contract(contract, 'final-delivery', self.payload,
+                                             current_task=copy.deepcopy(self.task), **options)
+                    self.assertEqual(same['admission'], 'NOT_EVALUATED' if destination == 'another-surface' else 'ADMITTED')
+                    for task_id in ('completely-different-task', None, ''):
+                        current = {**self.task, 'task_id': task_id}
+                        with self.subTest(task_id=task_id), \
+                                patch.object(tt, 'refresh_observations') as refresh, \
+                                patch.object(tt, 'semantic_result') as semantic:
+                            result = tt.check_contract(contract, 'final-delivery', self.payload,
+                                                       current_task=current, **options)
+                            self.assertEqual(result['admission'], 'BLOCKED')
+                            self.assertIn('task ID', result['reason'])
+                            self.assertEqual(result['results'], [])
+                            refresh.assert_not_called()
+                            semantic.assert_not_called()
+
+    def test_both_check_clis_reject_receipt_replay_across_task_ids(self):
+        self.task['task_id'] = 'synthetic-boundary-task'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            contract, payload, receipts, task = (root / name for name in
+                                                ('contract.json', 'payload.txt', 'receipts.json', 'task.json'))
+            payload.write_bytes(self.payload)
+            for mode in ('graph', 'flat'):
+                compiled = tt.compile_contract(self.catalog, self.profile, self.task, mode)
+                contract.write_text(json.dumps(compiled))
+                receipts.write_text(json.dumps([{
+                    **self.receipt, 'contract_sha256': compiled['content_sha256']}]))
+                for script in ('uda_rule_graph_task_time.py', 'uda_rule_graph.py'):
+                    for task_id, expected_code, expected_admission in (
+                            ('synthetic-boundary-task', 0, 'ADMITTED'),
+                            ('completely-different-task', 4, 'BLOCKED'),
+                            ('synthetic-boundary-task', 0, 'ADMITTED')):
+                        with self.subTest(mode=mode, script=script, task_id=task_id):
+                            task.write_text(json.dumps({**self.task, 'task_id': task_id}))
+                            result = subprocess.run([
+                                sys.executable, str(ROOT / 'scripts' / script), 'check',
+                                '--contract', str(contract), '--phase', 'final-delivery',
+                                '--payload', str(payload), '--receipts', str(receipts),
+                                '--task', str(task), '--destination', self.receipt['destination'],
+                            ], capture_output=True, text=True, cwd=ROOT)
+                            self.assertEqual(result.returncode, expected_code, result.stdout + result.stderr)
+                            checked = json.loads(result.stdout)
+                            self.assertEqual(checked['admission'], expected_admission)
+                            if expected_admission == 'BLOCKED':
+                                self.assertIn('task ID', checked['reason'])
+                                self.assertEqual(checked['results'], [])
 
     def test_each_binding_mismatch_stays_unknown_and_blocks(self):
         for field in ('contract_sha256', 'payload_sha256', 'rule_id', 'obligation_id', 'phase', 'destination'):
