@@ -16,6 +16,7 @@ import { validateOwnerResponseContinuation } from "./owner-response-continuation
 import { buildExecutionDirectiveFromGitHubDecision } from "./github-execution-directive";
 import { WORK_CLOUD_EXECUTION_RECEIPT_PREFIX } from "./chatgpt-work-cloud-autodispatch";
 import { buildPostWorkReasoningRouteEnvelope, POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID } from "./post-work-reasoning-route";
+import type { GitHubReconciliationTokenProvider } from "./github-app-auth";
 
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
 export const stagedSupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
@@ -35,6 +36,28 @@ export const providerSessionModelSummary = "MISSION_CONTROL_PROVIDER_SESSION_MOD
 export const providerSessionMcpSummary = "MISSION_CONTROL_PROVIDER_SESSION_MCP_READ_V1";
 export const bindingCapsuleSummary = "MISSION_CONTROL_BINDING_CAPSULE_V1";
 export const bindingEnvelopeSummary = "MISSION_CONTROL_BINDING_ENVELOPE_V1";
+export const supervisoryRequestRetiredUnsentSummary = "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1";
+export const providerInvalidCanonicalDecisionSummary = "MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1";
+export const reasoningReplacementProofSummary = "MISSION_CONTROL_REASONING_REPLACEMENT_PROOF_V1";
+export const reasoningReplacementProofProducerId = "verifier:fleet-supervisor-reasoning-replacement";
+export type ReasoningReplacementReasonCode = "PROVIDER_EMPTY_COMPLETION" | "PROVIDER_INVALID_CANONICAL_DECISION";
+
+export interface ReasoningReplacementProofPayload {
+  schemaVersion: 1;
+  supersededRequestId: string;
+  replacementRequestId: string;
+  reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION";
+  failureReceiptSha256: string;
+  canonicalBodySha256: string;
+  providerSessionId: string;
+  trustedRelayProducerId: string;
+  failureEvidenceEventId: string;
+  completeSessionEventId: string;
+}
+
+export function reasoningReplacementProofSha256(payload: ReasoningReplacementProofPayload): string {
+  return sha256(canonicalJson(payload));
+}
 
 export const githubDecisionProducer: AuthenticatedProducer = { id: "system:github-decision-receipts", kind: "SYSTEM", workerScopes: ["*"], taskScopes: ["*"] };
 export const githubReceiptCollector: AuthenticatedProducer = { id: "collector:github-supervision-receipts", kind: "COLLECTOR", workerScopes: ["*"], taskScopes: ["*"] };
@@ -48,6 +71,15 @@ export interface GitHubReceiptPolicy {
   authorizedWriterLogins: string[];
   capabilityChallenges: CapabilityChallenge[];
   requestBound?: { enabled: boolean; relayProducerIds: string[] };
+  decisionReceiptRelocations?: GitHubDecisionReceiptRelocation[];
+}
+export interface GitHubDecisionReceiptRelocation {
+  requestId: string;
+  sourceRepository: string;
+  sourceDecisionIssueNumber: number;
+  destinationRepository: string;
+  destinationDecisionIssueNumber: number;
+  canonicalReceiptSha256: string;
 }
 export interface CapabilityChallenge {
   challengeId: string; supervisorId: string; chatId: string; worker: string; mcNonce: string; githubNonce: string;
@@ -68,11 +100,20 @@ export interface PublicCapabilityChallenge {
 export interface PendingDecisionRequest {
   continuation?: OwnerResponseContinuation;
   executionContext?: RequestExecutionContext;
+  supersedesRequestId?: string;
+  replacementFailureReceiptSha256?: string;
+  replacementReasonCode?: ReasoningReplacementReasonCode;
+  replacementFailureProviderSessionId?: string;
+  replacementFailureCanonicalBodySha256?: string;
+  replacementProofEventId?: string;
+  replacementProofSha256?: string;
+  sourceEventSequence?: number;
   worker: string; taskId: string; requestId: string; supervisorId: string; routeSchemaVersion: 2 | 3 | 4 | 5 | 6; nonce: string;
   evidenceCapsule: { id: string; sha256: string };
   ownerOutcome: { id: string; epoch: number; sha256: string };
   reasoningLane: "EXTRA_HIGH_DIRECT" | "PRO_ESCALATED";
   repository: string; issueNumber: number; stageIssueNumber: number; queuedAt: string; expiresAt: string;
+  factualStateSha256: string; evidenceRefsSha256: string; decisionRequestedSha256: string;
 }
 export interface GitHubDecisionCandidate {
   repository: string; issueNumber: number; commentId: number; immutableUrl: string; createdAt: string;
@@ -138,7 +179,34 @@ export function parseGitHubReceiptPolicy(raw = process.env.MISSION_CONTROL_GITHU
       || (config.enabled && config.relayProducerIds.length === 0)) throw new Error("requestBound requires an explicit enabled flag and trusted relay producer IDs.");
     requestBound = { enabled: config.enabled, relayProducerIds: [...new Set(config.relayProducerIds as string[])] };
   }
-  return { repository, decisionIssueNumber, capabilityIssueNumber, stageIssueNumber, authorizedWriterLogins, capabilityChallenges, ...(requestBound ? { requestBound } : {}) };
+  let decisionReceiptRelocations: GitHubDecisionReceiptRelocation[] | undefined;
+  if (root.decisionReceiptRelocations !== undefined) {
+    if (!Array.isArray(root.decisionReceiptRelocations)) throw new Error("decisionReceiptRelocations must be an array.");
+    decisionReceiptRelocations = root.decisionReceiptRelocations.map((item, i) => {
+      const relocation = record(item, `decisionReceiptRelocations[${i}]`);
+      const parsed = {
+        requestId: requiredString(relocation.requestId, `decisionReceiptRelocations[${i}].requestId`),
+        sourceRepository: repositoryName(relocation.sourceRepository, `decisionReceiptRelocations[${i}].sourceRepository`),
+        sourceDecisionIssueNumber: positiveInteger(relocation.sourceDecisionIssueNumber, `decisionReceiptRelocations[${i}].sourceDecisionIssueNumber`),
+        destinationRepository: repositoryName(relocation.destinationRepository, `decisionReceiptRelocations[${i}].destinationRepository`),
+        destinationDecisionIssueNumber: positiveInteger(relocation.destinationDecisionIssueNumber, `decisionReceiptRelocations[${i}].destinationDecisionIssueNumber`),
+        canonicalReceiptSha256: digest(relocation.canonicalReceiptSha256, `decisionReceiptRelocations[${i}].canonicalReceiptSha256`),
+      };
+      if (parsed.destinationRepository.toLowerCase() !== repository.toLowerCase()
+        || parsed.destinationDecisionIssueNumber !== decisionIssueNumber) {
+        throw new Error(`decisionReceiptRelocations[${i}] destination must match the configured decision channel.`);
+      }
+      return parsed;
+    });
+    if (new Set(decisionReceiptRelocations.map((item) => item.requestId)).size !== decisionReceiptRelocations.length) {
+      throw new Error("decisionReceiptRelocations request IDs must be unique.");
+    }
+  }
+  return {
+    repository, decisionIssueNumber, capabilityIssueNumber, stageIssueNumber, authorizedWriterLogins, capabilityChallenges,
+    ...(requestBound ? { requestBound } : {}),
+    ...(decisionReceiptRelocations ? { decisionReceiptRelocations } : {}),
+  };
 }
 
 export function validateConfiguredDecisionLocation(repository: string, issueNumber: number, policy: GitHubReceiptPolicy | null) {
@@ -550,7 +618,22 @@ export function buildWorkCloudExecutionReceiptAndReturnRoute(
 
 export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionRequest[] {
   const completed = new Set(events.flatMap((e) => e.data.type === "github_decision_receipt_ingested" ? [e.data.request_id] : []));
-  return events.flatMap((event) => {
+  const retiredUnsent = new Set(events.flatMap((event) => {
+    const data = event.data;
+    if (data.type !== "evidence_receipt_recorded"
+      || data.summary !== supervisoryRequestRetiredUnsentSummary
+      || data.verified !== true
+      || data.producer_id !== "verifier:fleet-supervisor-request-retirement"
+      || data.producer_role !== "VERIFIER"
+      || !data.refs.includes("lifecycle_status:RETIRED_UNSENT")
+      || !data.refs.includes("provider_send_boundary:NOT_CROSSED")
+      || !data.refs.includes("submission_authority_queue_records:0")
+      || !data.refs.includes("submission_authority_admission_records:0")
+      || !data.refs.includes("provider_transport_evidence_records:0")) return [];
+    const requestId = exactRefValue(data.refs, "request:");
+    return requestId && /^fleet-review:[a-f0-9]{32}$/.test(requestId) ? [requestId] : [];
+  }));
+  const parsed = events.flatMap((event) => {
     if (event.data.type !== "worker_message_recorded"
       || (!event.data.body.startsWith(inBandRequestRoutePrefix)
         && !event.data.body.startsWith(requestBoundRoutePrefix)
@@ -558,8 +641,93 @@ export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionR
         && !event.data.body.startsWith(stagedSupervisoryCycleRoutePrefix)
         && !event.data.body.startsWith(legacySupervisoryCycleRoutePrefix))) return [];
     const request = parseCycleRequest(event.data.body, event.data.worker);
-    return request && !completed.has(request.requestId) ? [request] : [];
+    return request ? [{ ...request, sourceEventSequence: event.sequence }] : [];
   });
+  const admitted: PendingDecisionRequest[] = [];
+  const superseded = new Set<string>();
+  for (const request of parsed) {
+    if (request.supersedesRequestId) {
+      const prior = admitted.findLast((candidate) => candidate.requestId === request.supersedesRequestId);
+      if (!prior || superseded.has(prior.requestId) || !validRequestReplacement(events, prior, request)) continue;
+      superseded.add(prior.requestId);
+    }
+    admitted.push(request);
+  }
+  return admitted.filter((request) => !completed.has(request.requestId)
+    && !retiredUnsent.has(request.requestId)
+    && !superseded.has(request.requestId));
+}
+
+function validRequestReplacement(events: StoredEvent[], prior: PendingDecisionRequest, replacement: PendingDecisionRequest) {
+  return prior.routeSchemaVersion === 6 && replacement.routeSchemaVersion === 6
+    && replacement.requestId !== prior.requestId
+    && replacement.worker === prior.worker
+    && replacement.taskId === prior.taskId
+    && replacement.supervisorId === prior.supervisorId
+    && replacement.reasoningLane === prior.reasoningLane
+    && replacement.repository === prior.repository
+    && replacement.issueNumber === prior.issueNumber
+    && replacement.stageIssueNumber === prior.stageIssueNumber
+    && canonicalJson(replacement.evidenceCapsule) === canonicalJson(prior.evidenceCapsule)
+    && canonicalJson(replacement.ownerOutcome) === canonicalJson(prior.ownerOutcome)
+    && canonicalJson(replacement.executionContext) === canonicalJson(prior.executionContext)
+    && canonicalJson(replacement.continuation) === canonicalJson(prior.continuation)
+    && replacement.factualStateSha256 === prior.factualStateSha256
+    && replacement.evidenceRefsSha256 === prior.evidenceRefsSha256
+    && replacement.decisionRequestedSha256 === prior.decisionRequestedSha256
+    && Date.parse(replacement.queuedAt) > Date.parse(prior.queuedAt)
+    && Boolean(replacement.replacementFailureReceiptSha256)
+    && (replacement.replacementReasonCode === "PROVIDER_EMPTY_COMPLETION"
+      || (replacement.replacementReasonCode === "PROVIDER_INVALID_CANONICAL_DECISION"
+        && hasDurableInvalidCanonicalDecisionProof(events, prior, replacement)));
+}
+
+function hasDurableInvalidCanonicalDecisionProof(
+  events: StoredEvent[], prior: PendingDecisionRequest, replacement: PendingDecisionRequest,
+): boolean {
+  const sessionId = replacement.replacementFailureProviderSessionId;
+  const failureSha = replacement.replacementFailureReceiptSha256;
+  const canonicalBodySha = replacement.replacementFailureCanonicalBodySha256;
+  const proofEventId = replacement.replacementProofEventId;
+  const proofSha = replacement.replacementProofSha256;
+  if (!sessionId || !failureSha || !canonicalBodySha || !proofEventId || !proofSha) return false;
+  const matches = events.filter((event) => event.eventId === proofEventId);
+  if (matches.length !== 1) return false;
+  const proof = matches[0]!;
+  if (proof.data.type !== "evidence_receipt_recorded"
+    || proof.data.verified !== true
+    || proof.data.producer_id !== reasoningReplacementProofProducerId
+    || proof.data.producer_role !== "VERIFIER"
+    || proof.data.summary !== reasoningReplacementProofSummary
+    || proof.data.receipt_id !== proofEventId
+    || proof.data.exact_candidate_sha256 !== proofSha
+    || !Number.isInteger(replacement.sourceEventSequence)
+    || proof.sequence >= replacement.sourceEventSequence!) return false;
+  const payload: ReasoningReplacementProofPayload = {
+    schemaVersion: 1,
+    supersededRequestId: prior.requestId,
+    replacementRequestId: replacement.requestId,
+    reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    failureReceiptSha256: failureSha,
+    canonicalBodySha256: canonicalBodySha,
+    providerSessionId: sessionId,
+    trustedRelayProducerId: exactRefValue(proof.data.refs, "trusted_relay_producer:") ?? "",
+    failureEvidenceEventId: exactRefValue(proof.data.refs, "failure_evidence_event:") ?? "",
+    completeSessionEventId: exactRefValue(proof.data.refs, "complete_session_event:") ?? "",
+  };
+  return payload.trustedRelayProducerId.length > 0
+    && payload.failureEvidenceEventId.length > 0
+    && payload.completeSessionEventId.length > 0
+    && exactRefValue(proof.data.refs, "request:") === prior.requestId
+    && exactRefValue(proof.data.refs, "replacement_request:") === replacement.requestId
+    && exactRefValue(proof.data.refs, "reason_code:") === "PROVIDER_INVALID_CANONICAL_DECISION"
+    && exactRefValue(proof.data.refs, "failure_receipt_sha256:") === failureSha
+    && exactRefValue(proof.data.refs, "canonical_body_sha256:") === canonicalBodySha
+    && exactRefValue(proof.data.refs, "provider_session:") === sessionId
+    && exactRefValue(proof.data.refs, "authorization:") === "OWNER_EXPLICIT_ONE_REPLACEMENT"
+    && exactRefValue(proof.data.refs, "canonical_decision_admitted:") === "false"
+    && exactRefValue(proof.data.refs, "historical_request_preserved:") === "true"
+    && reasoningReplacementProofSha256(payload) === proofSha;
 }
 
 export function buildGitHubDecisionReceiptEnvelope(
@@ -570,6 +738,7 @@ export function buildGitHubDecisionReceiptEnvelope(
   const matches = pendingDecisionRequests(events).filter((r) => r.requestId === decision.request_id);
   if (matches.length !== 1) throw new Error(`Expected one pending supervisory decision request for ${decision.request_id}; found ${matches.length}.`);
   const request = matches[0]!;
+  const receiptRelocation = exactDecisionReceiptRelocation(request, candidate, policy);
   if (request.continuation) {
     if ((decision.schema_version !== 3 && decision.schema_version !== 4 && decision.schema_version !== 5) || !decision.continuation_binding || !decision.continuation_binding_sha256) {
       throw new Error("Continuation decision must echo the exact continuation binding and digest.");
@@ -586,7 +755,7 @@ export function buildGitHubDecisionReceiptEnvelope(
   } else if ((decision.schema_version === 3 || decision.schema_version === 4 || decision.schema_version === 5) && (decision.continuation_binding !== undefined || decision.continuation_binding_sha256 !== undefined)) {
     throw new Error("Unexpected continuation on an ordinary decision request.");
   }
-  validateConfiguredDecisionLocation(request.repository, request.issueNumber, policy);
+  if (!receiptRelocation) validateConfiguredDecisionLocation(request.repository, request.issueNumber, policy);
   assertEqual(decision.nonce, request.nonce, "decision nonce");
   assertEqual(decision.evidence_capsule.id, request.evidenceCapsule.id, "evidence capsule ID");
   assertEqual(decision.evidence_capsule.sha256, request.evidenceCapsule.sha256, "evidence capsule digest");
@@ -629,7 +798,9 @@ export function buildGitHubDecisionReceiptEnvelope(
   } else if (request.routeSchemaVersion === 6) {
     if (decision.schema_version !== 5) throw new Error("In-band request routes require canonical decision schema_version 5.");
     if (!validation?.submissionAuthorityState) throw new Error("In-band request execution requires the current central submission-authority state.");
-    inBandProof = assertInBandRequestExecution(events, request, policy, decision, candidate, ingestedAt, validation.submissionAuthorityState);
+    inBandProof = assertInBandRequestExecution(
+      events, request, policy, decision, candidate, ingestedAt, validation.submissionAuthorityState, receiptRelocation,
+    );
   } else {
     if (decision.schema_version === 4 || decision.schema_version === 5) throw new Error("Request-bound decisions cannot satisfy a legacy route.");
     assertCurrentChatCapabilities(events, request, candidate.createdAt, policy);
@@ -673,6 +844,16 @@ export function buildGitHubDecisionReceiptEnvelope(
         execution_submission_admission_id: inBandProof!.admissionId,
         execution_provider_body_sha256: inBandProof!.promptSha256,
       } : {}),
+      ...(receiptRelocation ? {
+        receipt_relocation: {
+          authority: "OWNER_CONFIGURED_EXACT_RECEIPT_RELOCATION" as const,
+          source_repository: receiptRelocation.sourceRepository,
+          source_issue_number: receiptRelocation.sourceDecisionIssueNumber,
+          destination_repository: receiptRelocation.destinationRepository,
+          destination_issue_number: receiptRelocation.destinationDecisionIssueNumber,
+          canonical_receipt_sha256: receiptRelocation.canonicalReceiptSha256,
+        },
+      } : {}),
       writer_contract: decision.writer_contract, canonical_envelope_sha256: sha256(canonicalJson(decision)),
       github_receipt: {
         repository: candidate.repository, issue_number: candidate.issueNumber, comment_id: candidate.commentId, immutable_url: candidate.immutableUrl,
@@ -681,6 +862,30 @@ export function buildGitHubDecisionReceiptEnvelope(
       ingestion_method: candidate.ingestionMethod, ingested_at: ingestedAt,
     },
   };
+}
+
+function exactDecisionReceiptRelocation(
+  request: PendingDecisionRequest,
+  candidate: GitHubDecisionCandidate,
+  policy: GitHubReceiptPolicy,
+): GitHubDecisionReceiptRelocation | null {
+  const relocation = policy.decisionReceiptRelocations?.find((item) => item.requestId === request.requestId) ?? null;
+  if (!relocation) return null;
+  if (request.routeSchemaVersion !== 6) throw new Error("Decision receipt relocation is supported only for exact V6 in-band receipts.");
+  if (request.repository.toLowerCase() !== relocation.sourceRepository.toLowerCase()
+    || request.issueNumber !== relocation.sourceDecisionIssueNumber) {
+    throw new Error("Decision receipt relocation source does not match the durable request route.");
+  }
+  if (policy.repository.toLowerCase() !== relocation.destinationRepository.toLowerCase()
+    || policy.decisionIssueNumber !== relocation.destinationDecisionIssueNumber
+    || candidate.repository.toLowerCase() !== relocation.destinationRepository.toLowerCase()
+    || candidate.issueNumber !== relocation.destinationDecisionIssueNumber) {
+    throw new Error("Decision receipt relocation destination does not match the configured private channel.");
+  }
+  if (sha256(candidate.body) !== relocation.canonicalReceiptSha256) {
+    throw new Error("Decision receipt relocation requires the exact configured canonical receipt hash.");
+  }
+  return relocation;
 }
 
 const githubReconciliationOverlapMs = 10 * 60_000;
@@ -814,7 +1019,8 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "unknown cache failure";
 }
 
-export async function reconcileGitHubDecisionReceipts(store: EventStore, options: { token?: string; policy: GitHubReceiptPolicy; fetchImpl?: typeof fetch; now?: string; eventCache?: GitHubReconciliationEventCache }): Promise<StoredEvent[]> {
+export async function reconcileGitHubDecisionReceipts(store: EventStore, options: { token?: string; tokenProvider?: GitHubReconciliationTokenProvider; policy: GitHubReceiptPolicy; fetchImpl?: typeof fetch; now?: string; eventCache?: GitHubReconciliationEventCache }): Promise<StoredEvent[]> {
+  if (options.token?.trim() && options.tokenProvider) throw new Error("GitHub reconciliation cannot use static and provider tokens together.");
   const fetchImpl = options.fetchImpl ?? fetch, appended: StoredEvent[] = [];
   const batchEvents = options.eventCache ? options.eventCache.eventsForCycle(store) : [...store.allEvents()];
   const accepted = reconstructGitHubReconciliationState(batchEvents, options.policy, options.now);
@@ -823,7 +1029,8 @@ export async function reconcileGitHubDecisionReceipts(store: EventStore, options
     "x-github-api-version": "2022-11-28",
     "user-agent": "mission-control-supervision-reconciler",
   };
-  if (options.token?.trim()) headers.authorization = `Bearer ${options.token}`;
+  const token = options.tokenProvider ? await options.tokenProvider() : options.token;
+  if (token?.trim()) headers.authorization = `Bearer ${token}`;
   for (const issueNumber of [...new Set([options.policy.decisionIssueNumber, options.policy.capabilityIssueNumber, options.policy.stageIssueNumber])]) {
     let page = 1;
     for (;;) {
@@ -1376,14 +1583,52 @@ function parseCycleRequest(body: string, worker: string): PendingDecisionRequest
     const supervisorId = requiredString(version >= 3 ? root.destinationSupervisorId : root.destinationChatId, version >= 3 ? "destinationSupervisorId" : "destinationChatId");
     const continuation = parseRouteContinuation(root);
     if (continuation && (continuation.binding.worker !== worker || root.worker !== worker)) return null;
+    let supersedesRequestId: string | undefined;
+    let replacementFailureReceiptSha256: string | undefined;
+    let replacementReasonCode: ReasoningReplacementReasonCode | undefined;
+    let replacementFailureProviderSessionId: string | undefined;
+    let replacementFailureCanonicalBodySha256: string | undefined;
+    let replacementProofEventId: string | undefined;
+    let replacementProofSha256: string | undefined;
+    if (root.supersedesRequestId !== undefined || root.supersession !== undefined) {
+      if (version !== 6) return null;
+      supersedesRequestId = requiredString(root.supersedesRequestId, "supersedesRequestId");
+      const supersession = record(root.supersession, "supersession");
+      if (supersession.schemaVersion !== 1
+        || (supersession.reasonCode !== "PROVIDER_EMPTY_COMPLETION" && supersession.reasonCode !== "PROVIDER_INVALID_CANONICAL_DECISION")
+        || supersession.authorization !== "OWNER_EXPLICIT_ONE_REPLACEMENT"
+        || supersession.replacementOrdinal !== 1) return null;
+      replacementReasonCode = supersession.reasonCode;
+      replacementFailureReceiptSha256 = digest(supersession.failureReceiptSha256, "supersession.failureReceiptSha256");
+      if (replacementReasonCode === "PROVIDER_INVALID_CANONICAL_DECISION") {
+        replacementFailureProviderSessionId = requiredString(supersession.failureProviderSessionId, "supersession.failureProviderSessionId");
+        if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,299}$/.test(replacementFailureProviderSessionId)) return null;
+        replacementFailureCanonicalBodySha256 = digest(supersession.failureCanonicalBodySha256, "supersession.failureCanonicalBodySha256");
+        replacementProofEventId = requiredString(supersession.proofEventId, "supersession.proofEventId");
+        if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,299}$/.test(replacementProofEventId)) return null;
+        replacementProofSha256 = digest(supersession.proofSha256, "supersession.proofSha256");
+      } else if (supersession.failureProviderSessionId !== undefined || supersession.failureCanonicalBodySha256 !== undefined
+        || supersession.proofEventId !== undefined || supersession.proofSha256 !== undefined) return null;
+      if (supersedesRequestId === root.requestId) return null;
+    }
+    if (supersedesRequestId && (typeof factual.exactFactualState !== "string"
+      || typeof factual.decisionRequested !== "string"
+      || !Array.isArray(factual.evidenceRefs)
+      || factual.evidenceRefs.some((item) => typeof item !== "string"))) return null;
     return {
       ...(continuation ? { continuation } : {}),
       ...(version >= 5 ? { executionContext: requestExecutionContext(root.executionContext, requiredString(factual.taskId, "factualPacket.taskId")) } : {}),
+      ...(supersedesRequestId ? { supersedesRequestId, replacementFailureReceiptSha256,
+        replacementReasonCode, ...(replacementFailureProviderSessionId ? { replacementFailureProviderSessionId,
+          replacementFailureCanonicalBodySha256, replacementProofEventId, replacementProofSha256 } : {}) } : {}),
       worker, taskId: requiredString(factual.taskId, "factualPacket.taskId"), requestId: requiredString(root.requestId, "requestId"), supervisorId, routeSchemaVersion: version, nonce: requiredString(root.nonce, "nonce"),
       evidenceCapsule: { id: requiredString(evidence.id, "evidenceCapsule.id"), sha256: digest(evidence.sha256, "evidenceCapsule.sha256") },
       ownerOutcome: { id: requiredString(outcome.id, "ownerOutcome.id"), epoch: positiveInteger(outcome.epoch, "ownerOutcome.epoch"), sha256: digest(outcome.sha256, "ownerOutcome.sha256") },
       reasoningLane: root.reasoningLane, repository: repositoryName(github.repository, "githubReceipt.repository"), issueNumber: positiveInteger(github.issueNumber, "githubReceipt.issueNumber"), stageIssueNumber: positiveInteger(github.stageIssueNumber, "githubReceipt.stageIssueNumber"),
       queuedAt: timestamp(root.queuedAt, "queuedAt"), expiresAt: timestamp(root.expiresAt, "expiresAt"),
+      factualStateSha256: sha256(canonicalJson({ value: factual.exactFactualState ?? null })),
+      evidenceRefsSha256: sha256(canonicalJson({ value: factual.evidenceRefs ?? null })),
+      decisionRequestedSha256: sha256(canonicalJson({ value: factual.decisionRequested ?? null })),
     };
   } catch { return null; }
 }

@@ -13,6 +13,8 @@ import {
   PROVIDER_SESSION_MCP_SUMMARY,
   PROVIDER_SESSION_SUMMARY,
   RELAY_STAGE_SUMMARY,
+  canonicalJson,
+  parseSupervisoryCycleRouteBody,
   sha256,
   STAGE_LIVENESS_SUMMARY,
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
@@ -127,6 +129,157 @@ test('exact legacy fallback selects the source-bound task and cannot consume an 
   assert.equal(result.route.taskId, 'task-trigger');
   assert.equal(result.route.missionControlLegacyBinding.directiveId, 'directive:trigger:1');
   assert.notEqual(result.route.requestId, 'unrelated-request');
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('exact request one-shot selects only the named worker request and cannot consume an older route', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({
+    evidence: capabilityEvidence(),
+    routes: [
+      routeEvent('fleet-review:11111111111111111111111111111111', 'older-route', 'EXTRA_HIGH_DIRECT', 'task-older'),
+      routeEvent('fleet-review:22222222222222222222222222222222', 'authorized-route', 'EXTRA_HIGH_DIRECT', 'task-current'),
+    ],
+  });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false });
+  const result = await runtime.cycle({
+    skipCodexExecution: true,
+    exactRequest: { workerId: 'worker-a', requestId: 'fleet-review:22222222222222222222222222222222' },
+  });
+  assert.equal(result.status, 'DRY_RUN_ROUTE_READY');
+  assert.equal(result.route.requestId, 'fleet-review:22222222222222222222222222222222');
+  assert.equal(result.route.taskId, 'task-current');
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('exact request one-shot fails closed when the named request is unavailable', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence(), routes: [routeEvent()] });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: true });
+  const result = await runtime.cycle({
+    skipCodexExecution: true,
+    exactRequest: { workerId: 'worker-a', requestId: 'fleet-review:22222222222222222222222222222222' },
+  });
+  assert.equal(result.status, 'EXACT_REQUEST_ROUTE_UNAVAILABLE');
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('an old completed route cannot preempt the one authoritative current pending route', async () => {
+  const old = inBandRouteEvent('completed-old', 'completed-old-route', 'task-old');
+  const current = inBandRouteEvent('current-request', 'current-route', 'task-current');
+  const state = defaultState();
+  state.deliveries['request:completed-old'] = { status: 'DECISION_RECEIPT_INGESTED' };
+  const store = new MemoryStateStore(state);
+  const mc = new FakeMissionControl({ routes: [old, current], evidence: [decisionReceiptEvent('completed-old')], authoritativePendingRequestIds: ['current-request'] });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false });
+  runtime.config.runtime.requestBoundEnabled = true;
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'DRY_RUN_ROUTE_READY', JSON.stringify(result));
+  assert.equal(result.route.requestId, 'current-request');
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('several old completed routes cannot preempt the one authoritative current pending route', async () => {
+  const completed = ['completed-a', 'completed-b', 'completed-c'];
+  const state = defaultState();
+  for (const requestId of completed) state.deliveries[`request:${requestId}`] = { status: 'DECISION_RECEIPT_INGESTED' };
+  const store = new MemoryStateStore(state);
+  const routes = [...completed.map((requestId) => inBandRouteEvent(requestId, `${requestId}-route`, `task-${requestId}`)), inBandRouteEvent('current-request', 'current-route', 'task-current')];
+  const evidence = completed.map((requestId) => decisionReceiptEvent(requestId));
+  const mc = new FakeMissionControl({ routes, evidence, authoritativePendingRequestIds: ['current-request'] });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false });
+  runtime.config.runtime.requestBoundEnabled = true;
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'DRY_RUN_ROUTE_READY', JSON.stringify(result));
+  assert.equal(result.route.requestId, 'current-request');
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('an unacknowledged completed receipt reconciles without browser send before the current request becomes selectable', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({
+    routes: [inBandRouteEvent('completed-old', 'completed-old-route', 'task-old'), inBandRouteEvent('current-request', 'current-route', 'task-current')],
+    evidence: [decisionReceiptEvent('completed-old')],
+    authoritativePendingRequestIds: ['current-request'],
+  });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false });
+  runtime.config.runtime.requestBoundEnabled = true;
+  const reconciled = await runtime.cycle();
+  assert.equal(reconciled.status, 'DECISION_RECEIPT_INGESTED', JSON.stringify(reconciled));
+  assert.equal(reconciled.reconciled[0].route.requestId, 'completed-old');
+  assert.equal(browser.listTargetsCalls, 0);
+  assert.equal(browser.submitCalls, 0);
+  const selected = await runtime.cycle();
+  assert.equal(selected.status, 'DRY_RUN_ROUTE_READY', JSON.stringify(selected));
+  assert.equal(selected.route.requestId, 'current-request');
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('a completed route already acknowledged locally is ignored for receipt precedence', async () => {
+  const state = defaultState();
+  state.deliveries['request:completed-old'] = { status: 'DECISION_RECEIPT_INGESTED' };
+  const store = new MemoryStateStore(state);
+  const mc = new FakeMissionControl({
+    routes: [inBandRouteEvent('completed-old', 'completed-old-route', 'task-old'), inBandRouteEvent('current-request', 'current-route', 'task-current')],
+    evidence: [decisionReceiptEvent('completed-old')],
+    authoritativePendingRequestIds: ['current-request'],
+  });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false });
+  runtime.config.runtime.requestBoundEnabled = true;
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'DRY_RUN_ROUTE_READY', JSON.stringify(result));
+  assert.equal(result.route.requestId, 'current-request');
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('two authoritative current pending routes fail closed before browser mutation', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({
+    routes: [inBandRouteEvent('current-a', 'current-a-route', 'task-a'), inBandRouteEvent('current-b', 'current-b-route', 'task-b')],
+    authoritativePendingRequestIds: ['current-a', 'current-b'],
+  });
+  const browser = new FakeBrowser();
+  const result = await makeRuntime({ store, mc, browser, submitEnabled: true }).cycle();
+  assert.equal(result.status, 'AUTHORITATIVE_PENDING_ROUTE_AMBIGUOUS', JSON.stringify(result));
+  assert.equal(result.authoritativePending.count, 2);
+  assert.equal(browser.listTargetsCalls, 0);
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('zero authoritative current pending routes fail closed before browser mutation', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({
+    routes: [inBandRouteEvent('historical-only', 'historical-route', 'task-old')],
+    authoritativePendingRequestIds: [],
+  });
+  const browser = new FakeBrowser();
+  const result = await makeRuntime({ store, mc, browser, submitEnabled: true }).cycle();
+  assert.equal(result.status, 'AUTHORITATIVE_PENDING_ROUTE_UNAVAILABLE', JSON.stringify(result));
+  assert.equal(result.authoritativePending.count, 0);
+  assert.equal(browser.listTargetsCalls, 0);
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('exact current request mode cannot be intercepted by an unrelated unacknowledged receipt', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({
+    routes: [inBandRouteEvent('completed-old', 'completed-old-route', 'task-old'), inBandRouteEvent('current-request', 'current-route', 'task-current')],
+    evidence: [decisionReceiptEvent('completed-old')],
+    authoritativePendingRequestIds: ['current-request'],
+  });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false });
+  runtime.config.runtime.requestBoundEnabled = true;
+  const result = await runtime.cycle({ skipCodexExecution: true, exactRequest: { workerId: 'worker-a', requestId: 'current-request' } });
+  assert.equal(result.status, 'DRY_RUN_ROUTE_READY', JSON.stringify(result));
+  assert.equal(result.route.requestId, 'current-request');
+  assert.equal(store.state.deliveries['request:completed-old'], undefined);
   assert.equal(browser.submitCalls, 0);
 });
 
@@ -726,10 +879,15 @@ class MemoryStateStore {
 }
 
 class FakeMissionControl {
-  constructor({ evidence = [], routes = [routeEvent()], autoFirstTurnMcp = true, projectionLagReads = 0 } = {}) {
+  constructor({ evidence = [], routes = [routeEvent()], autoFirstTurnMcp = true, projectionLagReads = 0, authoritativePendingRequestIds = null, validationError = null } = {}) {
     this.evidence = [...evidence]; this.routes = [...routes]; this.recordedEvidence = []; this.sequence = 50;
     this.producerId = 'collector:fixture-relay';
     this.autoFirstTurnMcp = autoFirstTurnMcp; this.projectionLagReads = projectionLagReads; this.fetchFleetCalls = 0;
+    this.authoritativePendingRequestIds = authoritativePendingRequestIds;
+    this.validationError = validationError;
+    this.validationCalls = [];
+    this.copyCalls = [];
+    this.decisionOperations = [];
   }
   async fetchFleet() {
     this.fetchFleetCalls += 1;
@@ -739,7 +897,16 @@ class FakeMissionControl {
         type: 'evidence_receipt_recorded', receipt_id: item.receiptId, summary: item.summary, refs: item.refs, verified: true,
       },
     }))];
-    return { generatedAt: '2026-09-02T00:00:00.000Z', workers: [{ id: 'worker-a', name: 'Worker A', timeline }] };
+    const completedRequestIds = new Set(timeline
+      .filter((event) => event?.data?.type === 'github_decision_receipt_ingested')
+      .map((event) => event.data.request_id));
+    const authoritativePendingRequestIds = this.authoritativePendingRequestIds ?? this.routes
+      .map((event) => parseSupervisoryCycleRouteBody(event?.data?.body))
+      .filter((packet) => packet
+        && !completedRequestIds.has(packet.requestId)
+        && (!Number.isFinite(Date.parse(packet.expiresAt)) || Date.parse(packet.expiresAt) > Date.now()))
+      .map((packet) => packet.requestId);
+    return { generatedAt: '2026-09-02T00:00:00.000Z', workers: [{ id: 'worker-a', name: 'Worker A', timeline, authoritativePendingRequestIds }] };
   }
   async recordEvidence(worker, input) {
     this.recordedEvidence.push({ worker, ...structuredClone(input) });
@@ -754,6 +921,34 @@ class FakeMissionControl {
       } });
     }
     return { eventId: `stored-${input.receiptId}` };
+  }
+  async copyProviderDecision(input) {
+    this.decisionOperations.push('copy');
+    this.copyCalls.push(structuredClone(input));
+    const commentId = 6000000000 + this.copyCalls.length;
+    const immutableUrl = `https://github.com/o/r/issues/1#issuecomment-${commentId}`;
+    const eventId = `github-decision-${commentId}`;
+    this.evidence.push({ eventId, sequence: ++this.sequence, occurredAt: '2026-09-02T00:00:20.000Z', data: {
+      type: 'github_decision_receipt_ingested', request_id: input.requestId, supervisor_id: input.supervisorId,
+      provider_session_id: input.providerSessionId, execution_provenance: 'IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED',
+      receipt_id: `github-comment:${commentId}`, github_receipt: { immutable_url: immutableUrl },
+    } });
+    return {
+      status: 'INGESTED', requestId: input.requestId, providerSessionId: input.providerSessionId,
+      canonicalBodySha256: input.canonicalBodySha256, ingestedEventId: eventId,
+      ingestedAt: '2026-09-02T00:00:20.000Z', duplicate: false,
+      githubReceipt: { repository: 'o/r', issueNumber: 1, commentId, immutableUrl },
+    };
+  }
+  async validateProviderDecision(input) {
+    this.decisionOperations.push('validate');
+    this.validationCalls.push(structuredClone(input));
+    if (this.validationError) throw this.validationError;
+    return {
+      status: 'VALIDATED', validationScope: 'CANONICAL_SCHEMA_AND_REQUEST_IDENTITY',
+      requestId: input.requestId, providerSessionId: input.providerSessionId,
+      canonicalBodySha256: input.canonicalBodySha256, ingestionAuthorized: false,
+    };
   }
 }
 
@@ -770,11 +965,12 @@ class FakeBrowser {
     this.automationOwnedTargetIdsSha256 = automationOwnedTargetIdsSha256;
     this.provisionalWebUrl = provisionalWebUrl;
     this.completionConversationUrl = completionConversationUrl;
-    this.submitCalls = 0; this.waitCalls = 0; this.freshChatCalls = 0; this.createdTargetCalls = 0; this.controlChecks = []; this.targets = []; this.closedTargets = []; this.lastSubmittedBody = null;
+    this.submitCalls = 0; this.waitCalls = 0; this.freshChatCalls = 0; this.createdTargetCalls = 0; this.listTargetsCalls = 0; this.controlChecks = []; this.targets = []; this.closedTargets = []; this.lastSubmittedBody = null;
     this.selectAppsCalls = []; this.appSelectionEvidence = []; this.selectedApps = []; this.lastDoctorOptions = null;
+    this.recoveryCalls = 0; this.recoveryObservation = null;
   }
   async doctor(options = {}) { this.lastDoctorOptions = structuredClone(options); return { browser: 'Fake', automationWindowId: this.automationWindowId, automationOwnedTabCount: 1, automationOwnedTargetIdsSha256: this.automationOwnedTargetIdsSha256, targetCount: this.targets.length, managedChatGptTabCount: this.targets.filter((target) => target.url.startsWith('https://chatgpt.com/')).length }; }
-  async listTargets() { return structuredClone(this.targets); }
+  async listTargets() { this.listTargetsCalls += 1; return structuredClone(this.targets); }
   async closeTarget(id) { this.closedTargets.push(id); this.targets = this.targets.filter((target) => target.id !== id); return true; }
   async activateTarget() { return true; }
   async createFreshChatTarget({ reusableTargetId = null } = {}) {
@@ -814,11 +1010,23 @@ class FakeBrowser {
         ? `https://chatgpt.com/c/WEB:fresh-${this.freshChatCalls}`
         : `https://chatgpt.com/c/fresh-${this.freshChatCalls}`;
     }
-    return { status: 'GENERATION_STARTED', generationStarted: true, startSignal: 'STOP_CONTROL_VISIBLE', startedAtObserved: `2026-09-02T00:00:0${this.submitCalls}.000Z`, bodySha256: input.bodySha256, conversationUrl: target.url };
+    return {
+      status: 'GENERATION_STARTED', generationStarted: true, startSignal: 'STOP_CONTROL_VISIBLE',
+      startedAtObserved: `2026-09-02T00:00:0${this.submitCalls}.000Z`, bodySha256: input.bodySha256,
+      conversationUrl: target.url, targetId: target.id,
+      submittedUserTurnAnchor: {
+        key: 'user-turn', keySource: 'data-turn-key', structureKind: 'CHATGPT_DATA_TURN_KEY_V1',
+        role: 'user', messageOrdinal: 1, mentionBindingVerified: true,
+      },
+    };
   }
   async waitForGenerationComplete(target) {
     this.waitCalls += 1;
-    if (this.completionConversationUrl) target.url = this.completionConversationUrl;
+    if (this.completionConversationUrl) {
+      target.url = this.completionConversationUrl;
+      const liveTarget = this.targets.find((candidate) => candidate.id === target.id);
+      if (liveTarget) liveTarget.url = this.completionConversationUrl;
+    }
     return {
       status: 'GENERATION_COMPLETE',
       generationStarted: true,
@@ -827,6 +1035,29 @@ class FakeBrowser {
       completedAtObserved: `2026-09-02T00:00:1${this.waitCalls}.000Z`,
       inspectedAssistantOutput: false,
     };
+  }
+  async recoverBoundConversationTurns(target) {
+    this.recoveryCalls += 1;
+    if (this.recoveryObservation) return structuredClone(this.recoveryObservation);
+    const marker = 'copy it without alteration: ';
+    const start = this.lastSubmittedBody.indexOf(marker) + marker.length;
+    const end = this.lastSubmittedBody.indexOf('\n', start);
+    const binding = JSON.parse(this.lastSubmittedBody.slice(start, end));
+    const exactText = 'Synthetic exact decision.';
+    const decision = {
+      schema_version: 5, envelope_kind: 'MISSION_CONTROL_CANONICAL_DECISION', request_id: binding.request_id,
+      supervisor_id: binding.supervisor_id, provider_session_id: binding.provider_session_id,
+      nonce: binding.request_nonce, in_band_binding_sha256: binding.in_band_binding_sha256,
+      execution_provenance: 'IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED', evidence_capsule: binding.evidence_capsule,
+      owner_outcome: binding.owner_outcome, reasoning_lane: binding.reasoning_lane,
+      decision_block: { decision_id: 'decision:synthetic', exact_text: exactText, sha256: sha256(exactText) },
+      pro_decision_block: { used: false, model_mode: null, exact_text: null, sha256: null },
+      writer_contract: { mode: 'EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY', reinterpretation_allowed: false },
+    };
+    return { urlMismatch: false, structureAmbiguous: false, structureKind: 'CHATGPT_DATA_TURN_KEY_V1', currentUrl: target.url, turns: [
+      { key: 'user-turn', keySource: 'data-turn-key', role: 'user', text: `GitHub\n${this.lastSubmittedBody}`, mentionBinding: { count: 1, exactCount: 1, exact: true }, contentRootCount: 1 },
+      { key: 'assistant-turn', keySource: 'data-content-search-unit-key', role: 'assistant', text: `MISSION_CONTROL_CANONICAL_DECISION_V1\n${JSON.stringify(decision)}`, contentRootCount: 1 },
+    ] };
   }
 }
 
@@ -893,6 +1124,34 @@ function directRouteEvent(requestId = 'r-1', eventId = 'route', reasoningLane = 
     queuedAt: '2026-09-02T00:00:00.000Z', expiresAt: '2099-09-03T00:00:00.000Z',
   });
   return { eventId, sequence: requestId === 'r-1' ? 10 : 11, occurredAt: '2026-09-02T00:00:00.000Z', data: { type: 'worker_message_recorded', message_id: `message-${requestId}`, body } };
+}
+
+function inBandRouteEvent(requestId, eventId, taskId) {
+  const event = directRouteEvent(requestId, eventId, 'EXTRA_HIGH_DIRECT');
+  const packet = JSON.parse(event.data.body.slice(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX.length));
+  packet.schemaVersion = 6;
+  packet.executionContext = { task_id: taskId };
+  packet.factualPacket.taskId = taskId;
+  packet.factualPacket.packetId = `packet-${requestId}`;
+  event.data.body = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n' + JSON.stringify(packet);
+  return event;
+}
+
+function decisionReceiptEvent(requestId, providerSessionId = `provider-session:${requestId}`) {
+  return {
+    eventId: `decision-receipt-${requestId}`,
+    sequence: 30,
+    occurredAt: '2026-09-02T00:00:30.000Z',
+    data: {
+      type: 'github_decision_receipt_ingested',
+      request_id: requestId,
+      supervisor_id: 'spec',
+      provider_session_id: providerSessionId,
+      execution_provenance: 'IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED',
+      receipt_id: `github-comment:${requestId}`,
+      github_receipt: { immutable_url: `https://github.com/o/r/issues/1#issuecomment-${requestId}` },
+    },
+  };
 }
 
 function requestBoundFixture({ enabled = true, submitErrorStage = null } = {}) {
@@ -966,7 +1225,7 @@ test('expired historical supervisory route cannot starve a later valid route', a
     status: 'DISCARDED', requestId: 'expired-old', workerId: 'worker-1',
     supervisorId: 'spec', providerSessionId: 'provider-session:expired-old',
   };
-  const mc = new FakeMissionControl({ evidence: [], routes: [expired, current], autoFirstTurnMcp: false });
+  const mc = new FakeMissionControl({ evidence: [], routes: [expired, current], autoFirstTurnMcp: false, authoritativePendingRequestIds: ['current-new'] });
   const browser = new FakeBrowser();
   const cancellations = [];
   const pacer = {
@@ -985,6 +1244,145 @@ test('expired historical supervisory route cannot starve a later valid route', a
     queueItemId: 'queue-item:expired-old', requestId: 'expired-old', sourceRouteExpiresAt: '2026-09-01T01:00:00.000Z',
   }]);
   assert.equal(browser.submitCalls, 0);
+});
+
+test('active replacement cancels the exact superseded safe queue head before becoming eligible', async () => {
+  const old = directRouteEvent('superseded-request', 'old-v6-route', 'EXTRA_HIGH_DIRECT');
+  const oldPacket = JSON.parse(old.data.body.slice(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX.length));
+  oldPacket.schemaVersion = 6;
+  oldPacket.executionContext = { task_id: 'task-1' };
+  oldPacket.queuedAt = '2026-09-02T00:00:00.000Z';
+  old.data.body = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n' + JSON.stringify(oldPacket);
+  const replacementPacket = structuredClone(oldPacket);
+  replacementPacket.requestId = 'replacement-request';
+  replacementPacket.nonce = 'replacement-nonce';
+  replacementPacket.factualPacket.packetId = 'packet:replacement-request';
+  replacementPacket.queuedAt = '2026-09-02T00:01:00.000Z';
+  replacementPacket.supersedesRequestId = 'superseded-request';
+  replacementPacket.supersession = {
+    schemaVersion: 1,
+    reasonCode: 'PROVIDER_EMPTY_COMPLETION',
+    failureReceiptSha256: 'e'.repeat(64),
+    authorization: 'OWNER_EXPLICIT_ONE_REPLACEMENT',
+    replacementOrdinal: 1,
+  };
+  const replacement = {
+    eventId: 'replacement-v6-route', sequence: 2, occurredAt: replacementPacket.queuedAt,
+    data: { type: 'worker_message_recorded', message_id: 'replacement-message', body: 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n' + JSON.stringify(replacementPacket) },
+  };
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: [], routes: [replacement, old], autoFirstTurnMcp: false, authoritativePendingRequestIds: ['replacement-request'] });
+  const browser = new FakeBrowser();
+  const cancellations = [];
+  const pacer = {
+    status: () => ({ ready: false, queueHead: { queueItemId: 'queue-item:old', requestId: 'superseded-request', status: 'PRECLICK_RETRY_PENDING' } }),
+    cancelSupersededPreclickRetry: async (input) => { cancellations.push(input); return { cancelled: true }; },
+  };
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false, submissionPacer: pacer });
+  runtime.config.runtime.requestBoundEnabled = true;
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'DRY_RUN_ROUTE_READY', JSON.stringify(result));
+  assert.equal(result.route.requestId, 'replacement-request');
+  assert.deepEqual(cancellations, [{
+    queueItemId: 'queue-item:old',
+    requestId: 'superseded-request',
+    replacementRequestId: 'replacement-request',
+    failureReceiptSha256: 'e'.repeat(64),
+  }]);
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('sent COMPLETE invalid-canonical replacement performs zero old-request provider actions', async () => {
+  const old = directRouteEvent('sent-invalid-request', 'old-invalid-v6-route', 'EXTRA_HIGH_DIRECT');
+  const oldPacket = JSON.parse(old.data.body.slice(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX.length));
+  oldPacket.schemaVersion = 6;
+  oldPacket.executionContext = { task_id: 'task-1' };
+  oldPacket.queuedAt = '2026-09-02T00:00:00.000Z';
+  old.data.body = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n' + JSON.stringify(oldPacket);
+  const sessionId = 'provider-session:sent-invalid';
+  const failureSha = '8'.repeat(64), canonicalBodySha = '7'.repeat(64);
+  const proofEventId = 'reasoning-replacement-proof:sent-invalid';
+  const proofPayload = {
+    schemaVersion: 1, supersededRequestId: oldPacket.requestId, replacementRequestId: 'replacement-invalid-request',
+    reasonCode: 'PROVIDER_INVALID_CANONICAL_DECISION', failureReceiptSha256: failureSha,
+    canonicalBodySha256: canonicalBodySha, providerSessionId: sessionId,
+    trustedRelayProducerId: 'collector:fixture-relay', failureEvidenceEventId: 'invalid-disposition',
+    completeSessionEventId: 'complete-session',
+  };
+  const proofSha = sha256(canonicalJson(proofPayload));
+  const replacementPacket = structuredClone(oldPacket);
+  Object.assign(replacementPacket, {
+    requestId: 'replacement-invalid-request', nonce: 'replacement-invalid-nonce',
+    queuedAt: '2026-09-02T00:01:00.000Z', supersedesRequestId: oldPacket.requestId,
+  });
+  replacementPacket.factualPacket.packetId = 'packet:replacement-invalid-request';
+  replacementPacket.supersession = {
+    schemaVersion: 1, reasonCode: 'PROVIDER_INVALID_CANONICAL_DECISION', failureReceiptSha256: failureSha,
+    failureProviderSessionId: sessionId, failureCanonicalBodySha256: canonicalBodySha,
+    proofEventId, proofSha256: proofSha,
+    authorization: 'OWNER_EXPLICIT_ONE_REPLACEMENT', replacementOrdinal: 1,
+  };
+  const evidence = (eventId, summary, refs) => ({
+    eventId, sequence: eventId === 'complete-session' ? 2 : 3, occurredAt: '2026-09-02T00:00:30.000Z', data: {
+      type: 'evidence_receipt_recorded', receipt_id: eventId, producer_id: 'collector:fixture-relay', producer_role: 'COLLECTOR',
+      evidence_class: 'ARTIFACT', independence: 'SAME_PROVENANCE', freshness: 'CURRENT', exact_candidate_sha256: null,
+      summary, refs: [`request:${oldPacket.requestId}`, `supervisor:${oldPacket.destinationSupervisorId}`,
+        `provider_session:${sessionId}`, ...refs], verified: true, changed_path_manifest: null,
+    },
+  });
+  const proof = { eventId: proofEventId, sequence: 4, occurredAt: '2026-09-02T00:00:45.000Z', data: {
+    type: 'evidence_receipt_recorded', worker: 'worker-a', receipt_id: proofEventId,
+    producer_id: 'verifier:fleet-supervisor-reasoning-replacement', producer_role: 'VERIFIER',
+    evidence_class: 'ARTIFACT', independence: 'INDEPENDENT', freshness: 'CURRENT', exact_candidate_sha256: proofSha,
+    summary: 'MISSION_CONTROL_REASONING_REPLACEMENT_PROOF_V1',
+    refs: [`request:${proofPayload.supersededRequestId}`, `replacement_request:${proofPayload.replacementRequestId}`,
+      `reason_code:${proofPayload.reasonCode}`, `failure_receipt_sha256:${proofPayload.failureReceiptSha256}`,
+      `canonical_body_sha256:${proofPayload.canonicalBodySha256}`, `provider_session:${proofPayload.providerSessionId}`,
+      `trusted_relay_producer:${proofPayload.trustedRelayProducerId}`, `failure_evidence_event:${proofPayload.failureEvidenceEventId}`,
+      `complete_session_event:${proofPayload.completeSessionEventId}`, 'authorization:OWNER_EXPLICIT_ONE_REPLACEMENT',
+      'canonical_decision_admitted:false', 'historical_request_preserved:true'], verified: true, changed_path_manifest: null,
+  } };
+  const replacement = { eventId: 'replacement-invalid-v6-route', sequence: 5, occurredAt: replacementPacket.queuedAt,
+    data: { type: 'worker_message_recorded', message_id: 'replacement-invalid-message',
+      body: 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n' + JSON.stringify(replacementPacket) } };
+  const state = defaultState();
+  state.deliveries[`request:${oldPacket.requestId}`] = { status: 'SUBMITTED_CONFIRMED' };
+  const store = new MemoryStateStore(state);
+  const mc = new FakeMissionControl({ routes: [replacement, proof,
+    evidence('invalid-disposition', 'MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1',
+      [`failure_receipt_sha256:${failureSha}`, `canonical_body_sha256:${canonicalBodySha}`,
+        'classification:PROVIDER_INVALID_CANONICAL_DECISION', 'canonical_decision_admitted:false']),
+    evidence('complete-session', 'MISSION_CONTROL_PROVIDER_SESSION_V1', ['lifecycle_status:COMPLETE']), old],
+    autoFirstTurnMcp: false, authoritativePendingRequestIds: ['replacement-invalid-request'] });
+  const cancellations = [];
+  const pacer = {
+    status: () => ({ ready: true, queueHead: { queueItemId: 'old-terminal', requestId: oldPacket.requestId, status: 'BOUNDARY_RECORDED' } }),
+    cancelSupersededPreclickRetry: async (input) => { cancellations.push(input); return { cancelled: true }; },
+  };
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false, submissionPacer: pacer });
+  runtime.config.runtime.requestBoundEnabled = true;
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'DRY_RUN_ROUTE_READY', JSON.stringify(result));
+  assert.equal(result.route.requestId, replacementPacket.requestId);
+  assert.deepEqual(cancellations, []);
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('central queue wait remains pre-send and never becomes local ambiguity', async () => {
+  const { store, runtime } = inBandRequestFixture();
+  runtime.submissionPacer.submit = async () => {
+    const error = new Error('SUBMISSION_QUEUED: Queue item is waiting at position 2.');
+    error.code = 'SUBMISSION_QUEUED';
+    error.queueItemId = 'queue-item:fresh';
+    error.position = 2;
+    throw error;
+  };
+  const result = await runtime.cycle();
+  assert.equal(result.status, 'CENTRAL_SUBMISSION_QUEUED', JSON.stringify(result));
+  assert.equal(result.position, 2);
+  assert.equal(store.state.deliveries['request:r-1'].status, 'UNSEEN');
+  assert.equal(result.unresolvedAmbiguities.length, 0);
 });
 
 test('V6 operator submitted-attestation preserves generation reconciliation without replay', async () => {
@@ -1016,11 +1414,11 @@ test('V6 operator submitted-attestation preserves generation reconciliation with
   );
 
   const completed = await runtime.cycle();
-  assert.equal(completed.status, 'IN_BAND_REQUEST_DECISION_COMPLETE', JSON.stringify(completed));
+  assert.equal(completed.status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY', JSON.stringify(completed));
   assert.equal(browser.submitCalls, 1);
   assert.equal(browser.waitCalls, 1);
   assert.equal(store.state.deliveries['request:r-1'].providerSessionId, providerSessionId);
-  assert.equal(store.state.deliveries['request:r-1'].status, 'IN_BAND_REQUEST_DECISION_COMPLETE');
+  assert.equal(store.state.deliveries['request:r-1'].status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
 });
 
 test('V6 operator-authorized proven-unsent retry re-enters the same one-send control step', async () => {
@@ -1114,9 +1512,114 @@ test('V6 records one trusted binding/body/admission receipt before one GitHub-on
   assert.ok(preSend[0].refs.includes('semantic_authority:false'));
   assert.equal(mc.recordedEvidence.some((item) => item.summary === PROVIDER_SESSION_MCP_SUMMARY), false);
   assert.equal(store.state.providerSessions[store.state.deliveries['request:r-1'].providerSessionId].sessionRole, 'IN_BAND_REQUEST_DECISION_SESSION');
-  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE');
-  assert.equal((await runtime.cycle()).status, 'AWAITING_GITHUB_RECEIPT');
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  assert.equal((await runtime.cycle()).status, 'DECISION_RECEIPT_INGESTED');
+  assert.equal(mc.validationCalls.length, 1);
+  assert.equal(mc.copyCalls.length, 1);
+  assert.deepEqual(mc.decisionOperations, ['validate', 'copy']);
+  assert.equal(mc.validationCalls[0].canonicalBody, mc.copyCalls[0].canonicalBody);
+  assert.equal(mc.validationCalls[0].canonicalBodySha256, mc.copyCalls[0].canonicalBodySha256);
+  assert.equal(browser.recoveryCalls, 1);
+  assert.equal((await runtime.cycle()).status, 'DECISION_RECEIPT_INGESTED');
+  assert.equal(mc.copyCalls.length, 1);
   assert.equal(browser.submitCalls, 1);
+});
+
+test('V6 authoritative schema rejection blocks before copy with typed invalid-response classification', async () => {
+  const { store, mc, browser, runtime } = inBandRequestFixture();
+  const error = new Error('bounded_execution.work_execution_profile effort does not match routing tier');
+  error.classification = 'ASSISTANT_RESPONSE_PRESENT_BUT_INVALID';
+  mc.validationError = error;
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  const blocked = await runtime.cycle();
+  assert.equal(blocked.status, 'IN_BAND_REQUEST_DECISION_RECOVERY_BLOCKED');
+  assert.equal(blocked.recoveryClassification, 'ASSISTANT_RESPONSE_PRESENT_BUT_INVALID');
+  assert.equal(mc.validationCalls.length, 1);
+  assert.equal(mc.copyCalls.length, 0);
+  assert.deepEqual(mc.decisionOperations, ['validate']);
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(store.state.deliveries['request:r-1'].canonicalBodySha256, undefined);
+  assert.equal(store.state.deliveries['request:r-1'].decisionIngestedEventId, undefined);
+});
+
+test('V6 invalid or empty exact-turn recovery blocks without another provider send', async () => {
+  const { store, mc, browser, runtime } = inBandRequestFixture();
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  const delivery = store.state.deliveries['request:r-1'];
+  browser.recoveryObservation = {
+    urlMismatch: false, structureAmbiguous: false, structureKind: 'CHATGPT_DATA_TURN_KEY_V1',
+    currentUrl: delivery.conversationUrl,
+    turns: [{
+      key: 'user-turn', keySource: 'data-turn-key', role: 'user', text: `GitHub\n${browser.lastSubmittedBody}`,
+      mentionBinding: { count: 1, exactCount: 1, exact: true }, contentRootCount: 1,
+    }],
+  };
+  const blocked = await runtime.cycle();
+  assert.equal(blocked.status, 'IN_BAND_REQUEST_DECISION_RECOVERY_BLOCKED');
+  assert.equal(blocked.recoveryClassification, 'EMPTY_PROVIDER_COMPLETION');
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(mc.copyCalls.length, 0);
+  assert.equal(store.state.deliveries['request:r-1'].status, 'IN_BAND_REQUEST_DECISION_RECOVERY_BLOCKED');
+  assert.equal((await runtime.cycle()).status, 'AWAITING_GITHUB_RECEIPT');
+  assert.equal(browser.recoveryCalls, 1);
+  assert.equal(browser.submitCalls, 1);
+});
+
+test('V6 exact-turn recovery remains available with provider submission disabled', async () => {
+  const { store, mc, browser, runtime } = inBandRequestFixture();
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  runtime.config.runtime.submitEnabled = false;
+  const recovered = await runtime.cycle();
+  assert.equal(recovered.status, 'DECISION_RECEIPT_INGESTED',
+    store.state.deliveries['request:r-1']?.recoveryError ?? JSON.stringify(recovered));
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(browser.recoveryCalls, 1);
+  assert.equal(mc.copyCalls.length, 1);
+  assert.equal(store.state.deliveries['request:r-1'].turnBindingMode, 'CAPTURED_STABLE_USER_TURN_KEY');
+  assert.equal(store.state.deliveries['request:r-1'].renderedUserTextMatchesSource, false);
+});
+
+test('V6 pre-anchor completed request uses one bounded compound recovery and never resends', async () => {
+  const { store, mc, browser, runtime } = inBandRequestFixture();
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+  const delivery = store.state.deliveries['request:r-1'];
+  const session = store.state.providerSessions[delivery.providerSessionId];
+  delete delivery.submittedUserTurnAnchor;
+  delete delivery.generationStart.submittedUserTurnAnchor;
+  delete session.submittedUserTurnAnchor;
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  runtime.config.runtime.submitEnabled = false;
+  const recovered = await runtime.cycle();
+  assert.equal(recovered.status, 'DECISION_RECEIPT_INGESTED', JSON.stringify(recovered));
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(browser.recoveryCalls, 1);
+  assert.equal(mc.copyCalls.length, 1);
+  assert.equal(store.state.deliveries['request:r-1'].turnBindingMode, 'BOUND_SINGLE_TURN_COMPOUND_ANCHOR');
+});
+
+test('V6 pre-anchor compound recovery preserves an attested WEB-to-stable conversation transition', async () => {
+  const { store, mc, browser, runtime } = inBandRequestFixture();
+  browser.provisionalWebUrl = true;
+  browser.completionConversationUrl = 'https://chatgpt.com/c/stable-v6-review';
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+  const delivery = store.state.deliveries['request:r-1'];
+  const session = store.state.providerSessions[delivery.providerSessionId];
+  delete delivery.submittedUserTurnAnchor;
+  delete delivery.generationStart.submittedUserTurnAnchor;
+  delete session.submittedUserTurnAnchor;
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  assert.equal(store.state.deliveries['request:r-1'].generationCompletion.conversationUrlCanonicalized, true);
+  runtime.config.runtime.submitEnabled = false;
+  const recovered = await runtime.cycle();
+  assert.equal(recovered.status, 'DECISION_RECEIPT_INGESTED',
+    store.state.deliveries['request:r-1']?.recoveryError ?? JSON.stringify(recovered));
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(browser.recoveryCalls, 1);
+  assert.equal(mc.copyCalls.length, 1);
+  assert.equal(store.state.deliveries['request:r-1'].turnBindingMode, 'BOUND_SINGLE_TURN_COMPOUND_ANCHOR');
 });
 
 test('V5 actual relay cycle sends one real request with MC and GitHub, never a preload', async () => {

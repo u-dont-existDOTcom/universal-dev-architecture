@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { canonicalJson } from "./canonical";
 import {
   CANONICAL_PROJECT_MANAGER_ID,
   loadConfiguredSupervisorChatProvisions,
@@ -16,6 +17,7 @@ import type {
 } from "./operator-status-contract";
 import type { EventStore } from "./store";
 import type { StoredEvent } from "./schema";
+import { pendingDecisionRequests } from "./github-decision-receipts";
 
 // This ESM module is the runtime-neutral authority algorithm shared with its
 // deterministic relay contract tests. Mission Control is its only deployable
@@ -269,6 +271,41 @@ export class SubmissionAuthorityRuntime {
     };
   }
 
+  async proveRequestUnsent(requestId: string) {
+    if (!/^fleet-review:[a-f0-9]{32}$/.test(requestId)) {
+      throw new Error("Unsent-request proof requires one exact fleet-review request ID.");
+    }
+    await this.requireScheduler();
+    if (!this.stateStore || !this.pacingDomain) {
+      throw new SubmissionAuthorityDisabledError("Mission Control submission authority is unavailable.");
+    }
+    const state = await this.stateStore.read();
+    const ledger = this.store.verifySubmissionAuthorityLedger(this.pacingDomain);
+    const matchingStateSections = Object.entries(state)
+      .filter(([, value]) => containsExactString(value, requestId))
+      .map(([key]) => key)
+      .sort();
+    const queueRecords = (state.queueItems ?? []).filter((item: SchedulerState) => containsExactString(item, requestId));
+    const admissionRecords = (state.admissions ?? []).filter((item: SchedulerState) => containsExactString(item, requestId));
+    const proof = {
+      schemaVersion: 1 as const,
+      requestId,
+      pacingDomain: this.pacingDomain,
+      ledgerValid: ledger.valid === true,
+      matchingStateSections,
+      queueRecordCount: queueRecords.length,
+      admissionRecordCount: admissionRecords.length,
+    };
+    return {
+      ...proof,
+      provenUnsent: proof.ledgerValid
+        && matchingStateSections.length === 0
+        && queueRecords.length === 0
+        && admissionRecords.length === 0,
+      proofSha256: createHash("sha256").update(JSON.stringify(proof)).digest("hex"),
+    };
+  }
+
   async ledger(producer: AuthenticatedProducer, limit = 200) {
     const scheduler = await this.requireScheduler();
     const relayBinding = await this.relayBindingFor(producer, scheduler);
@@ -282,6 +319,118 @@ export class SubmissionAuthorityRuntime {
       authenticatedRelayBinding: publicRelayBinding(relayBinding),
       records,
     };
+  }
+
+  async exactAdmissionProof(admissionId: string, producer: AuthenticatedProducer) {
+    if (!/^send-admission:[A-Za-z0-9][A-Za-z0-9._:-]{0,279}$/.test(admissionId)) {
+      throw admissionProofError("SUBMISSION_ADMISSION_PROOF_ID_INVALID", "Exact admission proof requires one bounded send-admission ID.", 400);
+    }
+    await this.requireScheduler();
+    if (producer.kind !== "COLLECTOR" || !this.relayBindings.has(producer.id)) {
+      throw admissionProofError("SUBMISSION_RELAY_READ_FORBIDDEN", "Submission-authority reads require an authenticated bound relay collector.", 403);
+    }
+    if (!this.pacingDomain) throw new SubmissionAuthorityDisabledError("Mission Control submission authority is unavailable.");
+    const snapshot = this.store.submissionAuthorityProofSnapshot(this.pacingDomain);
+    if (!snapshot.ledger.valid) {
+      throw admissionProofError("SUBMISSION_ADMISSION_PROOF_LEDGER_INVALID", "Exact admission proof requires a valid durable authority ledger.", 409);
+    }
+    if (!snapshot.state) throw admissionProofError("SUBMISSION_ADMISSION_PROOF_STATE_MISSING", "Submission authority state is unavailable.", 409);
+    const state = normalizeSchedulerState(snapshot.state, new Date(this.now()).toISOString()) as SchedulerState;
+    const authenticatedBinding = state.relayBindings?.[producer.id] as SchedulerState | undefined;
+    if (!authenticatedBinding) {
+      throw admissionProofError("SUBMISSION_ADMISSION_PROOF_RELAY_CONTRADICTION", "The atomic authority snapshot has no exact producer binding.", 409);
+    }
+    const admissions = state.admissions.filter((item: SchedulerState) => item.admissionId === admissionId);
+    if (admissions.length === 0) throw admissionProofError("SUBMISSION_ADMISSION_UNKNOWN", "The proof names no durable admission.", 404);
+    if (admissions.length !== 1) throw admissionProofError("SUBMISSION_ADMISSION_PROOF_CARDINALITY_INVALID", "The proof requires exactly one durable admission.", 409);
+    const admission = admissions[0]!;
+    if (producer.kind !== "COLLECTOR" || admission.producerId !== producer.id) {
+      throw admissionProofError("SUBMISSION_ADMISSION_PRODUCER_MISMATCH", "Only the exact admitting relay collector may read this proof.", 403);
+    }
+    const queues = state.queueItems.filter((item: SchedulerState) => item.queueItemId === admission.queueItemId);
+    if (queues.length !== 1) throw admissionProofError("SUBMISSION_ADMISSION_PROOF_QUEUE_INVALID", "The admission must bind exactly one durable queue item.", 409);
+    const queueItem = queues[0]!;
+    const history = this.eventHistory();
+    const requestMatches = pendingDecisionRequests(history).filter((request) => request.requestId === admission.requestId);
+    if (requestMatches.length !== 1) throw admissionProofError("SUBMISSION_ADMISSION_PROOF_SOURCE_INVALID", "The admission must bind exactly one current source request.", 409);
+    const sourceRequest = requestMatches[0]!;
+    const sourceEvents = history.filter((event) => event.sequence === sourceRequest.sourceEventSequence
+      && event.data.type === "worker_message_recorded" && event.data.worker === sourceRequest.worker);
+    if (sourceEvents.length !== 1 || sourceEvents[0]!.data.type !== "worker_message_recorded") {
+      throw admissionProofError("SUBMISSION_ADMISSION_PROOF_SOURCE_INVALID", "The exact queued source event is unavailable or ambiguous.", 409);
+    }
+    const sourceEvent = sourceEvents[0]!;
+    const sourceData = sourceEvent.data as Extract<StoredEvent["data"], { type: "worker_message_recorded" }>;
+    if (admission.authorizationRef !== sourceRequest.taskId || admission.supervisorId !== sourceRequest.supervisorId
+      || queueItem.request.requestId !== admission.requestId || queueItem.request.bodySha256 !== admission.bodySha256
+      || queueItem.request.leaseId !== admission.leaseId || queueItem.request.hostAlias !== admission.hostAlias
+      || queueItem.request.hostRole !== admission.hostRole || queueItem.request.deploymentEpoch !== admission.deploymentEpoch
+      || queueItem.admissionIds.filter((value: string) => value === admissionId).length !== 1) {
+      throw admissionProofError("SUBMISSION_ADMISSION_PROOF_BINDING_CONTRADICTION", "Stored admission, queue, source, body, host, or lease identities contradict.", 409);
+    }
+    if (!producer.workerScopes.includes("*") && !producer.workerScopes.includes(sourceRequest.worker)) {
+      throw admissionProofError("SUBMISSION_ADMISSION_PROOF_SCOPE_MISMATCH", "The authenticated producer lacks the exact source worker scope.", 403);
+    }
+    if (!producer.taskScopes.includes("*") && !producer.taskScopes.includes(sourceRequest.taskId)) {
+      throw admissionProofError("SUBMISSION_ADMISSION_PROOF_SCOPE_MISMATCH", "The authenticated producer lacks the exact source task scope.", 403);
+    }
+    const activeLease = state.activeLease as SchedulerState | null;
+    if (!activeLease || activeLease.leaseId !== admission.leaseId || activeLease.epoch !== admission.deploymentEpoch
+      || activeLease.activeHostAlias !== admission.hostAlias || activeLease.activeHostRole !== admission.hostRole) {
+      throw admissionProofError("SUBMISSION_ADMISSION_PROOF_LEASE_CONTRADICTION", "The admission no longer matches the exact active lease.", 409);
+    }
+    if (authenticatedBinding.hostAlias !== admission.hostAlias || authenticatedBinding.hostRole !== admission.hostRole
+      || authenticatedBinding.automationWindowId !== admission.automationWindowId) {
+      throw admissionProofError("SUBMISSION_ADMISSION_PROOF_RELAY_CONTRADICTION", "The authenticated relay binding contradicts the admission host identity.", 409);
+    }
+    const exactLedgerRecords = exactAdmissionLedgerRecords(snapshot.records, admission, queueItem);
+    assertExactAdmissionEvidence(admission, queueItem, exactLedgerRecords);
+    const head = snapshot.records.at(-1);
+    if (!head || typeof head.sequence !== "number" || !Number.isInteger(head.sequence)
+      || typeof head.eventHash !== "string") {
+      throw admissionProofError("SUBMISSION_ADMISSION_PROOF_LEDGER_HEAD_MISSING", "The durable authority ledger has no exact head identity.", 409);
+    }
+    const publicBinding = publicRelayBinding(authenticatedBinding);
+    const envelope = {
+      schemaVersion: 1 as const,
+      kind: "MISSION_CONTROL_EXACT_ADMISSION_PROOF_V1" as const,
+      phase: admission.status === "ADMITTED" ? "BEFORE_ABORT" as const
+        : admission.status === "ABORTED_BEFORE_BOUNDARY" ? "AFTER_ABORT" as const
+          : "TERMINAL_OBSERVATION" as const,
+      admission: { ...admission },
+      queueItem: { ...queueItem, request: { ...queueItem.request } },
+      source: {
+        queuedSourceSha256: createHash("sha256").update(sourceData.body).digest("hex"),
+        queuedEventId: sourceEvent.eventId,
+        workerId: sourceRequest.worker,
+        taskId: sourceRequest.taskId,
+        supervisorId: sourceRequest.supervisorId,
+      },
+      activeLease: { ...activeLease },
+      relayBinding: {
+        producerId: producer.id,
+        hostAlias: publicBinding.hostAlias,
+        hostRole: publicBinding.hostRole,
+        deploymentEpoch: activeLease.epoch,
+        automationWindowId: publicBinding.automationWindowId,
+        bindingRevision: publicBinding.bindingRevision,
+        ownedTargetCount: publicBinding.ownedTargetCount,
+        ownedTargetIdsSha256: publicBinding.ownedTargetIdsSha256,
+      },
+      exactLedgerRecords,
+      targetLedgerCompleteness: {
+        complete: true as const,
+        matchingRecordCount: exactLedgerRecords.length,
+        firstSequence: exactLedgerRecords[0]!.sequence,
+        lastSequence: exactLedgerRecords.at(-1)!.sequence,
+        scannedHeadSequence: head.sequence,
+        chainValidated: true as const,
+      },
+      ledger: { valid: true as const, headSequence: head.sequence, headEventHash: head.eventHash },
+      observedAt: new Date(this.now()).toISOString(),
+    };
+    assertCanonicalProofValue(envelope);
+    return { ...envelope, proofSha256: createHash("sha256").update(canonicalJson(envelope)).digest("hex") };
   }
 
   async operatorStatus(): Promise<OperatorStatusProjection> {
@@ -386,6 +535,19 @@ export class SubmissionAuthorityRuntime {
     if (operation === "provider-rate-limits") return scheduler.recordRateLimit(body, producer.id);
     if (operation === "aborts") return scheduler.abortBeforeBoundary(body, producer.id);
     if (operation === "expired-preclick-retries/cancel") return scheduler.cancelExpiredPreclickRetry(body, producer.id);
+    if (operation === "superseded-preclick-retries/cancel") {
+      const cancellation = parseSupersededRetryCancellation(body);
+      const active = pendingDecisionRequests(this.store.allEvents());
+      const matches = active.filter((request) => request.requestId === cancellation.replacementRequestId
+        && request.supersedesRequestId === cancellation.requestId
+        && request.replacementFailureReceiptSha256 === cancellation.failureReceiptSha256);
+      if (matches.length !== 1 || active.some((request) => request.requestId === cancellation.requestId)) {
+        const error = new Error("The scheduler cancellation does not match one exact active Mission Control replacement.");
+        Object.assign(error, { statusCode: 409, code: "SUBMISSION_QUEUE_REPLACEMENT_NOT_ACTIVE" });
+        throw error;
+      }
+      return scheduler.cancelSupersededPreclickRetry(cancellation, producer.id);
+    }
     if (operation === "outcomes") return scheduler.recordOutcome(body, producer.id);
     const error = new Error("Submission-authority operation was not found.");
     Object.assign(error, { statusCode: 404, code: "SUBMISSION_AUTHORITY_OPERATION_UNKNOWN" });
@@ -558,6 +720,29 @@ export class SubmissionAuthorityRuntime {
   }
 }
 
+function parseSupersededRetryCancellation(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw invalidSupersessionCancellation();
+  const root = value as Record<string, unknown>;
+  const queueItemId = root.queueItemId;
+  const requestId = root.requestId;
+  const replacementRequestId = root.replacementRequestId;
+  const failureReceiptSha256 = root.failureReceiptSha256;
+  if (typeof queueItemId !== "string" || queueItemId.length < 1 || queueItemId.length > 300
+    || typeof requestId !== "string" || requestId.length < 1 || requestId.length > 300
+    || typeof replacementRequestId !== "string" || replacementRequestId.length < 1 || replacementRequestId.length > 300
+    || requestId === replacementRequestId
+    || typeof failureReceiptSha256 !== "string" || !/^[a-f0-9]{64}$/.test(failureReceiptSha256)) {
+    throw invalidSupersessionCancellation();
+  }
+  return { queueItemId, requestId, replacementRequestId, failureReceiptSha256 };
+}
+
+function invalidSupersessionCancellation() {
+  const error = new Error("Superseded retry cancellation requires exact queue, old request, replacement request, and failure-receipt identities.");
+  Object.assign(error, { statusCode: 400, code: "SUBMISSION_QUEUE_REPLACEMENT_INPUT_INVALID" });
+  return error;
+}
+
 export { SubmissionSchedulerError };
 
 function parseRelayHealthReport(value: unknown): RelayHealthReport {
@@ -699,12 +884,15 @@ function ledgerEntry(prior: SchedulerState | null, state: SchedulerState, minimu
     : 0;
   return {
     eventKind,
+    admissionId: admission?.admissionId ?? null,
+    requestId: admission?.requestId ?? queueItem?.request?.requestId ?? null,
     queueItemId: queueItem?.queueItemId ?? null,
     authorizationReference: admission?.authorizationRef ?? queueItem?.request?.authorizationRef ?? null,
     producerId: admission?.producerId ?? changedRelayBinding?.producerId ?? state.relayTargetTransition?.producerId ?? prior?.relayTargetTransition?.producerId ?? null,
     hostAlias: admission?.hostAlias ?? relayBinding?.hostAlias ?? state.activeLease?.activeHostAlias ?? null,
     hostRole: admission?.hostRole ?? relayBinding?.hostRole ?? state.activeLease?.activeHostRole ?? null,
     deploymentEpoch: admission?.deploymentEpoch ?? state.activeLease?.epoch ?? null,
+    leaseId: admission?.leaseId ?? state.activeLease?.leaseId ?? null,
     host: admission ? {
       alias: admission.hostAlias,
       role: admission.hostRole,
@@ -772,6 +960,95 @@ function findChangedRelayBinding(
     }
   }
   return null;
+}
+
+function containsExactString(value: unknown, expected: string): boolean {
+  if (value === expected) return true;
+  if (Array.isArray(value)) return value.some((item) => containsExactString(item, expected));
+  if (!value || typeof value !== "object") return false;
+  return Object.values(value as Record<string, unknown>).some((item) => containsExactString(item, expected));
+}
+
+function exactAdmissionLedgerRecords(records: Array<Record<string, unknown>>, admission: SchedulerState, queueItem: SchedulerState) {
+  return records.filter((record) => record.queueItemId === admission.queueItemId)
+    .map((record) => ({
+      sequence: record.sequence,
+      eventKind: record.eventKind,
+      eventHash: record.eventHash,
+      previousHash: record.previousHash ?? null,
+      queueItemId: record.queueItemId,
+      admissionId: typeof record.admissionId === "string" ? record.admissionId : null,
+      requestId: typeof record.requestId === "string" ? record.requestId : null,
+      admittedAt: record.admittedAt ?? null,
+      admissionStatus: record.admissionStatus ?? null,
+      queueStatus: record.queueStatus ?? null,
+      actualSubmissionBoundaryAt: record.actualSubmissionBoundaryAt ?? null,
+      boundaryKind: record.boundaryKind ?? null,
+      deliveryStatus: record.deliveryStatus ?? null,
+      recoveryStatus: record.recoveryStatus ?? null,
+      bodySha256: record.bodySha256 ?? null,
+      producerId: record.producerId ?? null,
+      hostAlias: record.hostAlias ?? null,
+      hostRole: record.hostRole ?? null,
+      deploymentEpoch: record.deploymentEpoch ?? null,
+      leaseId: record.leaseId ?? null,
+      sourceQueueRequestId: queueItem.request.requestId,
+    }));
+}
+
+function assertExactAdmissionEvidence(admission: SchedulerState, queueItem: SchedulerState, records: Array<Record<string, any>>) {
+  const enqueue = records.filter((record) => record.eventKind === "QUEUE_ITEM_DURABLY_ENQUEUED");
+  const grant = records.filter((record) => record.eventKind === "SINGLE_USE_ADMISSION_GRANTED"
+    && record.admittedAt === admission.admittedAt);
+  if (enqueue.length !== 1 || grant.length !== 1) {
+    throw admissionProofError("SUBMISSION_ADMISSION_PROOF_LEDGER_CARDINALITY_INVALID", "The durable queue and admission grant must each have one exact ledger record.", 409);
+  }
+  const admissionRecords = records.filter((record) => record.admittedAt === admission.admittedAt);
+  if (admissionRecords.some((record) => (record.admissionId !== null && record.admissionId !== admission.admissionId)
+    || (record.requestId !== null && record.requestId !== admission.requestId)
+    || record.queueItemId !== admission.queueItemId || record.bodySha256 !== admission.bodySha256
+    || record.producerId !== admission.producerId || record.hostAlias !== admission.hostAlias
+    || record.hostRole !== admission.hostRole || record.deploymentEpoch !== admission.deploymentEpoch
+    || (record.leaseId !== null && record.leaseId !== admission.leaseId))) {
+    throw admissionProofError("SUBMISSION_ADMISSION_PROOF_LEDGER_CONTRADICTION", "The exact admission ledger contains contradictory identity evidence.", 409);
+  }
+  const boundaryRecords = admissionRecords.filter((record) => record.actualSubmissionBoundaryAt !== null || record.eventKind === "BOUNDARY_RECORDED");
+  if (admission.boundaryAt === null ? boundaryRecords.length !== 0
+    : boundaryRecords.length !== 1 || boundaryRecords[0]!.actualSubmissionBoundaryAt !== admission.boundaryAt
+      || boundaryRecords[0]!.boundaryKind !== admission.boundaryKind) {
+    throw admissionProofError("SUBMISSION_ADMISSION_PROOF_BOUNDARY_CONTRADICTION", "Boundary evidence contradicts the exact admission record.", 409);
+  }
+  const outcomeRecords = admissionRecords.filter((record) => record.eventKind === "DELIVERY_OUTCOME_RECORDED");
+  if (admission.deliveryStatus === null ? outcomeRecords.length !== 0
+    : outcomeRecords.length !== 1 || outcomeRecords[0]!.deliveryStatus !== admission.deliveryStatus
+      || outcomeRecords[0]!.recoveryStatus !== admission.recoveryStatus) {
+    throw admissionProofError("SUBMISSION_ADMISSION_PROOF_OUTCOME_CONTRADICTION", "Outcome evidence contradicts the exact admission record.", 409);
+  }
+  const latest = admissionRecords.at(-1);
+  if (!latest || latest.admissionStatus !== admission.status || latest.queueStatus !== queueItem.status) {
+    throw admissionProofError("SUBMISSION_ADMISSION_PROOF_LATEST_STATE_CONTRADICTION", "The ledger tail contradicts current admission or queue status.", 409);
+  }
+}
+
+function admissionProofError(code: string, message: string, statusCode: number) {
+  const error = new Error(message);
+  Object.assign(error, { code, statusCode });
+  return error;
+}
+
+function assertCanonicalProofValue(value: unknown, path = "proof") {
+  if (value === undefined || typeof value === "function" || typeof value === "symbol"
+    || typeof value === "bigint" || typeof value === "number" && !Number.isFinite(value)) {
+    throw admissionProofError("SUBMISSION_ADMISSION_PROOF_NONCANONICAL", `${path} contains a non-canonical value.`, 409);
+  }
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      if (!Object.hasOwn(value, index)) throw admissionProofError("SUBMISSION_ADMISSION_PROOF_NONCANONICAL", `${path} contains a sparse array.`, 409);
+      assertCanonicalProofValue(value[index], `${path}[${index}]`);
+    }
+  } else if (value && typeof value === "object") {
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) assertCanonicalProofValue(child, `${path}.${key}`);
+  }
 }
 
 export function pacingDiagnostics(records: Array<Record<string, unknown>>, minimumIntervalMs: number) {

@@ -3,7 +3,7 @@ import { authenticateIngestProducer } from "@/lib/ingestion-credentials";
 
 export const dynamic = "force-dynamic";
 
-const allowedGetOperations = new Set(["status", "ledger"]);
+const allowedGetOperations = new Set(["status", "ledger", "admissions/proof"]);
 const allowedPostOperations = new Set([
   "admissions",
   "admissions/validate",
@@ -15,6 +15,7 @@ const allowedPostOperations = new Set([
   "provider-rate-limits",
   "aborts",
   "expired-preclick-retries/cancel",
+  "superseded-preclick-retries/cancel",
   "outcomes",
   "relay-health",
 ]);
@@ -25,7 +26,13 @@ export async function GET(request: Request, context: { params: Promise<{ operati
   const authentication = authenticate(request);
   if (!authentication.ok) return authentication.response;
   if (authentication.producer.kind !== "COLLECTOR") return forbiddenRelayResponse();
-  const query = new URL(request.url).search;
+  const url = new URL(request.url);
+  if (operation === "admissions/proof"
+    && (url.searchParams.size !== 1 || !url.searchParams.has("admission_id")
+      || !/^send-admission:[A-Za-z0-9][A-Za-z0-9._:-]{0,279}$/.test(url.searchParams.get("admission_id") ?? ""))) {
+    return Response.json({ error: "Exact admission proof requires one bounded admission_id." }, { status: 400 });
+  }
+  const query = url.search;
   return relayJson(`/submission-authority/${operation}${query}`, {
     headers: daemonMutationHeaders(authentication.producer),
   });

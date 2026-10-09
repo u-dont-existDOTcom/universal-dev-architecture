@@ -12,6 +12,9 @@ import {
 import {
   inBandAppReadbackProducerId,
   inBandAppReadbackSummary,
+  inBandBrowserDomReadbackMethod,
+  inBandBrowserDomReadbackProducerId,
+  inBandBrowserDomReadbackSummary,
   inBandDigestRepairOperation,
   inBandMachineTransformSummary,
   inBandPreSendSummary,
@@ -209,6 +212,97 @@ test("V6 admits one exact GitHub decision without any MCP receipt and records di
   } finally { f.store.close(); }
 });
 
+test("V6 relocates one exact pre-bound receipt to an owner-configured private channel without changing its bytes", () => {
+  const f = fixture();
+  try {
+    const destinationRepository = "u-dont-existDOTcom/private-receipts";
+    const destinationIssueNumber = 4;
+    const relocatedPolicy: GitHubReceiptPolicy = {
+      ...policy,
+      repository: destinationRepository,
+      decisionIssueNumber: destinationIssueNumber,
+      capabilityIssueNumber: destinationIssueNumber,
+      stageIssueNumber: destinationIssueNumber,
+      decisionReceiptRelocations: [{
+        requestId,
+        sourceRepository: policy.repository,
+        sourceDecisionIssueNumber: policy.decisionIssueNumber,
+        destinationRepository,
+        destinationDecisionIssueNumber: destinationIssueNumber,
+        canonicalReceiptSha256: sha256(f.candidate.body),
+      }],
+    };
+    const candidate = {
+      ...f.candidate,
+      repository: destinationRepository,
+      issueNumber: destinationIssueNumber,
+      createdAt: time("08.000"),
+      immutableUrl: `https://github.com/${destinationRepository}/issues/${destinationIssueNumber}#issuecomment-${f.candidate.commentId}`,
+    };
+    const envelope = buildGitHubDecisionReceiptEnvelope(
+      f.events, candidate, relocatedPolicy, time("09.000"), { submissionAuthorityState: f.authority },
+    );
+    assert.equal(candidate.body, f.candidate.body);
+    assert.equal(envelope.data.type, "github_decision_receipt_ingested");
+    if (envelope.data.type !== "github_decision_receipt_ingested") return;
+    assert.deepEqual(envelope.data.receipt_relocation, {
+      authority: "OWNER_CONFIGURED_EXACT_RECEIPT_RELOCATION",
+      source_repository: policy.repository,
+      source_issue_number: policy.decisionIssueNumber,
+      destination_repository: destinationRepository,
+      destination_issue_number: destinationIssueNumber,
+      canonical_receipt_sha256: sha256(f.candidate.body),
+    });
+    assert.equal(envelope.data.in_band_binding_sha256, f.binding.in_band_binding_sha256);
+    assert.equal(envelope.data.github_receipt.repository, destinationRepository);
+    assert.equal(envelope.data.github_receipt.issue_number, destinationIssueNumber);
+  } finally { f.store.close(); }
+});
+
+test("V6 exact receipt relocation fails closed on changed bytes or an unconfigured source", () => {
+  const f = fixture();
+  try {
+    const destinationRepository = "u-dont-existDOTcom/private-receipts";
+    const destinationIssueNumber = 4;
+    const relocatedPolicy: GitHubReceiptPolicy = {
+      ...policy,
+      repository: destinationRepository,
+      decisionIssueNumber: destinationIssueNumber,
+      capabilityIssueNumber: destinationIssueNumber,
+      stageIssueNumber: destinationIssueNumber,
+      decisionReceiptRelocations: [{
+        requestId,
+        sourceRepository: policy.repository,
+        sourceDecisionIssueNumber: policy.decisionIssueNumber,
+        destinationRepository,
+        destinationDecisionIssueNumber: destinationIssueNumber,
+        canonicalReceiptSha256: sha256(f.candidate.body),
+      }],
+    };
+    const candidate = {
+      ...f.candidate,
+      repository: destinationRepository,
+      issueNumber: destinationIssueNumber,
+      createdAt: time("08.000"),
+      immutableUrl: `https://github.com/${destinationRepository}/issues/${destinationIssueNumber}#issuecomment-${f.candidate.commentId}`,
+    };
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(
+      f.events, { ...candidate, body: `${candidate.body}\n` }, relocatedPolicy, time("09.000"), { submissionAuthorityState: f.authority },
+    ), /exact configured canonical receipt hash/);
+    const wrongSourcePolicy = structuredClone(relocatedPolicy);
+    wrongSourcePolicy.decisionReceiptRelocations![0]!.sourceDecisionIssueNumber += 1;
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(
+      f.events, candidate, wrongSourcePolicy, time("09.000"), { submissionAuthorityState: f.authority },
+    ), /source does not match/);
+    const missingCompletion = f.events.filter((event) => !(event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === "MISSION_CONTROL_RELAY_STAGE_V1"
+      && event.data.refs.includes("generation_state:COMPLETE")));
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(
+      missingCompletion, candidate, relocatedPolicy, time("09.000"), { submissionAuthorityState: f.authority },
+    ), /completion evidence missing|generation evidence incomplete|binding\/admission\/generation\/artifact timing/);
+  } finally { f.store.close(); }
+});
+
 test("V6 accepts top-model policy evidence and binds one observed model label across the session", () => {
   const f = fixture();
   try {
@@ -272,6 +366,50 @@ test("V6 app-owned final-message readback may replace only missing web completio
     }
     assert.throws(() => buildGitHubDecisionReceiptEnvelope(bad, candidate, policy, time("32.000"), { submissionAuthorityState: f.authority }), /completion evidence missing|machine-block transformation/);
     assert.throws(() => buildGitHubDecisionReceiptEnvelope(f.events, candidate, policy, time("32.000"), { submissionAuthorityState: f.authority }), /post-expiry transport copy requires/);
+  } finally { f.store.close(); }
+});
+
+test("V6 admits one exact post-completion browser-DOM recovery readback and rejects false provenance", () => {
+  const f = fixture();
+  try {
+    const candidate = { ...f.candidate, commentId: 5744000098, createdAt: time("06.000"),
+      immutableUrl: `https://github.com/${policy.repository}/issues/53#issuecomment-5744000098` };
+    const readback = evidence(f.store, "browser-dom-readback", inBandBrowserDomReadbackSummary, [
+      "status:COMPLETE", `machine_block_sha256:${sha256(candidate.body)}`, `provider_prompt_sha256:${promptSha256}`,
+      `conversation_url:${conversation}`, "thread_surface:chatgpt", "browser_target_id_sha256:" + "7".repeat(64),
+      "source_reader_app:GitHub", "source_reader_mode:READ_ONLY",
+      "browser_capture_surface:EXISTING_BOUND_CONVERSATION_DOM",
+      "assistant_message_selection:UNIQUE_CANONICAL_BLOCK", "semantic_authority:false",
+      `readback_method:${inBandBrowserDomReadbackMethod}`,
+    ], time("07.000"), inBandBrowserDomReadbackProducerId);
+    const events = [...f.events, readback];
+    assert.equal(buildGitHubDecisionReceiptEnvelope(events, candidate, policy, time("08.000"), { submissionAuthorityState: f.authority }).data.type,
+      "github_decision_receipt_ingested");
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(f.events, candidate, policy, time("08.000"), { submissionAuthorityState: f.authority }),
+      /timing is invalid or stale/);
+
+    const wrongDigest = structuredClone(events);
+    const digestReceipt = wrongDigest.find((event) => event.eventId === readback.eventId)!;
+    if (digestReceipt.data.type === "evidence_receipt_recorded") {
+      digestReceipt.data.refs = digestReceipt.data.refs.map((ref) => ref.startsWith("machine_block_sha256:")
+        ? `machine_block_sha256:${"8".repeat(64)}` : ref);
+    }
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(wrongDigest, candidate, policy, time("08.000"), { submissionAuthorityState: f.authority }),
+      /browser-DOM provider machine block digest/);
+
+    const wrongProducer = structuredClone(events);
+    const producerReceipt = wrongProducer.find((event) => event.eventId === readback.eventId)!;
+    producerReceipt.producerId = inBandAppReadbackProducerId;
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(wrongProducer, candidate, policy, time("08.000"), { submissionAuthorityState: f.authority }),
+      /timing is invalid or stale/);
+
+    const afterExpiryCandidate = { ...candidate, commentId: 5744000097, createdAt: time("31.000"),
+      immutableUrl: `https://github.com/${policy.repository}/issues/53#issuecomment-5744000097` };
+    const afterExpiry = structuredClone(events);
+    const lateReadback = afterExpiry.find((event) => event.eventId === readback.eventId)!;
+    lateReadback.occurredAt = time("32.000");
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(afterExpiry, afterExpiryCandidate, policy, time("33.000"), { submissionAuthorityState: f.authority }),
+      /post-expiry transport copy requires current app-owned completion evidence/);
   } finally { f.store.close(); }
 });
 

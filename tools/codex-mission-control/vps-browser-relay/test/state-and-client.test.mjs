@@ -378,6 +378,68 @@ test('Mission Control client uses authenticated worker admission, preflight, and
   assert.deepEqual(requests[2].body, { events: lifecycle });
 });
 
+test('Mission Control client requires exact scoped canonical-schema validation before copy', async () => {
+  const input = {
+    requestId: 'fleet-review:1234567890abcdef1234567890abcdef', supervisorId: 'mc-project-manager',
+    providerSessionId: 'provider-session:test', workerId: 'worker-a',
+    conversationUrl: 'https://chatgpt.com/c/exact-conversation', providerPromptSha256: '1'.repeat(64),
+    canonicalBody: 'MISSION_CONTROL_CANONICAL_DECISION_V1\n{}', canonicalBodySha256: '2'.repeat(64),
+    browserTargetIdSha256: '3'.repeat(64), userTurnKeySha256: '4'.repeat(64),
+    assistantTurnKeySha256: '5'.repeat(64), sourceReaderApp: 'GitHub',
+  };
+  const requests = [];
+  const client = new MissionControlClient({
+    url: 'https://mission-control.example', producerId: 'collector:test-relay', token: 'x'.repeat(32),
+    fetchImpl: async (url, options) => {
+      requests.push({ url, body: JSON.parse(options.body), headers: options.headers });
+      return Response.json({
+        status: 'VALIDATED', validationScope: 'CANONICAL_SCHEMA_AND_REQUEST_IDENTITY',
+        requestId: input.requestId, providerSessionId: input.providerSessionId,
+        canonicalBodySha256: input.canonicalBodySha256, ingestionAuthorized: false,
+      });
+    },
+  });
+  await client.validateProviderDecision(input);
+  assert.equal(requests[0].url, 'https://mission-control.example/api/github/decision-receipts/validate');
+  assert.deepEqual(requests[0].body, input);
+  assert.equal(requests[0].headers['x-mission-control-producer-id'], 'collector:test-relay');
+});
+
+test('Mission Control client distinguishes authoritative schema rejection from validation unavailability or response mismatch', async () => {
+  const input = {
+    requestId: 'fleet-review:1234567890abcdef1234567890abcdef', supervisorId: 'mc-project-manager',
+    providerSessionId: 'provider-session:test', workerId: 'worker-a',
+    conversationUrl: 'https://chatgpt.com/c/exact-conversation', providerPromptSha256: '1'.repeat(64),
+    canonicalBody: 'MISSION_CONTROL_CANONICAL_DECISION_V1\n{}', canonicalBodySha256: '2'.repeat(64),
+    browserTargetIdSha256: '3'.repeat(64), userTurnKeySha256: '4'.repeat(64),
+    assistantTurnKeySha256: '5'.repeat(64), sourceReaderApp: 'GitHub',
+  };
+  const clientFor = (response) => new MissionControlClient({
+    url: 'https://mission-control.example', producerId: 'collector:test-relay', token: 'x'.repeat(32),
+    fetchImpl: async () => response,
+  });
+  await assert.rejects(
+    () => clientFor(Response.json({ code: 'CANONICAL_SCHEMA_OR_IDENTITY_INVALID', error: 'invalid profile' }, { status: 409 })).validateProviderDecision(input),
+    (error) => error.classification === 'ASSISTANT_RESPONSE_PRESENT_BUT_INVALID',
+  );
+  await assert.rejects(
+    () => clientFor(Response.json({ error: 'unavailable' }, { status: 503 })).validateProviderDecision(input),
+    (error) => error.classification === 'READBACK_UNRESOLVED',
+  );
+  for (const changed of [
+    { requestId: 'wrong' }, { providerSessionId: 'wrong' }, { canonicalBodySha256: '0'.repeat(64) },
+  ]) {
+    await assert.rejects(
+      () => clientFor(Response.json({
+        status: 'VALIDATED', validationScope: 'CANONICAL_SCHEMA_AND_REQUEST_IDENTITY',
+        requestId: input.requestId, providerSessionId: input.providerSessionId,
+        canonicalBodySha256: input.canonicalBodySha256, ingestionAuthorized: false, ...changed,
+      })).validateProviderDecision(input),
+      (error) => error.classification === 'READBACK_UNRESOLVED',
+    );
+  }
+});
+
 test('submission interval config defaults to 60000 and exposes the public value', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-relay-config-'));
   try {
@@ -394,6 +456,16 @@ test('submission interval config defaults to 60000 and exposes the public value'
     assert.equal(publicConfig(config).submissionHost.role, 'PRIMARY');
     assert.equal(Object.hasOwn(publicConfig(config).submissionHost, 'leaseId'), false);
     assert.doesNotMatch(JSON.stringify(publicConfig(config)), /aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/);
+    const additionallyScoped = await loadConfig({
+      ...configEnv(chatsFile), MC_RELAY_ADDITIONAL_WORKER_IDS_JSON: '["hrp-discern-eval"]',
+    });
+    assert.deepEqual(additionallyScoped.missionControl.workerIds, [configuredChat().workerId, 'hrp-discern-eval']);
+    assert.deepEqual(additionallyScoped.runtime.workerIds, [configuredChat().workerId, 'hrp-discern-eval']);
+    for (const invalid of ['not-json', '{}', '["bad worker"]', '["duplicate","duplicate"]']) {
+      await assert.rejects(() => loadConfig({
+        ...configEnv(chatsFile), MC_RELAY_ADDITIONAL_WORKER_IDS_JSON: invalid,
+      }), /MC_RELAY_ADDITIONAL_WORKER_IDS_JSON/);
+    }
     await assert.rejects(() => loadConfig({
       ...configEnv(chatsFile),
       MC_RELAY_TARGET_BINDING_ATTESTOR_KEY: 'x'.repeat(32),

@@ -15,6 +15,7 @@ import {
   dispatchAutomaticMissionControlExecution,
   dispatchMissionControlExecution,
   executeMissionControlCandidate,
+  providerSchemaCompatibilityIssues,
 } from '../src/codex-exec-candidate.mjs';
 import { loadCodexExecCandidateConfig } from '../src/config.mjs';
 
@@ -77,6 +78,14 @@ test('valid source-bound mayExecute and persisted preflight make the Codex backe
   assert.equal(result.missionControlLifecycle.executionStartRecorded, true);
   assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
   assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+});
+
+test('a campaign deadline beyond one attempt keeps the child bounded by the configured attempt timeout', async () => {
+  const fixture = await candidateFixture('future-campaign-deadline');
+  fixture.config.maxTimeoutMs = 6_500;
+  const result = await fixture.dispatch(fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' }, { deadlineMs: 60_000 }));
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.route, CODEX_EXECUTION_ROUTES.LOCAL);
 });
 
 test('source digest, revision, or profile mismatch fails closed before Mission Control or Codex launch', async () => {
@@ -175,6 +184,215 @@ test('changed retry semantics are rejected while a valid same-source retry gets 
   assert.equal(completed.retryOfAttemptId, first.attemptId);
 });
 
+test('provider-incompatible output schema closes for reasoning review without launching Codex', async () => {
+  const fixture = await candidateFixture('invalid-output-schema');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = {
+    type: 'object',
+    required: ['values'],
+    properties: { values: { type: 'array' } },
+  };
+  const result = await fixture.dispatch(directive);
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.FAILED);
+  assert.equal(result.processExitState.started, false);
+  assert.deepEqual(result.outputSchemaCompatibilityIssues, [
+    '$.additionalProperties must be false',
+    '$.properties.values.items is required',
+  ]);
+  assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  assert.equal(fixture.spawnCalls.length, 0);
+});
+
+test('a provider-schema failure whose receipt write was interrupted is reconciled without duplicate execution', async () => {
+  const fixture = await candidateFixture('invalid-schema-reconcile');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = { type: 'object', required: ['values'], properties: { values: { type: 'array' } } };
+  fixture.missionControl.failNextReceipt = true;
+  await assert.rejects(fixture.dispatch(directive), /injected receipt interruption/);
+  const jobDir = join(fixture.config.stateDir, 'jobs', directive.jobId);
+  const firstEntries = (await readdir(jobDir, { withFileTypes: true })).filter((entry) => entry.isDirectory());
+  assert.equal(firstEntries.length, 1);
+  assert.equal(fixture.spawnCalls.length, 0);
+
+  const recovered = await fixture.dispatch(directive);
+  const finalEntries = (await readdir(jobDir, { withFileTypes: true })).filter((entry) => entry.isDirectory());
+  assert.equal(finalEntries.length, 1);
+  assert.equal(recovered.recoveredTerminalAttempt, true);
+  assert.equal(recovered.missionControlLifecycle.executionStartRecorded, false);
+  assert.equal(recovered.missionControlLifecycle.executionStartRecovered, true);
+  assert.equal(recovered.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  assert.equal(fixture.spawnCalls.length, 0);
+});
+
+test('exact pre-execution model capacity closes for reasoning review without claiming task execution', async () => {
+  const fixture = await candidateFixture('provider-capacity');
+  const result = await fixture.dispatch(fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' }), {
+    environment: { FAKE_CODEX_MODE: 'provider-capacity' },
+  });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.FAILED);
+  assert.equal(result.protocol.providerError.code, 'model_at_capacity');
+  assert.equal(result.protocol.commandExecutionCount, 0);
+  assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  const receipt = fixture.missionControl.events.find((event) => event.data.type === 'execution_receipt_recorded');
+  assert.deepEqual(receipt.data.blockers, ['CODEX_MODEL_CAPACITY_PREEXECUTION']);
+  assert.equal(receipt.data.files_changed.length, 0);
+  assert.equal(receipt.data.next_reasoning_review_required, true);
+});
+
+test('an interrupted pre-execution capacity receipt is reconciled without a duplicate Codex launch', async () => {
+  const fixture = await candidateFixture('provider-capacity-reconcile');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  fixture.missionControl.failNextReceipt = true;
+  await assert.rejects(
+    fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'provider-capacity' } }),
+    /injected receipt interruption/,
+  );
+  const firstSpawnCount = fixture.spawnCalls.length;
+  assert.ok(firstSpawnCount > 0);
+
+  const recovered = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'provider-capacity' } });
+  assert.equal(recovered.recoveredTerminalAttempt, true);
+  assert.equal(recovered.missionControlLifecycle.executionStartRecovered, true);
+  assert.equal(recovered.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  assert.equal(fixture.spawnCalls.length, firstSpawnCount);
+});
+
+test('a structured STOPPED result closes the directive and requests independent reasoning review', async () => {
+  const fixture = await candidateFixture('structured-stop');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = structuredStopOutputSchema();
+  const result = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-stop' } });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.protocol.resultRequestsReasoningReviewStop, true);
+  assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  const receipt = fixture.missionControl.events.find((event) => event.data.type === 'execution_receipt_recorded');
+  assert.equal(receipt.data.next_reasoning_review_required, true);
+  assert.equal(receipt.data.stop_trigger_reached, 'integrity evidence unavailable');
+  assert.deepEqual(receipt.data.blockers, ['integrity evidence unavailable']);
+});
+
+test('a structured STOPPED_FOR_REASONING_REVIEW result closes the directive and preserves its trigger', async () => {
+  const fixture = await candidateFixture('structured-reasoning-review-stop');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = structuredStopOutputSchema();
+  const result = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-reasoning-review-stop' } });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.protocol.resultRequestsReasoningReviewStop, true);
+  assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  const receipt = fixture.missionControl.events.find((event) => event.data.type === 'execution_receipt_recorded');
+  assert.equal(receipt.data.stop_trigger_reached, 'immutable attempt readback unavailable');
+  assert.deepEqual(receipt.data.blockers, ['immutable attempt readback unavailable']);
+});
+
+test('an interrupted structured STOPPED receipt is reconciled without duplicate execution', async () => {
+  const fixture = await candidateFixture('structured-stop-reconcile');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = structuredStopOutputSchema();
+  fixture.missionControl.failNextReceipt = true;
+  await assert.rejects(
+    fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-stop' } }),
+    /injected receipt interruption/,
+  );
+  const firstSpawnCount = fixture.spawnCalls.length;
+  assert.ok(firstSpawnCount > 0);
+
+  const recovered = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-stop' } });
+  assert.equal(recovered.recoveredTerminalAttempt, true);
+  assert.equal(recovered.missionControlLifecycle.executionStartRecovered, true);
+  assert.equal(recovered.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  assert.equal(fixture.spawnCalls.length, firstSpawnCount);
+});
+
+test('a structured BLOCKED result closes the directive for independent reasoning review', async () => {
+  const fixture = await candidateFixture('structured-blocked');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = structuredStopOutputSchema();
+  const result = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-blocked' } });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.protocol.resultRequestsReasoningReviewStop, true);
+  assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
+  const receipt = fixture.missionControl.events.find((event) => event.data.type === 'execution_receipt_recorded');
+  assert.equal(receipt.data.stop_trigger_reached, 'required inputs unavailable');
+  assert.deepEqual(receipt.data.blockers, ['required inputs unavailable']);
+});
+
+test('a structured STOPPED result accepts the source-bound stop_trigger alias', async () => {
+  const fixture = await candidateFixture('structured-stop-alias');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = structuredStopAliasOutputSchema();
+  const result = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-stop-alias' } });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.protocol.resultRequestsReasoningReviewStop, true);
+  assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
+  const receipt = fixture.missionControl.events.find((event) => event.data.type === 'execution_receipt_recorded');
+  assert.equal(receipt.data.stop_trigger_reached, 'immutable attempt readback unavailable');
+  assert.deepEqual(receipt.data.blockers, ['immutable attempt readback unavailable']);
+});
+
+test('a source-bound schema without status may request reasoning review with its explicit stop gate', async () => {
+  const fixture = await candidateFixture('structured-stop-without-status');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = structuredStopWithoutStatusOutputSchema();
+  const result = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-stop-without-status' } });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.protocol.resultReportsSuccess, false);
+  assert.equal(result.protocol.resultRequestsReasoningReviewStop, true);
+  assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
+  const receipt = fixture.missionControl.events.find((event) => event.data.type === 'execution_receipt_recorded');
+  assert.equal(receipt.data.stop_trigger_reached, 'no material headroom remains');
+  assert.deepEqual(receipt.data.blockers, ['no material headroom remains']);
+});
+
+test('a structured COMPLETED result closes the directive without requiring a success boolean', async () => {
+  const fixture = await candidateFixture('structured-completed');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = structuredCompletionOutputSchema();
+  const result = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-completed' } });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.protocol.resultReportsSuccess, true);
+  assert.equal(result.protocol.resultReportsStructuredCompletion, true);
+  assert.equal(result.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+});
+
+test('an interrupted structured COMPLETED receipt is reconciled without duplicate execution', async () => {
+  const fixture = await candidateFixture('structured-completed-reconcile');
+  const directive = fixture.directive({ type: 'LOCAL_FILESYSTEM_COMMAND' });
+  directive.outputSchema = structuredCompletionOutputSchema();
+  fixture.missionControl.failNextReceipt = true;
+  await assert.rejects(
+    fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-completed' } }),
+    /injected receipt interruption/,
+  );
+  const firstSpawnCount = fixture.spawnCalls.length;
+  assert.ok(firstSpawnCount > 0);
+
+  const recovered = await fixture.dispatch(directive, { environment: { FAKE_CODEX_MODE: 'structured-completed' } });
+  assert.equal(recovered.recoveredTerminalAttempt, true);
+  assert.equal(recovered.missionControlLifecycle.executionStartRecovered, true);
+  assert.equal(recovered.missionControlLifecycle.executionReceiptRecorded, true);
+  assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+  assert.equal(fixture.spawnCalls.length, firstSpawnCount);
+});
+
+test('provider schema compatibility inspection is deterministic and non-mutating', () => {
+  const schema = { type: 'object', required: ['items'], properties: { items: { type: 'array' } } };
+  const before = JSON.stringify(schema);
+  assert.deepEqual(providerSchemaCompatibilityIssues(schema), [
+    '$.additionalProperties must be false',
+    '$.properties.items.items is required',
+  ]);
+  assert.equal(JSON.stringify(schema), before);
+  assert.deepEqual(providerSchemaCompatibilityIssues(outputSchema), []);
+});
+
 test('raw CDP remains absent from restricted Codex job configuration', async () => {
   const fixture = await candidateFixture('raw-cdp');
   await fixture.installAdapter();
@@ -210,6 +428,27 @@ test('durable schema-v3 state automatically reaches CODEX_LOCAL without directiv
   assert.equal(fixture.missionControl.admissionCalls, 1);
   assert.equal(fixture.missionControl.preflightCalls, 1);
   assert.deepEqual(fixture.missionControl.eventTypes, ['codex_execution_started', 'execution_receipt_recorded']);
+});
+
+test('automatic dispatch selects the highest-sequence directive from a newest-first transport timeline', async () => {
+  const fixture = await automaticFixture('automatic-newest-first', { type: 'LOCAL_FILESYSTEM_COMMAND' });
+  const timeline = fixture.missionControl.snapshot.workers[0].timeline;
+  timeline.push({ sequence: 0, data: {
+    type: 'execution_directive_recorded', worker: fixture.sourceBinding.worker,
+    directive_id: 'directive:historical:0', directive_revision: 1, task_id: 'task:historical',
+    directive_schema_version: 3, directive_artifact_sha256: '0'.repeat(64),
+    source_message_id: 'chat-message:historical:0', source_body_sha256: '0'.repeat(64),
+    work_execution_profile: 'LEGACY_MODEL_PROFILE_UNSPECIFIED', status: 'ACTIVE',
+  } });
+  timeline.sort((left, right) => right.sequence - left.sequence);
+  const result = await dispatchAutomaticMissionControlExecution({
+    config: fixture.config,
+    missionControl: fixture.missionControl,
+    legacyBrowserHandler: async () => { throw new Error('legacy path must not run'); },
+    spawnImpl: fixture.spawnImpl,
+  });
+  assert.equal(result.status, CODEX_ATTEMPT_STATUSES.COMPLETED);
+  assert.equal(result.automaticDispatch.directiveId, fixture.directive.sourceDirective.id);
 });
 
 test('automatic preview-disabled and unsupported-browser fallback retain the exact durable task and request', async (t) => {
@@ -285,6 +524,7 @@ async function automaticFixture(name, executionCapability) {
     ...fixture.directive(executionCapability),
     deadline: payload.deadline,
     prompt: payload.prompt,
+    executionSurface: 'CODEX',
     sourceDirective: {
       id: `directive:${name}:1`, revision: 1, taskId: `task:${name}`,
       sourceMessageId: `chat-message:${name}:1`, sourceBodySha256,
@@ -315,7 +555,7 @@ async function automaticFixture(name, executionCapability) {
           directive_id: sourceBinding.directiveId, directive_revision: 1, task_id: sourceBinding.taskId,
           directive_schema_version: 3, directive_artifact_sha256: codexDirectiveArtifactSha256(directive),
           source_message_id: sourceBinding.sourceMessageId, source_body_sha256: sourceBodySha256,
-          work_execution_profile: solLowProfile, status: 'ACTIVE',
+          work_execution_profile: solLowProfile, execution_surface: 'CODEX', status: 'ACTIVE',
         } },
       ],
     }],
@@ -426,6 +666,8 @@ class FakeMissionControl {
   preflightCalls = 0;
   admissionOverride = null;
   eventTypes = [];
+  events = [];
+  failNextReceipt = false;
 
   bind(admissionInput, profile) {
     this.admissionInput = admissionInput;
@@ -475,6 +717,11 @@ class FakeMissionControl {
   }
 
   async recordWorkerEvents(_worker, events) {
+    if (this.failNextReceipt && events.some((event) => event.data.type === 'execution_receipt_recorded')) {
+      this.failNextReceipt = false;
+      throw new Error('injected receipt interruption');
+    }
+    this.events.push(...events);
     this.eventTypes.push(...events.map((event) => event.data.type));
     return { events };
   }
@@ -516,8 +763,52 @@ const mode = process.env.FAKE_CODEX_MODE || 'success';
 process.stdout.write(JSON.stringify({ type: 'turn.started' }) + '\\n');
 if (mode === 'timeout') setInterval(() => {}, 1000);
 else if (mode === 'process-failure') process.exit(7);
+else if (mode === 'provider-capacity') {
+  process.stdout.write(JSON.stringify({ type: 'error', message: 'Selected model is at capacity. Please try a different model.' }) + '\\n');
+  process.stdout.write(JSON.stringify({ type: 'turn.failed', error: { message: 'Selected model is at capacity. Please try a different model.' } }) + '\\n');
+  process.exit(1);
+}
 else if (mode === 'malformed-result') { writeFileSync(resultPath, '{not json'); process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n'); }
 else if (mode === 'missing-terminal') writeFileSync(resultPath, JSON.stringify({ success: true, value: 'ok' }));
+else if (mode === 'structured-stop') {
+  writeFileSync(resultPath, JSON.stringify({
+    status: 'STOPPED', next_reasoning_review_required: true,
+    stop_trigger_reached: 'integrity evidence unavailable', deviations: ['receipt was not locatable'],
+  }));
+  process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
+}
+else if (mode === 'structured-reasoning-review-stop') {
+  writeFileSync(resultPath, JSON.stringify({
+    status: 'STOPPED_FOR_REASONING_REVIEW', next_reasoning_review_required: true,
+    stop_trigger_reached: 'immutable attempt readback unavailable', deviations: [],
+  }));
+  process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
+}
+else if (mode === 'structured-blocked') {
+  writeFileSync(resultPath, JSON.stringify({
+    status: 'BLOCKED', next_reasoning_review_required: true,
+    stop_trigger_reached: 'required inputs unavailable', deviations: [],
+  }));
+  process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
+}
+else if (mode === 'structured-stop-alias') {
+  writeFileSync(resultPath, JSON.stringify({
+    status: 'STOPPED', next_reasoning_review_required: true,
+    stop_trigger: 'immutable attempt readback unavailable', deviations: [],
+  }));
+  process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
+}
+else if (mode === 'structured-stop-without-status') {
+  writeFileSync(resultPath, JSON.stringify({
+    next_reasoning_review_required: true,
+    stop_trigger_reached: 'no material headroom remains',
+  }));
+  process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
+}
+else if (mode === 'structured-completed') {
+  writeFileSync(resultPath, JSON.stringify({ status: 'COMPLETED', gate_verdict: 'PASS' }));
+  process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
+}
 else {
   if (args.some((value) => value.startsWith('mcp_servers.existing_chromium_bridge.command='))) {
     process.stdout.write(JSON.stringify({ type: 'item.completed', item: {
@@ -529,6 +820,58 @@ else {
   process.stdout.write(JSON.stringify({ type: 'turn.completed' }) + '\\n');
 }
 `;
+}
+
+function structuredStopOutputSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['status', 'next_reasoning_review_required', 'stop_trigger_reached', 'deviations'],
+    properties: {
+      status: { type: 'string' },
+      next_reasoning_review_required: { type: 'boolean' },
+      stop_trigger_reached: { type: 'string' },
+      deviations: { type: 'array', items: { type: 'string' } },
+    },
+  };
+}
+
+function structuredStopAliasOutputSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['status', 'next_reasoning_review_required', 'stop_trigger', 'deviations'],
+    properties: {
+      status: { type: 'string' },
+      next_reasoning_review_required: { type: 'boolean' },
+      stop_trigger: { type: 'string' },
+      deviations: { type: 'array', items: { type: 'string' } },
+    },
+  };
+}
+
+function structuredStopWithoutStatusOutputSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['next_reasoning_review_required', 'stop_trigger_reached'],
+    properties: {
+      next_reasoning_review_required: { type: 'boolean' },
+      stop_trigger_reached: { type: 'string' },
+    },
+  };
+}
+
+function structuredCompletionOutputSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['status', 'gate_verdict'],
+    properties: {
+      status: { type: 'string' },
+      gate_verdict: { type: 'string' },
+    },
+  };
 }
 
 test('config places ephemeral runtime outside the durable state default', () => {

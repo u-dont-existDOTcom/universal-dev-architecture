@@ -936,6 +936,14 @@ export const githubDecisionReceiptIngestedSchema = z.object({
   execution_pre_send_receipt_id: StableId.optional(),
   execution_submission_admission_id: StableId.optional(),
   execution_provider_body_sha256: Sha256.optional(),
+  receipt_relocation: z.object({
+    authority: z.literal("OWNER_CONFIGURED_EXACT_RECEIPT_RELOCATION"),
+    source_repository: NonEmpty.max(300),
+    source_issue_number: z.number().int().positive(),
+    destination_repository: NonEmpty.max(300),
+    destination_issue_number: z.number().int().positive(),
+    canonical_receipt_sha256: Sha256,
+  }).strict().optional(),
   canonical_envelope_sha256: Sha256,
   github_receipt: z.object({
     repository: NonEmpty.max(300),

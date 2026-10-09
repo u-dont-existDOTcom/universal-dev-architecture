@@ -92,8 +92,12 @@ completed MC binding preload -> exact origin target -> #61 exact OWNER-byte arti
 ```
 
 GitHub is the handoff between stages. Conversation history is never required for
-an external-tool operation. The relay never reads, copies, hashes, parses,
-summarizes, or transports assistant response text.
+an external-tool operation. Legacy stage routes never read assistant response
+text. Route-schema-v6 is the one narrow exception: after generation completion,
+the relay binds the exact submitted user turn by its frozen prompt hash, requires
+one following assistant turn, extracts one terminal canonical machine block, and
+sends those exact LF-normalized bytes to Mission Control's deterministic copier.
+It never selects a response by recency and never semantically rewrites the block.
 
 ## InnerSignal journal work runner
 
@@ -155,13 +159,13 @@ cannot advance an artifact state or complete a cycle.
 - Only registered exact `https://chatgpt.com/c/<conversation-id>` URLs are managed.
 - Chat configuration registers identity, worker binding, challenge ID, and the fixed visible consumer controls: model `GPT-5.6 Sol`, `Thinking effort` = `Extra High` (`4 of 5`). `Pro` is account-plan provenance only and is never treated as a reasoning-mode control. Configuration cannot self-declare capability PASS.
 - Live capability evidence must prove Mission Control read, GitHub read, GitHub write, and exact visible model-label switching.
-- Model switching and generation state are observed only through non-content controls/UI state.
+- Model switching and generation state are observed only through non-content controls/UI state. Route-schema-v6 content readback begins only after completion and only on the exact bound conversation.
 - A generation turn cannot become COMPLETE unless a real post-submit generation-start transition was observed first.
-- No transcript/message selectors are used after submission. A clicked-but-unverified submission remains ambiguous and blocks replay.
+- Legacy routes use no transcript/message selectors after submission. Route-schema-v6 recovery uses strict role/turn selectors only after completion, binds the exact user prompt hash, and fails closed on zero or multiple assistant candidates. A clicked-but-unverified submission remains ambiguous and blocks replay.
 - Browser control does not claim hidden backend model identity; it records only the exact visible UI label.
 - Binding preload selects and verifies Mission Control. Downstream route-v4 decision messages reference the connected GitHub tool without selecting a composer chip (`APP_SELECTION_NOT_ATTEMPTED`); this is the accepted backend receipt policy. The two-source capability probe selects Mission Control and references GitHub. App-chip state never supplies semantic authority.
-- Before Send, the relay compares the exact prepared input, including paragraph and line breaks, against the queued prompt. Only known plain-text composer structures are accepted; unsupported markup or a different body fails before submission. This check reads only the input composer, never assistant output.
-- Prompt bodies, cookies, tokens, and assistant output are never stored in relay logs/state.
+- Before Send, the relay compares the exact prepared input, including paragraph and line breaks, against the queued prompt. Only known plain-text composer structures are accepted; unsupported markup or a different body fails before submission. This check reads only the input composer.
+- Prompt bodies, cookies, tokens, and assistant output are never stored in relay logs/state. Route-schema-v6 state stores only readback identities and hashes; the exact canonical body exists only in the bounded relay-to-copier request and the private GitHub receipt.
 - Mission Control reads are restricted to worker IDs explicitly bound in `chats.json`; the relay does not request all-worker fleet authority.
 - Every actual ChatGPT message send requires a durable, single-use admission from
   the loopback central scheduler. The default and minimum interval is 60 seconds,

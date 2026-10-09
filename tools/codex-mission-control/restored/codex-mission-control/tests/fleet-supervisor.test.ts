@@ -4,8 +4,17 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
-import { snapshotFromStore } from "../lib/dashboard-data";
-import { classifyFleetSupervisorTick, DEFAULT_FLEET_SUPERVISOR_CADENCE_MS, FleetSupervisorRuntime } from "../lib/fleet-supervisor";
+import { snapshotFromStore, workerTransportSnapshotFromEvents } from "../lib/dashboard-data";
+import {
+  classifyFleetSupervisorTick,
+  DEFAULT_FLEET_SUPERVISOR_CADENCE_MS,
+  FleetSupervisorRuntime,
+  replaceFleetSupervisorReasoningRequest,
+  retireUnsentFleetSupervisorReasoningRequest,
+  routeFleetSupervisorReasoning,
+} from "../lib/fleet-supervisor";
+import { pendingDecisionRequests, providerInvalidCanonicalDecisionSummary, reasoningReplacementProofSummary, supervisoryRequestRetiredUnsentSummary } from "../lib/github-decision-receipts";
+import { inBandRequestRoutePrefix } from "../lib/in-band-request-binding";
 import { seedIssue47Store, seedStore } from "../lib/seed";
 import type { MissionControlEventV2, StoredEvent } from "../lib/schema";
 import { EventStore, type FleetSupervisorWatchRecord } from "../lib/store";
@@ -133,6 +142,451 @@ test("stalled strategy routes to reasoning without fleet-authored replacement", 
   } finally { store.close(); }
 });
 
+test("fleet reasoning routes one idempotent in-band request against the complete durable ledger", () => {
+  const store = new EventStore(":memory:");
+  const previous = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+  const previousPolicy = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+  try {
+    seedStore(store);
+    process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = JSON.stringify([configuredProjectManager()]);
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify(configuredReceiptPolicy());
+    const watch = store.ensureFleetSupervisorWatch("project:auth", "task:auth", "auth", t0);
+    const workerEvents = store.workerEvents(watch.worker);
+    assert.ok(store.allEvents().length > workerEvents.length);
+    const routed = routeFleetSupervisorReasoning(store, watch, {
+      trigger: "REASONING_REVIEW_OVERDUE",
+      result: "Current evidence was routed to the existing reasoning lane.",
+      state: "ACTIVE",
+      reasoningRequired: true,
+      mechanicalRecoveryEligible: false,
+      notifyOwner: false,
+      notificationReason: null,
+    }, workerEvents);
+    assert.ok(routed);
+    if (!routed) return;
+    assert.equal(routed.data.type, "worker_message_recorded");
+    assert.equal(routed.worker, watch.worker);
+    assert.match(routed.eventId, /^supervision-request-v6:/);
+    if (routed.data.type !== "worker_message_recorded") return;
+    assert.equal(routed.data.body.startsWith(inBandRequestRoutePrefix), true);
+    const body = JSON.parse(routed.data.body.slice(inBandRequestRoutePrefix.length));
+    assert.equal(body.schemaVersion, 6);
+    assert.equal(body.requestId.startsWith("fleet-review:"), true);
+    assert.equal(body.factualPacket.supervisoryCycle.bindingProtocol, "IN_BAND_REQUEST_BINDING_V1");
+    assert.equal(body.githubReceipt.repository, configuredReceiptPolicy().repository);
+    assert.equal(body.evidenceCapsule.sha256.length, 64);
+    assert.equal(pendingDecisionRequests(store.workerEvents(watch.worker)).length, 1);
+
+    const count = store.count();
+    const replay = routeFleetSupervisorReasoning(store, watch, {
+      trigger: "REASONING_REVIEW_OVERDUE",
+      result: "Current evidence was routed to the existing reasoning lane.",
+      state: "ACTIVE",
+      reasoningRequired: true,
+      mechanicalRecoveryEligible: false,
+      notifyOwner: false,
+      notificationReason: null,
+    }, store.workerEvents(watch.worker));
+    assert.equal(replay?.eventId, routed.eventId);
+    assert.equal(store.count(), count);
+    assert.equal(store.latestSequence(), store.allEvents().length);
+  } finally {
+    if (previous === undefined) delete process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+    else process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = previous;
+    if (previousPolicy === undefined) delete process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+    else process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = previousPolicy;
+    store.close();
+  }
+});
+
+test("one sealed empty completion is replaced exactly once without changing scientific or decision content", () => {
+  const store = new EventStore(":memory:");
+  const previous = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+  const previousPolicy = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+  try {
+    seedStore(store);
+    process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = JSON.stringify([configuredProjectManager()]);
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify(configuredReceiptPolicy());
+    const watch = store.ensureFleetSupervisorWatch("project:auth", "task:auth", "auth", t0);
+    store.configureFleetSupervisorWatch(watch.projectId, { state: "PAUSED" }, t0);
+    const oldEvent = routeFleetSupervisorReasoning(store, watch, {
+      trigger: "REASONING_REVIEW_OVERDUE",
+      result: "Current evidence was routed to the existing reasoning lane.",
+      state: "ACTIVE",
+      reasoningRequired: true,
+      mechanicalRecoveryEligible: false,
+      notifyOwner: false,
+      notificationReason: null,
+    }, store.workerEvents(watch.worker));
+    assert.ok(oldEvent && oldEvent.data.type === "worker_message_recorded");
+    if (!oldEvent || oldEvent.data.type !== "worker_message_recorded") return;
+    const oldRoot = JSON.parse(oldEvent.data.body.slice(inBandRequestRoutePrefix.length));
+    const replacementAt = new Date(Date.parse(oldRoot.queuedAt) + 1_000).toISOString();
+    const before = store.count();
+    const failureReceiptSha256 = "f".repeat(64);
+    const replacement = replaceFleetSupervisorReasoningRequest(store, watch, {
+      requestId: oldRoot.requestId,
+      failureReceiptSha256,
+    }, replacementAt);
+    assert.equal(replacement.duplicate, false);
+    assert.notEqual(replacement.replacementRequestId, oldRoot.requestId);
+    assert.equal(store.count(), before + 1);
+    assert.equal(replacement.event.data.type, "worker_message_recorded");
+    if (replacement.event.data.type !== "worker_message_recorded") return;
+    const freshRoot = JSON.parse(replacement.event.data.body.slice(inBandRequestRoutePrefix.length));
+    assert.equal(freshRoot.supersedesRequestId, oldRoot.requestId);
+    assert.deepEqual(freshRoot.supersession, {
+      schemaVersion: 1,
+      reasonCode: "PROVIDER_EMPTY_COMPLETION",
+      failureReceiptSha256,
+      authorization: "OWNER_EXPLICIT_ONE_REPLACEMENT",
+      replacementOrdinal: 1,
+    });
+    assert.notEqual(freshRoot.requestId, oldRoot.requestId);
+    assert.notEqual(freshRoot.nonce, oldRoot.nonce);
+    assert.deepEqual(freshRoot.evidenceCapsule, oldRoot.evidenceCapsule);
+    assert.deepEqual(freshRoot.ownerOutcome, oldRoot.ownerOutcome);
+    assert.deepEqual(freshRoot.executionContext, oldRoot.executionContext);
+    assert.equal(freshRoot.reasoningLane, oldRoot.reasoningLane);
+    assert.equal(freshRoot.factualPacket.exactFactualState, oldRoot.factualPacket.exactFactualState);
+    assert.deepEqual(freshRoot.factualPacket.evidenceRefs, oldRoot.factualPacket.evidenceRefs);
+    assert.equal(freshRoot.factualPacket.decisionRequested, oldRoot.factualPacket.decisionRequested);
+    assert.notEqual(freshRoot.factualPacket.packetId, oldRoot.factualPacket.packetId);
+    assert.deepEqual(pendingDecisionRequests(store.workerEvents(watch.worker)).map((item) => item.requestId),
+      [replacement.replacementRequestId]);
+
+    const tamperedRoot = structuredClone(freshRoot);
+    tamperedRoot.requestId = "fleet-review:" + "c".repeat(32);
+    tamperedRoot.nonce = "fleet-review-nonce:" + "c".repeat(32);
+    tamperedRoot.queuedAt = new Date(Date.parse(replacementAt) + 1_000).toISOString();
+    tamperedRoot.expiresAt = new Date(Date.parse(tamperedRoot.queuedAt) + 86_400_000).toISOString();
+    tamperedRoot.factualPacket.packetId = `packet:${tamperedRoot.requestId}`;
+    tamperedRoot.factualPacket.decisionRequested = "changed decision";
+    const tamperedEvent = {
+      ...oldEvent,
+      eventId: "supervision-request-v6:tampered-replacement",
+      sequence: oldEvent.sequence + 1,
+      occurredAt: tamperedRoot.queuedAt,
+      data: { ...oldEvent.data, message_id: "tampered-replacement", body: inBandRequestRoutePrefix + JSON.stringify(tamperedRoot) },
+    } as StoredEvent;
+    assert.deepEqual(pendingDecisionRequests([oldEvent, tamperedEvent]).map((item) => item.requestId), [oldRoot.requestId]);
+
+    const secondRoot = structuredClone(freshRoot);
+    secondRoot.requestId = "fleet-review:" + "d".repeat(32);
+    secondRoot.nonce = "fleet-review-nonce:" + "d".repeat(32);
+    secondRoot.queuedAt = new Date(Date.parse(replacementAt) + 2_000).toISOString();
+    secondRoot.expiresAt = new Date(Date.parse(secondRoot.queuedAt) + 86_400_000).toISOString();
+    secondRoot.factualPacket.packetId = `packet:${secondRoot.requestId}`;
+    const secondEvent = {
+      ...replacement.event,
+      eventId: "supervision-request-v6:second-replacement",
+      sequence: replacement.event.sequence + 1,
+      occurredAt: secondRoot.queuedAt,
+      data: { ...replacement.event.data, message_id: "second-replacement", body: inBandRequestRoutePrefix + JSON.stringify(secondRoot) },
+    } as StoredEvent;
+    assert.deepEqual(pendingDecisionRequests([...store.workerEvents(watch.worker), secondEvent]).map((item) => item.requestId),
+      [replacement.replacementRequestId]);
+
+    const replay = replaceFleetSupervisorReasoningRequest(store, watch, {
+      requestId: oldRoot.requestId,
+      failureReceiptSha256,
+    }, new Date(Date.parse(replacementAt) + 1_000).toISOString());
+    assert.equal(replay.duplicate, true);
+    assert.equal(replay.replacementRequestId, replacement.replacementRequestId);
+    assert.equal(store.count(), before + 1);
+    assert.throws(() => replaceFleetSupervisorReasoningRequest(store, watch, {
+      requestId: oldRoot.requestId,
+      failureReceiptSha256: "e".repeat(64),
+    }, new Date(Date.parse(replacementAt) + 2_000).toISOString()), /different failure receipt/);
+  } finally {
+    if (previous === undefined) delete process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+    else process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = previous;
+    if (previousPolicy === undefined) delete process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+    else process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = previousPolicy;
+    store.close();
+  }
+});
+
+test("one trusted COMPLETE invalid-canonical failure survives the backend-to-relay transport boundary", async () => {
+  const store = new EventStore(":memory:");
+  const previous = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+  const previousPolicy = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+  try {
+    seedStore(store);
+    process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = JSON.stringify([configuredProjectManager()]);
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify(configuredReceiptPolicy());
+    const watch = store.ensureFleetSupervisorWatch("project:auth", "task:auth", "auth", t0);
+    store.configureFleetSupervisorWatch(watch.projectId, { state: "PAUSED" }, t0);
+    const oldEvent = routeFleetSupervisorReasoning(store, watch, {
+      trigger: "REASONING_REVIEW_OVERDUE", result: "Review required.", state: "PAUSED",
+      reasoningRequired: true, mechanicalRecoveryEligible: false, notifyOwner: false, notificationReason: null,
+    }, store.workerEvents(watch.worker));
+    assert.ok(oldEvent && oldEvent.data.type === "worker_message_recorded");
+    if (!oldEvent || oldEvent.data.type !== "worker_message_recorded") return;
+    const oldRoot = JSON.parse(oldEvent.data.body.slice(inBandRequestRoutePrefix.length));
+    const failureReceiptSha256 = "8".repeat(64);
+    const canonicalBodySha256 = "7".repeat(64);
+    const providerSessionId = "provider-session:invalid-canonical-test";
+    const replaceAt = new Date(Date.parse(oldRoot.queuedAt) + 3_000).toISOString();
+    assert.throws(() => replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, replaceAt), /trusted sealed failure receipt/);
+    const evidenceAt = new Date(Date.parse(oldRoot.queuedAt) + 1_000).toISOString();
+    appendInvalidFailureEvidence(store, watch.worker, oldRoot.requestId, oldRoot.destinationSupervisorId,
+      providerSessionId, failureReceiptSha256, canonicalBodySha256, evidenceAt, "collector:untrusted");
+    assert.throws(() => replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, replaceAt), /trusted sealed failure receipt/);
+    appendInvalidFailureEvidence(store, watch.worker, oldRoot.requestId, oldRoot.destinationSupervisorId,
+      providerSessionId, failureReceiptSha256, canonicalBodySha256, evidenceAt, "collector:relay",
+      ["provider_session:ambiguous-duplicate"], "duplicate-ref");
+    assert.throws(() => replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, replaceAt), /trusted sealed failure receipt/);
+    appendInvalidFailureEvidence(store, watch.worker, oldRoot.requestId, oldRoot.destinationSupervisorId,
+      providerSessionId, failureReceiptSha256, canonicalBodySha256, evidenceAt);
+    assert.throws(() => replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256: "6".repeat(64), reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, replaceAt), /trusted sealed failure receipt/);
+    assert.throws(() => replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, replaceAt), /trusted COMPLETE provider session/);
+    appendCompleteProviderSession(store, watch.worker, oldRoot.requestId, oldRoot.destinationSupervisorId,
+      providerSessionId, evidenceAt, "collector:untrusted");
+    assert.throws(() => replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, replaceAt), /trusted COMPLETE provider session/);
+    appendCompleteProviderSession(store, watch.worker, oldRoot.requestId, oldRoot.destinationSupervisorId,
+      providerSessionId, evidenceAt);
+    const before = store.count();
+    const replacement = replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, replaceAt);
+    assert.equal(replacement.duplicate, false);
+    assert.equal(store.count(), before + 2);
+    assert.equal(replacement.event.data.type, "worker_message_recorded");
+    if (replacement.event.data.type !== "worker_message_recorded") return;
+    const freshRoot = JSON.parse(replacement.event.data.body.slice(inBandRequestRoutePrefix.length));
+    const proof = store.workerEvents(watch.worker).find((event) => event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === reasoningReplacementProofSummary);
+    assert.ok(proof && proof.data.type === "evidence_receipt_recorded");
+    if (!proof || proof.data.type !== "evidence_receipt_recorded") return;
+    assert.deepEqual(freshRoot.supersession, {
+      schemaVersion: 1,
+      reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+      failureReceiptSha256,
+      failureProviderSessionId: providerSessionId,
+      failureCanonicalBodySha256: canonicalBodySha256,
+      proofEventId: proof.eventId,
+      proofSha256: proof.data.exact_candidate_sha256,
+      authorization: "OWNER_EXPLICIT_ONE_REPLACEMENT",
+      replacementOrdinal: 1,
+    });
+    const proofOnlyHistory = store.workerEvents(watch.worker).filter((event) => event.eventId !== replacement.event.eventId);
+    assert.deepEqual(pendingDecisionRequests(proofOnlyHistory).map((item) => item.requestId), [oldRoot.requestId],
+      "a verifier proof without the route is inert");
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify({
+      ...configuredReceiptPolicy(), requestBound: { enabled: true, relayProducerIds: ["collector:rotated"] },
+    });
+    assert.deepEqual(pendingDecisionRequests(store.workerEvents(watch.worker)).map((item) => item.requestId),
+      [replacement.replacementRequestId], "trust rotation cannot resurrect the superseded request");
+    const relayCore = await import(new URL("../../../vps-browser-relay/src/core.mjs", import.meta.url).href);
+    const chats = [{ ...configuredProjectManager(), workerId: watch.worker }];
+    const transport = workerTransportSnapshotFromEvents(store.allEvents(), watch.worker);
+    assert.ok(transport);
+    if (!transport) return;
+    const routes = relayCore.extractQueuedRoutes({ workers: [transport.worker] }, chats, relayCore.defaultState());
+    assert.deepEqual(routes.map((route: { requestId: string }) => route.requestId), [replacement.replacementRequestId]);
+
+    const withoutProof = workerTransportSnapshotFromEvents(store.allEvents().filter((event) => event.eventId !== proof.eventId), watch.worker);
+    assert.ok(withoutProof);
+    if (!withoutProof) return;
+    const withoutProofRoutes = relayCore.extractQueuedRoutes({ workers: [withoutProof.worker] }, chats, relayCore.defaultState());
+    assert.equal(withoutProofRoutes.some((route: { requestId: string }) => route.requestId === replacement.replacementRequestId), false,
+      "removing the proof summary from the dashboard transport allowlist must make this positive round trip fail");
+
+    const crossWorkerEvents = store.allEvents().map((event) => {
+      if (event.eventId !== proof.eventId || event.data.type !== "evidence_receipt_recorded") return event;
+      return { ...structuredClone(event), worker: "other-worker", data: { ...structuredClone(event.data), worker: "other-worker" } };
+    });
+    const targetTransport = workerTransportSnapshotFromEvents(crossWorkerEvents, watch.worker);
+    const misplacedProof = crossWorkerEvents.find((event) => event.eventId === proof.eventId);
+    assert.ok(targetTransport && misplacedProof);
+    if (!targetTransport || !misplacedProof) return;
+    assert.equal(targetTransport.worker.timeline.some((event) => event.eventId === proof.eventId), false);
+    const crossWorkerRoutes = relayCore.extractQueuedRoutes({ workers: [targetTransport.worker,
+      { id: "other-worker", name: "Other worker", timeline: [misplacedProof], authoritativePendingRequestIds: [] }] }, chats, relayCore.defaultState());
+    assert.equal(crossWorkerRoutes.some((route: { requestId: string }) => route.requestId === replacement.replacementRequestId), false,
+      "a proof transported under another worker cannot authorize this replacement");
+    const replay = replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_INVALID_CANONICAL_DECISION",
+    }, new Date(Date.parse(replaceAt) + 1_000).toISOString());
+    assert.equal(replay.duplicate, true);
+    assert.equal(replay.replacementRequestId, replacement.replacementRequestId);
+    assert.equal(store.count(), before + 2);
+    assert.throws(() => replaceFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: oldRoot.requestId, failureReceiptSha256, reasonCode: "PROVIDER_EMPTY_COMPLETION",
+    }, new Date(Date.parse(replaceAt) + 2_000).toISOString()), /different failure receipt or reason/);
+  } finally {
+    if (previous === undefined) delete process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+    else process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = previous;
+    if (previousPolicy === undefined) delete process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+    else process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = previousPolicy;
+    store.close();
+  }
+});
+
+test("one proven-unsent stale request is retired append-only and exactly one current evidence review is queued", () => {
+  const store = new EventStore(":memory:");
+  const previous = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+  const previousPolicy = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+  try {
+    seedStore(store);
+    process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = JSON.stringify([configuredProjectManager()]);
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify(configuredReceiptPolicy());
+    const watch = store.ensureFleetSupervisorWatch("project:auth", "task:auth", "auth", t0);
+    store.configureFleetSupervisorWatch(watch.projectId, { state: "PAUSED" }, t0);
+    const stale = routeFleetSupervisorReasoning(store, watch, {
+      trigger: "REASONING_REVIEW_OVERDUE",
+      result: "Current evidence was routed to the existing reasoning lane.",
+      state: "PAUSED",
+      reasoningRequired: true,
+      mechanicalRecoveryEligible: false,
+      notifyOwner: false,
+      notificationReason: null,
+    }, store.workerEvents(watch.worker));
+    assert.ok(stale && stale.data.type === "worker_message_recorded");
+    if (!stale || stale.data.type !== "worker_message_recorded") return;
+    const staleRoot = JSON.parse(stale.data.body.slice(inBandRequestRoutePrefix.length));
+    const evidenceEvent = store.append({
+      schema_version: 2,
+      event_id: "sealed-current-execution-evidence",
+      mission_id: "mission-control-live",
+      occurred_at: "2026-09-19T02:00:00.000Z",
+      data: {
+        type: "evidence_receipt_recorded",
+        worker: watch.worker,
+        receipt_id: "sealed-current-execution-evidence",
+        producer_id: "collector:test",
+        producer_role: "COLLECTOR",
+        evidence_class: "ARTIFACT",
+        independence: "SAME_PROVENANCE",
+        freshness: "CURRENT",
+        exact_candidate_sha256: "a".repeat(64),
+        summary: "SEALED_TEST_EXECUTION_RESULT_V1",
+        refs: ["status:STAGE_COMPLETE", "next_reasoning_review_required:true", "material_miss:false"],
+        verified: true,
+        changed_path_manifest: null,
+      },
+    });
+    const proof = {
+      schemaVersion: 1 as const,
+      requestId: staleRoot.requestId,
+      pacingDomain: "provider-account:test",
+      ledgerValid: true,
+      matchingStateSections: [],
+      queueRecordCount: 0,
+      admissionRecordCount: 0,
+      provenUnsent: true,
+      proofSha256: "b".repeat(64),
+    };
+    const before = store.count();
+    const result = retireUnsentFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: staleRoot.requestId,
+      evidenceEventId: evidenceEvent.eventId,
+    }, proof, "2026-09-19T02:00:01.000Z");
+    assert.equal(result.duplicate, false);
+    assert.equal(store.count(), before + 2);
+    assert.equal(result.retirementEvent.data.type, "evidence_receipt_recorded");
+    if (result.retirementEvent.data.type !== "evidence_receipt_recorded") return;
+    assert.equal(result.retirementEvent.data.summary, supervisoryRequestRetiredUnsentSummary);
+    assert.ok(result.retirementEvent.data.refs.includes(`request:${staleRoot.requestId}`));
+    assert.ok(result.retirementEvent.data.refs.includes("lifecycle_status:RETIRED_UNSENT"));
+    assert.deepEqual(pendingDecisionRequests(store.workerEvents(watch.worker)).map((item) => item.requestId),
+      [result.reviewRequestId]);
+    assert.notEqual(result.reviewRequestId, staleRoot.requestId);
+    assert.equal(store.fleetSupervisorWatch(watch.projectId)?.state, "PAUSED");
+    assert.equal(result.reviewEvent.data.type, "worker_message_recorded");
+    if (result.reviewEvent.data.type !== "worker_message_recorded") return;
+    const currentRoot = JSON.parse(result.reviewEvent.data.body.slice(inBandRequestRoutePrefix.length));
+    const facts = JSON.parse(currentRoot.factualPacket.exactFactualState);
+    assert.equal(facts.decision_boundary.event_id, evidenceEvent.eventId);
+    assert.equal(facts.execution.latest_verified_sealed_evidence.event_id, evidenceEvent.eventId);
+    assert.equal(facts.execution.latest_verified_sealed_evidence.exact_candidate_sha256, "a".repeat(64));
+
+    const replayCount = store.count();
+    const replay = retireUnsentFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: staleRoot.requestId,
+      evidenceEventId: evidenceEvent.eventId,
+    }, proof, "2026-09-19T02:00:02.000Z");
+    assert.equal(replay.duplicate, true);
+    assert.equal(replay.reviewRequestId, result.reviewRequestId);
+    assert.equal(store.count(), replayCount);
+  } finally {
+    if (previous === undefined) delete process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+    else process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = previous;
+    if (previousPolicy === undefined) delete process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+    else process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = previousPolicy;
+    store.close();
+  }
+});
+
+test("unsent retirement fails closed on any durable request-bound provider evidence", () => {
+  const store = new EventStore(":memory:");
+  const previous = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+  const previousPolicy = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+  try {
+    seedStore(store);
+    process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = JSON.stringify([configuredProjectManager()]);
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify(configuredReceiptPolicy());
+    const watch = store.ensureFleetSupervisorWatch("project:auth", "task:auth", "auth", t0);
+    store.configureFleetSupervisorWatch(watch.projectId, { state: "PAUSED" }, t0);
+    const stale = routeFleetSupervisorReasoning(store, watch, {
+      trigger: "REASONING_REVIEW_OVERDUE", result: "Review required.", state: "PAUSED",
+      reasoningRequired: true, mechanicalRecoveryEligible: false, notifyOwner: false, notificationReason: null,
+    }, store.workerEvents(watch.worker));
+    assert.ok(stale && stale.data.type === "worker_message_recorded");
+    if (!stale || stale.data.type !== "worker_message_recorded") return;
+    const staleRoot = JSON.parse(stale.data.body.slice(inBandRequestRoutePrefix.length));
+    const evidenceEvent = store.append({
+      schema_version: 2, event_id: "sealed-current-evidence-with-send", mission_id: "mission-control-live",
+      occurred_at: "2026-09-19T02:00:00.000Z",
+      data: {
+        type: "evidence_receipt_recorded", worker: watch.worker, receipt_id: "sealed-current-evidence-with-send",
+        producer_id: "collector:test", producer_role: "COLLECTOR", evidence_class: "ARTIFACT",
+        independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: "c".repeat(64),
+        summary: "SEALED_TEST_EXECUTION_RESULT_V1",
+        refs: ["status:STAGE_COMPLETE", "next_reasoning_review_required:true"], verified: true, changed_path_manifest: null,
+      },
+    });
+    store.append({
+      schema_version: 2, event_id: "provider-send-evidence", mission_id: "mission-control-live",
+      occurred_at: "2026-09-19T02:00:00.500Z",
+      data: {
+        type: "evidence_receipt_recorded", worker: watch.worker, receipt_id: "provider-send-evidence",
+        producer_id: "collector:test", producer_role: "COLLECTOR", evidence_class: "ARTIFACT",
+        independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: null,
+        summary: "MISSION_CONTROL_RELAY_STAGE_V1",
+        refs: [`request:${staleRoot.requestId}`, "generation_state:STARTED"], verified: true, changed_path_manifest: null,
+      },
+    });
+    assert.throws(() => retireUnsentFleetSupervisorReasoningRequest(store, store.fleetSupervisorWatch(watch.projectId)!, {
+      requestId: staleRoot.requestId,
+      evidenceEventId: evidenceEvent.eventId,
+    }, {
+      schemaVersion: 1, requestId: staleRoot.requestId, pacingDomain: "provider-account:test", ledgerValid: true,
+      matchingStateSections: [], queueRecordCount: 0, admissionRecordCount: 0, provenUnsent: true,
+      proofSha256: "d".repeat(64),
+    }, "2026-09-19T02:00:01.000Z"), /durable send, delivery, response, decision, or ambiguous lifecycle evidence/);
+  } finally {
+    if (previous === undefined) delete process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+    else process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = previous;
+    if (previousPolicy === undefined) delete process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+    else process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = previousPolicy;
+    store.close();
+  }
+});
+
 test("overdue reasoning review and directive continuity gaps are decision-changing reasoning triggers", () => {
   const store = new EventStore(":memory:");
   try {
@@ -233,4 +687,91 @@ function appendSystem(store: EventStore, worker: string, id: string, data: Missi
 function appendWorker(store: EventStore, watch: FleetSupervisorWatchRecord, id: string, data: MissionControlEventV2) {
   store.append({ schema_version: 2, event_id: `fleet-test:${id}`, mission_id: "mission-control-live", occurred_at: t0, data }, undefined,
     { id: `worker:${watch.worker}`, kind: "WORKER", workerScopes: [watch.worker], taskScopes: [watch.taskId] });
+}
+
+function configuredProjectManager() {
+  return {
+    scope: "PROJECT_MANAGER",
+    supervisorId: "mc-project-manager",
+    label: "MC project manager",
+    workerId: null,
+    requiredApp: "Mission Control",
+    registrationId: "registration:test:mc-project-manager",
+    ownership: "MISSION_CONTROL_ONLY",
+    purpose: "Dedicated Mission Control reasoning supervisor",
+    accountAlias: "owner-account",
+    workspaceAlias: "personal",
+    privateLocatorRef: "owner-config:test:mc-project-manager",
+    registrationProvenance: {
+      registeredBy: "OWNER",
+      registeredAt: "2026-09-20T00:00:00.000Z",
+      sourceRef: "owner:test",
+    },
+    consumerControls: {
+      modelSelectionPolicy: "TOP_VISIBLE_SELECTABLE_MODEL",
+      thinkingControlLabel: "Thinking effort",
+      thinkingVisibleLabel: "Extra High",
+      thinkingOrdinal: "4 of 5",
+      accountPlanLabel: "Pro",
+      accountPlanRole: "PROVENANCE_METADATA_ONLY",
+      accountPlanIsReasoningMode: false,
+    },
+    bootstrapCapability: {
+      chatId: "bootstrap:pm",
+      url: "https://chatgpt.com/c/test-project-manager",
+      challengeId: "challenge:pm",
+    },
+  };
+}
+
+function configuredReceiptPolicy() {
+  return {
+    repository: "owner/private-receipts",
+    decisionIssueNumber: 4,
+    capabilityIssueNumber: 4,
+    stageIssueNumber: 4,
+    authorizedWriterLogins: ["owner"],
+    capabilityChallenges: [],
+    requestBound: { enabled: true, relayProducerIds: ["collector:relay"] },
+  };
+}
+
+function appendInvalidFailureEvidence(
+  store: EventStore, worker: string, requestId: string, supervisorId: string,
+  providerSessionId: string, failureReceiptSha256: string, canonicalBodySha256: string, occurredAt: string,
+  producerId = "collector:relay", extraRefs: string[] = [], tag?: string,
+) {
+  const common = {
+    schema_version: 2 as const, mission_id: "mission-control-live", occurred_at: occurredAt,
+  };
+  const data = (receiptId: string, summary: string, refs: string[]) => ({
+    type: "evidence_receipt_recorded" as const, worker, receipt_id: receiptId,
+    producer_id: producerId, producer_role: "COLLECTOR" as const, evidence_class: "ARTIFACT" as const,
+    independence: "SAME_PROVENANCE" as const, freshness: "CURRENT" as const, exact_candidate_sha256: null,
+    summary, refs, verified: true, changed_path_manifest: null,
+  });
+  const suffix = tag ?? (producerId === "collector:relay" ? "trusted" : "untrusted");
+  store.append({ ...common, event_id: `invalid-canonical-failure-test-${suffix}`, data: data(`invalid-canonical-failure-test-${suffix}`,
+    providerInvalidCanonicalDecisionSummary, [`request:${requestId}`, `supervisor:${supervisorId}`,
+      `provider_session:${providerSessionId}`, `failure_receipt_sha256:${failureReceiptSha256}`,
+      `canonical_body_sha256:${canonicalBodySha256}`,
+      "classification:PROVIDER_INVALID_CANONICAL_DECISION", "canonical_decision_admitted:false", ...extraRefs]) });
+}
+
+function appendCompleteProviderSession(
+  store: EventStore, worker: string, requestId: string, supervisorId: string,
+  providerSessionId: string, occurredAt: string, producerId = "collector:relay",
+) {
+  const suffix = producerId === "collector:relay" ? "trusted" : "untrusted";
+  store.append({
+    schema_version: 2, event_id: `provider-session-invalid-canonical-test-${suffix}`,
+    mission_id: "mission-control-live", occurred_at: occurredAt,
+    data: {
+      type: "evidence_receipt_recorded", worker, receipt_id: `provider-session-invalid-canonical-test-${suffix}`,
+      producer_id: producerId, producer_role: "COLLECTOR", evidence_class: "ARTIFACT",
+      independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: null,
+      summary: "MISSION_CONTROL_PROVIDER_SESSION_V1", refs: [`request:${requestId}`, `supervisor:${supervisorId}`,
+        `provider_session:${providerSessionId}`, "lifecycle_status:COMPLETE"], verified: true, changed_path_manifest: null,
+    },
+  });
 }
