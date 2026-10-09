@@ -11,8 +11,14 @@ Requirements: Node.js 22.5+ and npm.
 ```bash
 npm install
 export MISSION_CONTROL_OWNER_TOKEN='<32+ random characters>'
+export MISSION_CONTROL_SESSION_SECRET='<different random secret>'
 npm run dev
 ```
+
+Generate the session secret once with at least 32 random characters, save it
+securely outside the repository, and export that same value on every launch,
+including from a new terminal. If it is unset, `npm run dev` generates a temporary
+secret and restarting signs browsers out.
 
 `npm run dev` starts:
 
@@ -21,8 +27,10 @@ npm run dev
 
 Open the dashboard route. It seeds six deterministic supervision fixtures into `data/mission-control.db` unless `MISSION_CONTROL_SKIP_SEED=1` is set. Override the database with `MISSION_CONTROL_DB=/absolute/path/mission-control.db` and the daemon with `MISSION_CONTROL_DAEMON_URL=http://127.0.0.1:4100`.
 
-The stack never generates or prints an owner token. Supply an owner-only
-`MISSION_CONTROL_OWNER_TOKEN` and use it at `/login`. Production operators
+The stack never generates or prints an owner token. The owner signs in once
+per browser at `/login` with the owner access token (`MISSION_CONTROL_OWNER_TOKEN`),
+and the session then lasts a year. Rotating `MISSION_CONTROL_SESSION_SECRET`
+signs every browser out. Production operators
 must also provide distinct `MISSION_CONTROL_INTERNAL_TOKEN`,
 `MISSION_CONTROL_OWNER_ID`, and `MISSION_CONTROL_SESSION_SECRET` values;
 production startup fails closed when any is missing.
