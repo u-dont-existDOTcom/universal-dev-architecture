@@ -4,7 +4,7 @@ import { sameOriginMutation } from "./daemon-client";
 
 export const ownerSessionCookie = "mc_owner_session";
 export const ownerCsrfCookie = "mc_owner_csrf";
-const sessionLifetimeSeconds = 8 * 60 * 60;
+const sessionLifetimeSeconds = 365 * 24 * 60 * 60;
 
 interface SessionPayload {
   type: "owner_session";
