@@ -72,7 +72,7 @@ class ReviewMergeSliceTests(unittest.TestCase):
                 for phase in {o["due_phase"] for o in record["obligations"]}:
                     with self.subTest(record=record["rule_id"], candidate=filename, phase=phase):
                         result = tt.check_contract(contract, phase, payload,
-                                                   receipts=self.bind(contract, phase, payload, judgment), current_facts=task["facts"])
+                                                   receipts=self.bind(contract, phase, payload, judgment), current_task=task)
                         target_due = "obligation_id" not in judgment or any(
                             o["obligation_id"] == judgment["obligation_id"] and o["due_phase"] == phase
                             for o in record["obligations"])
@@ -93,14 +93,14 @@ class ReviewMergeSliceTests(unittest.TestCase):
                     bound = self.bind(contract, phase, payload, judgment)
                     target = next(r for r in bound["receipts"] if r["obligation_id"] == ob["obligation_id"])
                     target["verdict"] = "FAIL"
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound, current_facts=task["facts"])["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound, current_task=task)["admission"])
                     target["verdict"] = "PASS"
                     for other in ("violating.txt", "near-miss.txt"):
-                        result = tt.check_contract(contract, phase, (folder / other).read_bytes(), receipts=bound, current_facts=task["facts"])
+                        result = tt.check_contract(contract, phase, (folder / other).read_bytes(), receipts=bound, current_task=task)
                         self.assertEqual("BLOCKED", result["admission"])
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload + b"Rewritten.\n", receipts=bound, current_facts=task["facts"])["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload + b"Rewritten.\n", receipts=bound, current_task=task)["admission"])
                     bound["receipts"].remove(target)
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound, current_facts=task["facts"])["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound, current_task=task)["admission"])
 
     def test_not_applicable_needs_permission_and_a_bound_nonempty_reason(self):
         for folder, record, _, task, contract in self.cases():
@@ -115,8 +115,8 @@ class ReviewMergeSliceTests(unittest.TestCase):
                     for reason in ("", " ", "The conditional action has not occurred in this synthetic candidate."):
                         target["not_applicable_reason"] = reason
                         expected = "ADMITTED" if reason.strip() and ob["not_applicable_allowed"] else "BLOCKED"
-                        self.assertEqual(expected, tt.check_contract(contract, phase, payload, receipts=bound, current_facts=task["facts"])["admission"])
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload + b"Changed\n", receipts=bound, current_facts=task["facts"])["admission"])
+                        self.assertEqual(expected, tt.check_contract(contract, phase, payload, receipts=bound, current_task=task)["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload + b"Changed\n", receipts=bound, current_task=task)["admission"])
 
     def test_actor_action_and_unknown_fact_scope_fail_closed(self):
         for folder, record, catalog, task, _ in self.cases():

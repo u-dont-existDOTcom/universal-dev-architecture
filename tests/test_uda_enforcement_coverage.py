@@ -66,6 +66,9 @@ class EnforcementCoverageTests(unittest.TestCase):
     def test_refresh_validation_rejects_missing_trigger_fact_or_absent_policy(self):
         original = self.read(coverage.METADATA)
         for rid, name in (("uda.final.timestamp", None),
+                          ("uda.final.timestamp", "role"),
+                          ("uda.final.timestamp", "envelope.bootstrap"),
+                          ("uda.final.timestamp", "envelope.legacy_rule_ids"),
                           ("uda.continuation.controller-resume", "actor"),
                           ("uda.task-lock.exclusive-controls", "governance_required")):
             with self.subTest(rule=rid, fact=name):

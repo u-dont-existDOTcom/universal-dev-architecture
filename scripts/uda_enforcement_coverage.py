@@ -120,6 +120,7 @@ def validate(root: Path | str) -> list[str]:
         coverage = json.loads(file_at(root, COVERAGE).read_text(encoding="utf-8"))
         baseline = json.loads(file_at(root, BASELINE).read_text(encoding="utf-8"))
         catalog = json.loads(file_at(root, METADATA).read_text(encoding="utf-8"))
+        profile = json.loads(file_at(root, "scripts/instruction-layering-profile.json").read_text(encoding="utf-8"))
         lock = json.loads(file_at(root, LOCK).read_text(encoding="utf-8"))
         graph = json.loads(file_at(root, "rules/UDA-RULE-GRAPH.json").read_text(encoding="utf-8"))
         requirement = json.loads(file_at(root, REQUIREMENT).read_text(encoding="utf-8"))
@@ -147,7 +148,7 @@ def validate(root: Path | str) -> list[str]:
         for record in records:
             try:
                 validate_trigger(record.get("trigger"), record["rule_id"])
-                task_time.validate_refresh_facts(record)
+                task_time.validate_refresh_facts(record, profile)
             except RuleGraphError as exc:
                 errors.append(f"{record['rule_id']}: {exc.code}: {exc}")
         lock_ids = [e["rule_id"] for e in lock["entries"]]

@@ -76,7 +76,8 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
                      {"not": {"fact": "owner_correction_present", "present": True}},
                      {"fact": "action_classes", "contains": "handoff"}]},
             {"not": {"not": {"fact": "actor", "eq": "work"}}}]}
-        rule["refresh_on_facts"] = ["governance_required", "actor", "owner_correction_present", "action_classes"]
+        rule["refresh_on_facts"] = ["governance_required", "actor", "owner_correction_present", "action_classes",
+                                    "role", "envelope.bootstrap", "envelope.legacy_rule_ids"]
         return catalog, rule
 
     def test_refresh_validation_accepts_every_nested_trigger_fact_and_extra_guard(self):
@@ -105,24 +106,151 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
                 with self.assertRaises(task_time.RuleGraphError) as caught:
                     task_time.validate(catalog, self.profile)
                 self.assertEqual("TRIGGER_FACTS_NOT_REFRESHED", caught.exception.code)
-                self.assertEqual(sorted(("governance_required", "actor", "owner_correction_present", "action_classes")),
+                self.assertEqual(sorted(("governance_required", "actor", "owner_correction_present", "action_classes",
+                                         "role", "envelope.bootstrap", "envelope.legacy_rule_ids")),
                                  caught.exception.detail["missing_facts"])
 
-    def test_refresh_validation_includes_implicit_actor_scope_predicate(self):
+    def test_refresh_validation_includes_every_populated_applicability_dimension(self):
         catalog, rule = self.refresh_catalog()
         rule["trigger"] = {"fact": "governance_required", "eq": True}
-        rule["refresh_on_facts"] = ["governance_required", "actor"]
+        rule["applies_to"] = {"roles": ["universal_internal"], "actors": ["work"],
+                              "destinations": ["owner-visible-final"], "action_classes": ["handoff"]}
+        rule["refresh_on_facts"] = ["governance_required", "role", "actor", "destination", "action_classes",
+                                    "envelope.bootstrap", "envelope.legacy_rule_ids"]
         self.assertIn(rule["rule_id"], task_time.validate(catalog, self.profile)["by_id"])
-        rule["refresh_on_facts"].remove("actor")
+        for name in ("role", "actor", "destination", "action_classes", "envelope.bootstrap", "envelope.legacy_rule_ids"):
+            with self.subTest(input=name):
+                broken = copy.deepcopy(catalog)
+                broken["records"][0]["refresh_on_facts"].remove(name)
+                with self.assertRaises(task_time.RuleGraphError) as caught:
+                    task_time.validate(broken, self.profile)
+                self.assertEqual("TRIGGER_FACTS_NOT_REFRESHED", caught.exception.code)
+                self.assertEqual([name], caught.exception.detail["missing_facts"])
+
+    def test_empty_applicability_dimensions_add_no_fact_requirements(self):
+        catalog, rule = self.refresh_catalog()
+        rule["trigger"] = {"fact": "governance_required", "eq": True}
+        rule["applies_to"] = dict.fromkeys(("roles", "actors", "destinations", "action_classes"), [])
+        rule["refresh_on_facts"] = ["governance_required", "envelope.bootstrap", "envelope.legacy_rule_ids"]
+        self.assertEqual(set(rule["refresh_on_facts"]), task_time.selection_inputs(rule, self.profile))
+        self.assertIn(rule["rule_id"], task_time.validate(catalog, self.profile)["by_id"])
+
+    def test_refresh_inputs_follow_new_reads_in_actual_selection_code(self):
+        catalog, rule = self.refresh_catalog()
+        original_scope, original_context = task_time.scope, task_time.selection_context
+
+        def extended_scope(record, envelope, profile):
+            return task_time.tri_all([original_scope(record, envelope, profile),
+                                     task_time.evaluate({"fact": "new_scope_input", "eq": True}, envelope["facts"])])
+
+        def extended_context(envelope):
+            envelope.get("new_activation_input")
+            return original_context(envelope)
+
+        with patch.object(task_time, "scope", extended_scope), patch.object(task_time, "selection_context", extended_context):
+            with self.assertRaises(task_time.RuleGraphError) as caught:
+                task_time.validate(catalog, self.profile)
+            self.assertEqual(["envelope.new_activation_input", "new_scope_input"], caught.exception.detail["missing_facts"])
+            rule["refresh_on_facts"] += caught.exception.detail["missing_facts"]
+            self.assertIn(rule["rule_id"], task_time.validate(catalog, self.profile)["by_id"])
+
+    def test_zero_rule_external_role_contract_requires_recompile_after_role_correction(self):
+        catalog = json.loads((ROOT / "rules/rule-graph/task-time-metadata.v1.json").read_text())
+        initial = copy.deepcopy(self.work)
+        initial["facts"]["role"] = {"state": "KNOWN", "value": "external"}
+        payload = "2026-10-07 00:02:00 UTC\nElapsed time: 120 seconds.\n"
+        for mode in ("graph", "flat"):
+            with self.subTest(mode=mode):
+                contract = task_time.compile_contract(catalog, self.profile, initial, mode)
+                self.assertEqual([], contract["selected_rules"])
+                expected = {(r["rule_id"], ob["due_phase"], ob["destination"]) for r in catalog["records"]
+                            if r["status"] == "CURRENT" for ob in r["obligations"]}
+                self.assertEqual(expected, {(b["rule_id"], b["phase"], b["destination"]) for b in contract["refresh_boundaries"]})
+                options = dict(destination="owner-visible-final", clock_start="2026-10-07T00:00:00Z",
+                               clock_end="2026-10-07T00:02:00Z")
+                self.assertEqual("NOT_EVALUATED", task_time.check_contract(contract, "final-delivery", payload,
+                                 current_task=initial, **options)["admission"])
+                corrected = copy.deepcopy(initial)
+                corrected["facts"]["role"]["value"] = "universal_internal"
+                stale = task_time.check_contract(contract, "final-delivery", payload, current_task=corrected, **options)
+                self.assertEqual("BLOCKED", stale["admission"])
+                self.assertIn("recompile", stale["reason"])
+                # The existing facts-only API must also reject this correction.
+                self.assertEqual("BLOCKED", task_time.check_contract(contract, "final-delivery", payload,
+                                 current_facts=corrected["facts"], **options)["admission"])
+                fresh = task_time.compile_contract(catalog, self.profile, corrected, mode)
+                self.assertTrue(fresh["selected_rules"])
+                self.assertEqual("BLOCKED", task_time.check_contract(fresh, "final-delivery", payload,
+                                 current_task=corrected, **options)["admission"])
+                receipts = pass_receipts(task_time, fresh, "final-delivery", payload)
+                self.assertEqual("ADMITTED", task_time.check_contract(fresh, "final-delivery", payload,
+                                 receipts=receipts, current_task=corrected, **options)["admission"])
+
+    def test_envelope_activation_and_legacy_selection_changes_require_recompile(self):
+        catalog, rule = self.refresh_catalog()
+        rule["trigger"] = {"fact": "governance_required", "eq": True}
+        task = copy.deepcopy(self.work)
+        task["legacy_rule_ids"] = []
+        ob = rule["obligations"][0]
+        for field, value in (("bootstrap", {"state": "NOT_LOADED"}), ("legacy_rule_ids", [rule["rule_id"]])):
+            with self.subTest(field=field):
+                contract = task_time.compile_contract(catalog, self.profile, task, "legacy")
+                self.assertEqual([], contract["selected_rules"])
+                changed = copy.deepcopy(task)
+                changed[field] = value
+                checked = task_time.check_contract(contract, ob["due_phase"], "candidate", destination=ob["destination"],
+                                                   current_task=changed)
+                self.assertEqual("BLOCKED", checked["admission"])
+                self.assertIn("recompile", checked["reason"])
+                fresh = task_time.compile_contract(catalog, self.profile, changed, "legacy")
+                if field == "bootstrap":
+                    self.assertEqual("OUTSIDE_UDA", fresh["uda_protection"])
+                else:
+                    self.assertEqual([rule["rule_id"]], self.ids(fresh))
+
+    def test_each_scope_correction_blocks_an_initially_empty_contract(self):
+        catalog, rule = self.refresh_catalog()
+        rule["trigger"] = {"fact": "governance_required", "eq": True}
+        rule["applies_to"] = {"roles": ["universal_internal"], "actors": ["work"],
+                              "destinations": ["owner-visible-final"], "action_classes": ["handoff"]}
+        rule["refresh_on_facts"] = sorted(task_time.selection_inputs(rule, self.profile))
+        applicable = copy.deepcopy(self.work)
+        values = {"role": "universal_internal", "actor": "work", "destination": "owner-visible-final",
+                  "action_classes": ["handoff"]}
+        for name, value in values.items():
+            applicable["facts"][name] = {"state": "KNOWN", "value": value}
+        ob = rule["obligations"][0]
+        for name in values:
+            for mode in ("flat", "graph"):
+                for state in ("KNOWN", "ABSENT", "UNKNOWN"):
+                    with self.subTest(input=name, mode=mode, state=state):
+                        initial = copy.deepcopy(applicable)
+                        initial["facts"][name] = {"state": state}
+                        if state == "KNOWN":
+                            initial["facts"][name]["value"] = ["outside"] if name == "action_classes" else "outside"
+                        contract = task_time.compile_contract(catalog, self.profile, initial, mode)
+                        self.assertFalse(contract["selected_rules"])
+                        self.assertTrue(contract["refresh_boundaries"])
+                        stale = task_time.check_contract(contract, ob["due_phase"], "candidate",
+                                                         destination=ob["destination"], current_task=applicable)
+                        self.assertEqual("BLOCKED", stale["admission"])
+                        self.assertIn("recompile", stale["reason"])
+                        fresh = task_time.compile_contract(catalog, self.profile, applicable, mode)
+                        self.assertEqual([rule["rule_id"]], self.ids(fresh))
+
+    def test_fact_names_cannot_shadow_envelope_selection_controls(self):
+        catalog, rule = self.refresh_catalog()
+        rule["trigger"] = {"fact": "envelope.bootstrap", "present": True}
         with self.assertRaises(task_time.RuleGraphError) as caught:
             task_time.validate(catalog, self.profile)
-        self.assertEqual("TRIGGER_FACTS_NOT_REFRESHED", caught.exception.code)
-        self.assertEqual(["actor"], caught.exception.detail["missing_facts"])
+        self.assertEqual("RESERVED_FACT_NAMESPACE", caught.exception.code)
 
     def test_compact_refresh_render_preserves_every_boundary_and_fact_within_budget(self):
         contract = task_time.compile_contract(self.catalog, self.profile, self.work, "graph")
         section = contract["rendered_contract"].split("## Contract refresh boundaries\n", 1)[1]
-        fact_lists = {key: set(names.split(", ")) for key, names in
+        shared = re.search(r"^Every boundary: (.+)$", section, re.M)
+        common = set(shared[1].split(", ")) if shared else set()
+        fact_lists = {key: common | (set(names.split(", ")) if names != "(common only)" else set()) for key, names in
                       re.findall(r"^F(\d+): (.+)$", section, re.M)}
         rendered = {}
         for phase, destinations, key in re.findall(r"^- ([a-z-]+) -> (.+): F(\d+)$", section, re.M):
@@ -154,8 +282,8 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
 
     def test_timestamp_check_binds_literal_first_line(self):
         contract = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
-        good = task_time.check_contract(contract, "final-delivery", "2026-09-22 17:55 UTC\nResult", current_facts=self.instruction["facts"])
-        bad = task_time.check_contract(contract, "final-delivery", "Result\n2026-09-22 17:55 UTC", current_facts=self.instruction["facts"])
+        good = task_time.check_contract(contract, "final-delivery", "2026-09-22 17:55 UTC\nResult", current_task=self.instruction)
+        bad = task_time.check_contract(contract, "final-delivery", "Result\n2026-09-22 17:55 UTC", current_task=self.instruction)
         timestamp = "final-first-line-timestamp"
         self.assertEqual(next(x for x in good["results"] if x["obligation_id"] == timestamp)["status"], "PASS")
         self.assertEqual(next(x for x in bad["results"] if x["obligation_id"] == timestamp)["status"], "FAIL")
@@ -174,12 +302,12 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
                 receipts["receipts"] = [r for r in receipts["receipts"] if r["obligation_id"] != "final-first-line-timestamp"]
                 receipts["receipts"].append({**receipts["receipts"][0], "rule_id": "uda.final.timestamp",
                                              "obligation_id": "final-first-line-timestamp"})
-                checked = task_time.check_contract(contract, "final-delivery", payload, receipts=receipts, **readings, current_facts=self.instruction["facts"])
+                checked = task_time.check_contract(contract, "final-delivery", payload, receipts=receipts, **readings, current_task=self.instruction)
                 timestamp = next(r for r in checked["results"] if r["obligation_id"] == "final-first-line-timestamp")
                 self.assertEqual(expected, timestamp["status"])
                 self.assertEqual("ADMITTED" if expected == "PASS" else "BLOCKED", checked["admission"])
         # Shape alone cannot establish current-turn clock provenance.
-        checked = task_time.check_contract(contract, "final-delivery", payload, current_facts=self.instruction["facts"])
+        checked = task_time.check_contract(contract, "final-delivery", payload, current_task=self.instruction)
         self.assertEqual("BLOCKED", checked["admission"])
         self.assertEqual("UNKNOWN", next(r for r in checked["results"] if r["obligation_id"] == "two-read-cadence")["status"])
 
@@ -194,10 +322,10 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
         for reason, expected in (("", "BLOCKED"), (" ", "BLOCKED"), (payload, "ADMITTED")):
             with self.subTest(reason=reason):
                 receipt["not_applicable_reason"] = reason
-                checked = task_time.check_contract(contract, "pre-action", payload, receipts=receipts, current_facts=self.work["facts"])
+                checked = task_time.check_contract(contract, "pre-action", payload, receipts=receipts, current_task=self.work)
                 self.assertEqual(expected, checked["admission"])
-        self.assertEqual("BLOCKED", task_time.check_contract(contract, "pre-action", payload, current_facts=self.work["facts"])["admission"])
-        self.assertEqual("BLOCKED", task_time.check_contract(contract, "pre-action", payload + "Changed.", receipts=receipts, current_facts=self.work["facts"])["admission"])
+        self.assertEqual("BLOCKED", task_time.check_contract(contract, "pre-action", payload, current_task=self.work)["admission"])
+        self.assertEqual("BLOCKED", task_time.check_contract(contract, "pre-action", payload + "Changed.", receipts=receipts, current_task=self.work)["admission"])
 
     def test_production_elapsed_time_cannot_be_overridden_by_pass_receipts(self):
         catalog = task_time.read_json(ROOT / "rules/rule-graph/task-time-metadata.v1.json")
@@ -214,14 +342,14 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
                 receipts["receipts"] = [r for r in receipts["receipts"] if r["obligation_id"] != "final-elapsed-time"]
                 receipts["receipts"].append({**receipts["receipts"][0], "rule_id": "uda.final.timestamp",
                                              "obligation_id": "final-elapsed-time"})
-                checked = task_time.check_contract(contract, "final-delivery", payload, receipts=receipts, **readings, current_facts=self.instruction["facts"])
+                checked = task_time.check_contract(contract, "final-delivery", payload, receipts=receipts, **readings, current_task=self.instruction)
                 elapsed = next(r for r in checked["results"] if r["obligation_id"] == "final-elapsed-time")
                 self.assertEqual(expected, elapsed["status"])
                 self.assertEqual("ADMITTED" if expected == "PASS" else "BLOCKED", checked["admission"])
-        checked = task_time.check_contract(contract, "final-delivery", payload, receipts=receipts, current_facts=self.instruction["facts"])
+        checked = task_time.check_contract(contract, "final-delivery", payload, receipts=receipts, current_task=self.instruction)
         self.assertEqual("UNKNOWN", next(r for r in checked["results"] if r["obligation_id"] == "final-elapsed-time")["status"])
         # Correct arithmetic still requires a separate clock-provenance judgment.
-        checked = task_time.check_contract(contract, "final-delivery", payload, **readings, current_facts=self.instruction["facts"])
+        checked = task_time.check_contract(contract, "final-delivery", payload, **readings, current_task=self.instruction)
         self.assertEqual("BLOCKED", checked["admission"])
         self.assertEqual("UNKNOWN", next(r for r in checked["results"] if r["obligation_id"] == "two-read-cadence")["status"])
 
@@ -237,12 +365,12 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
         for reason, expected in (("", "BLOCKED"), (" ", "BLOCKED"), (payload, "ADMITTED")):
             with self.subTest(reason=reason):
                 receipt["not_applicable_reason"] = reason
-                self.assertEqual(expected, task_time.check_contract(contract, "pre-action", payload, receipts=receipts, current_facts=self.instruction["facts"])["admission"])
-        self.assertEqual("BLOCKED", task_time.check_contract(contract, "pre-action", payload, current_facts=self.instruction["facts"])["admission"])
-        self.assertEqual("BLOCKED", task_time.check_contract(contract, "pre-action", payload + "Changed.", receipts=receipts, current_facts=self.instruction["facts"])["admission"])
+                self.assertEqual(expected, task_time.check_contract(contract, "pre-action", payload, receipts=receipts, current_task=self.instruction)["admission"])
+        self.assertEqual("BLOCKED", task_time.check_contract(contract, "pre-action", payload, current_task=self.instruction)["admission"])
+        self.assertEqual("BLOCKED", task_time.check_contract(contract, "pre-action", payload + "Changed.", receipts=receipts, current_task=self.instruction)["admission"])
         receipt["verdict"] = "FAIL"
         receipt["not_applicable_reason"] = ""
-        self.assertEqual("BLOCKED", task_time.check_contract(contract, "pre-action", payload, receipts=receipts, current_facts=self.instruction["facts"])["admission"])
+        self.assertEqual("BLOCKED", task_time.check_contract(contract, "pre-action", payload, receipts=receipts, current_task=self.instruction)["admission"])
 
     def test_elapsed_time_cannot_be_certified_from_final_payload_alone(self):
         compiled = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
@@ -255,7 +383,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
             self.assertEqual(elapsed["enforcement"], "mechanical")
             for payload in ("2026-09-30 09:40 UTC\nDone.", "2026-09-30 09:40 UTC\nElapsed: 2 minutes. Done."):
                 checked = task_time.check_contract(contract, "final-delivery", payload,
-                    current_facts=self.work["facts"] if contract is generated else self.instruction["facts"])
+                    current_task=self.work if contract is generated else self.instruction)
                 self.assertEqual(checked["admission"], "BLOCKED")
                 self.assertEqual(next(x for x in checked["results"] if x["obligation_id"] == "final-elapsed-time")["status"], "UNKNOWN")
             checked = task_time.check_contract(
@@ -263,7 +391,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
                 clock_start="2026-09-30T09:40:00+00:00", clock_end="2026-09-30T09:42:00+00:00",
                 receipts=pass_receipts(task_time, contract, "final-delivery", "2026-09-30 09:42 UTC\nElapsed time: 2 minutes",
                                        exclude_rules=("uda.continuity.",)),
-                current_facts=self.work["facts"] if contract is generated else self.instruction["facts"],
+                current_task=self.work if contract is generated else self.instruction,
             )
             self.assertEqual(next(x for x in checked["results"] if x["obligation_id"] == "final-elapsed-time")["status"], "PASS")
             if contract is generated:
@@ -277,7 +405,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
         contract = task_time.compile_contract(self.catalog, self.profile, self.instruction, "graph")
         payload = "2026-09-30 09:42 UTC\nElapsed time: 2 minutes\nDone."
         readings = {"clock_start": "2026-09-30T09:40:00+00:00", "clock_end": "2026-09-30T09:42:00+00:00"}
-        good = task_time.check_contract(contract, "final-delivery", payload, current_facts=self.instruction["facts"], **readings)
+        good = task_time.check_contract(contract, "final-delivery", payload, current_task=self.instruction, **readings)
         self.assertEqual(good["admission"], "ADMITTED")
         self.assertEqual(next(x for x in good["results"] if x["obligation_id"] == "final-elapsed-time")["status"], "PASS")
         for changed_payload, changed_readings in (
@@ -288,7 +416,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
             (payload, {"clock_start": "2026-09-30T09:41:00+00:00", "clock_end": "2026-09-30T09:43:00+00:00"}),
             (payload, {**readings, "clock_start": "invalid"}),
         ):
-            checked = task_time.check_contract(contract, "final-delivery", changed_payload, current_facts=self.instruction["facts"], **changed_readings)
+            checked = task_time.check_contract(contract, "final-delivery", changed_payload, current_task=self.instruction, **changed_readings)
             self.assertEqual(checked["admission"], "BLOCKED")
 
     def test_mechanical_final_delivery_rejects_wrong_destination(self):
@@ -300,14 +428,14 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
                 for destination in (None, "owner-visible-final"):
                     good = task_time.check_contract(
                         contract, "final-delivery", payload, destination=destination,
-                        current_facts=self.instruction["facts"], **readings,
+                        current_task=self.instruction, **readings,
                     )
                     self.assertEqual(good["admission"], "ADMITTED")
                     self.assertTrue(good["results"])
                     self.assertTrue(all(result["status"] == "PASS" for result in good["results"]))
                 wrong = task_time.check_contract(
                     contract, "final-delivery", payload, destination="another-surface",
-                    current_facts=self.instruction["facts"], **readings,
+                    current_task=self.instruction, **readings,
                 )
                 self.assertEqual(wrong["admission"], "NOT_EVALUATED")
                 self.assertEqual(wrong["destination"], "another-surface")
@@ -329,7 +457,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
             with self.subTest(end=end, report=report):
                 checked = task_time.check_contract(
                     contract, "final-delivery", f"{first_line}\nElapsed time: {report}",
-                    clock_start=start, clock_end=end, current_facts=self.instruction["facts"],
+                    clock_start=start, clock_end=end, current_task=self.instruction,
                 )
                 self.assertEqual(checked["admission"], "ADMITTED")
 
@@ -357,7 +485,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
 
     def test_semantic_handoff_does_not_self_certify(self):
         contract = task_time.compile_contract(self.catalog, self.profile, self.work, "graph")
-        checked = task_time.check_contract(contract, "handoff", "bounded directive", current_facts=self.work["facts"])
+        checked = task_time.check_contract(contract, "handoff", "bounded directive", current_task=self.work)
         self.assertEqual(checked["admission"], "BLOCKED")
         self.assertTrue(any(item["status"] == "UNKNOWN" for item in checked["results"]))
 
@@ -410,7 +538,7 @@ class UdaRuleGraphTaskTimeTests(unittest.TestCase):
                     self.assertEqual(dirty_lock, task_time.build_lock(self.catalog, self.profile))
                     clean_contract = task_time.compile_contract(self.catalog, self.profile, self.work, "graph")
                     self.assertEqual(dirty_contract, clean_contract)
-                    checked = task_time.check_contract(clean_contract, "handoff", payload, receipts=receipts, current_facts=self.work["facts"])
+                    checked = task_time.check_contract(clean_contract, "handoff", payload, receipts=receipts, current_task=self.work)
                     self.assertEqual(checked["admission"], "ADMITTED")
                 if boundary == "containing commit":
                     (root / "checkpoint.txt").write_text("Unrelated checkpoint\n")

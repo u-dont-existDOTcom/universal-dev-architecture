@@ -28,7 +28,7 @@ class DominatedRouteRegressionTests(unittest.TestCase):
     def check(self, payload, receipts, contract=None, task=None):
         return tt.check_contract(contract or self.contract, 'final-delivery', (FIXTURE / payload).read_bytes(),
                                  receipts=json.loads((FIXTURE / receipts).read_text()), destination='owner-visible-final',
-                                 current_facts=(task or self.task)['facts'])
+                                 current_task=task or self.task)
 
     def test_operational_kinds_select_rule_for_each_actor(self):
         for actor in ('chat', 'work', 'codex', 'claude'):
@@ -81,11 +81,11 @@ class DominatedRouteRegressionTests(unittest.TestCase):
     def test_rewritten_final_needs_a_new_receipt(self):
         rewritten = (FIXTURE / 'repaired-final.txt').read_bytes() + b'Output is ready immediately.\n'
         receipts = json.loads((FIXTURE / 'repaired.receipts.json').read_text())
-        self.assertEqual(tt.check_contract(self.contract, 'final-delivery', rewritten, receipts=receipts, current_facts=self.task["facts"])['admission'], 'BLOCKED')
+        self.assertEqual(tt.check_contract(self.contract, 'final-delivery', rewritten, receipts=receipts, current_task=self.task)['admission'], 'BLOCKED')
         renewed = tt.receipt_skeleton(self.contract, 'final-delivery', rewritten)
         renewed['receipts'][0].update(verdict='PASS', evidence='The rewritten literal final still has one direct command; its added sentence introduces no alternative.',
                                      actor={'id': 'regression-reviewer', 'kind': 'fixture', 'relation': 'INDEPENDENT'}, issued_at='2026-10-06T12:01:00Z')
-        self.assertEqual(tt.check_contract(self.contract, 'final-delivery', rewritten, receipts=renewed, current_facts=self.task["facts"])['admission'], 'ADMITTED')
+        self.assertEqual(tt.check_contract(self.contract, 'final-delivery', rewritten, receipts=renewed, current_task=self.task)['admission'], 'ADMITTED')
 
     def test_material_tradeoffs_keep_both_alternatives_and_admit(self):
         task = json.loads((FIXTURE / 'materially-different-task.json').read_text())

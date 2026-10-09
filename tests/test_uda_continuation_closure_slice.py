@@ -116,7 +116,7 @@ class ContinuationClosureSliceTests(unittest.TestCase):
         return bound
 
     def check(self, contract, phase, payload, task, **kwargs):
-        return tt.check_contract(contract, phase, payload, current_facts=task["facts"], **kwargs)
+        return tt.check_contract(contract, phase, payload, current_task=task, **kwargs)
 
     def test_complete_fixture_table_is_domain_neutral_and_hash_free(self):
         self.assertEqual(31, len(self.records))
@@ -255,7 +255,7 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                           "destination": o["destination"], "evidence": "Synthetic contradictory assertion.",
                           "actor": {"id": "fixture", "kind": "fixture", "relation": "SAME_AGENT"},
                           "issued_at": "2030-01-02T10:02:00Z"} for o in record["obligations"]]}
-            result = tt.check_contract(contract, "final-delivery", payload, receipts=receipts, current_facts=task["facts"], **clocks)
+            result = tt.check_contract(contract, "final-delivery", payload, receipts=receipts, current_task=task, **clocks)
             actual = {row["obligation_id"]: row["status"] for row in result["results"]}
             self.assertEqual(expected, (actual["final-first-line-timestamp"], actual["final-elapsed-time"]))
 
@@ -368,6 +368,7 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                 elif rid == "uda.compaction.portable-instruction":
                     expected_facts.append("actor")
                 expected_facts.append("governance_required")
+                expected_facts += ["envelope.bootstrap", "envelope.legacy_rule_ids", "role"]
                 self.assertEqual(expected_facts, r["refresh_on_facts"])
                 task["facts"]["action_classes"]["value"] = ["exclusive_task"]
                 initial = tt.compile_contract(catalog, self.profile, task, "graph")

@@ -29,7 +29,7 @@ class SemanticReceiptTests(unittest.TestCase):
         return tt.compile_contract(self.catalog, self.profile, self.task, 'graph')
 
     def check(self, receipts=None, **kwargs):
-        kwargs.setdefault('current_facts', self.task['facts'])
+        kwargs.setdefault('current_task', self.task)
         return tt.check_contract(self.contract, 'final-delivery', self.payload, receipts=receipts, **kwargs)
 
     def test_missing_receipt_blocks(self):
@@ -163,7 +163,7 @@ class SemanticReceiptTests(unittest.TestCase):
                 for receipt in receipts['receipts']:
                     receipt.update(verdict='PASS', evidence='The literal test candidate binds the current contract and directs only mechanical work with facts returned to Chat.',
                                    actor={'id': 'application-author', 'kind': 'chat', 'relation': 'SAME_AGENT'}, issued_at='2026-10-06T12:00:00Z')
-                result = tt.check_contract(contract, phase, payload, receipts=receipts, current_facts=envelope['facts'])
+                result = tt.check_contract(contract, phase, payload, receipts=receipts, current_task=envelope)
                 self.assertEqual(result['admission'], 'ADMITTED')
                 self.assertTrue(all(r['binding_status'] == 'RECEIPT_BINDING_VERIFIED' for r in result['results']))
 
@@ -176,7 +176,7 @@ class SemanticReceiptTests(unittest.TestCase):
                    'rule_id': 'uda.final.timestamp', 'obligation_id': 'final-first-line-timestamp'}
         result = tt.check_contract(contract, 'final-delivery', payload, receipts=[receipt],
                                    clock_start='2026-09-30T09:40:00Z', clock_end='2026-09-30T09:42:00Z',
-                                   current_facts=envelope['facts'])
+                                   current_task=envelope)
         self.assertEqual(result['admission'], 'BLOCKED')
         self.assertEqual(result['results'][0], {'rule_id': 'uda.final.timestamp', 'obligation_id': 'final-first-line-timestamp',
                                                'status': 'FAIL', 'evidence': 'Done.'})
@@ -187,7 +187,7 @@ class SemanticReceiptTests(unittest.TestCase):
         for receipts in (None, [receipt]):
             admitted = tt.check_contract(contract, 'final-delivery', payload, receipts=receipts,
                                          clock_start='2026-09-30T09:40:00Z', clock_end='2026-09-30T09:42:00Z',
-                                         current_facts=envelope['facts'])
+                                         current_task=envelope)
             self.assertEqual(admitted['admission'], 'ADMITTED')
             self.assertTrue(all(r['status'] == 'PASS' for r in admitted['results']))
 
