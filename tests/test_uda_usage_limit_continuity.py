@@ -125,7 +125,7 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                         stale = tt.check_contract(initial, phase, payload, destination=DESTINATION,
                                                   current_task=expanded)
                         self.assertEqual(stale['admission'], 'BLOCKED')
-                        self.assertEqual(stale['reason'], 'task facts changed; recompile contract before checking')
+                        self.assertEqual(stale['reason'], 'current task envelope hash does not match contract; recompile contract before checking')
                         self.assertEqual(tt.check_contract(
                             initial, phase, payload, destination=DESTINATION)['admission'], 'BLOCKED')
                         refreshed = tt.compile_contract(single_rule, profile, expanded, mode)
@@ -165,7 +165,7 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                             stale = tt.check_contract(initial, phase, payload, destination=DESTINATION,
                                                       current_task=changed)
                             self.assertEqual(stale['admission'], 'BLOCKED')
-                            self.assertEqual(stale['reason'], 'task facts changed; recompile contract before checking')
+                            self.assertEqual(stale['reason'], 'current task envelope hash does not match contract; recompile contract before checking')
                             self.assertEqual(tt.check_contract(
                                 initial, phase, payload, destination=DESTINATION)['admission'], 'BLOCKED')
                             refreshed = tt.compile_contract(single_rule, profile, changed, mode)
@@ -214,7 +214,7 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                                 initial, 'persistence', payload, destination=DESTINATION,
                                 receipts=prior_receipts, current_task=changed)
                             self.assertEqual(stale['admission'], 'BLOCKED')
-                            self.assertEqual(stale['reason'], 'task facts changed; recompile contract before checking')
+                            self.assertEqual(stale['reason'], 'current task envelope hash does not match contract; recompile contract before checking')
 
                         refreshed = tt.compile_contract(single_rule, profile, changed, mode)
                         if current_status == 'OPEN':
@@ -255,7 +255,7 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                         initial, 'final-delivery', payload, receipts=prior_receipts,
                         destination=DESTINATION, current_task=completed)
                     self.assertEqual(stale['admission'], 'BLOCKED')
-                    self.assertEqual(stale.get('reason'), 'task facts changed; recompile contract before checking')
+                    self.assertEqual(stale.get('reason'), 'current task envelope hash does not match contract; recompile contract before checking')
                 refreshed = tt.compile_contract(catalog, profile, completed, mode)
                 self.assertEqual(refreshed['selected_rules'], [])
                 final = b'Task completed.\n'
@@ -646,9 +646,16 @@ class UsageWarningRefreshTests(unittest.TestCase):
                                      {r['rule_id'] for r in contract['selected_rules']})
                     receipts = bound_receipts(contract, 'persistence', self.payload, self.verdict)
                     self.assertEqual(self.check(contract, task, receipts)['admission'], 'ADMITTED')
-                    # A new observation with unchanged state/value does not need recompilation.
+                    # Full-envelope callers bind provenance as well as state/value.
                     task['facts']['usage_warning_visible']['provenance'] = 'latest observation'
-                    self.assertEqual(self.check(contract, task, receipts)['admission'], 'ADMITTED')
+                    changed_provenance = self.check(contract, task, receipts)
+                    self.assertEqual(changed_provenance['admission'], 'BLOCKED')
+                    self.assertIn('envelope hash', changed_provenance['reason'])
+                    # Without an envelope, the original state/value-only refresh remains valid.
+                    facts = {name: value for boundary in contract['refresh_boundaries']
+                             for name, value in tt.refresh_observations(boundary['facts'], task).items()}
+                    self.assertEqual(tt.check_contract(contract, 'persistence', self.payload, receipts=receipts,
+                                     destination=DESTINATION, current_facts=facts)['admission'], 'ADMITTED')
                     task['facts']['usage_warning_visible'] = {
                         'state': 'KNOWN', 'value': True, 'provenance': 'usage now at 92%'}
                     changed = self.check(contract, task, receipts)

@@ -1,6 +1,6 @@
 {
   "catalog_schema_version": 1,
-  "content_sha256": "8eb3d4788412fa91aa8941ee25f4f2e4eebdf469f231e0618b1c98a19d65ef2b",
+  "content_sha256": "2ad6c64898a4b5318ae85fd7f8e744b5f134a99871155f47401a6787b3123dc8",
   "direct_evaluations": {
     "uda.active-contract.boundary-binding": "FALSE",
     "uda.bootstrap.live-root": "TRUE",
@@ -3383,9 +3383,9 @@
       "source": {
         "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
         "extracted_utf8_bytes": 268,
-        "git_blob_sha1": "f51b91f9ded6e266af88e59a193f8cbfcaa4698c",
+        "git_blob_sha1": "3a4524428c87c0e50e86127ae4f3c98ab28547cc",
         "path": "patterns/task-time-lesson-activation.md",
-        "repository_revision": "BLOB:f51b91f9ded6e266af88e59a193f8cbfcaa4698c"
+        "repository_revision": "BLOB:3a4524428c87c0e50e86127ae4f3c98ab28547cc"
       },
       "source_text": "An instruction is satisfied only where its required effect must exist. Reading, understanding, planning, simulating, or mentioning it elsewhere does not discharge the obligation. This extends the existing Active Lesson Contract; do not create a second parallel ledger."
     },

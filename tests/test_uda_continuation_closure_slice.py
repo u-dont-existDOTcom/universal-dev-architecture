@@ -431,7 +431,7 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                         changed["facts"]["continuity_required"] = {"state": "KNOWN", "value": True}
                         stale = self.check(initial, phase, payload, changed, destination=destination)
                         self.assertEqual("BLOCKED", stale["admission"])
-                        self.assertEqual("task facts changed; recompile contract before checking", stale["reason"])
+                        self.assertEqual("current task envelope hash does not match contract; recompile contract before checking", stale["reason"])
                         self.assertEqual("BLOCKED", tt.check_contract(
                             initial, phase, payload, destination=destination)["admission"])
                         refreshed = tt.compile_contract(catalog, self.profile, changed, mode)
@@ -468,7 +468,7 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                                 initial, phase, payload, initial_task, destination=destination)["admission"])
                             stale = self.check(initial, phase, payload, changed, destination=destination)
                             self.assertEqual("BLOCKED", stale["admission"])
-                            self.assertEqual("task facts changed; recompile contract before checking", stale["reason"])
+                            self.assertEqual("current task envelope hash does not match contract; recompile contract before checking", stale["reason"])
                             self.assertEqual("BLOCKED", tt.check_contract(
                                 initial, phase, payload, destination=destination)["admission"])
                             self.assertEqual("BLOCKED", self.check(
@@ -499,7 +499,7 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                 changed["facts"]["actor"]["value"] = "controller"
                 stale = self.check(initial, phase, payload, changed, destination=destination)
                 self.assertEqual("BLOCKED", stale["admission"])
-                self.assertEqual("task facts changed; recompile contract before checking", stale["reason"])
+                self.assertEqual("current task envelope hash does not match contract; recompile contract before checking", stale["reason"])
                 self.assertEqual("BLOCKED", tt.check_contract(
                     initial, phase, payload, destination=destination)["admission"])
                 refreshed = tt.compile_contract(catalog, self.profile, changed, mode)
@@ -538,7 +538,7 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                                     initial, phase, payload, initial_task, destination=destination)["admission"])
                                 stale = self.check(initial, phase, payload, changed, destination=destination)
                                 self.assertEqual("BLOCKED", stale["admission"])
-                                self.assertEqual("task facts changed; recompile contract before checking", stale["reason"])
+                                self.assertEqual("current task envelope hash does not match contract; recompile contract before checking", stale["reason"])
                                 self.assertEqual("BLOCKED", tt.check_contract(
                                     initial, phase, payload, destination=destination)["admission"])
                                 self.assertEqual("BLOCKED", self.check(
@@ -569,7 +569,7 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                         changed['facts']['actor']['value'] = receiver
                         stale = self.check(initial, phase, payload, changed, destination=destination)
                         self.assertEqual('BLOCKED', stale['admission'])
-                        self.assertEqual('task facts changed; recompile contract before checking', stale['reason'])
+                        self.assertEqual('current task envelope hash does not match contract; recompile contract before checking', stale['reason'])
                         self.assertEqual('BLOCKED', tt.check_contract(
                             initial, phase, payload, destination=destination)['admission'])
                         refreshed = tt.compile_contract(catalog, self.profile, changed, mode)
@@ -606,7 +606,7 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                                 initial, phase, payload, initial_task, destination=destination)["admission"])
                             stale = self.check(initial, phase, payload, changed, destination=destination)
                             self.assertEqual("BLOCKED", stale["admission"])
-                            self.assertEqual("task facts changed; recompile contract before checking", stale["reason"])
+                            self.assertEqual("current task envelope hash does not match contract; recompile contract before checking", stale["reason"])
                             self.assertEqual("BLOCKED", tt.check_contract(
                                 initial, phase, payload, destination=destination)["admission"])
                             self.assertEqual("BLOCKED", self.check(

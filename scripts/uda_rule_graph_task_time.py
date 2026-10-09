@@ -667,12 +667,15 @@ def check_contract(contract: dict[str, Any] | None, phase: str, payload: str | b
     if len(content) != len(CONTRACT_CONTENT_FIELDS) or sha256(canonical(content).encode()) != contract.get("content_sha256"):
         return {**scope_result, "schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
                 "reason": "contract content hash mismatch"}
-    # Task identity is a contract-wide binding, independent of selector facts
+    # The full task envelope is a contract-wide binding, independent of selector facts
     # and the phase/destination-specific refresh and receipt checks below.
     if isinstance(current_task, dict) and current_task.get("task_id") != contract["task_id"]:
         return {**scope_result, "schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
                 "reason": "current task ID does not match contract task ID; recompile contract for this task",
                 "contract_task_id": contract["task_id"], "current_task_id": current_task.get("task_id")}
+    if isinstance(current_task, dict) and sha256(canonical(current_task).encode()) != contract["task_envelope_sha256"]:
+        return {**scope_result, "schema_version": 1, "phase": phase, "results": [], "admission": "BLOCKED",
+                "reason": "current task envelope hash does not match contract; recompile contract before checking"}
     for boundary in contract["refresh_boundaries"]:
         if boundary["phase"] != phase or (destination is not None and boundary["destination"] != destination):
             continue
@@ -790,7 +793,7 @@ def main() -> int:
     v = sub.add_parser("validate"); v.add_argument("--write-lock")
     for name in ["compile", "explain"]:
         p = sub.add_parser(name); p.add_argument("--task", required=True); p.add_argument("--mode", choices=["legacy", "flat", "graph"], default="graph"); p.add_argument("--output")
-    c = sub.add_parser("check"); c.add_argument("--contract"); c.add_argument("--phase", choices=PHASES, required=True); c.add_argument("--payload", required=True); c.add_argument("--clock-start"); c.add_argument("--clock-end"); c.add_argument("--receipts"); c.add_argument("--destination"); c.add_argument("--task", help="current task envelope for contract refresh boundaries"); c.add_argument("--output")
+    c = sub.add_parser("check"); c.add_argument("--contract"); c.add_argument("--phase", choices=PHASES, required=True); c.add_argument("--payload", required=True); c.add_argument("--clock-start"); c.add_argument("--clock-end"); c.add_argument("--receipts"); c.add_argument("--destination"); c.add_argument("--task", help="current task envelope for contract freshness and refresh boundaries"); c.add_argument("--output")
     r = sub.add_parser("receipt"); r.add_argument("--contract", required=True); r.add_argument("--phase", choices=PHASES, required=True); r.add_argument("--payload", required=True); r.add_argument("--output")
     i = sub.add_parser("impact"); i.add_argument("paths", nargs="+"); i.add_argument("--output")
     x = sub.add_parser("compare"); x.add_argument("--task", required=True); x.add_argument("--output")
