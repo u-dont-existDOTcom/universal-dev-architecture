@@ -1004,7 +1004,9 @@
       },
       "relations": [],
       "refresh_on_facts": [
-        "continuity_required"
+        "continuity_required",
+        "task_mode",
+        "actor"
       ]
     },
     {
@@ -1085,7 +1087,9 @@
       "relations": [],
       "refresh_on_facts": [
         "continuity_required",
-        "owner_outcome_status"
+        "owner_outcome_status",
+        "task_mode",
+        "actor"
       ]
     },
     {
@@ -1119,7 +1123,9 @@
         ]
       },
       "refresh_on_facts": [
-        "usage_warning_visible"
+        "usage_warning_visible",
+        "task_mode",
+        "actor"
       ],
       "trigger": {
         "all": [
@@ -4849,7 +4855,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "continuity_required"
+        "continuity_required",
+        "actor"
       ]
     },
     {
@@ -4936,7 +4943,8 @@
       "relations": [],
       "refresh_on_facts": [
         "action_classes",
-        "continuity_required"
+        "continuity_required",
+        "actor"
       ]
     },
     {

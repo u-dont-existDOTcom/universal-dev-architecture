@@ -341,6 +341,10 @@ class ContinuationClosureSliceTests(unittest.TestCase):
         for record in baseline_catalog['records']:
             if record['rule_id'].startswith(('uda.continuation.', 'uda.task-lock.')) and 'refresh_on_facts' in record:
                 record['refresh_on_facts'] = [f for f in record['refresh_on_facts'] if f != 'actor']
+            elif record['rule_id'].startswith('uda.continuity.'):
+                record['refresh_on_facts'] = [f for f in record['refresh_on_facts'] if f not in ('task_mode', 'actor')]
+            elif record['rule_id'] in ('uda.compaction.resume-reconciliation', 'uda.compaction.completion-closeout'):
+                record['refresh_on_facts'] = [f for f in record['refresh_on_facts'] if f != 'actor']
         baseline = tt.compile_contract(baseline_catalog, self.profile,
                                        tt.read_json(ROOT / coverage.WORK_TASK), 'graph')
         projection = tt.read_json(ROOT / coverage.WORK_CONTRACT)
@@ -358,7 +362,7 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                 if rid.startswith(("uda.continuation.", "uda.task-lock.")):
                     expected_facts.append("actor")
                 if rid in ("uda.compaction.resume-reconciliation", "uda.compaction.completion-closeout"):
-                    expected_facts.append("continuity_required")
+                    expected_facts += ["continuity_required", "actor"]
                 self.assertEqual(expected_facts, r["refresh_on_facts"])
                 task["facts"]["action_classes"]["value"] = ["exclusive_task"]
                 initial = tt.compile_contract(catalog, self.profile, task, "graph")
@@ -514,6 +518,39 @@ class ContinuationClosureSliceTests(unittest.TestCase):
                                     refreshed, phase, payload, changed, destination=destination, receipts=receipts)["admission"])
                                 self.assertEqual("BLOCKED", self.check(
                                     refreshed, phase, payload, initial_task, destination=destination, receipts=receipts)["admission"])
+
+    def test_actor_handoff_blocks_compaction_destinations_until_recompiled(self):
+        for folder, record, catalog, task, _ in self.cases():
+            if record['rule_id'] not in ('uda.compaction.resume-reconciliation', 'uda.compaction.completion-closeout'):
+                continue
+            phase, destination = record['obligations'][0]['due_phase'], record['obligations'][0]['destination']
+            payload = (folder / 'compliant.txt').read_bytes()
+            judgment = tt.read_json(folder / 'verdicts.json')['compliant.txt']
+            for mode in ('graph', 'flat'):
+                initial_task = copy.deepcopy(task)
+                initial_task['facts']['actor']['value'] = 'controller'
+                initial = tt.compile_contract(catalog, self.profile, initial_task, mode)
+                self.assertEqual(initial['selected_rules'], [])
+                for receiver in ('chat', 'work', 'codex', 'claude'):
+                    with self.subTest(record=record['rule_id'], mode=mode, receiver=receiver):
+                        self.assertEqual('NOT_EVALUATED', self.check(
+                            initial, phase, payload, initial_task, destination=destination)['admission'])
+                        changed = copy.deepcopy(initial_task)
+                        changed['facts']['actor']['value'] = receiver
+                        stale = self.check(initial, phase, payload, changed, destination=destination)
+                        self.assertEqual('BLOCKED', stale['admission'])
+                        self.assertEqual('task facts changed; recompile contract before checking', stale['reason'])
+                        self.assertEqual('BLOCKED', tt.check_contract(
+                            initial, phase, payload, destination=destination)['admission'])
+                        refreshed = tt.compile_contract(catalog, self.profile, changed, mode)
+                        self.assertEqual([record['rule_id']], [r['rule_id'] for r in refreshed['selected_rules']])
+                        self.assertEqual('BLOCKED', self.check(
+                            refreshed, phase, payload, changed, destination=destination)['admission'])
+                        receipts = self.bind(refreshed, phase, payload, judgment)
+                        self.assertEqual('ADMITTED', self.check(
+                            refreshed, phase, payload, changed, destination=destination, receipts=receipts)['admission'])
+                        self.assertEqual('BLOCKED', self.check(
+                            refreshed, phase, payload, initial_task, destination=destination, receipts=receipts)['admission'])
 
     def test_actor_change_blocks_task_lock_destinations_until_recompiled(self):
         for folder, record, catalog, task, _ in self.cases():

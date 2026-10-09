@@ -141,6 +141,53 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                             refreshed, phase, payload, destination=DESTINATION, receipts=receipts,
                             current_facts=initial_task['facts'])['admission'], 'BLOCKED')
 
+    def assert_scope_change_requires_recompile(self, fact_name, initial_values, receiving_values):
+        catalog = tt.read_json(ROOT / 'rules/rule-graph/task-time-metadata.v1.json')
+        profile = tt.read_json(ROOT / 'scripts/instruction-layering-profile.json')
+        for rule_id, (_, phase) in RULES.items():
+            single_rule = {**catalog, 'records': [r for r in catalog['records'] if r['rule_id'] == rule_id]}
+            case = self.cases(rule_id)[1]
+            payload = (FIXTURE / case['payload']).read_bytes()
+            for mode in ('flat', 'graph'):
+                for initial_value in initial_values:
+                    initial_task = self.record_task(rule_id)
+                    initial_task['facts'][fact_name]['value'] = initial_value
+                    initial = tt.compile_contract(single_rule, profile, initial_task, mode)
+                    self.assertEqual(initial['selected_rules'], [])
+                    for receiving_value in receiving_values:
+                        with self.subTest(rule=rule_id, mode=mode, fact=fact_name,
+                                          initial=initial_value, receiving=receiving_value):
+                            self.assertEqual(tt.check_contract(
+                                initial, phase, payload, destination=DESTINATION,
+                                current_facts=initial_task['facts'])['admission'], 'NOT_EVALUATED')
+                            changed = copy.deepcopy(initial_task)
+                            changed['facts'][fact_name]['value'] = receiving_value
+                            stale = tt.check_contract(initial, phase, payload, destination=DESTINATION,
+                                                      current_facts=changed['facts'])
+                            self.assertEqual(stale['admission'], 'BLOCKED')
+                            self.assertEqual(stale['reason'], 'task facts changed; recompile contract before checking')
+                            self.assertEqual(tt.check_contract(
+                                initial, phase, payload, destination=DESTINATION)['admission'], 'BLOCKED')
+                            refreshed = tt.compile_contract(single_rule, profile, changed, mode)
+                            self.assertEqual([r['rule_id'] for r in refreshed['selected_rules']], [rule_id])
+                            self.assertEqual(tt.check_contract(
+                                refreshed, phase, payload, destination=DESTINATION,
+                                current_facts=changed['facts'])['admission'], 'BLOCKED')
+                            receipts = bound_receipts(refreshed, phase, payload, case)
+                            self.assertEqual(tt.check_contract(
+                                refreshed, phase, payload, destination=DESTINATION, receipts=receipts,
+                                current_facts=changed['facts'])['admission'], 'ADMITTED')
+                            self.assertEqual(tt.check_contract(
+                                refreshed, phase, payload, destination=DESTINATION, receipts=receipts,
+                                current_facts=initial_task['facts'])['admission'], 'BLOCKED')
+
+    def test_task_mode_change_requires_recompile_at_each_checkpoint(self):
+        self.assert_scope_change_requires_recompile(
+            'task_mode', ('INSTRUCTION_ONLY', 'DIAGNOSTIC_ONLY', 'NO_CHANGE', 'STOP'), ('IMPLEMENTATION',))
+
+    def test_actor_handoff_requires_recompile_at_each_checkpoint(self):
+        self.assert_scope_change_requires_recompile('actor', ('controller',), ('chat', 'work', 'codex', 'claude'))
+
     def test_closing_outcome_requires_recompile_before_final_handoff(self):
         rule_id = 'uda.continuity.turn-end-handoff'
         catalog = tt.read_json(ROOT / 'rules/rule-graph/task-time-metadata.v1.json')
