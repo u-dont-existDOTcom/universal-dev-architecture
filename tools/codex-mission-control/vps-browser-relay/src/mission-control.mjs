@@ -87,7 +87,7 @@ export class MissionControlClient {
         body: JSON.stringify(input),
       }, { allowConflict: true });
     } catch (error) {
-      throw recoveryFailure('READBACK_UNRESOLVED', `Mission Control canonical-schema validation was unavailable: ${error instanceof Error ? error.message : 'unknown error'}`);
+      throw recoveryFailure('VALID_DECISION_PRESENT_COPIER_FAILED', `Mission Control canonical-schema validation was unavailable: ${error instanceof Error ? error.message : 'unknown error'}`);
     }
     if (payload?.code === 'CANONICAL_SCHEMA_OR_IDENTITY_INVALID') {
       throw recoveryFailure('ASSISTANT_RESPONSE_PRESENT_BUT_INVALID', `Mission Control authoritative canonical-schema validation rejected the recovered response: ${safeMessage(payload)}`);

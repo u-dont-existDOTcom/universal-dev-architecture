@@ -142,7 +142,10 @@ test("stalled strategy routes to reasoning without fleet-authored replacement", 
   } finally { store.close(); }
 });
 
-test("fleet reasoning routes one idempotent in-band request against the complete durable ledger", () => {
+for (const routingDelayHours of [1, 49]) {
+test(`fleet reasoning routes one fresh idempotent in-band request after ${routingDelayHours} hours`, (t) => {
+  const routedAt = Date.parse(t0) + routingDelayHours * 3_600_000;
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse(t0) });
   const store = new EventStore(":memory:");
   const previous = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
   const previousPolicy = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
@@ -150,9 +153,12 @@ test("fleet reasoning routes one idempotent in-band request against the complete
     seedStore(store);
     process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = JSON.stringify([configuredProjectManager()]);
     process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify(configuredReceiptPolicy());
-    const watch = store.ensureFleetSupervisorWatch("project:auth", "task:auth", "auth", t0);
+    store.ensureFleetSupervisorWatch("project:auth", "task:auth", "auth", t0);
+    const watch = dueWatch(store, "project:auth");
     const workerEvents = store.workerEvents(watch.worker);
     assert.ok(store.allEvents().length > workerEvents.length);
+    assert.equal(watch.nextTickAt, due);
+    t.mock.timers.setTime(routedAt);
     const routed = routeFleetSupervisorReasoning(store, watch, {
       trigger: "REASONING_REVIEW_OVERDUE",
       result: "Current evidence was routed to the existing reasoning lane.",
@@ -171,6 +177,10 @@ test("fleet reasoning routes one idempotent in-band request against the complete
     assert.equal(routed.data.body.startsWith(inBandRequestRoutePrefix), true);
     const body = JSON.parse(routed.data.body.slice(inBandRequestRoutePrefix.length));
     assert.equal(body.schemaVersion, 6);
+    assert.equal(body.queuedAt, new Date(routedAt).toISOString());
+    assert.equal(routed.occurredAt, body.queuedAt);
+    assert.equal(body.expiresAt, new Date(routedAt + 86_400_000).toISOString());
+    assert.equal(body.factualPacket.supervisoryCycle.expiresAt, body.expiresAt);
     assert.equal(body.requestId.startsWith("fleet-review:"), true);
     assert.equal(body.factualPacket.supervisoryCycle.bindingProtocol, "IN_BAND_REQUEST_BINDING_V1");
     assert.equal(body.githubReceipt.repository, configuredReceiptPolicy().repository);
@@ -198,6 +208,7 @@ test("fleet reasoning routes one idempotent in-band request against the complete
     store.close();
   }
 });
+}
 
 test("one sealed empty completion is replaced exactly once without changing scientific or decision content", () => {
   const store = new EventStore(":memory:");

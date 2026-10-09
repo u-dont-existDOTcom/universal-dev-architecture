@@ -424,7 +424,7 @@ test('Mission Control client distinguishes authoritative schema rejection from v
   );
   await assert.rejects(
     () => clientFor(Response.json({ error: 'unavailable' }, { status: 503 })).validateProviderDecision(input),
-    (error) => error.classification === 'READBACK_UNRESOLVED',
+    (error) => error.classification === 'VALID_DECISION_PRESENT_COPIER_FAILED',
   );
   for (const changed of [
     { requestId: 'wrong' }, { providerSessionId: 'wrong' }, { canonicalBodySha256: '0'.repeat(64) },

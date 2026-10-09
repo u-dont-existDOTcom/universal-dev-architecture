@@ -954,11 +954,12 @@ export class RelayRuntime {
     if (action.type === 'RECOVER_AND_PUBLISH') {
       const prompt = cycleControlPrompt(route, action.step);
       const binding = deriveInBandRequestBinding(route, session.providerSessionId);
+      let recovered;
       try {
         const turnBinding = providerTurnBindingForRecovery({ route, prior, session, target, promptSha256: prior.promptSha256 });
         const readback = await this.browser.recoverBoundConversationTurns(target, { expectedUrl });
         const observation = { ...readback, boundTargetId: target.id };
-        const recovered = validateRecoveredDecisionObservation(observation, {
+        recovered = validateRecoveredDecisionObservation(observation, {
           prompt,
           promptSha256: prior.promptSha256,
           requestId: route.requestId,
@@ -1013,18 +1014,22 @@ export class RelayRuntime {
         });
       } catch (error) {
         state = await this.stateStore.read();
-        const classification = error?.classification ?? 'READBACK_UNRESOLVED';
+        const classification = error?.classification ?? (recovered ? 'VALID_DECISION_PRESENT_COPIER_FAILED' : 'READBACK_UNRESOLVED');
+        const retryable = recovered && classification === 'VALID_DECISION_PRESENT_COPIER_FAILED';
+        const status = retryable ? IN_BAND_COPY_PENDING_STATUS : IN_BAND_RECOVERY_BLOCKED_STATUS;
         state.deliveries[route.routeKey] = {
           ...state.deliveries[route.routeKey],
-          status: IN_BAND_RECOVERY_BLOCKED_STATUS,
+          status,
           recoveryClassification: classification,
           recoveryError: redactError(error),
-          recoveryBlockedAt: new Date().toISOString(),
+          recoveryBlockedAt: retryable ? null : new Date().toISOString(),
           recoveryVersion: IN_BAND_STRUCTURAL_RECOVERY_VERSION,
         };
-        state.health.pausedReason = `Provider decision recovery blocked for ${route.requestId}; no resend is permitted.`;
+        state.health.pausedReason = retryable
+          ? `Provider decision copy pending for ${route.requestId}; validation/copy will retry without a provider resend.`
+          : `Provider decision recovery blocked for ${route.requestId}; no resend is permitted.`;
         state = await this.stateStore.write(state);
-        return this.#writeStandaloneStatus(IN_BAND_RECOVERY_BLOCKED_STATUS, state, {
+        return this.#writeStandaloneStatus(status, state, {
           memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), recoveryClassification: classification,
         });
       }

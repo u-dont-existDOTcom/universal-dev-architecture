@@ -192,7 +192,7 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
   const requestId = `fleet-review:${sha256(`${watch.projectId}\n${boundary.eventId}`).slice(0, 32)}`;
   const factualState = canonicalJson(fleetReasoningFacts(decision, history, boundary));
   const evidenceSha256 = sha256(factualState);
-  const queuedAt = watch.nextTickAt ?? new Date().toISOString();
+  const queuedAt = new Date().toISOString();
   const expiresAt = new Date(Date.parse(queuedAt) + 24 * 60 * 60 * 1000).toISOString();
   const priorDecision = history.findLast((event) => event.data.type === "github_decision_receipt_ingested")?.data;
   const reasoningLane = priorDecision?.type === "github_decision_receipt_ingested"

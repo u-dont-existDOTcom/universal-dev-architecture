@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { MissionControlClient } from '../src/mission-control.mjs';
 import {
   BINDING_ENVELOPE_SUMMARY,
   CAPABILITY_CHALLENGE_SUMMARY,
@@ -1524,6 +1525,48 @@ test('V6 records one trusted binding/body/admission receipt before one GitHub-on
   assert.equal(mc.copyCalls.length, 1);
   assert.equal(browser.submitCalls, 1);
 });
+
+for (const [operation, message] of [
+  ['validateProviderDecision', 'Mission Control timeout'],
+  ['copyProviderDecision', 'token refresh failed'],
+  ['copyProviderDecision', 'GitHub HTTP 503'],
+]) {
+  test(`V6 retries ${message} after exact-turn recovery without another provider send`, async () => {
+    const { store, mc, browser, runtime } = inBandRequestFixture();
+    const original = mc[operation].bind(mc);
+    const attempts = [];
+    mc[operation] = async (input) => {
+      attempts.push(structuredClone(input));
+      if (attempts.length === 1) {
+        const error = new Error(message);
+        if (operation === 'validateProviderDecision') {
+          const client = new MissionControlClient({
+            url: 'https://mission-control.example', producerId: mc.producerId, token: 'x'.repeat(32),
+            fetchImpl: async () => { throw error; },
+          });
+          return client.validateProviderDecision(input);
+        }
+        throw error;
+      }
+      return original(input);
+    };
+    assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+    assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+    const retryable = await runtime.cycle();
+    assert.equal(retryable.status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+    assert.equal(retryable.recoveryClassification, 'VALID_DECISION_PRESENT_COPIER_FAILED');
+    assert.equal(store.state.deliveries['request:r-1'].status, retryable.status);
+    assert.equal(mc.copyCalls.length, 0);
+    assert.equal(mc.evidence.some((event) => event.data?.type === 'github_decision_receipt_ingested'), false);
+    runtime.config.runtime.submitEnabled = false;
+    assert.equal((await runtime.cycle()).status, 'DECISION_RECEIPT_INGESTED');
+    assert.equal(attempts.length, 2);
+    assert.deepEqual(attempts[1], attempts[0]);
+    assert.equal(browser.recoveryCalls, 2);
+    assert.equal(mc.copyCalls.length, 1);
+    assert.equal(browser.submitCalls, 1);
+  });
+}
 
 test('V6 authoritative schema rejection blocks before copy with typed invalid-response classification', async () => {
   const { store, mc, browser, runtime } = inBandRequestFixture();
