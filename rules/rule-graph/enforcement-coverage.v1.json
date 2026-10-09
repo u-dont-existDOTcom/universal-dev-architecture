@@ -6333,7 +6333,7 @@
       "behavioral": true,
       "activation_route": {
         "kind": "INDEX_TRIGGER",
-        "detail": "When selecting a reasoning method or evaluating a claim"
+        "detail": "For any substantive or iterative task, when choosing, building or switching a method"
       },
       "actors": [
         "reasoning/writing agent",

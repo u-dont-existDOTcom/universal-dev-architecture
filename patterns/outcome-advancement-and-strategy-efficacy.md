@@ -1,6 +1,6 @@
 # Outcome Advancement and Strategy Efficacy
 
-**Status:** Required owner correction and companion to the Mission Control architecture  
+**Status:** Required owner correction and companion to the Mission Control architecture; since 2026-10-09 (owner), the Mission Control implementation of the universal strategy fit and efficacy rule in `patterns/reasoning-selection.md`  
 **Date:** 2026-08-31  
 **Authority:** Current owner correction plus the Somatic R15 no-progress incident recorded in `u-dont-existDOTcom/joel-articles` PR #73
 
