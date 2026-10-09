@@ -28,7 +28,7 @@ BOUNDARIES = {
     'derived-contract': ('pre-action', 'owner-outcome-authority', False, 'action_classes', 'derived_contract_acceptance'),
     'supervisor-order': ('pre-action', 'supervisor-verdict', False, 'action_classes', 'owner_outcome_supervision'),
     'terminal-evidence': ('final-delivery', 'owner-visible-final', False, 'action_classes', 'task_completion'),
-    'child-parent-closure': ('final-delivery', 'owner-visible-final', False, 'action_classes', 'task_completion'),
+    'child-parent-closure': ('final-delivery', 'owner-visible-final', True, 'action_classes', 'task_completion'),
     'source-authority': ('pre-action', 'owner-outcome-authority', False, 'continuity_required', True),
     'checkpoint-packet': ('persistence', 'durable-task-checkpoint', False, 'continuity_required', True),
     'migration-repair': ('persistence', 'durable-task-checkpoint', False, 'continuity_required', True),
@@ -127,7 +127,7 @@ class OwnerOutcomeSliceTests(unittest.TestCase):
             self.assertEqual('BLOCKED', tt.check_contract(contract, phase, payload + b' rewritten', receipts=bound, **options)['admission'])
             self.assertEqual('BLOCKED', tt.check_contract(contract, phase, (folder / 'near-miss.txt').read_bytes(), receipts=bound, **options)['admission'])
 
-    def test_not_applicable_is_bound_and_only_amendment_can_use_it(self):
+    def test_not_applicable_is_bound_and_only_amendment_or_child_closure_can_use_it(self):
         for folder, record, catalog, task in self.cases():
             ob = record['obligations'][0]
             payload = (folder / 'compliant.txt').read_bytes()
@@ -140,6 +140,32 @@ class OwnerOutcomeSliceTests(unittest.TestCase):
             self.assertEqual('BLOCKED', tt.check_contract(contract, ob['due_phase'], payload, **options)['admission'])
             receipt['not_applicable_reason'] = 'The owner correction affects execution wording only; it does not amend the outcome.'
             self.assertEqual('ADMITTED' if ob['not_applicable_allowed'] else 'BLOCKED', tt.check_contract(contract, ob['due_phase'], payload, **options)['admission'])
+
+    def test_root_completion_admits_bound_child_na_with_full_catalog(self):
+        folder = FIXTURES / (PREFIX + 'terminal-evidence')
+        task = tt.read_json(folder / 'task.json')
+        task['facts']['continuity_required']['value'] = False
+        task['facts']['owner_outcome_status']['value'] = 'SATISFIED'
+        payload = b'2030-01-02 10:02:00 UTC\nElapsed time: 2 minutes\nEvery root outcome is MET; no child completion or early evaluation occurred.'
+        judgment = tt.read_json(folder / 'verdicts.json')['compliant.txt']
+        for mode in ('graph', 'flat'):
+            with self.subTest(mode=mode):
+                contract = tt.compile_contract(self.catalog, self.profile, task, mode)
+                self.assertTrue(contract['usable'])
+                ids = {r['rule_id'] for r in contract['selected_rules']}
+                self.assertTrue({PREFIX + 'terminal-evidence', PREFIX + 'child-parent-closure'} <= ids)
+                bound = self.bind(contract, 'final-delivery', payload, judgment)
+                child = next(r for r in bound['receipts'] if r['rule_id'] == PREFIX + 'child-parent-closure')
+                child['verdict'] = 'NOT_APPLICABLE'
+                options = dict(current_task=task, destination='owner-visible-final', receipts=bound,
+                               clock_start='2030-01-02T10:00:00+00:00', clock_end='2030-01-02T10:02:00+00:00')
+                self.assertEqual('BLOCKED', tt.check_contract(contract, 'final-delivery', payload, **options)['admission'])
+                child['not_applicable_reason'] = 'This closes the root outcome; no child completion or early evaluation occurred.'
+                self.assertEqual('ADMITTED', tt.check_contract(contract, 'final-delivery', payload, **options)['admission'])
+                self.assertEqual('BLOCKED', tt.check_contract(contract, 'final-delivery', payload + b' changed', **options)['admission'])
+                terminal = next(r for r in bound['receipts'] if r['rule_id'] == PREFIX + 'terminal-evidence')
+                terminal['verdict'] = 'FAIL'
+                self.assertEqual('BLOCKED', tt.check_contract(contract, 'final-delivery', payload, **options)['admission'])
 
     def test_changed_trigger_facts_block_omitted_contract_until_recompiled(self):
         for folder, record, catalog, task in self.cases():
@@ -301,6 +327,23 @@ class OwnerOutcomeCoverageMutations(unittest.TestCase):
             e['legacy_remainder'] += '\n' + item['sentence']
         self.mutate(coverage.COVERAGE, change)
         self.rejected('obligation carriers differ from independent manifest')
+
+    def test_carrier_pin_cannot_be_removed_to_disable_reclassification_check(self):
+        for reclassified in (False, True):
+            with self.subTest(reclassified=reclassified):
+                self.restore()
+                self.mutate(coverage.REQUIREMENT, lambda d: d['source_clause_manifest'][SOURCE].pop('bindings_sha256'))
+                if reclassified:
+                    def change(data):
+                        entry = self.entry(data)
+                        item = next(i for i in entry['obligation_map'] if 'record' in i)
+                        item.pop('record')
+                        item.pop('obligation_id')
+                        item['legacy'] = {'reason': 'This clause remains in the exact legacy remainder pending migration.',
+                                          'due_phase': 'pre-action', 'destination': 'owner-outcome-authority'}
+                        entry['legacy_remainder'] += '\n' + item['sentence']
+                    self.mutate(coverage.COVERAGE, change)
+                self.rejected('missing independent obligation carrier pin')
 
     def test_legacy_and_server_carriers_cannot_be_used_to_claim_full_enforcement(self):
         self.mutate(coverage.COVERAGE, lambda d: self.entry(d).update(disposition='STRUCTURED_ENFORCED', legacy_remainder=''))

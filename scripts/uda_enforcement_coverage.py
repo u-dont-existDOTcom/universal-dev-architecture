@@ -308,6 +308,10 @@ def validate(root: Path | str) -> list[str]:
                     if (manifest.get("clause_count") != len(clauses)
                             or manifest.get("clauses_sha256") != canonical_hash(clauses)):
                         errors.append(prefix + "obligation_map differs from independent source clause manifest")
+                    # Slice 2b's mixed carriers require their independent pin.
+                    if (eid == "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md"
+                            and "bindings_sha256" not in manifest):
+                        errors.append(prefix + "missing independent obligation carrier pin")
                     if ("bindings_sha256" in manifest
                             and manifest["bindings_sha256"] != canonical_hash(obligation_map)):
                         errors.append(prefix + "obligation carriers differ from independent manifest")

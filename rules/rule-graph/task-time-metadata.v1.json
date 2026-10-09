@@ -7597,7 +7597,7 @@
           "repair": "Repair the contract or literal outgoing state before the affected boundary; preserve valid supporting work and continue required open outcomes.",
           "enforcement": "semantic",
           "mechanical_check": null,
-          "not_applicable_allowed": false,
+          "not_applicable_allowed": true,
           "independent_review_required": false
         }
       ],
