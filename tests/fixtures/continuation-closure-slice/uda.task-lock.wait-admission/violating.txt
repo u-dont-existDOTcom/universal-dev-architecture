@@ -1,0 +1,1 @@
+The worker waits for repository updates with no causal dependency, changing condition or horizon.

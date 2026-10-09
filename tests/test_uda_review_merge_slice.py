@@ -65,14 +65,14 @@ class ReviewMergeSliceTests(unittest.TestCase):
                     self.assertNotRegex(path.read_text(), r"https?://|/home/|AGENTS\.md|u-dont-exist|joel|#31[27]|patterns/|state/")
 
     def test_table_blocks_violations_and_near_misses_and_admits_compliance(self):
-        for folder, record, _, _, contract in self.cases():
+        for folder, record, _, task, contract in self.cases():
             for filename, judgment in tt.read_json(folder / "verdicts.json").items():
                 payload = (folder / filename).read_bytes()
                 admissions = []
                 for phase in {o["due_phase"] for o in record["obligations"]}:
                     with self.subTest(record=record["rule_id"], candidate=filename, phase=phase):
                         result = tt.check_contract(contract, phase, payload,
-                                                   receipts=self.bind(contract, phase, payload, judgment))
+                                                   receipts=self.bind(contract, phase, payload, judgment), current_task=task)
                         target_due = "obligation_id" not in judgment or any(
                             o["obligation_id"] == judgment["obligation_id"] and o["due_phase"] == phase
                             for o in record["obligations"])
@@ -84,7 +84,7 @@ class ReviewMergeSliceTests(unittest.TestCase):
                 self.assertEqual(judgment["verdict"] == "PASS", all(a == "ADMITTED" for a in admissions))
 
     def test_every_obligation_blocks_without_its_own_exact_candidate_receipt(self):
-        for folder, record, _, _, contract in self.cases():
+        for folder, record, _, task, contract in self.cases():
             payload = (folder / "compliant.txt").read_bytes()
             judgment = tt.read_json(folder / "verdicts.json")["compliant.txt"]
             for ob in record["obligations"]:
@@ -93,17 +93,17 @@ class ReviewMergeSliceTests(unittest.TestCase):
                     bound = self.bind(contract, phase, payload, judgment)
                     target = next(r for r in bound["receipts"] if r["obligation_id"] == ob["obligation_id"])
                     target["verdict"] = "FAIL"
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound)["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound, current_task=task)["admission"])
                     target["verdict"] = "PASS"
                     for other in ("violating.txt", "near-miss.txt"):
-                        result = tt.check_contract(contract, phase, (folder / other).read_bytes(), receipts=bound)
+                        result = tt.check_contract(contract, phase, (folder / other).read_bytes(), receipts=bound, current_task=task)
                         self.assertEqual("BLOCKED", result["admission"])
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload + b"Rewritten.\n", receipts=bound)["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload + b"Rewritten.\n", receipts=bound, current_task=task)["admission"])
                     bound["receipts"].remove(target)
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound)["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound, current_task=task)["admission"])
 
     def test_not_applicable_needs_permission_and_a_bound_nonempty_reason(self):
-        for folder, record, _, _, contract in self.cases():
+        for folder, record, _, task, contract in self.cases():
             payload = (folder / "compliant.txt").read_bytes()
             judgment = tt.read_json(folder / "verdicts.json")["compliant.txt"]
             for ob in record["obligations"]:
@@ -115,8 +115,8 @@ class ReviewMergeSliceTests(unittest.TestCase):
                     for reason in ("", " ", "The conditional action has not occurred in this synthetic candidate."):
                         target["not_applicable_reason"] = reason
                         expected = "ADMITTED" if reason.strip() and ob["not_applicable_allowed"] else "BLOCKED"
-                        self.assertEqual(expected, tt.check_contract(contract, phase, payload, receipts=bound)["admission"])
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload + b"Changed\n", receipts=bound)["admission"])
+                        self.assertEqual(expected, tt.check_contract(contract, phase, payload, receipts=bound, current_task=task)["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload + b"Changed\n", receipts=bound, current_task=task)["admission"])
 
     def test_actor_action_and_unknown_fact_scope_fail_closed(self):
         for folder, record, catalog, task, _ in self.cases():
@@ -172,8 +172,8 @@ class ReviewMergeSliceTests(unittest.TestCase):
         self.assertFalse(set(SOURCES).intersection(baseline["backlog_ids"]))
         self.assertFalse(baseline.get("owner_authorized_additions"))
         report = coverage.report(ROOT)
-        self.assertEqual(78, report["backlog_count"])
-        self.assertEqual(6, len(report["removed_since_baseline"]))
+        self.assertEqual(77, report["backlog_count"])
+        self.assertEqual(7, len(report["removed_since_baseline"]))
         self.assertFalse(set(SOURCES).intersection(report["removed_since_baseline"]))
         for source, expected in zip(SOURCES, (70, 58)):
             entry = next(e for e in self.inventory["entries"] if e["id"] == source)

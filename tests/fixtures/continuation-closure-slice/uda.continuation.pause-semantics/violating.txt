@@ -1,0 +1,1 @@
+A reasoning pause is labeled ALLOW_ROOT_CLOSE even though root acceptance is missing.

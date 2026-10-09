@@ -252,7 +252,7 @@ def main() -> int:
     check.add_argument("--clock-end")
     check.add_argument("--receipts")
     check.add_argument("--destination")
-    check.add_argument("--task", help="current task envelope for contract refresh boundaries")
+    check.add_argument("--task", help="current task envelope for contract freshness and refresh boundaries")
     check.add_argument("--output")
     receipt = subparsers.add_parser("receipt")
     receipt.add_argument("--contract", required=True)
@@ -336,7 +336,7 @@ def main() -> int:
                 args.clock_end,
                 task_time.read_receipts(args.receipts),
                 args.destination,
-                task_time.read_json(Path(args.task)).get("facts") if args.task else None,
+                current_task=task_time.read_json(Path(args.task)) if args.task else None,
             )
             task_time.emit(args.output, result)
             return 0 if result["admission"] == "ADMITTED" else 4

@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The one-shot governance edit adopts an exclusive machine-readable target-branch lock for consequential multi-session competing-source work, preflight before old sources after every named restart, hard failure on branch mismatch, tests as prerequisites, artifact acceptance for readiness and protected merge plus immutable receipt for completion.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The edited instruction permits ordinary green tests to establish owner-task completion.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "A preflight warning does not preserve the required hard branch-mismatch failure.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "portable-instruction-at-boundary",
+    "non_substitute": "a portable lock instruction omitting branch mismatch failure"
+  }
+}

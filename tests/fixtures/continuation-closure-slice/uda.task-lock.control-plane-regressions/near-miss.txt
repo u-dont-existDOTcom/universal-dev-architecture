@@ -1,0 +1,1 @@
+The test report lists every required regression name and their planned assertions. It contains no executed result or command output.

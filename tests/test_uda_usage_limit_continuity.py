@@ -84,7 +84,7 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                 # Only the kernel's own final judgments remain; no checkpoint receipt is needed.
                 checked = tt.check_contract(
                     contract, 'final-delivery', payload, receipts=pass_receipts(tt, contract, 'final-delivery', payload),
-                    clock_start='2026-10-07T00:00:00Z', clock_end='2026-10-07T00:02:00Z')
+                    clock_start='2026-10-07T00:00:00Z', clock_end='2026-10-07T00:02:00Z', current_task=task)
                 self.assertEqual(checked['admission'], 'ADMITTED')
 
     def test_unknown_or_missing_continuity_scope_remains_unresolved(self):
@@ -101,6 +101,175 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                 self.assertFalse(contract['usable'])
                 self.assertEqual(tt.check_contract(contract, 'final-delivery', b'No checkpoint.')['admission'],
                                  'BLOCKED')
+
+    def test_expanding_continuity_scope_requires_recompile_at_each_checkpoint_boundary(self):
+        catalog = json.loads((ROOT / 'rules/rule-graph/task-time-metadata.v1.json').read_text())
+        profile = json.loads((ROOT / 'scripts/instruction-layering-profile.json').read_text())
+        for rule_id in ('uda.continuity.step-checkpoint', 'uda.continuity.turn-end-handoff'):
+            single_rule = {**catalog, 'records': [r for r in catalog['records'] if r['rule_id'] == rule_id]}
+            phase = RULES[rule_id][1]
+            case = self.cases(rule_id)[1]
+            payload = (FIXTURE / case['payload']).read_bytes()
+            for mode in ('flat', 'graph'):
+                for initial_fact in ({'state': 'KNOWN', 'value': False}, {'state': 'ABSENT'}):
+                    with self.subTest(rule=rule_id, mode=mode, initial_state=initial_fact['state']):
+                        initial_task = copy.deepcopy(self.task)
+                        initial_task['facts']['continuity_required'] = initial_fact
+                        initial = tt.compile_contract(single_rule, profile, initial_task, mode)
+                        self.assertEqual(initial['selected_rules'], [])
+                        self.assertEqual(tt.check_contract(
+                            initial, phase, payload, destination=DESTINATION,
+                            current_task=initial_task)['admission'], 'NOT_EVALUATED')
+                        expanded = copy.deepcopy(initial_task)
+                        expanded['facts']['continuity_required'] = {'state': 'KNOWN', 'value': True}
+                        stale = tt.check_contract(initial, phase, payload, destination=DESTINATION,
+                                                  current_task=expanded)
+                        self.assertEqual(stale['admission'], 'BLOCKED')
+                        self.assertEqual(stale['reason'], 'current task envelope hash does not match contract; recompile contract before checking')
+                        self.assertEqual(tt.check_contract(
+                            initial, phase, payload, destination=DESTINATION)['admission'], 'BLOCKED')
+                        refreshed = tt.compile_contract(single_rule, profile, expanded, mode)
+                        self.assertEqual([r['rule_id'] for r in refreshed['selected_rules']], [rule_id])
+                        self.assertEqual(tt.check_contract(
+                            refreshed, phase, payload, destination=DESTINATION,
+                            current_task=expanded)['admission'], 'BLOCKED')
+                        receipts = bound_receipts(refreshed, phase, payload, case)
+                        self.assertEqual(tt.check_contract(
+                            refreshed, phase, payload, destination=DESTINATION, receipts=receipts,
+                            current_task=expanded)['admission'], 'ADMITTED')
+                        self.assertEqual(tt.check_contract(
+                            refreshed, phase, payload, destination=DESTINATION, receipts=receipts,
+                            current_task=initial_task)['admission'], 'BLOCKED')
+
+    def assert_scope_change_requires_recompile(self, fact_name, initial_values, receiving_values):
+        catalog = tt.read_json(ROOT / 'rules/rule-graph/task-time-metadata.v1.json')
+        profile = tt.read_json(ROOT / 'scripts/instruction-layering-profile.json')
+        for rule_id, (_, phase) in RULES.items():
+            single_rule = {**catalog, 'records': [r for r in catalog['records'] if r['rule_id'] == rule_id]}
+            case = self.cases(rule_id)[1]
+            payload = (FIXTURE / case['payload']).read_bytes()
+            for mode in ('flat', 'graph'):
+                for initial_value in initial_values:
+                    initial_task = self.record_task(rule_id)
+                    initial_task['facts'][fact_name]['value'] = initial_value
+                    initial = tt.compile_contract(single_rule, profile, initial_task, mode)
+                    self.assertEqual(initial['selected_rules'], [])
+                    for receiving_value in receiving_values:
+                        with self.subTest(rule=rule_id, mode=mode, fact=fact_name,
+                                          initial=initial_value, receiving=receiving_value):
+                            self.assertEqual(tt.check_contract(
+                                initial, phase, payload, destination=DESTINATION,
+                                current_task=initial_task)['admission'], 'NOT_EVALUATED')
+                            changed = copy.deepcopy(initial_task)
+                            changed['facts'][fact_name]['value'] = receiving_value
+                            stale = tt.check_contract(initial, phase, payload, destination=DESTINATION,
+                                                      current_task=changed)
+                            self.assertEqual(stale['admission'], 'BLOCKED')
+                            self.assertEqual(stale['reason'], 'current task envelope hash does not match contract; recompile contract before checking')
+                            self.assertEqual(tt.check_contract(
+                                initial, phase, payload, destination=DESTINATION)['admission'], 'BLOCKED')
+                            refreshed = tt.compile_contract(single_rule, profile, changed, mode)
+                            self.assertEqual([r['rule_id'] for r in refreshed['selected_rules']], [rule_id])
+                            self.assertEqual(tt.check_contract(
+                                refreshed, phase, payload, destination=DESTINATION,
+                                current_task=changed)['admission'], 'BLOCKED')
+                            receipts = bound_receipts(refreshed, phase, payload, case)
+                            self.assertEqual(tt.check_contract(
+                                refreshed, phase, payload, destination=DESTINATION, receipts=receipts,
+                                current_task=changed)['admission'], 'ADMITTED')
+                            self.assertEqual(tt.check_contract(
+                                refreshed, phase, payload, destination=DESTINATION, receipts=receipts,
+                                current_task=initial_task)['admission'], 'BLOCKED')
+
+    def test_task_mode_change_requires_recompile_at_each_checkpoint(self):
+        self.assert_scope_change_requires_recompile(
+            'task_mode', ('INSTRUCTION_ONLY', 'DIAGNOSTIC_ONLY', 'NO_CHANGE', 'STOP'), ('IMPLEMENTATION',))
+
+    def test_actor_handoff_requires_recompile_at_each_checkpoint(self):
+        self.assert_scope_change_requires_recompile('actor', ('controller',), ('chat', 'work', 'codex', 'claude'))
+
+    def test_outcome_status_change_requires_recompile_at_each_persistence_boundary(self):
+        catalog = tt.read_json(ROOT / 'rules/rule-graph/task-time-metadata.v1.json')
+        profile = tt.read_json(ROOT / 'scripts/instruction-layering-profile.json')
+        for rule_id in ('uda.continuity.step-checkpoint', 'uda.continuity.usage-warning'):
+            single_rule = {**catalog, 'records': [r for r in catalog['records'] if r['rule_id'] == rule_id]}
+            case = self.cases(rule_id)[1]
+            payload = (FIXTURE / case['payload']).read_bytes()
+            for mode in ('flat', 'graph'):
+                for initial_status, current_status in (('SATISFIED', 'OPEN'), ('OPEN', 'SATISFIED')):
+                    with self.subTest(rule=rule_id, mode=mode, initial=initial_status, current=current_status):
+                        task = self.record_task(rule_id)
+                        task['facts']['owner_outcome_status']['value'] = initial_status
+                        initial = tt.compile_contract(single_rule, profile, task, mode)
+                        receipts = bound_receipts(initial, 'persistence', payload, case)
+                        expected = 'ADMITTED' if initial_status == 'OPEN' else 'NOT_EVALUATED'
+                        self.assertEqual(tt.check_contract(
+                            initial, 'persistence', payload, destination=DESTINATION,
+                            receipts=receipts, current_task=task)['admission'], expected)
+
+                        changed = copy.deepcopy(task)
+                        changed['facts']['owner_outcome_status']['value'] = current_status
+                        for prior_receipts in (receipts, None):
+                            stale = tt.check_contract(
+                                initial, 'persistence', payload, destination=DESTINATION,
+                                receipts=prior_receipts, current_task=changed)
+                            self.assertEqual(stale['admission'], 'BLOCKED')
+                            self.assertEqual(stale['reason'], 'current task envelope hash does not match contract; recompile contract before checking')
+
+                        refreshed = tt.compile_contract(single_rule, profile, changed, mode)
+                        if current_status == 'OPEN':
+                            self.assertEqual([r['rule_id'] for r in refreshed['selected_rules']], [rule_id])
+                            for prior_receipts in (receipts, None):
+                                self.assertEqual(tt.check_contract(
+                                    refreshed, 'persistence', payload, destination=DESTINATION,
+                                    receipts=prior_receipts, current_task=changed)['admission'], 'BLOCKED')
+                            fresh_receipts = bound_receipts(refreshed, 'persistence', payload, case)
+                            self.assertEqual(tt.check_contract(
+                                refreshed, 'persistence', payload, destination=DESTINATION,
+                                receipts=fresh_receipts, current_task=changed)['admission'], 'ADMITTED')
+                        else:
+                            self.assertEqual(refreshed['selected_rules'], [])
+                            self.assertEqual(tt.receipt_skeleton(refreshed, 'persistence', payload)['receipts'], [])
+                            self.assertEqual(tt.check_contract(
+                                refreshed, 'persistence', payload, destination=DESTINATION,
+                                current_task=changed)['admission'], 'NOT_EVALUATED')
+
+    def test_closing_outcome_requires_recompile_before_final_handoff(self):
+        rule_id = 'uda.continuity.turn-end-handoff'
+        catalog = tt.read_json(ROOT / 'rules/rule-graph/task-time-metadata.v1.json')
+        catalog['records'] = [r for r in catalog['records'] if r['rule_id'] == rule_id]
+        profile = tt.read_json(ROOT / 'scripts/instruction-layering-profile.json')
+        case = self.cases(rule_id)[1]
+        payload = (FIXTURE / case['payload']).read_bytes()
+        for mode in ('flat', 'graph'):
+            with self.subTest(mode=mode):
+                initial = tt.compile_contract(catalog, profile, self.task, mode)
+                receipts = bound_receipts(initial, 'final-delivery', payload, case)
+                self.assertEqual(tt.check_contract(
+                    initial, 'final-delivery', payload, receipts=receipts,
+                    destination=DESTINATION, current_task=self.task)['admission'], 'ADMITTED')
+                completed = copy.deepcopy(self.task)
+                completed['facts']['owner_outcome_status']['value'] = 'SATISFIED'
+                for prior_receipts in (receipts, None):
+                    stale = tt.check_contract(
+                        initial, 'final-delivery', payload, receipts=prior_receipts,
+                        destination=DESTINATION, current_task=completed)
+                    self.assertEqual(stale['admission'], 'BLOCKED')
+                    self.assertEqual(stale.get('reason'), 'current task envelope hash does not match contract; recompile contract before checking')
+                refreshed = tt.compile_contract(catalog, profile, completed, mode)
+                self.assertEqual(refreshed['selected_rules'], [])
+                final = b'Task completed.\n'
+                self.assertEqual(tt.receipt_skeleton(refreshed, 'final-delivery', final)['receipts'], [])
+                self.assertEqual(tt.check_contract(
+                    refreshed, 'final-delivery', final,
+                    current_task=completed)['admission'], 'ADMITTED')
+                self.assertEqual(tt.check_contract(
+                    refreshed, 'final-delivery', final, destination=DESTINATION,
+                    current_task=completed)['admission'], 'NOT_EVALUATED')
+                # Reopening also invalidates the omitted rule's contract.
+                self.assertEqual(tt.check_contract(
+                    refreshed, 'final-delivery', final, destination=DESTINATION,
+                    current_task=self.task)['admission'], 'BLOCKED')
 
     def test_one_shot_exemption_does_not_suppress_visible_usage_warning(self):
         task = self.record_task('uda.continuity.usage-warning')
@@ -160,7 +329,7 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                 receipts = bound_receipts(contract, 'persistence', payload, case)
                 result = tt.check_contract(contract, 'persistence', payload,
                                            receipts=receipts, destination=DESTINATION,
-                                           current_facts=task['facts'])
+                                           current_task=task)
                 self.assertEqual(result['results'][0]['status'], 'PASS')
                 self.assertEqual(result['admission'], 'BLOCKED')
 
@@ -205,7 +374,8 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                     if paragraph == '- Tiny one-shot tasks do not need a dedicated current-state file.':
                         self.assertIn(paragraph, source.split('## Limits\n', 1)[1])
                     else:
-                        self.assertIn(paragraph, subsection)
+                        self.assertIn(paragraph, source if rule_id == 'uda.continuity.step-checkpoint' else subsection)
+                self.assertIn("At each completed step, push the work to the task branch", rule['source_text'] if rule_id == 'uda.continuity.step-checkpoint' else subsection)
                 self.assertEqual(len(rule['obligations']), 1)
                 obligation = rule['obligations'][0]
                 self.assertEqual(obligation['obligation_id'], obligation_id)
@@ -226,7 +396,7 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
                     receipts = bound_receipts(contract, phase, payload, case)
                     result = tt.check_contract(contract, phase, payload, receipts=receipts,
                                                destination=DESTINATION,
-                                               current_facts=self.record_task(rule_id)['facts'])
+                                               current_task=self.record_task(rule_id))
                     expected = 'PASS' if case['case'] == 'compliant' else 'FAIL'
                     self.assertEqual(result['results'][0]['status'], expected)
                     self.assertEqual(result['admission'], 'ADMITTED' if expected == 'PASS' else 'BLOCKED')
@@ -240,14 +410,14 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
             payload = (FIXTURE / case['payload']).read_bytes()
             with self.subTest(rule=rule_id, boundary='no receipt'):
                 result = tt.check_contract(contract, phase, payload, destination=DESTINATION,
-                                           current_facts=self.record_task(rule_id)['facts'])
+                                           current_task=self.record_task(rule_id))
                 self.assertEqual(result['results'][0]['status'], 'UNKNOWN')
                 self.assertEqual(result['admission'], 'BLOCKED')
             with self.subTest(rule=rule_id, boundary='chat final is not checkpoint'):
                 result = tt.check_contract(contract, phase, payload,
                                            receipts=bound_receipts(contract, phase, payload, case),
                                            destination='owner-visible-final',
-                                           current_facts=self.record_task(rule_id)['facts'])
+                                           current_task=self.record_task(rule_id))
                 self.assertEqual(result['results'], [])
                 self.assertEqual(result['admission'], 'NOT_EVALUATED')
                 self.assertEqual(result['out_of_scope'], [
@@ -264,19 +434,19 @@ class UsageLimitContinuityRegressionTests(unittest.TestCase):
             with self.subTest(rule=rule_id, boundary='rewritten checkpoint'):
                 result = tt.check_contract(contract, phase, rewritten, receipts=receipts,
                                            destination=DESTINATION,
-                                           current_facts=self.record_task(rule_id)['facts'])
+                                           current_task=self.record_task(rule_id))
                 self.assertEqual(result['results'][0]['status'], 'UNKNOWN')
                 self.assertEqual(result['admission'], 'BLOCKED')
                 renewed = bound_receipts(contract, phase, rewritten, case)
                 self.assertEqual(tt.check_contract(contract, phase, rewritten, receipts=renewed,
                                                    destination=DESTINATION,
-                                                   current_facts=self.record_task(rule_id)['facts'])['admission'], 'ADMITTED')
+                                                   current_task=self.record_task(rule_id))['admission'], 'ADMITTED')
             with self.subTest(rule=rule_id, boundary='owner correction'):
                 task = self.record_task(rule_id)
                 task['owner_correction'] = 'Validate the artifact before any external handoff.'
                 corrected = fixture_contract(task, [rule_id])
                 result = tt.check_contract(corrected, phase, payload, receipts=receipts,
-                                           destination=DESTINATION, current_facts=task['facts'])
+                                           destination=DESTINATION, current_task=task)
                 self.assertEqual(result['results'][0]['status'], 'UNKNOWN')
                 self.assertEqual(result['admission'], 'BLOCKED')
 
@@ -289,6 +459,7 @@ class DestinationScopedContinuityTests(unittest.TestCase):
         catalog = predicate_catalog(json.loads((ROOT / 'rules/rule-graph/task-time-metadata.v1.json').read_text()))
         profile = json.loads((ROOT / 'scripts/instruction-layering-profile.json').read_text())
         task = json.loads((ROOT / 'examples/rule-graph/work-handoff.json').read_text())
+        cls.task = task
         cls.contract = tt.compile_contract(catalog, profile, task, 'graph')
         cls.final = b'2026-10-07 00:02:00 UTC\nElapsed time: 2 minutes\nWork saved.\n'
         cls.readings = {'clock_start': '2026-10-07T00:00:00Z',
@@ -300,7 +471,7 @@ class DestinationScopedContinuityTests(unittest.TestCase):
                        'obligation_id': 'save-turn-end-handoff', 'destination': DESTINATION}
 
     def check(self, payload, **kwargs):
-        return tt.check_contract(self.contract, 'final-delivery', payload, **kwargs)
+        return tt.check_contract(self.contract, 'final-delivery', payload, current_task=self.task, **kwargs)
 
     def test_open_task_final_scoped_check_excludes_continuity_handoff(self):
         result = self.check(self.final, destination='owner-visible-final', **self.readings)
@@ -366,6 +537,7 @@ class DestinationScopedContinuityTests(unittest.TestCase):
                     with self.subTest(script=script, destination=destination, expected=expected):
                         run = subprocess.run([sys.executable, str(ROOT / 'scripts' / script),
                             'check', '--contract', str(contract), '--phase', 'final-delivery',
+                            '--task', str(ROOT / 'examples/rule-graph/work-handoff.json'),
                             '--destination', destination, '--payload', str(payload), *extra],
                             capture_output=True, text=True, cwd=ROOT)
                         self.assertEqual(run.returncode, 0 if expected == 'ADMITTED' else 4,
@@ -417,9 +589,9 @@ class UsageWarningRefreshTests(unittest.TestCase):
 
     def check(self, contract, task, receipts):
         return tt.check_contract(contract, 'persistence', self.payload, receipts=receipts,
-                                 destination=DESTINATION, current_facts=task['facts'])
+                                 destination=DESTINATION, current_task=task)
 
-    def test_legacy_clis_do_not_require_facts_for_unselected_warning(self):
+    def test_legacy_clis_require_current_envelope_even_for_unselected_warning(self):
         with tempfile.TemporaryDirectory() as directory:
             contract_path = Path(directory) / 'contract.json'
             for script in ('uda_rule_graph_task_time.py', 'uda_rule_graph.py'):
@@ -433,16 +605,20 @@ class UsageWarningRefreshTests(unittest.TestCase):
                     self.assertNotIn('uda.continuity.usage-warning',
                                      {r['rule_id'] for r in contract['selected_rules']})
                     for destination, expected in ((None, 'ADMITTED'), (DESTINATION, 'NOT_EVALUATED')):
-                        with self.subTest(destination=destination):
+                      for supply_task in (False, True):
+                        with self.subTest(destination=destination, supply_task=supply_task):
                             check = command + ['check', '--contract', str(contract_path),
                                 '--phase', 'persistence', '--payload',
                                 str(FIXTURE / 'step-checkpoint-compliant.txt')]
                             if destination:
                                 check += ['--destination', destination]
+                            if supply_task:
+                                check += ['--task', str(ROOT / 'examples/rule-graph/work-handoff.json')]
                             checked = subprocess.run(check, capture_output=True, text=True, cwd=ROOT)
-                            self.assertEqual(json.loads(checked.stdout)['admission'], expected,
+                            observed_expected = expected if supply_task else 'BLOCKED'
+                            self.assertEqual(json.loads(checked.stdout)['admission'], observed_expected,
                                              checked.stderr or checked.stdout)
-                            self.assertEqual(checked.returncode, 0 if expected == 'ADMITTED' else 4)
+                            self.assertEqual(checked.returncode, 0 if observed_expected == 'ADMITTED' else 4)
 
     def test_legacy_explicit_warning_keeps_refresh_guard(self):
         task = copy.deepcopy(self.task)
@@ -470,9 +646,16 @@ class UsageWarningRefreshTests(unittest.TestCase):
                                      {r['rule_id'] for r in contract['selected_rules']})
                     receipts = bound_receipts(contract, 'persistence', self.payload, self.verdict)
                     self.assertEqual(self.check(contract, task, receipts)['admission'], 'ADMITTED')
-                    # A new observation with unchanged state/value does not need recompilation.
+                    # Full-envelope callers bind provenance as well as state/value.
                     task['facts']['usage_warning_visible']['provenance'] = 'latest observation'
-                    self.assertEqual(self.check(contract, task, receipts)['admission'], 'ADMITTED')
+                    changed_provenance = self.check(contract, task, receipts)
+                    self.assertEqual(changed_provenance['admission'], 'BLOCKED')
+                    self.assertIn('envelope hash', changed_provenance['reason'])
+                    # Without an envelope, the original state/value-only refresh remains valid.
+                    facts = {name: value for boundary in contract['refresh_boundaries']
+                             for name, value in tt.refresh_observations(boundary['facts'], task).items()}
+                    self.assertEqual(tt.check_contract(contract, 'persistence', self.payload, receipts=receipts,
+                                     destination=DESTINATION, current_facts=facts)['admission'], 'ADMITTED')
                     task['facts']['usage_warning_visible'] = {
                         'state': 'KNOWN', 'value': True, 'provenance': 'usage now at 92%'}
                     changed = self.check(contract, task, receipts)
@@ -495,7 +678,7 @@ class UsageWarningRefreshTests(unittest.TestCase):
                     verdict = json.loads((FIXTURE / 'usage-warning.verdicts.json').read_text())[1]
                     checked = tt.check_contract(refreshed, 'persistence', payload,
                         receipts=bound_receipts(refreshed, 'persistence', payload, verdict),
-                        destination=DESTINATION, current_facts=task['facts'])
+                        destination=DESTINATION, current_task=task)
                     self.assertEqual(checked['admission'], 'ADMITTED')
 
     def test_persistence_requires_current_warning_fact_even_when_rule_was_omitted(self):

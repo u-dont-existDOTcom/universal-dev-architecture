@@ -120,6 +120,7 @@ def validate(root: Path | str) -> list[str]:
         coverage = json.loads(file_at(root, COVERAGE).read_text(encoding="utf-8"))
         baseline = json.loads(file_at(root, BASELINE).read_text(encoding="utf-8"))
         catalog = json.loads(file_at(root, METADATA).read_text(encoding="utf-8"))
+        profile = json.loads(file_at(root, "scripts/instruction-layering-profile.json").read_text(encoding="utf-8"))
         lock = json.loads(file_at(root, LOCK).read_text(encoding="utf-8"))
         graph = json.loads(file_at(root, "rules/UDA-RULE-GRAPH.json").read_text(encoding="utf-8"))
         requirement = json.loads(file_at(root, REQUIREMENT).read_text(encoding="utf-8"))
@@ -144,12 +145,40 @@ def validate(root: Path | str) -> list[str]:
         if len(record_ids) != len(set(record_ids)):
             errors.append("duplicate task-time record")
         by_record = {r["rule_id"]: r for r in records}
+        for record in records:
+            try:
+                validate_trigger(record.get("trigger"), record["rule_id"])
+                task_time.validate_refresh_facts(record, profile)
+            except RuleGraphError as exc:
+                errors.append(f"{record['rule_id']}: {exc.code}: {exc}")
         lock_ids = [e["rule_id"] for e in lock["entries"]]
         if Counter(lock_ids) != Counter(record_ids):
             errors.append("task-time records differ from source lock (deleted or added mapping)")
         if lock.get("catalog_sha256") != canonical_hash(catalog):
             errors.append("task-time catalog/source lock drift; regenerate using uda_rule_graph.py")
         graph_nodes = {n["rule_id"]: n for n in graph["nodes"]}
+        manifest_backed_ids = requirement.get("manifest_backed_ids")
+        if (not isinstance(manifest_backed_ids, list) or not manifest_backed_ids
+                or any(not isinstance(eid, str) or eid not in sources
+                       or any(c in eid for c in "*?[") for eid in manifest_backed_ids)
+                or len(manifest_backed_ids) != len(set(manifest_backed_ids))):
+            errors.append("manifest_backed_ids must be a nonempty unique list of exact source identities")
+            manifest_backed_ids = []
+        for eid in requirement.get("source_clause_manifest", {}):
+            if eid not in manifest_backed_ids:
+                errors.append("source clause manifest identity is not independently pinned: " + eid)
+        authorized_additions = set()
+        for addition in baseline.get("owner_authorized_additions", []):
+            try:
+                date.fromisoformat(addition["date"])
+                if (not isinstance(addition.get("owner_quote"), str) or not addition["owner_quote"].strip()
+                        or not isinstance(addition.get("source"), str) or not addition["source"].strip()
+                        or not isinstance(addition.get("id"), str) or not addition["id"].strip()
+                        or any(c in addition["id"] for c in "*?[")):
+                    raise ValueError("incomplete authorization")
+                authorized_additions.add(addition["id"])
+            except (KeyError, TypeError, ValueError):
+                errors.append("owner_authorized_addition needs exact id, owner_quote, date and source")
         claims: dict[str, list[str]] = defaultdict(list)
         for entry in entries:
             eid = entry["id"]
@@ -259,12 +288,21 @@ def validate(root: Path | str) -> list[str]:
                     errors.append(prefix + "enforced disposition needs a complete obligation_map")
                 if not {"ADMISSION", "BEHAVIORAL_REGRESSION"}.issubset(evidence_classes):
                     errors.append(prefix + "enforced disposition needs both ADMISSION and BEHAVIORAL_REGRESSION evidence")
+            if disposition == "STRUCTURED_ENFORCED" or (
+                    disposition == "STRUCTURED_PARTIAL"
+                    and (eid in manifest_backed_ids
+                         or eid in requirement.get("source_clause_manifest", {}))):
                 # Pin the source clauses in the requirement, independently of
                 # editable records/maps and their regenerable lock/projection.
                 manifest = requirement.get("source_clause_manifest", {}).get(eid)
+                released = disposition in BACKLOG and eid in authorized_additions
                 if not isinstance(manifest, dict):
-                    errors.append(prefix + "missing independent source clause manifest")
-                elif isinstance(obligation_map, list):
+                    if not released:
+                        errors.append(prefix + "missing independent source clause manifest")
+                elif not isinstance(obligation_map, list) or not obligation_map:
+                    if not released:
+                        errors.append(prefix + "manifest-backed disposition needs a nonempty obligation_map")
+                else:
                     clauses = sorted(item["sentence"] for item in obligation_map
                                      if isinstance(item, dict) and isinstance(item.get("sentence"), str))
                     if (manifest.get("clause_count") != len(clauses)
@@ -438,20 +476,7 @@ def validate(root: Path | str) -> list[str]:
         if (len(anchors) != 1 or anchors[0].get("backlog_count") != len(pinned)
                 or anchors[0].get("backlog_ids_sha256") != canonical_hash(pinned)):
             errors.append("baseline backlog_ids drift from the captured owner requirement; use owner_authorized_additions for growth")
-        allowed = set(pinned)
-        authorized_additions = set()
-        for addition in baseline.get("owner_authorized_additions", []):
-            try:
-                date.fromisoformat(addition["date"])
-                if (not isinstance(addition.get("owner_quote"), str) or not addition["owner_quote"].strip()
-                        or not isinstance(addition.get("source"), str) or not addition["source"].strip()
-                        or not isinstance(addition.get("id"), str) or not addition["id"].strip()
-                        or any(c in addition["id"] for c in "*?[")):
-                    raise ValueError("incomplete authorization")
-                allowed.add(addition["id"])
-                authorized_additions.add(addition["id"])
-            except (KeyError, TypeError, ValueError):
-                errors.append("owner_authorized_addition needs exact id, owner_quote, date and source")
+        allowed = set(pinned) | authorized_additions
         for eid in pinned:
             if not isinstance(eid, str) or any(c in eid for c in "*?["):
                 errors.append("baseline identities must be exact")
@@ -460,11 +485,33 @@ def validate(root: Path | str) -> list[str]:
         for eid in pinned:
             if eid not in by_id or by_id[eid].get("disposition") not in BACKLOG | {"STRUCTURED_ENFORCED"}:
                 errors.append("baseline backlog may shrink only through STRUCTURED_ENFORCED: " + eid)
-        # Independent clause manifests persist completed promotions. Original
-        # baseline membership cannot authorize putting those entries back.
-        for eid in requirement.get("source_clause_manifest", {}):
-            disposition = by_id.get(eid, {}).get("disposition")
-            if disposition != "STRUCTURED_ENFORCED" and not (disposition in BACKLOG and eid in authorized_additions):
+        # Independently pinned identities persist manifest-backed coverage,
+        # including partial promotions. Deleting the manifest cannot unpin one;
+        # original baseline membership cannot authorize putting it back.
+        corrections = set()
+        for correction in requirement.get("owner_authorized_coverage_corrections", []):
+            try:
+                date.fromisoformat(correction["date"])
+                if (correction.get("id") not in pinned
+                        or correction.get("disposition") != "STRUCTURED_PARTIAL"
+                        or not specific_reason(correction.get("owner_quote"))
+                        or not specific_reason(correction.get("reason"))
+                        or not isinstance(correction.get("source"), str)
+                        or not correction["source"].strip()):
+                    raise ValueError("incomplete corrective authority")
+                corrections.add(correction["id"])
+            except (KeyError, TypeError, ValueError):
+                errors.append("coverage correction needs exact baseline id, partial disposition, owner_quote, date, source and reason")
+        for eid in sorted(set(manifest_backed_ids) | set(requirement.get("source_clause_manifest", {}))):
+            entry = by_id.get(eid, {})
+            disposition = entry.get("disposition")
+            corrected = disposition == "STRUCTURED_PARTIAL" and eid in corrections
+            manifest = requirement.get("source_clause_manifest", {}).get(eid)
+            obligation_map = entry.get("obligation_map")
+            evidence_intact = (isinstance(manifest, dict)
+                               and isinstance(obligation_map, list) and bool(obligation_map))
+            released = disposition in BACKLOG and eid in authorized_additions
+            if not released and (not evidence_intact or (disposition != "STRUCTURED_ENFORCED" and not corrected)):
                 errors.append("unauthorized promoted coverage regression: " + eid)
         # Compare complete regenerated content, not just IDs or a self-declared
         # checksum. Regeneration stays in memory and uses the audited root.

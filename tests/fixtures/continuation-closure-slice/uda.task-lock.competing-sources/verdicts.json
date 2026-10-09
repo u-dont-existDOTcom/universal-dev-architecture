@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Other branches, worktrees, historical handoffs, future roadmaps and unrelated blockers remain intact. Each competing source is explicitly suspended from next-task selection while the lock is active.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The active worker selects the next action from an unrelated historical roadmap.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Other branches, worktrees, historical handoffs, future roadmaps and unrelated blockers remain intact. Each competing source is explicitly suspended from next-task selection while the lock is active. The claimed evidence instead relies on parallel worktrees deleted to prevent drift.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "competing-sources-at-boundary",
+    "non_substitute": "parallel worktrees deleted to prevent drift"
+  }
+}

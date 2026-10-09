@@ -1,0 +1,1 @@
+The adopted instruction requires the target lock and preflight and separates acceptance from tests. A mismatched branch merely produces a warning and execution proceeds.

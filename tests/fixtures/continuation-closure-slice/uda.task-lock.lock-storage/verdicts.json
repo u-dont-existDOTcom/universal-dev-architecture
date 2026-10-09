@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The parsed target-branch lock records schema, task identity, active status, exclusivity, required branch, applicable review reference, preflight and acceptance commands and suspended sources. It grants no new owner, safety, access, spending, publication or irreversible authority.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The lock exists only in an external note and is used to authorize new spending.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The parsed target-branch lock records schema, task identity, active status, exclusivity, required branch, applicable review reference, preflight and acceptance commands and suspended sources. It grants no new owner, safety, access, spending, publication or irreversible authority. The claimed evidence instead relies on a lock stored only in an external note.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "lock-storage-at-boundary",
+    "non_substitute": "a lock stored only in an external note"
+  }
+}

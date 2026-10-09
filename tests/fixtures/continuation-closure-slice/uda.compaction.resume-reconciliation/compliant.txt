@@ -1,0 +1,1 @@
+After interruption the worker inspected the repository and dirty tree, bootstrap/index/checkpoint, relevant commits and artifacts. It repaired stale checkpoint fields, established survived/remaining work, reloaded current task gates and their enforcement points, then resumed the latest verified boundary without repeats. Exact artifacts and newer owner authority outrank summaries.

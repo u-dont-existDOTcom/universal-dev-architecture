@@ -1,0 +1,1 @@
+The rejected attempt retained REJECT_SAFE_WORK_REMAINS. The already-derived safe action was executed within authority without an owner scheduling question.

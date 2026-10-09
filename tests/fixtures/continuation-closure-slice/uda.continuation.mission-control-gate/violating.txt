@@ -1,0 +1,1 @@
+The actual gate command exited 75 with terminalResponseAllowed:false, decision:REJECT_SAFE_WORK_REMAINS and a current state hash. The worker emitted the handoff instead of routing its next action.

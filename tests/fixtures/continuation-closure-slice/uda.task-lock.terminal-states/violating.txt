@@ -1,0 +1,1 @@
+Current head candidate-B is claimed READY_FOR_PROTECTED_MERGE. Its acceptance command reports two open findings: missing comparison artifacts and missing live receipts. READY claimed with open acceptance findings.

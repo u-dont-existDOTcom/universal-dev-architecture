@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts import uda_rule_graph_task_time as tt
 from uda_test_helpers import predicate_catalog
@@ -29,6 +30,7 @@ class SemanticReceiptTests(unittest.TestCase):
         return tt.compile_contract(self.catalog, self.profile, self.task, 'graph')
 
     def check(self, receipts=None, **kwargs):
+        kwargs.setdefault('current_task', self.task)
         return tt.check_contract(self.contract, 'final-delivery', self.payload, receipts=receipts, **kwargs)
 
     def test_missing_receipt_blocks(self):
@@ -42,6 +44,161 @@ class SemanticReceiptTests(unittest.TestCase):
         self.assertEqual(result['results'][0]['binding_status'], 'RECEIPT_BINDING_VERIFIED')
         self.assertEqual(result['results'][0]['asserted_by'], self.receipt['actor'])
         self.assertIs(result['results'][0]['judgment_proved'], False)
+
+    def test_receipts_cannot_be_replayed_for_a_different_current_task(self):
+        self.task['task_id'] = 'synthetic-boundary-task'
+        for mode in ('graph', 'flat'):
+            contract = tt.compile_contract(self.catalog, self.profile, self.task, mode)
+            receipt = {**self.receipt, 'contract_sha256': contract['content_sha256']}
+            for destination in (None, receipt['destination'], 'another-surface'):
+                with self.subTest(mode=mode, destination=destination):
+                    options = dict(receipts=[receipt], destination=destination)
+                    same = tt.check_contract(contract, 'final-delivery', self.payload,
+                                             current_task=copy.deepcopy(self.task), **options)
+                    self.assertEqual(same['admission'], 'NOT_EVALUATED' if destination == 'another-surface' else 'ADMITTED')
+                    for task_id in ('completely-different-task', None, ''):
+                        current = {**self.task, 'task_id': task_id}
+                        with self.subTest(task_id=task_id), \
+                                patch.object(tt, 'refresh_observations') as refresh, \
+                                patch.object(tt, 'semantic_result') as semantic:
+                            result = tt.check_contract(contract, 'final-delivery', self.payload,
+                                                       current_task=current, **options)
+                            self.assertEqual(result['admission'], 'BLOCKED')
+                            self.assertIn('task ID', result['reason'])
+                            self.assertEqual(result['results'], [])
+                            refresh.assert_not_called()
+                            semantic.assert_not_called()
+
+    def test_both_check_clis_reject_receipt_replay_across_task_ids(self):
+        self.task['task_id'] = 'synthetic-boundary-task'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            contract, payload, receipts, task = (root / name for name in
+                                                ('contract.json', 'payload.txt', 'receipts.json', 'task.json'))
+            payload.write_bytes(self.payload)
+            for mode in ('graph', 'flat'):
+                compiled = tt.compile_contract(self.catalog, self.profile, self.task, mode)
+                contract.write_text(json.dumps(compiled))
+                receipts.write_text(json.dumps([{
+                    **self.receipt, 'contract_sha256': compiled['content_sha256']}]))
+                for script in ('uda_rule_graph_task_time.py', 'uda_rule_graph.py'):
+                    for task_id, expected_code, expected_admission in (
+                            ('synthetic-boundary-task', 0, 'ADMITTED'),
+                            ('completely-different-task', 4, 'BLOCKED'),
+                            ('synthetic-boundary-task', 0, 'ADMITTED')):
+                        with self.subTest(mode=mode, script=script, task_id=task_id):
+                            task.write_text(json.dumps({**self.task, 'task_id': task_id}))
+                            result = subprocess.run([
+                                sys.executable, str(ROOT / 'scripts' / script), 'check',
+                                '--contract', str(contract), '--phase', 'final-delivery',
+                                '--payload', str(payload), '--receipts', str(receipts),
+                                '--task', str(task), '--destination', self.receipt['destination'],
+                            ], capture_output=True, text=True, cwd=ROOT)
+                            self.assertEqual(result.returncode, expected_code, result.stdout + result.stderr)
+                            checked = json.loads(result.stdout)
+                            self.assertEqual(checked['admission'], expected_admission)
+                            if expected_admission == 'BLOCKED':
+                                self.assertIn('task ID', checked['reason'])
+                                self.assertEqual(checked['results'], [])
+
+    def test_non_selector_envelope_changes_require_recompile_and_fresh_receipts(self):
+        self.task['owner_correction'] = 'Retain the intermediate artifact — unchanged.'
+        for mode in ('graph', 'flat'):
+            contract = tt.compile_contract(self.catalog, self.profile, self.task, mode)
+            receipt = {**self.receipt, 'contract_sha256': contract['content_sha256']}
+            for field in ('owner_correction', 'request'):
+                current = {**self.task, field: self.task[field] + ' Updated owner authority.'}
+                with self.subTest(mode=mode, field=field):
+                    refreshed = tt.compile_contract(self.catalog, self.profile, current, mode)
+                    self.assertEqual(contract['selected_rules'], refreshed['selected_rules'])
+                    self.assertEqual(contract['refresh_boundaries'], refreshed['refresh_boundaries'])
+                    for phase, destination in (('final-delivery', None),
+                                               ('final-delivery', receipt['destination']),
+                                               ('final-delivery', 'another-surface'),
+                                               ('handoff', None)):
+                        with self.subTest(phase=phase, destination=destination), \
+                                patch.object(tt, 'refresh_observations') as refresh, \
+                                patch.object(tt, 'semantic_result') as semantic:
+                            stale = tt.check_contract(contract, phase, self.payload, receipts=[receipt],
+                                                      destination=destination, current_task=current)
+                            self.assertEqual(stale['admission'], 'BLOCKED')
+                            self.assertIn('envelope hash', stale['reason'])
+                            self.assertIn('recompile', stale['reason'])
+                            self.assertEqual(stale['results'], [])
+                            refresh.assert_not_called()
+                            semantic.assert_not_called()
+                    old_receipt = tt.check_contract(refreshed, 'final-delivery', self.payload,
+                                                   receipts=[receipt], current_task=current)
+                    self.assertEqual(old_receipt['admission'], 'BLOCKED')
+                    self.assertEqual(old_receipt['results'][0]['status'], 'UNKNOWN')
+                    fresh_receipt = {**receipt, 'contract_sha256': refreshed['content_sha256']}
+                    self.assertEqual(tt.check_contract(refreshed, 'final-delivery', self.payload,
+                                     receipts=[fresh_receipt], current_task=current)['admission'], 'ADMITTED')
+
+    def test_canonical_unchanged_envelope_and_no_envelope_preserve_results(self):
+        self.task['owner_correction'] = 'Retain the intermediate artifact — unchanged.'
+        def reordered(value):
+            if isinstance(value, dict):
+                return {key: reordered(value[key]) for key in reversed(list(value))}
+            return value
+        current = json.loads(json.dumps(reordered(self.task), ensure_ascii=True, indent=4))
+        for mode in ('graph', 'flat'):
+            contract = tt.compile_contract(self.catalog, self.profile, self.task, mode)
+            receipt = {**self.receipt, 'contract_sha256': contract['content_sha256']}
+            facts = {name: value for boundary in contract['refresh_boundaries']
+                     for name, value in boundary['facts'].items()}
+            for destination in (None, receipt['destination'], 'another-surface'):
+                with self.subTest(mode=mode, destination=destination):
+                    options = dict(receipts=[receipt], destination=destination)
+                    expected = tt.check_contract(contract, 'final-delivery', self.payload,
+                                                 current_task=self.task, **options)
+                    self.assertEqual(expected['admission'],
+                                     'NOT_EVALUATED' if destination == 'another-surface' else 'ADMITTED')
+                    self.assertEqual(expected, tt.check_contract(contract, 'final-delivery', self.payload,
+                                     current_task=current, **options))
+                    self.assertEqual(expected, tt.check_contract(contract, 'final-delivery', self.payload,
+                                     current_facts=facts, **options))
+            missing = tt.check_contract(contract, 'final-delivery', self.payload, receipts=[receipt])
+            self.assertEqual(missing['admission'], 'BLOCKED')
+            self.assertEqual(missing['reason'], 'current task facts required at contract refresh boundary')
+            self.assertEqual(tt.check_contract(contract, 'handoff', self.payload)['admission'], 'ADMITTED')
+
+    def test_both_check_clis_bind_non_selector_envelope_fields(self):
+        self.task['owner_correction'] = 'Retain the intermediate artifact — unchanged.'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            contract, payload, receipts, task = (root / name for name in
+                                                ('contract.json', 'payload.txt', 'receipts.json', 'task.json'))
+            payload.write_bytes(self.payload)
+            for mode in ('graph', 'flat'):
+                compiled = tt.compile_contract(self.catalog, self.profile, self.task, mode)
+                receipt = {**self.receipt, 'contract_sha256': compiled['content_sha256']}
+                for script in ('uda_rule_graph_task_time.py', 'uda_rule_graph.py'):
+                    command = [sys.executable, str(ROOT / 'scripts' / script), 'check',
+                               '--contract', str(contract), '--phase', 'final-delivery',
+                               '--payload', str(payload), '--receipts', str(receipts),
+                               '--task', str(task), '--destination', self.receipt['destination']]
+                    for field in ('owner_correction', 'request'):
+                        current = {**self.task, field: self.task[field] + ' Updated owner authority.'}
+                        refreshed = tt.compile_contract(self.catalog, self.profile, current, mode)
+                        for envelope, active_contract, active_receipt, admission in (
+                                (self.task, compiled, receipt, 'ADMITTED'),
+                                (current, compiled, receipt, 'BLOCKED'),
+                                (current, refreshed, receipt, 'BLOCKED'),
+                                (current, refreshed, {**receipt, 'contract_sha256': refreshed['content_sha256']}, 'ADMITTED')):
+                            with self.subTest(mode=mode, script=script, field=field, admission=admission,
+                                              recompiled=active_contract is refreshed):
+                                task.write_text(json.dumps(envelope, ensure_ascii=True, indent=4))
+                                contract.write_text(json.dumps(active_contract))
+                                receipts.write_text(json.dumps([active_receipt]))
+                                result = subprocess.run(command, capture_output=True, text=True, cwd=ROOT)
+                                self.assertEqual(result.returncode, 4 if admission == 'BLOCKED' else 0,
+                                                 result.stdout + result.stderr)
+                                checked = json.loads(result.stdout)
+                                self.assertEqual(checked['admission'], admission)
+                                if envelope is current and active_contract is compiled:
+                                    self.assertIn('envelope hash', checked['reason'])
+                                    self.assertEqual(checked['results'], [])
 
     def test_each_binding_mismatch_stays_unknown_and_blocks(self):
         for field in ('contract_sha256', 'payload_sha256', 'rule_id', 'obligation_id', 'phase', 'destination'):
@@ -162,7 +319,7 @@ class SemanticReceiptTests(unittest.TestCase):
                 for receipt in receipts['receipts']:
                     receipt.update(verdict='PASS', evidence='The literal test candidate binds the current contract and directs only mechanical work with facts returned to Chat.',
                                    actor={'id': 'application-author', 'kind': 'chat', 'relation': 'SAME_AGENT'}, issued_at='2026-10-06T12:00:00Z')
-                result = tt.check_contract(contract, phase, payload, receipts=receipts)
+                result = tt.check_contract(contract, phase, payload, receipts=receipts, current_task=envelope)
                 self.assertEqual(result['admission'], 'ADMITTED')
                 self.assertTrue(all(r['binding_status'] == 'RECEIPT_BINDING_VERIFIED' for r in result['results']))
 
@@ -174,7 +331,8 @@ class SemanticReceiptTests(unittest.TestCase):
         receipt = {**self.receipt, 'contract_sha256': contract['content_sha256'], 'payload_sha256': tt.sha256(payload),
                    'rule_id': 'uda.final.timestamp', 'obligation_id': 'final-first-line-timestamp'}
         result = tt.check_contract(contract, 'final-delivery', payload, receipts=[receipt],
-                                   clock_start='2026-09-30T09:40:00Z', clock_end='2026-09-30T09:42:00Z')
+                                   clock_start='2026-09-30T09:40:00Z', clock_end='2026-09-30T09:42:00Z',
+                                   current_task=envelope)
         self.assertEqual(result['admission'], 'BLOCKED')
         self.assertEqual(result['results'][0], {'rule_id': 'uda.final.timestamp', 'obligation_id': 'final-first-line-timestamp',
                                                'status': 'FAIL', 'evidence': 'Done.'})
@@ -184,7 +342,8 @@ class SemanticReceiptTests(unittest.TestCase):
         receipt.update(payload_sha256=tt.sha256(payload), verdict='FAIL')
         for receipts in (None, [receipt]):
             admitted = tt.check_contract(contract, 'final-delivery', payload, receipts=receipts,
-                                         clock_start='2026-09-30T09:40:00Z', clock_end='2026-09-30T09:42:00Z')
+                                         clock_start='2026-09-30T09:40:00Z', clock_end='2026-09-30T09:42:00Z',
+                                         current_task=envelope)
             self.assertEqual(admitted['admission'], 'ADMITTED')
             self.assertTrue(all(r['status'] == 'PASS' for r in admitted['results']))
 
@@ -192,6 +351,8 @@ class SemanticReceiptTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             contract, payload, receipts = (root / name for name in ('contract.json', 'payload.txt', 'receipts.json'))
+            task = root / 'task.json'
+            task.write_text(json.dumps(self.task))
             contract.write_text(json.dumps(self.contract))
             payload.write_bytes(self.payload.replace(b'\n', b'\r\n'))
             for script in ('uda_rule_graph_task_time.py', 'uda_rule_graph.py'):
@@ -203,12 +364,12 @@ class SemanticReceiptTests(unittest.TestCase):
                 self.assertEqual(skeleton['receipts'][0]['payload_sha256'], tt.sha256(payload.read_bytes()))
                 skeleton['receipts'][0].update({k: self.receipt[k] for k in ('verdict', 'evidence', 'actor', 'issued_at')})
                 receipts.write_text(json.dumps(skeleton))
-                result = subprocess.run(args + ['check'] + bound + ['--receipts', str(receipts)], capture_output=True, text=True, cwd=ROOT)
+                result = subprocess.run(args + ['check'] + bound + ['--receipts', str(receipts), '--task', str(task)], capture_output=True, text=True, cwd=ROOT)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertEqual(json.loads(result.stdout)['admission'], 'ADMITTED')
                 for malformed in (b'{malformed', b'\xff\xfe'):
                     receipts.write_bytes(malformed)
-                    result = subprocess.run(args + ['check'] + bound + ['--receipts', str(receipts)], capture_output=True, text=True, cwd=ROOT)
+                    result = subprocess.run(args + ['check'] + bound + ['--receipts', str(receipts), '--task', str(task)], capture_output=True, text=True, cwd=ROOT)
                     self.assertEqual(result.returncode, 4)
                     self.assertEqual(json.loads(result.stdout)['results'][0]['status'], 'UNKNOWN')
 

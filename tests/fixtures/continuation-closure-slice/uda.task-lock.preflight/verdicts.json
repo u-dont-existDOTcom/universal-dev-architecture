@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The first repository command after restart verified a parsed active exclusive lock, exact branch and worktree, checkpoint task identity and acceptance command and named competing sources. Wrong-branch selection fails closed and the worker moves to the exact authorized worktree without changing the owner objective.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The worker reads an old roadmap first and adapts the owner objective to the wrong branch.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The first repository command after restart verified a parsed active exclusive lock, exact branch and worktree, checkpoint task identity and acceptance command and named competing sources. Wrong-branch selection fails closed and the worker moves to the exact authorized worktree without changing the owner objective. The claimed evidence instead relies on an old roadmap read before preflight.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "preflight-at-boundary",
+    "non_substitute": "an old roadmap read before preflight"
+  }
+}

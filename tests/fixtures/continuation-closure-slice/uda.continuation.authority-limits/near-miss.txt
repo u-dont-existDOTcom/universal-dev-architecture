@@ -1,0 +1,1 @@
+The next calculation is safe and authorized. Its upload still has an unresolved security boundary, but the worker treats safe work elsewhere as permission to upload now.

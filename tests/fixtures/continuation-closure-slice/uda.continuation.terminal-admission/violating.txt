@@ -1,0 +1,1 @@
+The next authorized batch is already determined and runnable. The worker calls the batch boundary permission to stop.

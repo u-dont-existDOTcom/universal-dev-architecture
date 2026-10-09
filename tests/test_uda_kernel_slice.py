@@ -70,7 +70,7 @@ class KernelSliceTests(unittest.TestCase):
                 for phase in {o["due_phase"] for o in record["obligations"]}:
                     with self.subTest(record=record["rule_id"], candidate=filename, phase=phase):
                         bound = self.bind(contract, phase, payload, judgment)
-                        result = tt.check_contract(contract, phase, payload, receipts=bound, **CLOCKS)
+                        result = tt.check_contract(contract, phase, payload, receipts=bound, **CLOCKS, current_task=tt.read_json(folder / "task.json"))
                         self.assertTrue(result["results"])
                         target_due = ("obligation_id" not in judgment or any(
                             o["obligation_id"] == judgment["obligation_id"] and o["due_phase"] == phase
@@ -99,7 +99,7 @@ class KernelSliceTests(unittest.TestCase):
                     "actor": {"id": "fixture-author", "kind": "chat", "relation": "SAME_AGENT"}}
         for phase in {o["due_phase"] for r in contract["selected_rules"] for o in r["obligations"]}:
             with self.subTest(phase=phase):
-                facts = {"current_facts": task["facts"]}  # satisfies the continuity refresh boundary
+                facts = {"current_task": task}  # satisfies every selection refresh boundary
                 self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, **facts, **CLOCKS)["admission"])
                 receipts = self.bind(contract, phase, payload, judgment)
                 self.assertEqual("ADMITTED", tt.check_contract(contract, phase, payload, receipts=receipts, **facts, **CLOCKS)["admission"])
@@ -121,20 +121,20 @@ class KernelSliceTests(unittest.TestCase):
                     if obligation["enforcement"] == "mechanical":
                         self.assertFalse(any(r["obligation_id"] == obligation["obligation_id"] for r in bound["receipts"]))
                         for other in ("violating-final.txt", "near-miss-final.txt"):
-                            result = tt.check_contract(contract, phase, (folder / other).read_bytes(), receipts=bound, **CLOCKS)
+                            result = tt.check_contract(contract, phase, (folder / other).read_bytes(), receipts=bound, **CLOCKS, current_task=tt.read_json(folder / "task.json"))
                             self.assertEqual("BLOCKED", result["admission"])
                             self.assertEqual("FAIL", next(r for r in result["results"] if r["obligation_id"] == obligation["obligation_id"])["status"])
                         continue
                     target = next(r for r in bound["receipts"] if r["obligation_id"] == obligation["obligation_id"])
                     target["verdict"] = "FAIL"
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound, **CLOCKS)["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound, **CLOCKS, current_task=tt.read_json(folder / "task.json"))["admission"])
                     target["verdict"] = "PASS"
                     bound["receipts"].remove(target)
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound, **CLOCKS)["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload, receipts=bound, **CLOCKS, current_task=tt.read_json(folder / "task.json"))["admission"])
                     bound = self.bind(contract, phase, payload, judgment)
                     for other in ("violating-final.txt", "near-miss-final.txt"):
-                        self.assertEqual("BLOCKED", tt.check_contract(contract, phase, (folder / other).read_bytes(), receipts=bound, **CLOCKS)["admission"])
-                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload + b"Rewritten.\n", receipts=bound, **CLOCKS)["admission"])
+                        self.assertEqual("BLOCKED", tt.check_contract(contract, phase, (folder / other).read_bytes(), receipts=bound, **CLOCKS, current_task=tt.read_json(folder / "task.json"))["admission"])
+                    self.assertEqual("BLOCKED", tt.check_contract(contract, phase, payload + b"Rewritten.\n", receipts=bound, **CLOCKS, current_task=tt.read_json(folder / "task.json"))["admission"])
 
     def test_not_applicable_requires_permission_and_nonempty_reason(self):
         for folder, record, contract in self.cases():
@@ -153,7 +153,7 @@ class KernelSliceTests(unittest.TestCase):
                     for reason in ("", " ", "The conditional payload or action is absent in this candidate."):
                         target["not_applicable_reason"] = reason
                         expected = "ADMITTED" if reason.strip() and obligation.get("not_applicable_allowed") else "BLOCKED"
-                        self.assertEqual(expected, tt.check_contract(contract, phase, payload, receipts=bound, **CLOCKS)["admission"])
+                        self.assertEqual(expected, tt.check_contract(contract, phase, payload, receipts=bound, **CLOCKS, current_task=tt.read_json(folder / "task.json"))["admission"])
 
     def test_actor_scope_and_unknown_trigger_fail_closed(self):
         for folder, record, contract in self.cases():
@@ -186,7 +186,7 @@ class KernelSliceTests(unittest.TestCase):
                          "not_applicable_reason": "", "actor": {"id": "fixture-reviewer", "kind": "fixture", "relation": "SAME_AGENT"},
                          "issued_at": "2030-01-02T10:02:00Z"} for ob in catalog["records"][0]["obligations"]]
             for supplied in (None, receipts):
-                self.assertEqual(expected, tt.check_contract(contract, "final-delivery", payload, receipts=supplied, **clocks)["admission"])
+                self.assertEqual(expected, tt.check_contract(contract, "final-delivery", payload, receipts=supplied, **clocks, current_task=task)["admission"])
 
     def test_map_matches_docs_and_has_no_unmapped_record_obligations(self):
         doc = (ROOT / "docs/uda-enforcement-coverage.md").read_text()
@@ -194,7 +194,10 @@ class KernelSliceTests(unittest.TestCase):
             if not entry.get("obligation_map"):
                 continue
             with self.subTest(section=entry["id"]):
-                self.assertEqual(entry["disposition"], "STRUCTURED_ENFORCED")
+                partial = entry["id"] in {"patterns/context-compaction-resilience.md",
+                                          "patterns/terminal-response-admission-and-autonomous-continuation.md"}
+                self.assertEqual(entry["disposition"], "STRUCTURED_PARTIAL" if partial else "STRUCTURED_ENFORCED")
+                self.assertEqual(partial, bool(entry.get("legacy_remainder")))
                 for item in entry["obligation_map"]:
                     sentence = item["sentence"].replace("|", "\\|").replace("\n", " ")
                     self.assertIn(sentence, doc)

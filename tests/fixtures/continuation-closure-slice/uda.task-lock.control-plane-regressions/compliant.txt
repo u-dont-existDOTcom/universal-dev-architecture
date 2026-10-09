@@ -1,0 +1,1 @@
+Executed control-plane cases reject wrong branch, stale task identity, preliminary green code, missing artifacts, COMPLETE for blocked live work, input/grader leakage and unrelated roadmap selection; only all declared artifacts admit acceptance. The receipt includes execution results.

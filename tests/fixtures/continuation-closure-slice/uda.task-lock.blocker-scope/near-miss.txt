@@ -1,0 +1,1 @@
+The blocker is preserved and the worker lists a current unrelated relation. Actual resolver findings are omitted from the receipt and replaced by a worker assertion that causality was checked.

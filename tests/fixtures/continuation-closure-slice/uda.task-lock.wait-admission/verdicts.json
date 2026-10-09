@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Actual wait-admission output binds task, blocker or reasoning request, causal dependency, changing condition/source/actor/mechanism, poll identity, next check, maximum horizon/expiry, owner action and independent work. Its applicable findings include WAIT_CONDITION_NOT_ACTIONABLE, WAIT_WITHOUT_ADMISSION, GITHUB_UPDATE_WAIT_WITHOUT_CAUSAL_DEPENDENCY, WAIT_REASONING_HANDOFF_MISSING and WAIT_NEXT_CHECK_OUTSIDE_HORIZON. A rejected wait continues known independent work.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The worker waits for repository updates with no causal dependency, changing condition or horizon.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "A well-timed wait cannot admit without the exact reasoning handoff; the emitted finding must be retained.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "wait-admission-at-boundary",
+    "non_substitute": "resolver findings replaced by a worker assertion"
+  }
+}

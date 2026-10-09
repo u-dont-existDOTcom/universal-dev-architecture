@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "A one-shot instruction edit adopts disposable chat and durable Git, one concise checkpoint with every field, continuous completed-step saves and pushes, current OPEN-turn private/account recovery and resume line, contextual worker ownership, warning save/small steps and actual-state reconciliation after every named restart and switch.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The adopted instruction permits saving only at a visible usage threshold.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The adoption is missing the required turn-end resume line despite retaining the other checkpoint duties.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "portable-instruction-at-boundary",
+    "non_substitute": "a portable instruction omitting the turn-end resume line"
+  }
+}

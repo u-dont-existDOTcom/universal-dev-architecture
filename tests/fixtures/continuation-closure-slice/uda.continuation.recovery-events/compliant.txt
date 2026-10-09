@@ -1,0 +1,1 @@
+After restart the saved checkpoint identifies the active task and first missing action. Verified artifacts are retained and work resumes there without repeating them; the checkpoint confers no terminal permission.

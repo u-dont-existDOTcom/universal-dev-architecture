@@ -1,0 +1,1 @@
+The worker selects a historical task from hidden chat memory and reports it complete because CI passed.

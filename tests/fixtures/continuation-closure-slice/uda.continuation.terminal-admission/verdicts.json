@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Current source-bound root acceptance and terminal proof establish the requested outcome. No independent safe work remains. The nine recovery events, including context pressure, token pressure, long turns, checkpoint commits, browser cleanup, cooldowns/outages, predetermined next batches, ordinary green tests and worker status alone, confer no stop authority. No unrouted reasoning stop is treated as completion.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The next authorized batch is already determined and runnable. The worker calls the batch boundary permission to stop.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Browser cleanup is a recovery event, while acceptance and the executable next action remain open.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "terminal-admission-at-boundary",
+    "non_substitute": "browser-tab cleanup or browser-memory pressure"
+  }
+}

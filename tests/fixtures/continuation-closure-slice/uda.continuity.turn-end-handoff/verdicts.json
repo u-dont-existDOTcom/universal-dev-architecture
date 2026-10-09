@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "This turn is saved with done, next, exact next action and the one-line resume command. Private supervisor state is in a durable store reachable by the successor. The account-bound scheduled check-in must be recreated; there are no other account items.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The earlier checkpoint still describes yesterday. The current next action and private state were not saved.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Fresh public recovery cannot establish successor access to the separately required private state.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "save-turn-end-handoff",
+    "non_substitute": "private state only in the old account"
+  }
+}

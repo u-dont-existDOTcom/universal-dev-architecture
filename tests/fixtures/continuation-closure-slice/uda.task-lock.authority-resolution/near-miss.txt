@@ -1,0 +1,1 @@
+The checkpoint task and branch labels match. Its bytes were replaced and the resolver emitted TASK_LOCAL_CHECKPOINT_CONTENT_SHA256_MISMATCH, but the worker asserts matching prose substituted for exact checkpoint identity and continues.
