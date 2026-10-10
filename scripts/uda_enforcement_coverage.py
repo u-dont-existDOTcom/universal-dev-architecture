@@ -318,6 +318,9 @@ def validate(root: Path | str) -> list[str]:
                     if (source and "source_sha256" in manifest
                             and manifest["source_sha256"] != hashlib.sha256(source["source"].encode()).hexdigest()):
                         errors.append(prefix + "whole source differs from independent source pin")
+                    if (eid == "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md"
+                            and "deferred_catalog" not in manifest):
+                        errors.append(prefix + "missing independent deferred candidate catalog pin")
                     if "deferred_catalog" in manifest:
                         deferred = manifest["deferred_catalog"]
                         try:

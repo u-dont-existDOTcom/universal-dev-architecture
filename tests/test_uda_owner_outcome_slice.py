@@ -371,6 +371,15 @@ class OwnerOutcomeCoverageMutations(unittest.TestCase):
             self.mutate(DEFERRED, drop)
             self.rejected('deferred candidate catalog differs from independent pin')
 
+    def test_deferred_catalog_pin_cannot_be_removed_to_disable_candidate_check(self):
+        for erased in (False, True):
+            with self.subTest(erased=erased):
+                self.restore()
+                self.mutate(coverage.REQUIREMENT, lambda d: d['source_clause_manifest'][SOURCE].pop('deferred_catalog'))
+                if erased:
+                    self.mutate(DEFERRED, lambda d: d.update(records=[]))
+                self.rejected('missing independent deferred candidate catalog pin')
+
     def test_whole_source_and_each_section_are_pinned_including_context(self):
         original = self.originals[SOURCE].decode()
         changes = [original.replace('# Owner-Outcome', '# Renamed Owner-Outcome', 1)]
