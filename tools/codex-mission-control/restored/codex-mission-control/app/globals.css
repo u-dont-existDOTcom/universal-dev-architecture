@@ -117,6 +117,8 @@ h1 { margin: 3px 0 0; font-size: 22px; letter-spacing: -.02em; }
 .supervisor-link:hover { border-color: var(--cyan); background: rgba(70,142,124,.16); }
 .chat-glyph { font-size: 14px; }
 .placeholder-flag { color: var(--yellow); font: 700 8px var(--mono); letter-spacing: .07em; text-transform: uppercase; }
+.supervisor-link-missing, .supervisor-link-missing:hover { border-color: var(--line); background: transparent; color: var(--muted); cursor: default; }
+.supervisor-link-hint { color: var(--cyan); font: 700 10px var(--mono); }
 .alignment-row { padding: 13px 20px; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); background: rgba(4,12,10,.25); }
 .alignment-row > div:first-child { display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--muted); font: 10px var(--mono); text-transform: uppercase; }
 .alignment-row strong { color: var(--text); font-size: 12px; }

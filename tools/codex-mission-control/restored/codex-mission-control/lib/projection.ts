@@ -1,3 +1,4 @@
+import { isSpecificChatAddress } from "./supervisor-chat-address";
 import { correctionStatusLabel } from "./correction-lifecycle";
 import { driftConfig, DriftConfig } from "./drift-config";
 import type {
@@ -333,7 +334,9 @@ function projectV2Worker(
     ?? progressWhy(progress, comparison.outcomeAdvancement)
     ?? (comparison.contractToOwnerAlignment !== "MATCH" ? comparison.currentGap : null)
     ?? terminalWhy(comparison);
-  const supervisorUrl = route?.supervisor_chat_url ?? latestSupervisorLink(events)?.supervisor_chat_url ?? "https://chatgpt.com/";
+  // No recorded route or link means no supervisor chat is linked yet: leave it empty (shown as "No supervisor chat
+  // linked") instead of pointing the owner at the ChatGPT home page.
+  const supervisorUrl = route?.supervisor_chat_url ?? latestSupervisorLink(events)?.supervisor_chat_url ?? "";
   const supervisorLabel = route?.supervisor_chat_label ?? latestSupervisorLink(events)?.supervisor_chat_label ?? "Open supervisor chat";
   const lastCheckpoint = checkpointEvent(events) ?? events.at(-1)!;
   const channel = projectWorkerChannel(events);
@@ -362,7 +365,7 @@ function projectV2Worker(
     },
     supervisorChatUrl: supervisorUrl,
     supervisorChatLabel: supervisorLabel,
-    supervisorChatIsPlaceholder: /replace-|example|placeholder/i.test(supervisorUrl),
+    supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
     status,
     health: comparison.overallTraffic,
     workerToContractAlignment: comparison.workerToContractAlignment,
@@ -757,7 +760,7 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
     },
     supervisorChatUrl: supervisorUrl,
     supervisorChatLabel: link?.supervisor_chat_label ?? objective.supervisor_chat_label,
-    supervisorChatIsPlaceholder: /replace-|example|placeholder/i.test(supervisorUrl),
+    supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
     status: heartbeat?.status ?? "working",
     health: overall,
     workerToContractAlignment: workerAlignment,

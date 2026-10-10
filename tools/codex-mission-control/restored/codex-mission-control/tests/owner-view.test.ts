@@ -11,6 +11,35 @@ import { EventStore } from "../lib/store";
 import { seedIssue47Store } from "../lib/seed";
 const valid = (value: unknown) => Boolean(value && typeof value === "object" && "workers" in value);
 const queueItem = (patch: Partial<WorkQueueItemProjection> = {}): WorkQueueItemProjection => ({ worker: "worker-a", projectId: "project-a", taskId: "task-a", directionId: "direction-a", queueRevisionId: "queue-a", revision: 1, itemId: "item-a", title: "Review the candidate", detail: "Recorded work detail", status: "BLOCKED", priority: "P1", ordinal: 0, dependsOn: [], createdAt: "2026-09-17T00:00:00Z", updatedAt: "2026-09-17T00:00:00Z", ...patch });
+
+for (const supervisor of [
+  { state: "recorded", url: "https://chatgpt.com/c/real-supervisor-chat", placeholder: false },
+  { state: "missing", url: "", placeholder: true },
+  { state: "demo", url: "https://chatgpt.com/c/replace-demo-supervisor", placeholder: true },
+]) {
+  test(`current-task dashboard card exposes honest supervisor access: ${supervisor.state}`, () => {
+    const store = new EventStore(":memory:");
+    try {
+      seedIssue47Store(store);
+      const worker = snapshotFromStore(store).workers.find(worker => worker.id === "mission-control-live-slice")!;
+      assert.ok(worker);
+      const html = renderToStaticMarkup(createElement(OwnerTaskCard, { worker: {
+        ...worker, supervisorChatUrl: supervisor.url, supervisorChatLabel: "Open specialist supervisor",
+        supervisorChatIsPlaceholder: supervisor.placeholder,
+      } }));
+      if (supervisor.placeholder) {
+        assert.match(html, /No supervisor chat linked/);
+        assert.match(html, /href="\/supervision"/);
+        assert.doesNotMatch(html, /href="https:\/\/chatgpt\.com/);
+      } else {
+        assert.match(html, /href="https:\/\/chatgpt\.com\/c\/real-supervisor-chat"/);
+        assert.match(html, /Open specialist supervisor/);
+        assert.doesNotMatch(html, /No supervisor chat linked/);
+      }
+    } finally { store.close(); }
+  });
+}
+
 test("initial API rejection renders actionable error; partial notice is explicit; retry accepts real snapshot", async () => {
   let requestCount = 0;
   const request = (async () => ++requestCount === 1 ? new Response("unavailable", { status: 503 }) : Response.json({ workers: [] })) as typeof fetch;

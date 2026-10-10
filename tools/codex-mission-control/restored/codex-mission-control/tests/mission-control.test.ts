@@ -60,6 +60,31 @@ test("supervisor chat links remain first-class HTTPS-only data", () => {
   assert.throws(() => eventSchema.parse({ ...parsed, supervisor_chat_url: "javascript:alert(1)" }));
 });
 
+test("a worker with no recorded supervisor chat says so instead of linking the ChatGPT home page", () => {
+  const events = cloneEvents(workerEvents("auth")).filter((event) =>
+    event.data.type !== "supervision_route_recorded" && event.data.type !== "supervisor_chat_link_set");
+  const worker = projectWorker(events, new Date("2026-08-30T20:05:00.000Z"));
+  assert.equal(worker.supervisorChatUrl, "");
+  assert.equal(worker.supervisorChatIsPlaceholder, true);
+  const html = renderToStaticMarkup(createElement(HealthyCard, { worker }));
+  assert.match(html, /No supervisor chat linked/);
+  assert.match(html, /href="\/supervision"/);
+  assert.doesNotMatch(html, /href="https:\/\/chatgpt\.com\/"/);
+});
+
+test("a recorded real supervisor chat stays a link, and a demo address is not offered as one", () => {
+  const events = cloneEvents(workerEvents("auth"));
+  replaceLatest(events, "supervision_route_recorded", (data) => ({ ...data, supervisor_chat_url: "https://chatgpt.com/c/real-supervisor-chat" }));
+  const linked = projectWorker(events, new Date("2026-08-30T20:05:00.000Z"));
+  assert.equal(linked.supervisorChatIsPlaceholder, false);
+  assert.match(renderToStaticMarkup(createElement(HealthyCard, { worker: linked })), /href="https:\/\/chatgpt\.com\/c\/real-supervisor-chat"/);
+  const demo = demoWorker("auth");
+  assert.equal(demo.supervisorChatIsPlaceholder, true);
+  const demoHtml = renderToStaticMarkup(createElement(HealthyCard, { worker: demo }));
+  assert.match(demoHtml, /No supervisor chat linked/);
+  assert.doesNotMatch(demoHtml, /replace-auth-supervisor/);
+});
+
 test("versioned envelopes require stable identity, mission identity, and occurrence time", () => {
   const envelope = sourceEnvelope("source:alpha:1");
   assert.equal(appendEnvelopeSchema.parse(envelope).event_id, "source:alpha:1");
