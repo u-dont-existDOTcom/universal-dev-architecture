@@ -1507,31 +1507,37 @@ function selectAuthoritativePendingRoute({ snapshot, routes, state, exactRequest
   const publicAuthoritative = scopedAuthoritative.map((request) => ({ ...request }));
   const publicEligible = eligible.map(publicRoute);
 
-  if (scopedAuthoritative.length !== 1 || uniqueAuthoritativeKeys.size !== 1) {
+  if (scopedAuthoritative.length === 0 || scopedAuthoritative.length !== uniqueAuthoritativeKeys.size
+    || (exactRequest && scopedAuthoritative.length !== 1)) {
     const status = exactRequest
       ? (scopedAuthoritative.length === 0 ? 'EXACT_REQUEST_ROUTE_UNAVAILABLE' : 'EXACT_REQUEST_ROUTE_AMBIGUOUS')
       : (scopedAuthoritative.length === 0 ? 'AUTHORITATIVE_PENDING_ROUTE_UNAVAILABLE' : 'AUTHORITATIVE_PENDING_ROUTE_AMBIGUOUS');
     return routeSelectionFailure(
       status,
-      `Mission Control authoritative pending-request cardinality is ${scopedAuthoritative.length}; exactly one is required.`,
+      `Mission Control authoritative pending-request cardinality is ${scopedAuthoritative.length}; ${exactRequest ? 'exactly one is required' : 'nonempty unique requests are required'}.`,
       publicAuthoritative,
       publicEligible,
     );
   }
-  if (eligible.length !== 1) {
+  // extractQueuedRoutes supplies durable queue order; service cycles select one
+  // request, while duplicate routes for that request still fail closed.
+  const selectedRoute = eligible[0];
+  const selectedRoutes = eligible.filter((route) => route.workerId === selectedRoute.workerId
+    && route.requestId === selectedRoute.requestId);
+  if (selectedRoutes.length !== 1) {
     const status = exactRequest
       ? (eligible.length === 0 ? 'EXACT_REQUEST_ROUTE_UNAVAILABLE' : 'EXACT_REQUEST_ROUTE_AMBIGUOUS')
       : (eligible.length === 0 ? 'AUTHORITATIVE_PENDING_ROUTE_UNAVAILABLE' : 'AUTHORITATIVE_PENDING_ROUTE_AMBIGUOUS');
     return routeSelectionFailure(
       status,
-      `Locally eligible current-route cardinality is ${eligible.length}; exactly one is required.`,
+      `Locally eligible selected-request route cardinality is ${selectedRoutes.length}; exactly one is required.`,
       publicAuthoritative,
       publicEligible,
     );
   }
   return {
     status: 'SELECTED',
-    route: eligible[0],
+    route: selectedRoute,
     authoritativePending: { count: publicAuthoritative.length, requests: publicAuthoritative },
     eligible: { count: publicEligible.length, routes: publicEligible },
   };

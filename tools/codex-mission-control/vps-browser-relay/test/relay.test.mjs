@@ -240,16 +240,95 @@ test('a completed route already acknowledged locally is ignored for receipt prec
   assert.equal(browser.submitCalls, 0);
 });
 
-test('two authoritative current pending routes fail closed before browser mutation', async () => {
+test('service cycles select pending routes in durable queue order rather than projection order', async () => {
   const store = new MemoryStateStore();
   const mc = new FakeMissionControl({
-    routes: [inBandRouteEvent('current-a', 'current-a-route', 'task-a'), inBandRouteEvent('current-b', 'current-b-route', 'task-b')],
-    authoritativePendingRequestIds: ['current-a', 'current-b'],
+    routes: [inBandRouteEvent('current-b', 'current-b-route', 'task-b'), inBandRouteEvent('current-a', 'current-a-route', 'task-a')],
+    authoritativePendingRequestIds: ['current-b', 'current-a'],
+  });
+  const browser = new FakeBrowser();
+  const runtime = makeRuntime({ store, mc, browser, submitEnabled: false });
+  runtime.config.runtime.requestBoundEnabled = true;
+  const first = await runtime.cycle();
+  assert.equal(first.status, 'DRY_RUN_ROUTE_READY', JSON.stringify(first));
+  assert.equal(first.route.requestId, 'current-a');
+
+  store.state.deliveries['request:current-a'] = { status: 'DECISION_RECEIPT_INGESTED' };
+  const second = await runtime.cycle();
+  assert.equal(second.status, 'DRY_RUN_ROUTE_READY', JSON.stringify(second));
+  assert.equal(second.route.requestId, 'current-b');
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('service cycles send and complete two workers pending requests one at a time', async () => {
+  const { mc, browser, runtime } = inBandRequestFixture();
+  mc.routes = [inBandRouteEvent('current-b', 'current-b-route', 'task-b'), inBandRouteEvent('current-a', 'current-a-route', 'task-a')];
+  runtime.config.runtime.chats[0].scope = 'PROJECT_MANAGER';
+  const submitExactMessage = browser.submitExactMessage.bind(browser);
+  browser.submitExactMessage = async (target, input) => {
+    const result = await submitExactMessage(target, input);
+    // Reflect the second conversation's navigation in the reused fake target.
+    browser.targets.find((item) => item.id === target.id).url = target.url;
+    return result;
+  };
+  const fetchFleet = mc.fetchFleet.bind(mc);
+  mc.fetchFleet = async () => {
+    const snapshot = await fetchFleet();
+    const worker = snapshot.workers[0];
+    return { ...snapshot, workers: ['b', 'a'].map((suffix) => {
+      const requestId = `current-${suffix}`;
+      return {
+        id: `worker-${suffix}`, name: `Worker ${suffix}`,
+        authoritativePendingRequestIds: worker.authoritativePendingRequestIds.filter((id) => id === requestId),
+        timeline: worker.timeline.filter((event) => parseSupervisoryCycleRouteBody(event.data?.body)?.requestId === requestId
+          || event.data?.request_id === requestId || event.data?.refs?.includes(`request:${requestId}`)),
+      };
+    }) };
+  };
+  for (const [index, suffix] of ['a', 'b'].entries()) {
+    const started = await runtime.cycle();
+    assert.equal(started.status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED', JSON.stringify(started));
+    assert.equal(started.route.workerId, `worker-${suffix}`);
+    assert.equal(started.route.requestId, `current-${suffix}`);
+    assert.equal(browser.submitCalls, index + 1);
+    const completed = await runtime.cycle();
+    assert.equal(completed.status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY', JSON.stringify(completed));
+    const copied = await runtime.cycle();
+    assert.equal(copied.status, 'DECISION_RECEIPT_INGESTED', JSON.stringify(copied));
+    const reconciled = await runtime.cycle();
+    assert.equal(reconciled.status, 'DECISION_RECEIPT_INGESTED', JSON.stringify(reconciled));
+    assert.equal(reconciled.reconciled[0].route.requestId, `current-${suffix}`);
+    assert.equal(browser.submitCalls, index + 1);
+  }
+  assert.deepEqual(mc.copyCalls.map((input) => input.requestId), ['current-a', 'current-b']);
+});
+
+test('duplicate authoritative projection entries fail closed before browser mutation', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({
+    routes: [inBandRouteEvent('current-a', 'current-a-route', 'task-a')],
+    authoritativePendingRequestIds: ['current-a', 'current-a'],
   });
   const browser = new FakeBrowser();
   const result = await makeRuntime({ store, mc, browser, submitEnabled: true }).cycle();
   assert.equal(result.status, 'AUTHORITATIVE_PENDING_ROUTE_AMBIGUOUS', JSON.stringify(result));
   assert.equal(result.authoritativePending.count, 2);
+  assert.equal(browser.listTargetsCalls, 0);
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('duplicate routes for the selected pending request fail closed before browser mutation', async () => {
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({
+    routes: [inBandRouteEvent('current-a', 'current-a-route-1', 'task-a'), inBandRouteEvent('current-a', 'current-a-route-2', 'task-a'),
+      inBandRouteEvent('current-b', 'current-b-route', 'task-b')],
+    authoritativePendingRequestIds: ['current-a', 'current-b'],
+  });
+  const browser = new FakeBrowser();
+  for (const exactRequest of [null, { workerId: 'worker-a', requestId: 'current-a' }]) {
+    const result = await makeRuntime({ store, mc, browser, submitEnabled: true }).cycle({ exactRequest });
+    assert.equal(result.status, exactRequest ? 'EXACT_REQUEST_ROUTE_AMBIGUOUS' : 'AUTHORITATIVE_PENDING_ROUTE_AMBIGUOUS', JSON.stringify(result));
+  }
   assert.equal(browser.listTargetsCalls, 0);
   assert.equal(browser.submitCalls, 0);
 });
