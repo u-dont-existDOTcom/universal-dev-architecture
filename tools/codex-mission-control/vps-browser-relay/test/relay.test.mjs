@@ -12,6 +12,7 @@ import {
   PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
   STAGED_PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
   PROVIDER_SESSION_MCP_SUMMARY,
+  PROVIDER_INVALID_CANONICAL_DECISION_SUMMARY,
   PROVIDER_SESSION_SUMMARY,
   RELAY_STAGE_SUMMARY,
   canonicalJson,
@@ -1589,9 +1590,27 @@ test('V6 authoritative schema rejection blocks before copy with typed invalid-re
   const error = new Error('bounded_execution.work_execution_profile effort does not match routing tier');
   error.classification = 'ASSISTANT_RESPONSE_PRESENT_BUT_INVALID';
   mc.validationError = error;
+  const recordEvidence = mc.recordEvidence.bind(mc);
+  let confirmPersistence, observeAttempt;
+  const persistence = new Promise((resolve) => { confirmPersistence = resolve; });
+  const attempted = new Promise((resolve) => { observeAttempt = resolve; });
+  mc.recordEvidence = async (worker, evidence) => {
+    if (evidence.summary === PROVIDER_INVALID_CANONICAL_DECISION_SUMMARY) {
+      assert.equal(store.state.deliveries['request:r-1'].status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+      observeAttempt();
+      await persistence;
+    }
+    return recordEvidence(worker, evidence);
+  };
   assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
   assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
-  const blocked = await runtime.cycle();
+  const recovery = runtime.cycle();
+  assert.equal(await Promise.race([
+    attempted.then(() => 'EVIDENCE_WRITE'), recovery.then(() => 'RECOVERY_RETURNED'),
+  ]), 'EVIDENCE_WRITE');
+  assert.equal(store.state.deliveries['request:r-1'].status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  confirmPersistence();
+  const blocked = await recovery;
   assert.equal(blocked.status, 'IN_BAND_REQUEST_DECISION_RECOVERY_BLOCKED');
   assert.equal(blocked.recoveryClassification, 'ASSISTANT_RESPONSE_PRESENT_BUT_INVALID');
   assert.equal(mc.validationCalls.length, 1);
@@ -1600,6 +1619,53 @@ test('V6 authoritative schema rejection blocks before copy with typed invalid-re
   assert.equal(browser.submitCalls, 1);
   assert.equal(store.state.deliveries['request:r-1'].canonicalBodySha256, undefined);
   assert.equal(store.state.deliveries['request:r-1'].decisionIngestedEventId, undefined);
+  const failures = mc.recordedEvidence.filter((item) => item.summary === PROVIDER_INVALID_CANONICAL_DECISION_SUMMARY);
+  assert.equal(failures.length, 1);
+  const failure = failures[0];
+  const failureSha = store.state.deliveries['request:r-1'].failureReceiptSha256;
+  assert.match(failureSha, /^[a-f0-9]{64}$/);
+  assert.equal(blocked.failureReceiptSha256, failureSha);
+  assert.equal(failure.receiptId, `provider-invalid-canonical-decision:${failureSha}`);
+  assert.equal(failure.worker, mc.validationCalls[0].workerId);
+  for (const ref of [
+    'request:r-1', `supervisor:${mc.validationCalls[0].supervisorId}`,
+    `provider_session:${mc.validationCalls[0].providerSessionId}`,
+    `canonical_body_sha256:${mc.validationCalls[0].canonicalBodySha256}`,
+    `failure_receipt_sha256:${failureSha}`, 'classification:PROVIDER_INVALID_CANONICAL_DECISION',
+    'canonical_decision_admitted:false',
+  ]) assert.ok(failure.refs.includes(ref), ref);
+  assert.ok(mc.recordedEvidence.some((item) => item.summary === PROVIDER_SESSION_SUMMARY
+    && item.refs.includes(`provider_session:${mc.validationCalls[0].providerSessionId}`)
+    && item.refs.includes('lifecycle_status:COMPLETE')));
+  assert.equal((await runtime.cycle()).status, 'AWAITING_GITHUB_RECEIPT');
+  assert.equal(mc.recordedEvidence.filter((item) => item.summary === PROVIDER_INVALID_CANONICAL_DECISION_SUMMARY).length, 1);
+  assert.equal(browser.submitCalls, 1);
+});
+
+test('V6 retries invalid-decision evidence persistence before blocking, without a provider resend', async () => {
+  const { store, mc, browser, runtime } = inBandRequestFixture();
+  const error = new Error('Authoritative canonical schema rejected the response');
+  error.classification = 'ASSISTANT_RESPONSE_PRESENT_BUT_INVALID';
+  mc.validationError = error;
+  const recordEvidence = mc.recordEvidence.bind(mc);
+  const attempts = [];
+  mc.recordEvidence = async (worker, evidence) => {
+    if (evidence.summary === PROVIDER_INVALID_CANONICAL_DECISION_SUMMARY) {
+      attempts.push(structuredClone(evidence));
+      if (attempts.length === 1) throw new Error('Mission Control evidence write unavailable');
+    }
+    return recordEvidence(worker, evidence);
+  };
+  await runtime.cycle();
+  await runtime.cycle();
+  assert.equal((await runtime.cycle()).status, 'ERROR');
+  assert.equal(store.state.deliveries['request:r-1'].status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  runtime.config.runtime.submitEnabled = false;
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_RECOVERY_BLOCKED');
+  assert.equal(attempts.length, 2);
+  assert.deepEqual(attempts[1], attempts[0]);
+  assert.equal(mc.copyCalls.length, 0);
+  assert.equal(browser.submitCalls, 1);
 });
 
 test('V6 invalid or empty exact-turn recovery blocks without another provider send', async () => {

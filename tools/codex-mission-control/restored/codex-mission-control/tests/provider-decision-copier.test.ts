@@ -44,6 +44,7 @@ class FakeStore {
   append(envelope: AppendEnvelope, occurredAt?: string): StoredEvent {
     const event = {
       eventId: envelope.event_id, missionId: envelope.mission_id, occurredAt: occurredAt ?? envelope.occurred_at,
+      worker: envelope.data.worker,
       sequence: this.events.length + 1, producerId: 'test', producerKind: 'SYSTEM',
       previousEventHash: null, eventHash: sha256(JSON.stringify(envelope)), schemaVersion: 2, data: envelope.data,
     } as unknown as StoredEvent;
@@ -53,8 +54,15 @@ class FakeStore {
 }
 
 function fixture({ readbackBody = canonicalBody, conflictBody = null as string | null, pending = true,
-  initialComments = [] as Array<Record<string, unknown>>, failPage = null as number | null, ambiguousPost = false } = {}) {
+  initialComments = [] as Array<Record<string, unknown>>, failPage = null as number | null, ambiguousPost = false,
+  pendingRequests = () => pending ? [request] : [],
+  onToken = (_store: FakeStore) => {}, onDiscovery = (_store: FakeStore) => {} } = {}) {
   const store = new FakeStore();
+  const ownerOutcome = {
+    worker: request.worker, data: { type: 'owner_outcome_recorded', worker: request.worker,
+      owner_outcome_id: request.ownerOutcome.id, epoch: request.ownerOutcome.epoch,
+      owner_outcome_sha256: request.ownerOutcome.sha256 },
+  } as StoredEvent;
   const comments: Array<Record<string, unknown>> = [...initialComments];
   if (conflictBody) comments.push(comment(7001, conflictBody));
   let posts = 0, gets = 0, tokenCalls = 0;
@@ -62,6 +70,7 @@ function fixture({ readbackBody = canonicalBody, conflictBody = null as string |
     const url = String(value);
     const page = new URL(url).searchParams.get('page');
     if (page) {
+      onDiscovery(store);
       if (Number(page) === failPage) return new Response('unavailable', { status: 503 });
       return response(comments.slice((Number(page) - 1) * 100, Number(page) * 100));
     }
@@ -78,9 +87,9 @@ function fixture({ readbackBody = canonicalBody, conflictBody = null as string |
     throw new Error(`Unexpected URL ${url}`);
   };
   const copier = new ProviderDecisionCopier({
-    store: store as unknown as EventStore, policy, tokenProvider: async () => { tokenCalls += 1; return 'installation-token'; },
-    eventHistory: () => [...store.events], fetchImpl: fetchImpl as typeof fetch,
-    now: () => '2026-10-06T00:10:00.000Z', pendingRequests: () => pending ? [request] : [],
+    store: store as unknown as EventStore, policy, tokenProvider: async () => { tokenCalls += 1; onToken(store); return 'installation-token'; },
+    eventHistory: () => [ownerOutcome, ...store.events], fetchImpl: fetchImpl as typeof fetch,
+    now: () => '2026-10-06T00:10:00.000Z', pendingRequests,
     ingestCandidate: ((eventStore: EventStore, candidate: any, _policy: any, at: string) => {
       if (store.events.some((event) => event.data.type === 'github_decision_receipt_ingested'
         && event.data.request_id === input.requestId)) return [];
@@ -108,6 +117,41 @@ test('exact recovery publishes once, performs immutable readback, ingests, and i
   const second = await f.copier.copy(input, relay);
   assert.equal(second.duplicate, true);
   assert.deepEqual(f.counts(), { posts: 1, gets: 2 });
+});
+
+for (const boundary of ['onToken', 'onDiscovery'] as const) {
+  test(`request retirement during ${boundary} prevents publication`, async () => {
+    let pending = true;
+    const f = fixture({
+      pendingRequests: () => pending ? [request] : [],
+      [boundary]: () => { pending = false; },
+    });
+    await assert.rejects(() => f.copier.copy(input, relay), /pending provider decision request/);
+    assert.deepEqual(f.counts(), { posts: 0, gets: 0 });
+    assert.equal(f.store.events.some((event) => event.data.type === 'github_decision_receipt_ingested'), false);
+  });
+
+  test(`owner-outcome epoch change during ${boundary} prevents stale publication`, async () => {
+    const f = fixture({ [boundary]: (store: FakeStore) => {
+      store.append({ schema_version: 2, event_id: 'owner-outcome:new', mission_id: 'mission-control-live',
+        occurred_at: '2026-10-06T00:09:00.000Z', data: {
+          type: 'owner_outcome_recorded', worker: request.worker, owner_outcome_id: request.ownerOutcome.id,
+          epoch: request.ownerOutcome.epoch + 1, owner_outcome_sha256: '9'.repeat(64),
+        },
+      } as AppendEnvelope);
+    } });
+    await assert.rejects(() => f.copier.copy(input, relay), /current owner-outcome epoch/);
+    assert.deepEqual(f.counts(), { posts: 0, gets: 0 });
+    assert.equal(f.store.events.some((event) => event.data.type === 'github_decision_receipt_ingested'), false);
+  });
+}
+
+test('request binding changes during discovery prevent publication', async () => {
+  let current = request;
+  const f = fixture({ pendingRequests: () => [current],
+    onDiscovery: () => { current = { ...request, nonce: 'nonce:replaced' }; } });
+  await assert.rejects(() => f.copier.copy(input, relay), /request binding changed/);
+  assert.deepEqual(f.counts(), { posts: 0, gets: 0 });
 });
 
 test('complete comment discovery reuses a receipt after 2000 unrelated comments', async () => {

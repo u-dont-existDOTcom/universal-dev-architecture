@@ -1,4 +1,4 @@
-import { sha256 } from './canonical';
+import { canonicalJson, sha256 } from './canonical';
 import {
   canonicalDecisionCommentPrefix,
   ingestGitHubSupervisionCandidate,
@@ -6,6 +6,7 @@ import {
   pendingDecisionRequests,
   type GitHubDecisionCandidate,
   type GitHubReceiptPolicy,
+  type PendingDecisionRequest,
 } from './github-decision-receipts';
 import {
   inBandBrowserDomReadbackMethod,
@@ -115,7 +116,7 @@ export class ProviderDecisionCopier {
     this.ensureReadbackEvidence(input, now);
     const token = await this.options.tokenProvider();
     if (!token) throw new Error('GitHub write authentication is not configured.');
-    const candidate = await this.findOrPublishExactComment(input, token);
+    const candidate = await this.findOrPublishExactComment(input, token, pending[0]);
     const beforeIngest = this.options.eventHistory();
     const appended = (this.options.ingestCandidate ?? ingestGitHubSupervisionCandidate)(this.options.store, candidate, this.options.policy, now, beforeIngest);
     if (appended.length) {
@@ -195,7 +196,7 @@ export class ProviderDecisionCopier {
     this.options.onAppended?.([appended]);
   }
 
-  private async findOrPublishExactComment(input: ProviderDecisionCopyInput, token: string): Promise<GitHubDecisionCandidate> {
+  private async findOrPublishExactComment(input: ProviderDecisionCopyInput, token: string, request: PendingDecisionRequest | undefined): Promise<GitHubDecisionCandidate> {
     const fetchImpl = this.options.fetchImpl ?? fetch;
     const [owner, repository] = this.options.policy.repository.split('/');
     const issue = this.options.policy.decisionIssueNumber;
@@ -228,6 +229,23 @@ export class ProviderDecisionCopier {
     if (matches.length > 1) throw new Error('Multiple exact GitHub decision comments exist for the exact request/provider session.');
     let comment = matches[0];
     if (!comment) {
+      // Token acquisition and discovery yield to owner updates and request replacement.
+      // Revalidate synchronously at the last controllable boundary before the write.
+      const events = this.options.eventHistory();
+      const current = (this.options.pendingRequests ?? pendingDecisionRequests)(events)
+        .filter((candidate) => candidate.requestId === input.requestId);
+      if (current.length !== 1) throw new Error(`Expected one current pending provider decision request; found ${current.length}.`);
+      if (!request || canonicalJson(current[0]) !== canonicalJson(request)) {
+        throw new Error('Provider decision request binding changed before GitHub publication.');
+      }
+      const outcome = [...events].reverse().find((event) => event.worker === request.worker
+        && event.data.type === 'owner_outcome_recorded')?.data;
+      if (outcome?.type !== 'owner_outcome_recorded'
+        || outcome.owner_outcome_id !== request.ownerOutcome.id
+        || outcome.epoch !== request.ownerOutcome.epoch
+        || outcome.owner_outcome_sha256 !== request.ownerOutcome.sha256) {
+        throw new Error('Provider decision publication is stale against the current owner-outcome epoch.');
+      }
       const response = await fetchImpl(`https://api.github.com/repos/${owner}/${repository}/issues/${issue}/comments`, {
         method: 'POST', headers, body: JSON.stringify({ body: input.canonicalBody }), signal: AbortSignal.timeout(30_000),
       });

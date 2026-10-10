@@ -16,6 +16,7 @@ import {
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_MODEL_SUMMARY,
   PROVIDER_SESSION_MCP_SUMMARY,
+  PROVIDER_INVALID_CANONICAL_DECISION_SUMMARY,
   PROVIDER_SESSION_SUMMARY,
   RELAY_STAGE_SUMMARY,
   capabilityControlPrompt,
@@ -1015,6 +1016,28 @@ export class RelayRuntime {
       } catch (error) {
         state = await this.stateStore.read();
         const classification = error?.classification ?? (recovered ? 'VALID_DECISION_PRESENT_COPIER_FAILED' : 'READBACK_UNRESOLVED');
+        let failureReceiptSha256;
+        if (recovered && classification === 'ASSISTANT_RESPONSE_PRESENT_BUT_INVALID') {
+          const failure = {
+            requestId: route.requestId, supervisorId: route.supervisorId,
+            providerSessionId: session.providerSessionId, canonicalBodySha256: recovered.canonicalBodySha256,
+            classification: 'PROVIDER_INVALID_CANONICAL_DECISION', validationErrorSha256: sha256(redactError(error)),
+          };
+          failureReceiptSha256 = sha256(canonicalJson(failure));
+          // A failed/ambiguous ledger write must leave the completed response retryable.
+          // Use its frozen completion time so replay has the same logical event bytes.
+          await this.missionControl.recordEvidence(route.workerId, {
+            receiptId: `provider-invalid-canonical-decision:${failureReceiptSha256}`,
+            summary: PROVIDER_INVALID_CANONICAL_DECISION_SUMMARY,
+            refs: [
+              `request:${failure.requestId}`, `supervisor:${failure.supervisorId}`,
+              `provider_session:${failure.providerSessionId}`, `canonical_body_sha256:${failure.canonicalBodySha256}`,
+              `failure_receipt_sha256:${failureReceiptSha256}`, `validation_error_sha256:${failure.validationErrorSha256}`,
+              `classification:${failure.classification}`, 'canonical_decision_admitted:false', 'semantic_authority:false',
+            ],
+            occurredAt: prior.generationCompletedAt,
+          });
+        }
         const retryable = recovered && classification === 'VALID_DECISION_PRESENT_COPIER_FAILED';
         const status = retryable ? IN_BAND_COPY_PENDING_STATUS : IN_BAND_RECOVERY_BLOCKED_STATUS;
         state.deliveries[route.routeKey] = {
@@ -1024,6 +1047,7 @@ export class RelayRuntime {
           recoveryError: redactError(error),
           recoveryBlockedAt: retryable ? null : new Date().toISOString(),
           recoveryVersion: IN_BAND_STRUCTURAL_RECOVERY_VERSION,
+          ...(failureReceiptSha256 ? { failureReceiptSha256 } : {}),
         };
         state.health.pausedReason = retryable
           ? `Provider decision copy pending for ${route.requestId}; validation/copy will retry without a provider resend.`
@@ -1031,6 +1055,7 @@ export class RelayRuntime {
         state = await this.stateStore.write(state);
         return this.#writeStandaloneStatus(status, state, {
           memory, queue: summarizeRoutes(routes, state), route: publicRoute(route), recoveryClassification: classification,
+          ...(failureReceiptSha256 ? { failureReceiptSha256 } : {}),
         });
       }
     }
