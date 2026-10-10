@@ -136,10 +136,46 @@ test("exact proof rejects wrong producer, scope, missing source, and ledger cont
   }
 });
 
-function proofRuntime(store: EventStore, now: { value: number }) {
+for (const workerId of [null, "another-worker"]) {
+  test(`exact proof accepts the real routed-task scheduler context for a Project Manager registered to ${workerId}`, async () => {
+    const store = new EventStore(":memory:");
+    const priorChats = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+    const priorPolicy = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+    const now = { value: origin };
+    const chat = { ...projectManager(), workerId };
+    try {
+      seedStore(store);
+      process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = JSON.stringify([chat]);
+      process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify(receiptPolicy());
+      const watch = store.ensureFleetSupervisorWatch("project:proof-context", "task:auth", "auth", new Date(origin).toISOString());
+      routeFleetSupervisorReasoning(store, watch, {
+        trigger: "REASONING_REVIEW_OVERDUE", result: "Route exact proof fixture.", state: "ACTIVE",
+        reasoningRequired: true, mechanicalRecoveryEligible: false, notifyOwner: false, notificationReason: null,
+      }, store.workerEvents(watch.worker));
+      const source = pendingDecisionRequests(store.allEvents()).find((item) => item.worker === watch.worker)!;
+      const { submissionSchedulerContext } = await import(new URL("../../../vps-browser-relay/src/submission-context.mjs", import.meta.url).href);
+      const request = admissionRequest(source.requestId, source.taskId);
+      const context = submissionSchedulerContext({ chat, taskId: source.taskId, requestId: source.requestId,
+        target: { id: request.targetId, automationOwned: true, automationWindowId: request.automationWindowId },
+        expectedUrl: chat.bootstrapCapability.url, queueKey: request.queueKey, sendPath: request.sendPath, bodySha256: request.bodySha256 });
+      const authority = proofRuntime(store, now, workerId);
+      const admitted = await authority.execute("admissions", { ...request, authorizationRef: context.authorizationRef }, relay);
+      const proof = await authority.exactAdmissionProof(admitted.admissionId, relay);
+      assert.equal(proof.admission.authorizationRef, source.taskId);
+      assert.equal(proof.source.taskId, source.taskId);
+      assert.equal(proof.source.workerId, watch.worker);
+    } finally {
+      if (priorChats === undefined) delete process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON; else process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = priorChats;
+      if (priorPolicy === undefined) delete process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON; else process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = priorPolicy;
+      store.close();
+    }
+  });
+}
+
+function proofRuntime(store: EventStore, now: { value: number }, workerId: string | null = null) {
   return new SubmissionAuthorityRuntime(store, {
     NODE_ENV: "test",
-    MISSION_CONTROL_SUPERVISOR_CHATS_JSON: JSON.stringify([projectManager()]),
+    MISSION_CONTROL_SUPERVISOR_CHATS_JSON: JSON.stringify([{ ...projectManager(), workerId }]),
     MISSION_CONTROL_SUBMISSION_PACING_DOMAIN: "chatgpt:proof",
     MISSION_CONTROL_SUBMISSION_ACTIVE_LEASE_JSON: JSON.stringify(lease()),
     MISSION_CONTROL_SUBMISSION_RELAY_BINDINGS_JSON: JSON.stringify({

@@ -96,6 +96,7 @@ export function githubReconciliationTokenProviderFromEnv(options: {
   now?: () => number;
   readFile?: (path: string) => string;
   issuesPermission?: 'read' | 'write';
+  authorizedWriterLogins?: readonly string[];
 }): GitHubReconciliationTokenProvider | null {
   const env = options.env ?? process.env;
   const staticToken = env.MISSION_CONTROL_GITHUB_RECONCILIATION_TOKEN?.trim();
@@ -112,6 +113,13 @@ export function githubReconciliationTokenProviderFromEnv(options: {
     throw new Error("GitHub App reconciliation requires App ID, installation ID, and private-key path together.");
   }
   if (configuredAppValues === appValues.length) {
+    if (options.issuesPermission === 'write') {
+      const botLogin = env.MISSION_CONTROL_GITHUB_APP_BOT_LOGIN?.trim();
+      if (!botLogin || !/^[A-Za-z0-9-]+\[bot\]$/.test(botLogin)
+        || !options.authorizedWriterLogins?.includes(botLogin)) {
+        throw new Error('GitHub App copying requires MISSION_CONTROL_GITHUB_APP_BOT_LOGIN in receipt-policy authorizedWriterLogins.');
+      }
+    }
     if (!isAbsolute(privateKeyPath!)) throw new Error("GitHub App private-key path must be absolute.");
     const readFile = options.readFile ?? ((path: string) => readFileSync(path, "utf8"));
     const provider = new GitHubAppInstallationTokenProvider({

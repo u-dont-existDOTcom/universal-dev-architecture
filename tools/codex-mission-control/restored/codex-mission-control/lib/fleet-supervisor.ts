@@ -170,10 +170,11 @@ export class FleetSupervisorRuntime {
 }
 
 export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSupervisorWatchRecord,
-  decision: FleetSupervisorDecision, _events: readonly StoredEvent[]) {
-  const history = store.workerEvents(watch.worker);
+  decision: FleetSupervisorDecision, _events: readonly StoredEvent[], submissionProof?: ProvenUnsentSubmissionState) {
+  let history = store.workerEvents(watch.worker);
+  const queuedAt = new Date().toISOString();
   const pending = pendingDecisionRequests(history).at(-1);
-  if (pending) return routeEvent(history, pending.requestId);
+  if (pending && Date.parse(pending.expiresAt) > Date.parse(queuedAt)) return routeEvent(history, pending.requestId);
 
   const directory = loadConfiguredSupervisorChats();
   const manager = directory.entries.find((entry) => entry.scope === "PROJECT_MANAGER"
@@ -189,10 +190,49 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
   }
   const boundary = reasoningBoundary(history);
   if (!boundary) throw new Error("Fleet supervision reasoning requires a durable decision boundary.");
-  const requestId = `fleet-review:${sha256(`${watch.projectId}\n${boundary.eventId}`).slice(0, 32)}`;
+  if (pending) {
+    if (pending.routeSchemaVersion !== 6 || !/^fleet-review:[a-f0-9]{32}$/.test(pending.requestId)
+      || pending.taskId !== watch.taskId || !Number.isFinite(Date.parse(pending.expiresAt))) {
+      throw new Error("Expired retirement requires the exact V6 fleet reasoning request.");
+    }
+    if (!submissionProof || !validUnsentSubmissionProof(submissionProof, pending.requestId)) {
+      throw new Error("Submission authority did not prove the expired request unsent.");
+    }
+    const sourceEvent = routeEvent(history, pending.requestId);
+    if (!sourceEvent || history.some((event) => event.eventId !== sourceEvent.eventId
+      && containsRequestReference(event.data, pending.requestId))) {
+      throw new Error("The expired request has durable or ambiguous lifecycle evidence and cannot be retired unsent.");
+    }
+    const retirementId = `supervisory-request-retired-unsent:${sha256(`${pending.requestId}\n${submissionProof.proofSha256}`).slice(0, 32)}`;
+    store.append({
+      schema_version: 2, event_id: retirementId, mission_id: "mission-control-live", occurred_at: queuedAt,
+      data: {
+        type: "evidence_receipt_recorded", worker: watch.worker, receipt_id: retirementId,
+        producer_id: "verifier:fleet-supervisor-request-retirement", producer_role: "VERIFIER",
+        evidence_class: "ARTIFACT", independence: "INDEPENDENT", freshness: "CURRENT",
+        exact_candidate_sha256: submissionProof.proofSha256, summary: supervisoryRequestRetiredUnsentSummary,
+        refs: [`request:${pending.requestId}`, `source_route_event:${sourceEvent.eventId}`,
+          `evidence_boundary_event:${boundary.eventId}`, `submission_authority_proof_sha256:${submissionProof.proofSha256}`,
+          `submission_authority_pacing_domain:${submissionProof.pacingDomain}`, "retirement_reason:REQUEST_EXPIRED",
+          "lifecycle_status:RETIRED_UNSENT", "provider_send_boundary:NOT_CROSSED",
+          "submission_authority_queue_records:0", "submission_authority_admission_records:0",
+          "provider_transport_evidence_records:0", "historical_request_preserved:true"],
+        verified: true, changed_path_manifest: null,
+      },
+    }, undefined, { id: "verifier:fleet-supervisor-request-retirement", kind: "VERIFIER",
+      workerScopes: [watch.worker], taskScopes: [watch.taskId] });
+    history = store.workerEvents(watch.worker);
+  }
+  // Persisted retirement identity also makes a retry after a failed successor
+  // append deterministic, even when the evidence boundary has not changed.
+  const expiredRetirement = history.findLast((event) => event.data.type === "evidence_receipt_recorded"
+    && event.data.summary === supervisoryRequestRetiredUnsentSummary
+    && event.data.producer_id === "verifier:fleet-supervisor-request-retirement"
+    && event.data.verified && event.data.refs.includes("retirement_reason:REQUEST_EXPIRED")
+    && event.data.refs.includes(`evidence_boundary_event:${boundary.eventId}`));
+  const requestId = `fleet-review:${sha256(`${watch.projectId}\n${boundary.eventId}${expiredRetirement ? `\n${expiredRetirement.eventId}` : ""}`).slice(0, 32)}`;
   const factualState = canonicalJson(fleetReasoningFacts(decision, history, boundary));
   const evidenceSha256 = sha256(factualState);
-  const queuedAt = new Date().toISOString();
   const expiresAt = new Date(Date.parse(queuedAt) + 24 * 60 * 60 * 1000).toISOString();
   const priorDecision = history.findLast((event) => event.data.type === "github_decision_receipt_ingested")?.data;
   const reasoningLane = priorDecision?.type === "github_decision_receipt_ingested"
@@ -528,14 +568,7 @@ export function retireUnsentFleetSupervisorReasoningRequest(
   }
   if (!Number.isFinite(Date.parse(now))) throw new Error("Unsent retirement time must be an offset-aware timestamp.");
   if (watch.state !== "PAUSED") throw new Error("Unsent retirement requires the exact fleet watch to remain paused.");
-  if (submissionProof.schemaVersion !== 1
-    || submissionProof.requestId !== input.requestId
-    || submissionProof.provenUnsent !== true
-    || submissionProof.ledgerValid !== true
-    || submissionProof.matchingStateSections.length !== 0
-    || submissionProof.queueRecordCount !== 0
-    || submissionProof.admissionRecordCount !== 0
-    || !/^[a-f0-9]{64}$/.test(submissionProof.proofSha256)) {
+  if (!validUnsentSubmissionProof(submissionProof, input.requestId)) {
     throw new Error("Submission authority did not prove the exact request unsent.");
   }
 
@@ -650,6 +683,12 @@ export function retireUnsentFleetSupervisorReasoningRequest(
     reviewRequestId: expectedReviewRequestId,
     duplicate: Boolean(existingRetirement),
   };
+}
+
+function validUnsentSubmissionProof(proof: ProvenUnsentSubmissionState, requestId: string) {
+  return proof.schemaVersion === 1 && proof.requestId === requestId && proof.provenUnsent === true
+    && proof.ledgerValid === true && proof.matchingStateSections.length === 0
+    && proof.queueRecordCount === 0 && proof.admissionRecordCount === 0 && /^[a-f0-9]{64}$/.test(proof.proofSha256);
 }
 
 function inBandRouteRoot(event: StoredEvent): Record<string, unknown> | null {

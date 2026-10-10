@@ -206,7 +206,7 @@ export class ProviderDecisionCopier {
     };
     const matches: Array<Record<string, unknown>> = [];
     const conflicts: Array<Record<string, unknown>> = [];
-    for (let page = 1; page <= 20; page += 1) {
+    for (let page = 1; ; page += 1) {
       const response = await fetchImpl(`https://api.github.com/repos/${owner}/${repository}/issues/${issue}/comments?per_page=100&page=${page}`, {
         headers, signal: AbortSignal.timeout(30_000),
       });

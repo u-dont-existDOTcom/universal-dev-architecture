@@ -1203,6 +1203,22 @@ function inBandRequestFixture({ admissions = null, confirmPreBoundaryAbort = fal
   return { store, mc, browser, runtime, admission };
 }
 
+for (const registeredWorker of [null, 'another-worker']) {
+  test(`Project Manager admission binds the routed task when registration worker is ${registeredWorker}`, async () => {
+    const { runtime } = inBandRequestFixture();
+    runtime.config.runtime.chats[0].scope = 'PROJECT_MANAGER';
+    runtime.config.runtime.chats[0].workerId = registeredWorker;
+    const submit = runtime.submissionPacer.submit;
+    let authorizationRef;
+    runtime.submissionPacer.submit = async (input) => {
+      authorizationRef = input.context.authorizationRef;
+      return submit(input);
+    };
+    assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+    assert.equal(authorizationRef, 'task-1');
+  });
+}
+
 test('expired historical supervisory route cannot starve a later valid route', async () => {
   const expired = directRouteEvent('expired-old', 'v5-route', 'EXTRA_HIGH_DIRECT');
   const expiredPacket = JSON.parse(expired.data.body.slice(PROVIDER_SESSION_CYCLE_ROUTE_PREFIX.length));

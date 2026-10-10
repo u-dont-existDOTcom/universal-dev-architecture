@@ -210,6 +210,93 @@ test(`fleet reasoning routes one fresh idempotent in-band request after ${routin
 });
 }
 
+test("expired unsent fleet requests renew at the relay consumer without a new evidence boundary", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse(due) });
+  const store = new EventStore(":memory:");
+  const previous = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+  const previousPolicy = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+  try {
+    seedStore(store);
+    process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = JSON.stringify([configuredProjectManager()]);
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify(configuredReceiptPolicy());
+    const watch = store.ensureFleetSupervisorWatch("project:auth", "task:auth", "auth", t0);
+    const decision = { trigger: "REASONING_REVIEW_OVERDUE" as const, result: "Route the current evidence.",
+      state: "ACTIVE" as const, reasoningRequired: true, mechanicalRecoveryEligible: false,
+      notifyOwner: false, notificationReason: null };
+    const route = () => routeFleetSupervisorReasoning(store, watch, decision, store.workerEvents(watch.worker));
+    const initial = route()!;
+    let request = pendingDecisionRequests(store.workerEvents(watch.worker))[0]!;
+    const relayCore = await import(new URL("../../../vps-browser-relay/src/core.mjs", import.meta.url).href);
+    const { RelayRuntime } = await import(new URL("../../../vps-browser-relay/src/relay.mjs", import.meta.url).href);
+    const consume = async () => {
+      const transport = workerTransportSnapshotFromEvents(store.allEvents(), watch.worker)!;
+      let state = relayCore.defaultState();
+      const runtime = new RelayRuntime({
+        config: { browser: { profileDir: "/tmp/test-profile" }, memory: { profile: "AUTO", overrides: {} },
+          runtime: { chats: [configuredProjectManager()], submitEnabled: false, requestBoundEnabled: true,
+            maxHotTabs: 3, retryDelayMs: 300_000 } },
+        missionControl: { fetchFleet: async () => ({ workers: [transport.worker] }) },
+        browser: { listTargets: async () => [], doctor: async () => ({}) },
+        stateStore: { read: async () => state, write: async (next: typeof state) => { state = next; return state; },
+          writeStatus: async () => undefined },
+        submissionPacer: { remoteStatus: async () => ({}), status: () => ({}) },
+        memoryReader: async () => ({ totalMb: 8_000, availableMb: 6_000, usedMb: 2_000,
+          swapTotalMb: 2_000, swapUsedMb: 0, browserRssMb: 0 }),
+      });
+      return runtime.cycle();
+    };
+    for (let renewal = 0; renewal < 2; renewal += 1) {
+      t.mock.timers.setTime(Date.parse(request.expiresAt));
+      const expired = await consume();
+      assert.equal(expired.status, "AUTHORITATIVE_PENDING_ROUTE_UNAVAILABLE");
+      assert.equal(expired.eligible.count, 0);
+      const count = store.count();
+      assert.throws(route, /prove the expired request unsent/);
+      const proof = { schemaVersion: 1 as const, requestId: request.requestId, pacingDomain: "chatgpt:test",
+        ledgerValid: true, matchingStateSections: [], queueRecordCount: 0, admissionRecordCount: 0,
+        provenUnsent: true, proofSha256: "a".repeat(64) };
+      for (const invalid of [{ ...proof, admissionRecordCount: 1 }, { ...proof, requestId: "fleet-review:" + "b".repeat(32) }]) {
+        assert.throws(() => routeFleetSupervisorReasoning(store, watch, decision, [], invalid), /prove the expired request unsent/);
+      }
+      assert.equal(store.count(), count);
+      const successor = routeFleetSupervisorReasoning(store, watch, decision, [], proof)!;
+      const fresh = pendingDecisionRequests(store.workerEvents(watch.worker));
+      assert.equal(fresh.length, 1);
+      assert.notEqual(fresh[0].requestId, request.requestId);
+      assert.equal(fresh[0].queuedAt, request.expiresAt);
+      assert.equal(Date.parse(fresh[0].expiresAt) - Date.parse(fresh[0].queuedAt), 86_400_000);
+      const ready = await consume();
+      assert.equal(ready.status, "DRY_RUN_ROUTE_READY");
+      assert.equal(ready.route.requestId, fresh[0].requestId);
+      assert.equal(route()?.eventId, successor.eventId);
+      assert.equal(store.count(), count + 2);
+      assert.deepEqual(store.eventByEventId(initial.eventId), initial);
+      request = fresh[0];
+    }
+    t.mock.timers.setTime(Date.parse(request.expiresAt));
+    store.append({ schema_version: 2, event_id: "expired-request-send-evidence", mission_id: "mission-control-live",
+      occurred_at: new Date().toISOString(), data: {
+        type: "evidence_receipt_recorded", worker: watch.worker, receipt_id: "expired-request-send-evidence",
+        producer_id: "collector:test", producer_role: "COLLECTOR", evidence_class: "ARTIFACT",
+        independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: null,
+        summary: "MISSION_CONTROL_PROVIDER_SESSION_V1", refs: [`request:${request.requestId}`],
+        verified: true, changed_path_manifest: null,
+      } });
+    const count = store.count();
+    assert.throws(() => routeFleetSupervisorReasoning(store, watch, decision, [], {
+      schemaVersion: 1, requestId: request.requestId, pacingDomain: "chatgpt:test", ledgerValid: true,
+      matchingStateSections: [], queueRecordCount: 0, admissionRecordCount: 0, provenUnsent: true, proofSha256: "a".repeat(64),
+    }), /durable or ambiguous lifecycle evidence/);
+    assert.equal(store.count(), count);
+  } finally {
+    if (previous === undefined) delete process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;
+    else process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON = previous;
+    if (previousPolicy === undefined) delete process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+    else process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = previousPolicy;
+    store.close();
+  }
+});
+
 test("one sealed empty completion is replaced exactly once without changing scientific or decision content", () => {
   const store = new EventStore(":memory:");
   const previous = process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON;

@@ -114,6 +114,27 @@ test("environment factory fails closed on ambiguous or partial GitHub authentica
   assert.equal(await appProvider?.(), "app-token");
 });
 
+test("App copying requires its exact bot login in the writer policy before token or key access", async () => {
+  let keyReads = 0, tokenRequests = 0;
+  const env = { MISSION_CONTROL_GITHUB_APP_ID: "1", MISSION_CONTROL_GITHUB_APP_INSTALLATION_ID: "2",
+    MISSION_CONTROL_GITHUB_APP_PRIVATE_KEY_PATH: "/private/key.pem", MISSION_CONTROL_GITHUB_APP_BOT_LOGIN: "mission-control-app[bot]" };
+  const options = { repository: "owner/repo", env, issuesPermission: "write" as const,
+    authorizedWriterLogins: ["owner"], readFile: () => { keyReads += 1; return privateKeyPem; },
+    now: () => Date.parse("2026-10-05T00:00:00.000Z"),
+    fetchImpl: (async () => { tokenRequests += 1; return Response.json({ token: "write-token", expires_at: "2026-10-05T01:00:00.000Z" }); }) as typeof fetch };
+  for (const botLogin of [undefined, "mission-control-app", "other-app[bot]", env.MISSION_CONTROL_GITHUB_APP_BOT_LOGIN]) {
+    assert.throws(() => githubReconciliationTokenProviderFromEnv({ ...options,
+      env: { ...env, MISSION_CONTROL_GITHUB_APP_BOT_LOGIN: botLogin } }), /BOT_LOGIN in receipt-policy authorizedWriterLogins/);
+  }
+  assert.equal(keyReads, 0);
+  assert.equal(tokenRequests, 0);
+  const provider = githubReconciliationTokenProviderFromEnv({ ...options,
+    authorizedWriterLogins: ["owner", env.MISSION_CONTROL_GITHUB_APP_BOT_LOGIN] });
+  assert.equal(await provider?.(), "write-token");
+  assert.equal(keyReads, 1);
+  assert.equal(tokenRequests, 1);
+});
+
 test("private reconciliation obtains one provider token and sends it on every configured issue read", async () => {
   const store = new EventStore(":memory:");
   const authorizationHeaders: Array<string | null> = [];

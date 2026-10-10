@@ -20,6 +20,7 @@ import {
   githubDecisionProducer,
   ingestGitHubSupervisionCandidate,
   parseGitHubReceiptPolicy,
+  pendingDecisionRequests,
   reconcileGitHubDecisionReceipts,
   type GitHubDecisionCandidate,
   type ReasoningReplacementReasonCode,
@@ -71,8 +72,9 @@ const githubReconciliationEventCache = githubPolicy && githubReconciliationStart
 const githubReconciliationTokenProvider = githubPolicy
   ? githubReconciliationTokenProviderFromEnv({ repository: githubPolicy.repository })
   : null;
-const githubDecisionCopyTokenProvider = githubPolicy
-  ? githubReconciliationTokenProviderFromEnv({ repository: githubPolicy.repository, issuesPermission: "write" })
+const githubDecisionCopyTokenProvider = githubPolicy?.requestBound?.enabled
+  ? githubReconciliationTokenProviderFromEnv({ repository: githubPolicy.repository, issuesPermission: "write",
+    authorizedWriterLogins: githubPolicy.authorizedWriterLogins })
   : null;
 const eventHistory = () => githubReconciliationEventCache?.eventsForRead(store) ?? store.allEvents();
 const githubReconciliationCoordinator = githubPolicy && githubReconciliationEventCache
@@ -715,7 +717,12 @@ function startFleetSupervisor() {
   const stallMs = fleetSupervisorStallMs(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_STALL_MS, configured, process.env);
   const slowTickMs = fleetSupervisorSlowTickMs(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_SLOW_TICK_MS);
   const runtime = new FleetSupervisorRuntime(store, {
-    routeReasoning: (watch, decision, events) => routeFleetSupervisorReasoning(store, watch, decision, events),
+    routeReasoning: async (watch, decision, events) => {
+      const pending = pendingDecisionRequests(store.workerEvents(watch.worker)).at(-1);
+      const proof = pending && Date.parse(pending.expiresAt) <= Date.now()
+        ? await submissionAuthority.proveRequestUnsent(pending.requestId) : undefined;
+      return routeFleetSupervisorReasoning(store, watch, decision, events, proof);
+    },
     observeJevShadow: sampleJevShadowOnStateChange(boundedJevShadowHook((_watch, decision, events, chain, signal) =>
       observeFleetSupervisorWithJev(decision.trigger, events, chain, { signal }))),
     notifyOwner: (watch, decision) => notifications.emit("event", {

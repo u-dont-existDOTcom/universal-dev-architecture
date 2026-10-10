@@ -52,23 +52,29 @@ class FakeStore {
   }
 }
 
-function fixture({ readbackBody = canonicalBody, conflictBody = null as string | null, pending = true } = {}) {
+function fixture({ readbackBody = canonicalBody, conflictBody = null as string | null, pending = true,
+  initialComments = [] as Array<Record<string, unknown>>, failPage = null as number | null, ambiguousPost = false } = {}) {
   const store = new FakeStore();
-  const comments: Array<Record<string, unknown>> = [];
+  const comments: Array<Record<string, unknown>> = [...initialComments];
   if (conflictBody) comments.push(comment(7001, conflictBody));
   let posts = 0, gets = 0, tokenCalls = 0;
   const fetchImpl = async (value: string | URL | Request, init?: RequestInit) => {
     const url = String(value);
-    if (url.endsWith('/comments?per_page=100&page=1')) return response(comments);
+    const page = new URL(url).searchParams.get('page');
+    if (page) {
+      if (Number(page) === failPage) return new Response('unavailable', { status: 503 });
+      return response(comments.slice((Number(page) - 1) * 100, Number(page) * 100));
+    }
     if (url.endsWith('/comments') && init?.method === 'POST') {
       posts += 1;
       const posted = JSON.parse(String(init.body)).body;
       const created = comment(7002, posted);
       comments.push(created);
+      if (ambiguousPost) throw new Error('Ambiguous publication response');
       return response(created);
     }
-    if (url.endsWith('/issues/comments/7001')) { gets += 1; return response({ ...comments[0], body: readbackBody }); }
-    if (url.endsWith('/issues/comments/7002')) { gets += 1; return response({ ...comments.find((item) => item.id === 7002), body: readbackBody }); }
+    const commentId = url.match(/\/issues\/comments\/(\d+)$/)?.[1];
+    if (commentId) { gets += 1; return response({ ...comments.find((item) => item.id === Number(commentId)), body: readbackBody }); }
     throw new Error(`Unexpected URL ${url}`);
   };
   const copier = new ProviderDecisionCopier({
@@ -103,6 +109,39 @@ test('exact recovery publishes once, performs immutable readback, ingests, and i
   assert.equal(second.duplicate, true);
   assert.deepEqual(f.counts(), { posts: 1, gets: 2 });
 });
+
+test('complete comment discovery reuses a receipt after 2000 unrelated comments', async () => {
+  const f = fixture({ initialComments: [...unrelatedComments(2_000), comment(7001, canonicalBody)] });
+  await f.copier.copy(input, relay);
+  assert.deepEqual(f.counts(), { posts: 0, gets: 1 });
+});
+
+test('complete discovery rejects a later conflict even after an exact match on page 21', async () => {
+  const parsed = JSON.parse(canonicalBody.slice(canonicalDecisionCommentPrefix.length));
+  parsed.decision_block.exact_text += ' changed';
+  parsed.decision_block.sha256 = sha256(parsed.decision_block.exact_text);
+  const f = fixture({ initialComments: [...unrelatedComments(2_000), comment(7001, canonicalBody),
+    ...unrelatedComments(99), comment(7003, canonicalDecisionCommentPrefix + JSON.stringify(parsed))] });
+  await assert.rejects(() => f.copier.copy(input, relay), /conflicting GitHub decision/);
+  assert.deepEqual(f.counts(), { posts: 0, gets: 0 });
+});
+
+test('incomplete discovery past page 20 fails closed before publication', async () => {
+  const f = fixture({ initialComments: unrelatedComments(2_000), failPage: 21 });
+  await assert.rejects(() => f.copier.copy(input, relay), /discovery failed with HTTP 503/);
+  assert.deepEqual(f.counts(), { posts: 0, gets: 0 });
+});
+
+test('retry after an ambiguous POST finds the receipt past page 20 without publishing again', async () => {
+  const f = fixture({ initialComments: unrelatedComments(2_000), ambiguousPost: true });
+  await assert.rejects(() => f.copier.copy(input, relay), /Ambiguous publication response/);
+  assert.equal((await f.copier.copy(input, relay)).status, 'INGESTED');
+  assert.deepEqual(f.counts(), { posts: 1, gets: 1 });
+});
+
+function unrelatedComments(count: number) {
+  return Array.from({ length: count }, (_, index) => comment(10_000 + index, 'Unrelated discussion.'));
+}
 
 test('immutable readback mismatch fails closed after publication', async () => {
   const f = fixture({ readbackBody: canonicalBody + 'x' });

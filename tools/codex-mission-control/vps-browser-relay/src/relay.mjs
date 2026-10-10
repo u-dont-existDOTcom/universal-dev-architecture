@@ -1042,7 +1042,7 @@ export class RelayRuntime {
     try {
       const start = await this.submissionPacer.submit({
         context: submissionSchedulerContext({
-          chat: route.chat, target, expectedUrl, providerSessionId: session.providerSessionId,
+          chat: route.chat, target, expectedUrl, providerSessionId: session.providerSessionId, taskId: route.taskId,
           requestId: route.requestId, queueKey: perRequest ? `${route.routeKey}:${action.step}` : `${route.routeKey}:${action.step}:${session.providerSessionId}`, sendPath: `SUPERVISORY_CYCLE_${action.step}`,
           bodySha256: promptSha256,
         }),
