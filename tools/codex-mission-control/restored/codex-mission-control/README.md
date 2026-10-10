@@ -111,6 +111,40 @@ only then runs the existing canonical receipt admission. Changed content,
 multiple candidates, a retired/superseded request, or immutable-readback mismatch
 fails closed without any provider resend.
 
+### Owner decisions without manual relay
+
+A supervisory Chat that already has the owner's explicit answer must not ask the
+owner to copy that answer into Work. The GitHub decision channel configured in
+`MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON` accepts an authenticated
+owner-direction receipt. The receipt carries the owner's exact answer, so the
+channel must be an issue in a private repository: Mission Control checks the
+repository's name, not its visibility, and a receipt posted in a public
+repository is public.
+
+```text
+MISSION_CONTROL_OWNER_DIRECTION_V1
+{"schema_version":1,"worker":"<worker>","decision_ref":"<question-or-decision-ref>","owner_outcome":{"id":"<id>","epoch":<epoch>,"sha256":"<sha256>"},"exact_text":"<exact owner answer>","exact_text_sha256":"<sha256 of exact_text>","priority":"HIGH"}
+```
+
+Only a GitHub login listed in the policy's `ownerDirectionWriterLogins` (which
+must be a subset of `authorizedWriterLogins`) can supply this receipt, and only
+as a never-edited comment in that configured decision channel:
+GitHub lets any write-access collaborator or app edit another user's comment
+without changing its author. Reconciliation requires the exact current
+owner-outcome ID, epoch and digest, verifies the exact-text digest, and then
+records the answer as an `owner_message_recorded` direction, its existing durable
+worker outbox delivery, and the immutable GitHub comment provenance in one
+transaction. Duplicate immutable receipts are idempotent, including after the
+owner outcome advances; stale owner outcomes, changed or edited content,
+untrusted writers, and wrong repositories/issues fail closed.
+
+This intentionally does **not** add a mutating tool to the unauthenticated public
+Mission Control MCP. GitHub authentication is the owner-authority boundary; the
+public MCP remains metadata-only and read-only. Any agent that can author
+comments as an `ownerDirectionWriterLogins` account is treated as the owner, so
+keep that list to the owner's own login and give agents distinct GitHub
+identities where possible.
+
 Schema-version-3 canonical decisions may also include one complete optional
 `bounded_execution` residue. After every existing repository, issue, writer,
 nonce, binding, session, lane, owner-outcome, evidence, freshness, capability,
