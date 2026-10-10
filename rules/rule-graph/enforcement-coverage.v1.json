@@ -3404,6 +3404,60 @@
       }
     },
     {
+      "id": "patterns/cross-account-continuity.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "owner rule: when work may continue from another of the owner's accounts"
+      },
+      "actors": [
+        "reasoning agent",
+        "workstream maintainer"
+      ],
+      "phases": [
+        "persistence",
+        "handoff",
+        "final-delivery"
+      ],
+      "destinations": [
+        "Git successor checkpoint, obligations and owner decisions",
+        "authoritative OWNER-QUESTIONS.md in Git",
+        "owner local handoff note and folder index"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/cross-account-continuity.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "docs/INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_cross_account_continuity.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Static tests preserve wording, provenance, privacy exclusions and routes. They do not establish successor access, current Git state, handoff updates or live account continuity. No task-time record or runtime guard is claimed.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register cross-account successor-state persistence, private-store routing and per-turn handoff updates at their actual Git and local-note destinations.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
       "id": "patterns/cross-family-reasoning-check.md",
       "kind": "pattern",
       "indexed": true,

@@ -139,6 +139,8 @@ For substantial work on a high-tier model, load `../patterns/delegate-easy-work-
 
 When a workstream needs anything from the owner, keep it on that workstream's one continuously updated owner questions page: `../patterns/owner-questions-page.md`.
 
+When work may continue from another of the owner's accounts, load `../patterns/cross-account-continuity.md`: Git holds the state a successor needs, and the local handoff note points to it. Owner requirement: `requirements/2026-10-10-cross-account-continuity.owner-requirement.json`.
+
 Before other fixes in a project, read its lane in `../suggested-fixes/`, and file suggestions for projects you aren't working on there: `../patterns/suggested-fix-queue.md`.
 
 When a pipeline accepts work units on a language-model reviewer's findings, or a repair loop re-reviews after each fix, load `../patterns/convergent-review-acceptance-gates.md`: re-review only changed items, bound the repairs, gate on aggregates with hard floors, and estimate the gate's false-failure rate before running at scale.

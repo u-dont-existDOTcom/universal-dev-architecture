@@ -636,6 +636,23 @@
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
       "implemented": "Five semantic records; exact server-test obligations; every operative section pinned. Three genuinely selected Work candidates deferred; no exceptions/facts/envelope/runtime changes. Work 32429/37194 -> 32561/37194 bytes; backlog unchanged, slice 2c/later OPEN."
+    },
+    {
+      "finding_id": "slice-cross-account-continuity",
+      "date": "2026-10-10",
+      "identity_counts_by_disposition": {
+        "STRUCTURED_ENFORCED": 9,
+        "STRUCTURED_PARTIAL": 9,
+        "WORKFLOW_ONLY": 10,
+        "LEGACY_UNSTRUCTURED": 69,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 78,
+      "baseline_shrinkage": 7,
+      "root_owner_outcome": "OPEN",
+      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "Owner-required continuity pattern routed and statically tested. One exact authorized legacy addition; the 84-identity baseline and task-time records stay unchanged. Work 32561/37194 -> 32561/37194 bytes (rendered/injected; unchanged). No live enforcement claim."
     }
   ],
   "learning_state_at_merge": [
