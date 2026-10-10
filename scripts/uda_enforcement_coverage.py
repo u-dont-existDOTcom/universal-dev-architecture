@@ -164,6 +164,9 @@ def validate(root: Path | str) -> list[str]:
                 or len(manifest_backed_ids) != len(set(manifest_backed_ids))):
             errors.append("manifest_backed_ids must be a nonempty unique list of exact source identities")
             manifest_backed_ids = []
+        # This identity must survive coordinated edits to both manifest collections.
+        if "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md" not in manifest_backed_ids:
+            errors.append("missing required owner-outcome manifest identity")
         for eid in requirement.get("source_clause_manifest", {}):
             if eid not in manifest_backed_ids:
                 errors.append("source clause manifest identity is not independently pinned: " + eid)

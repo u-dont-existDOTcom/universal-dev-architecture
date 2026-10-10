@@ -378,6 +378,22 @@ class EnforcementCoverageTests(unittest.TestCase):
         self.write(coverage.REQUIREMENT, requirement)
         self.rejected("source clause manifest identity is not independently pinned")
 
+    def test_owner_outcome_manifest_identity_cannot_be_removed_from_both_collections(self):
+        target = "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md"
+        requirement = self.read(coverage.REQUIREMENT)
+        requirement["source_clause_manifest"].pop(target)
+        requirement["manifest_backed_ids"].remove(target)
+        self.write(coverage.REQUIREMENT, requirement)
+        with self.subTest(boundary="API"):
+            self.rejected("missing required owner-outcome manifest identity")
+        with self.subTest(boundary="CLI"):
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "scripts/uda_enforcement_coverage.py"),
+                 "validate", "--root", str(self.root)],
+                capture_output=True, text=True)
+            self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+            self.assertIn("missing required owner-outcome manifest identity", result.stdout)
+
     def test_missing_exception_reason_fails(self):
         self.change(lambda entries: self.workflow(entries).pop("exception_reason"))
         self.rejected("missing or generic exception_reason")
