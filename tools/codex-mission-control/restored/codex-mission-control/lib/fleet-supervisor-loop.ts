@@ -92,7 +92,9 @@ export class FleetSupervisorLoop<T> {
     if (!this.state.enabled || this.timer) return this;
     this.timer = setInterval(() => this.advance(), this.state.pollMs);
     this.timer.unref();
-    this.advance();
+    // The poll timer owns the first tick. Starting an immediate tick here can
+    // monopolize the daemon event loop during startup and make liveness fail
+    // even though the control plane is otherwise valid.
     return this;
   }
 

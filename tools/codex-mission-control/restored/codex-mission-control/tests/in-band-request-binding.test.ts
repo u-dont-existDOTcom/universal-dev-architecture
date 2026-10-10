@@ -26,6 +26,7 @@ import {
 import type { AppendEnvelope, CanonicalDecisionEnvelope, StoredEvent } from "../lib/schema";
 import { EventStore } from "../lib/store";
 import { WORK_MODEL_ROUTING_POLICY_BASE_COMMIT, WORK_MODEL_ROUTING_POLICY_REF } from "../lib/work-execution-profile";
+import { WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID } from "../lib/owner-question-route";
 
 const worker = "in-band-fixture", requestId = "in-band-request-1", supervisor = "fixture-supervisor";
 const session = "provider-session:in-band-1", relayId = "collector:fixture-relay";
@@ -763,5 +764,103 @@ test("V6 rejects wrong GitHub location/writer and never accepts V5 MCP provenanc
     const wrongProvenance = structuredClone(f.decision) as any;
     wrongProvenance.execution_provenance = "REQUEST_BOUND_MCP_GITHUB_OBSERVED";
     assert.throws(() => build(f, f.events, { ...f.candidate, body: canonicalDecisionCommentPrefix + JSON.stringify(wrongProvenance) }), /Invalid input|execution_provenance/);
+  } finally { f.store.close(); }
+});
+
+
+function workQuestionStoredEvent(data: StoredEvent["data"], eventId: string, sequence: number, occurredAt: string): StoredEvent {
+  return {
+    id: sequence, sequence, eventId, schemaVersion: 2, missionId: "mission-control-live",
+    worker: "worker" in data ? data.worker : null, type: data.type, occurredAt, receivedAt: occurredAt,
+    previousHash: null, eventHash: "e".repeat(64), producerId: "test", producerKind: "SYSTEM", data,
+  } as StoredEvent;
+}
+
+function workQuestionEvents(f: ReturnType<typeof fixture>): StoredEvent[] {
+  const events = structuredClone(f.events);
+  const route = events.find((event) => event.data.type === "worker_message_recorded"
+    && event.data.body.startsWith(inBandRequestRoutePrefix));
+  if (!route || route.data.type !== "worker_message_recorded") throw new Error("Expected V6 route");
+  const packet = JSON.parse(route.data.body.slice(inBandRequestRoutePrefix.length));
+  packet.producerId = WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID;
+  packet.factualPacket.exactFactualState = JSON.stringify({
+    review_kind: "WORK_SUPERVISOR_QUESTION",
+    source_work_dispatch_id: "work-cloud:fixture",
+    question_id: "question:fixture",
+    exact_question_sha256: "9".repeat(64),
+  });
+  route.data.body = inBandRequestRoutePrefix + JSON.stringify(packet);
+  events.push(workQuestionStoredEvent({
+    type: "chatgpt_work_cloud_dispatch_recorded",
+    worker,
+    dispatch_id: "work-cloud:fixture",
+    mode: "CREATE",
+    requested_surface: "CHATGPT_WORK_CLOUD",
+    directive_id: "directive:fixture",
+    directive_revision: 1,
+    task_id: "task-1",
+    app_tool: "create_thread",
+    status: "READY",
+    work_thread_id: "work-thread:fixture",
+    client_thread_id: null,
+    approval_state: "ACCEPTED",
+    surface_verification: "VERIFIED_NATIVE_WORK",
+    native_surface_evidence: "TRUSTED_APP_EXECUTOR_CHATGPT_WORK_CLOUD_TARGET",
+    host_id: null,
+    error_code: null,
+    recorded_at: time("02.900"),
+    producer_id: "system:chatgpt-work-cloud-dispatch",
+    source: "TRUSTED_CHATGPT_APP_EXECUTOR_BOUNDARY",
+  } as StoredEvent["data"], "work-question-ready", 100, time("02.900")));
+  return events;
+}
+
+function ownerDecisionAction() {
+  return {
+    kind: "DECISION_REQUIRED" as const,
+    decision_id: "owner-choice-v6",
+    question: "Choose whether to proceed with the one bounded attempt.",
+    context: "The remaining choice is an owner preference, not an engineering fact.",
+    options: [
+      { option_id: "A", label: "Proceed", benefits: ["Continue"], drawbacks: ["Consumes one attempt"], downstream_consequences: ["Resume bounded execution"] },
+      { option_id: "B", label: "Pause", benefits: ["No further attempt"], drawbacks: ["Outcome remains open"], downstream_consequences: ["Stay paused"] },
+    ],
+    recommendation_option_id: "A",
+    recommendation_reasoning: "A preserves the existing evidence boundary.",
+    default_if_no_decision: "B",
+  };
+}
+
+test("V6 Work-question canonical admission requires explicit owner classification and never mixes owner gating with Work execution", () => {
+  const f = fixture();
+  try {
+    const events = workQuestionEvents(f);
+    assert.throws(() => build(f, events), /explicit owner_action classification/);
+
+    const missingExecution = candidateWith(f, (decision) => { decision.owner_action = { kind: "NONE" }; });
+    assert.throws(() => build(f, events, missingExecution), /CHATGPT_WORK_CLOUD bounded continuation/);
+
+    const ownerRequired = candidateWith(f, (decision) => { decision.owner_action = ownerDecisionAction(); });
+    const ownerEnvelope = build(f, events, ownerRequired);
+    assert.equal(ownerEnvelope.data.type, "github_decision_receipt_ingested");
+    if (ownerEnvelope.data.type !== "github_decision_receipt_ingested") return;
+    assert.equal(ownerEnvelope.data.owner_action?.kind, "DECISION_REQUIRED");
+    assert.equal(ownerEnvelope.data.bounded_execution, undefined);
+
+    const invalidMixed = candidateWith(f, (decision) => {
+      decision.owner_action = ownerDecisionAction();
+      decision.bounded_execution = nativeWorkResidue();
+    });
+    assert.throws(() => build(f, events, invalidMixed), /requires the owner|cannot authorize Work continuation/);
+
+    const supervisorResolved = candidateWith(f, (decision) => {
+      decision.owner_action = { kind: "NONE" };
+      decision.bounded_execution = nativeWorkResidue();
+    });
+    const resolvedEnvelope = build(f, events, supervisorResolved);
+    assert.equal(resolvedEnvelope.data.type, "github_decision_receipt_ingested");
+    if (resolvedEnvelope.data.type !== "github_decision_receipt_ingested") return;
+    assert.equal(resolvedEnvelope.data.owner_action?.kind, "NONE");
+    assert.equal(resolvedEnvelope.data.bounded_execution?.execution_surface, "CHATGPT_WORK_CLOUD");
   } finally { f.store.close(); }
 });

@@ -1341,7 +1341,8 @@ export class EventStore {
       "supervision_route_recorded", "research_verdict_recorded", "supervision_design_feedback_recorded",
       "verification_validity_recorded", "owner_decision_recorded", "symphony_runtime_observed", "live_worker_evidence_observed",
       "reasoning_supervision_recorded", "execution_directive_recorded", "work_execution_profile_authorized",
-      "work_execution_preflight_recorded", "chatgpt_work_cloud_dispatch_requested", "chatgpt_work_cloud_dispatch_recorded", "codex_execution_started", "execution_receipt_recorded",
+      "work_execution_preflight_recorded", "chatgpt_work_cloud_dispatch_requested", "chatgpt_work_cloud_dispatch_recorded",
+      "work_supervisor_handoff_recorded", "owner_decision_request_recorded", "codex_execution_started", "execution_receipt_recorded",
       "outcome_progress_recorded", "supervision_alert_recorded",
     ]);
     if (contractRequiredTypes.has(data.type) && contracts.length === 0) {
@@ -1351,7 +1352,9 @@ export class EventStore {
 
   private validateCorrection(envelope: AppendEnvelope, validationHistory?: readonly StoredEvent[]) {
     const data = envelope.data;
-    if ("owner_action" in data) {
+    if (data.type === "supervisor_assessment_recorded" || data.type === "finding_recorded"
+      || data.type === "correction_lifecycle_recorded" || data.type === "outcome_progress_recorded"
+      || data.type === "owner_decision_request_recorded") {
       const continuationPolicy = "continuation_policy" in data ? data.continuation_policy : undefined;
       this.validateObligationReferences(
         data.worker,

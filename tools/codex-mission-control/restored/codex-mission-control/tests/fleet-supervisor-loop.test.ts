@@ -15,6 +15,7 @@ const deferred = <T>() => {
   return { promise, resolve };
 };
 async function flush() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
+async function nextEventLoopTurn() { await new Promise<void>((resolve) => setImmediate(resolve)); }
 
 function runtimeStore(watches = 1) {
   let commits = 0, reads = 0;
@@ -283,15 +284,18 @@ test("failure status records errors and consecutive failures; a completion reset
   loop.stop();
 });
 
-test("interval starts immediately, skips running work, and stops with cancellation", async (t) => {
+test("interval waits for the first poll, skips running work, and stops with cancellation", async (t) => {
   t.mock.timers.enable({ apis: ["setInterval"] });
   let now = 0, calls = 0;
   let signal!: AbortSignal;
   const loop = new FleetSupervisorLoop({ tick: async (_now, inputSignal) => {
     calls += 1; signal = inputSignal; return new Promise<never>(() => {});
   } }, { now: () => now, pollMs: 1000, stallMs: 5000 }).start();
-  assert.equal(calls, 1);
-  now = 1000; t.mock.timers.tick(1000); assert.equal(calls, 1);
+  assert.equal(calls, 0);
+  await nextEventLoopTurn();
+  assert.equal(calls, 0);
+  now = 999; t.mock.timers.tick(999); assert.equal(calls, 0);
+  now = 1000; t.mock.timers.tick(1); assert.equal(calls, 1);
   loop.stop(); assert.equal(signal.aborted, true);
   now = 10000; t.mock.timers.tick(9000); assert.equal(calls, 1);
   assert.equal(loop.status().enabled, false);

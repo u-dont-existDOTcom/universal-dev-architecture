@@ -619,6 +619,24 @@ export const correctionLifecycleRecordedSchema = z.object({
   continuation_policy: continuationPolicySchema,
 });
 
+export const ownerDecisionRequestRecordedSchema = z.object({
+  type: z.literal("owner_decision_request_recorded"),
+  worker: WorkerId,
+  request_id: StableId,
+  task_id: StableId,
+  source_decision_event_id: StableId,
+  owner_outcome_id: StableId,
+  owner_outcome_epoch: z.number().int().positive(),
+  owner_outcome_sha256: Sha256,
+  owner_action: ownerActionObligationSchema,
+  recorded_at: Timestamp,
+}).superRefine((event, context) => {
+  if (event.owner_action.kind !== "DECISION_REQUIRED") {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["owner_action"],
+      message: "owner_decision_request_recorded requires DECISION_REQUIRED owner_action." });
+  }
+});
+
 export const completionClaimRecordedSchema = z.object({
   type: z.literal("completion_claim_recorded"),
   worker: WorkerId,
@@ -751,6 +769,35 @@ export const boundedExecutionResidueSchema = z.object({
   retry_of_attempt_id: CodexSafeId.optional(),
 }).strict();
 
+export const canonicalOwnerActionSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("NONE") }).strict(),
+  z.object({
+    kind: z.literal("DECISION_REQUIRED"),
+    decision_id: StableId,
+    question: NonEmpty.max(8_000),
+    context: NonEmpty.max(12_000),
+    options: z.array(z.object({
+      option_id: StableId,
+      label: NonEmpty.max(500),
+      benefits: z.array(NonEmpty.max(2_000)).min(1).max(10),
+      drawbacks: z.array(NonEmpty.max(2_000)).min(1).max(10),
+      downstream_consequences: z.array(NonEmpty.max(2_000)).min(1).max(10),
+    }).strict()).min(2).max(8),
+    recommendation_option_id: StableId,
+    recommendation_reasoning: NonEmpty.max(8_000),
+    default_if_no_decision: NonEmpty.max(4_000),
+  }).strict(),
+]).superRefine((action, context) => {
+  if (action.kind === "DECISION_REQUIRED"
+    && !action.options.some((option) => option.option_id === action.recommendation_option_id)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["recommendation_option_id"],
+      message: "recommendation_option_id must identify one listed option.",
+    });
+  }
+});
+
 const canonicalDecisionEnvelopeFields = {
   envelope_kind: z.literal("MISSION_CONTROL_CANONICAL_DECISION"),
   request_id: StableId,
@@ -776,6 +823,7 @@ const canonicalDecisionEnvelopeFields = {
     exact_text: NonEmpty.max(50_000).nullable(),
     sha256: Sha256.nullable(),
   }),
+  owner_action: canonicalOwnerActionSchema.optional(),
   writer_contract: z.object({
     mode: z.literal("EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY"),
     reinterpretation_allowed: z.literal(false),
@@ -857,6 +905,14 @@ export const canonicalDecisionEnvelopeSchema = z.union([
     try { validateContinuationBinding(envelope.continuation_binding, envelope.continuation_binding_sha256); }
     catch { context.addIssue({ code: z.ZodIssueCode.custom, path: ["continuation_binding"], message: "Canonical continuation binding/digest is invalid or incomplete." }); }
   }
+  if (envelope.schema_version === 5 && envelope.owner_action?.kind === "DECISION_REQUIRED"
+    && envelope.bounded_execution !== undefined) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["bounded_execution"],
+      message: "A decision that requires the owner cannot simultaneously authorize bounded execution.",
+    });
+  }
   const proRequired = envelope.reasoning_lane === "PRO_ESCALATED";
   if (envelope.pro_decision_block.used !== proRequired) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["pro_decision_block", "used"], message: "Pro usage must exactly match the admitted reasoning lane." });
@@ -910,6 +966,7 @@ export const githubDecisionReceiptIngestedSchema = z.object({
   ]).nullable().default(null),
   bounded_execution: boundedExecutionResidueSchema.optional(),
   bounded_execution_sha256: Sha256.optional(),
+  owner_action: canonicalOwnerActionSchema.optional(),
   nonce: StableId,
   evidence_capsule: z.object({ id: StableId, sha256: Sha256 }),
   owner_outcome_id: StableId,
@@ -1297,6 +1354,27 @@ export const chatGptWorkCloudExecutionReceiptRecordedSchema = z.object({
   recorded_at: Timestamp,
   producer_id: StableId,
   source: z.literal("CHATGPT_WORK_GITHUB_RECEIPT_ATTESTED"),
+}).strict();
+
+export const workSupervisorHandoffRecordedSchema = z.object({
+  type: z.literal("work_supervisor_handoff_recorded"),
+  worker: WorkerId,
+  dispatch_id: StableId,
+  directive_id: StableId,
+  directive_revision: z.number().int().positive(),
+  task_id: StableId,
+  work_thread_id: StableId,
+  handoff_id: StableId,
+  handoff_kind: z.literal("REASONING_REQUIRED"),
+  question: NonEmpty.max(8_000),
+  factual_state: NonEmpty.max(12_000),
+  evidence_refs: z.array(NonEmpty.max(2_000)).max(50),
+  question_sha256: Sha256,
+  factual_state_sha256: Sha256,
+  semantic_authority: z.literal(false),
+  recorded_at: Timestamp,
+  producer_id: StableId,
+  source: z.literal("CHATGPT_WORK_PRIVATE_HANDOFF"),
 }).strict();
 
 export const workExecutionPreflightRecordedSchema = z.object({
@@ -1845,13 +1923,14 @@ export const reviewMarkedSchema = z.object({
 
 export const eventSchemaV2 = z.union([
   ownerSourceRecordedSchema, ownerOutcomeRecordedSchema, taskContractRecordedSchema,
+  ownerDecisionRequestRecordedSchema,
   reconciliationRecordedSchema, workerCheckpointRecordedSchema, supervisorAssessmentRecordedSchema,
   evidenceReceiptRecordedSchema, findingRecordedSchema, findingStatusChangedSchema, correctionLifecycleRecordedSchema,
   verificationValidityRecordedSchema, completionClaimRecordedSchema, ownerDecisionRecordedSchema,
   supervisionRouteRecordedSchema, researchVerdictRecordedSchema,
   reasoningMessageRecordedSchema, reasoningSupervisionRecordedSchema, executionDirectiveRecordedSchema,
   workExecutionProfileAuthorizedSchema, workTaskCreationSelectionAppliedSchema, workExecutionPreflightRecordedSchema,
-  chatGptWorkCloudDispatchRequestedSchema, chatGptWorkCloudDispatchRecordedSchema,
+  chatGptWorkCloudDispatchRequestedSchema, chatGptWorkCloudDispatchRecordedSchema, workSupervisorHandoffRecordedSchema,
   chatGptWorkCloudHandoffIntentRecordedSchema, chatGptWorkCloudExecutionReceiptRecordedSchema,
   codexExecutionStartedSchema, executionReceiptRecordedSchema, workModelRoutingCheckpointRecordedSchema,
   githubDecisionReceiptIngestedSchema,

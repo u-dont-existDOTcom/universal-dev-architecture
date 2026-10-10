@@ -92,7 +92,7 @@ export function Dashboard() {
     finally { setMarking(false); }
   }
   const workers = snapshot?.workers ?? [];
-  const decisions = workers.filter(worker => worker.correction.ownerActionType !== "NONE");
+  const decisions = workers.filter(worker => worker.correction.ownerActionType !== "NONE" && worker.correction.ownerAction.status === "OPEN");
   const recommended = orderedOpenQueue(snapshot?.fleetQueue ?? []).slice(0, 3);
   const knownProjects = snapshot ? new Set([
     ...snapshot.fleetQueue.map(item => item.projectId),
@@ -106,7 +106,7 @@ export function Dashboard() {
     {!snapshot && loading && !partial && <div role="status" className="loading-panel">Loading your recorded work…</div>}
     {snapshot && <>
       <p className="owner-coverage">Coverage: {knownProjects} known project{knownProjects === 1 ? "" : "s"}, {workers.length} worker task{workers.length === 1 ? "" : "s"}, {snapshot.fleetSupervisor.watches.length} project watch{snapshot.fleetSupervisor.watches.length === 1 ? "" : "es"}, and {snapshot.fleetQueue.length} queue items. This view covers work reported to Mission Control; it does not claim every chat or external project is represented. Snapshot {new Date(snapshot.generatedAt).toLocaleString()} · {relativeTime(snapshot.generatedAt)}.{failures.Tasks && " Task data is last-known; current status needs checking."}</p>
-      <section className="owner-section" aria-labelledby="owner-decisions"><h2 id="owner-decisions">Your decisions and actions <span>{decisions.length}</span></h2>{decisions.length ? decisions.map(worker => <article className="owner-decision" key={worker.id}><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link><p>{worker.correction.ownerActionText || "Action details not recorded."}</p><OwnerDecisionDetails worker={worker} /></article>) : <p className="muted">No owner action is recorded in this snapshot.{partial || streamError ? " Reporting is incomplete; this does not establish that no action is needed." : ""}</p>}</section>
+      <section className="owner-section" aria-labelledby="owner-decisions"><h2 id="owner-decisions">Your decisions and actions <span>{decisions.length}</span></h2>{decisions.length ? decisions.map(worker => <article className="owner-decision" key={worker.id}><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link><p>{worker.correction.ownerActionText || "Action details not recorded."}</p><OwnerDecisionDetails worker={worker} onRefresh={load} /></article>) : <p className="muted">No owner action is recorded in this snapshot.{partial || streamError ? " Reporting is incomplete; this does not establish that no action is needed." : ""}</p>}</section>
       <ProjectWatchSummary supervisor={snapshot.fleetSupervisor} queue={snapshot.fleetQueue} />
       <section className="owner-section" aria-labelledby="owner-next"><h2 id="owner-next">Recommended next to review</h2><p className="muted">Stored priority P0–P3, then stored queue order. This ordering does not grant permission to start.</p>{recommended.length ? <ol className="owner-next-list">{recommended.map(item => <li key={`${item.worker}:${item.queueRevisionId}:${item.itemId}`}><a href="#recorded-queue"><strong>{item.title}</strong></a><span>{item.priority} · {item.status.replaceAll("_", " ").toLowerCase()}</span><small>{item.projectId} · {item.taskId}</small></li>)}</ol> : <p>No unfinished queue items are recorded. Worker reporting may be incomplete.</p>}</section>
       <section className="owner-section" aria-labelledby="owner-tasks"><h2 id="owner-tasks">Current tasks</h2>{workers.length ? <div className="owner-task-grid">{workers.map(worker => <OwnerTaskCard key={worker.id} worker={worker} />)}</div> : <p className="empty-live-fleet">No known tasks are available in this snapshot. This does not establish that all work is complete; worker reporting may be missing.</p>}</section>
@@ -123,7 +123,7 @@ export function DashboardNotice({ failures, hasSnapshot, loading, onRetry }: { f
 }
 
 export function OwnerTaskCard({ worker }: { worker: WorkerState }) {
-  return <article className="owner-task"><div className="owner-task-heading"><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link><span>{workerDisposition(worker)}</span></div><dl className="owner-four"><div><dt>Goal</dt><dd>{worker.objective.goal || "Not recorded"}</dd></div><div><dt>Where we are</dt><dd>{worker.currentStep || "Status needs checking"}</dd><dd className="muted">Latest recorded evidence: {worker.progress.latestEvidence || "Not recorded"}</dd></div><div><dt>Next needed</dt><dd>{worker.correction.directive || worker.nextSteps.join("; ") || worker.progress.requiredIntervention || "Not recorded"}</dd></div><div><dt>Your action</dt><dd>{worker.correction.ownerActionType === "NONE" ? "None recorded" : worker.correction.ownerActionText || "Action details not recorded"}</dd></div></dl><p className="owner-task-freshness">Checkpoint {relativeTime(worker.lastCheckpointAt)} · {worker.connection.state.replaceAll("_", " ").toLowerCase()}</p><Link className="owner-evidence" href={`/worker/${worker.id}`}>Open task and evidence →</Link></article>;
+  return <article className="owner-task"><div className="owner-task-heading"><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link><span>{workerDisposition(worker)}</span></div><dl className="owner-four"><div><dt>Goal</dt><dd>{worker.objective.goal || "Not recorded"}</dd></div><div><dt>Where we are</dt><dd>{worker.currentStep || "Status needs checking"}</dd><dd className="muted">Latest recorded evidence: {worker.progress.latestEvidence || "Not recorded"}</dd></div><div><dt>Next needed</dt><dd>{worker.correction.directive || worker.nextSteps.join("; ") || worker.progress.requiredIntervention || "Not recorded"}</dd></div><div><dt>Your action</dt><dd>{worker.correction.ownerActionType === "NONE" || worker.correction.ownerAction.status !== "OPEN" ? "None recorded" : worker.correction.ownerActionText || "Action details not recorded"}</dd></div></dl><p className="owner-task-freshness">Checkpoint {relativeTime(worker.lastCheckpointAt)} · {worker.connection.state.replaceAll("_", " ").toLowerCase()}</p><Link className="owner-evidence" href={`/worker/${worker.id}`}>Open task and evidence →</Link></article>;
 }
 
 export function ProjectWatchSummary({ supervisor, queue }: { supervisor: Snapshot["fleetSupervisor"]; queue: WorkQueueItemProjection[] }) {
@@ -401,15 +401,47 @@ function verificationLabel(worker: WorkerState): string {
 }
 
 function ownerActionLabel(worker: WorkerState): string {
-  return worker.correction.ownerActionType === "NONE"
+  return worker.correction.ownerActionType === "NONE" || worker.correction.ownerAction.status !== "OPEN"
     ? "NONE"
     : worker.correction.ownerActionType.replaceAll("_", " ");
 }
 
-function OwnerDecisionDetails({ worker }: { worker: WorkerState }) {
+function OwnerDecisionDetails({ worker, onRefresh }: { worker: WorkerState; onRefresh?: () => Promise<void> }) {
   const action = worker.correction.ownerAction;
+  const [submitting, setSubmitting] = useState<string | null>(null);
+  const [decisionError, setDecisionError] = useState<string | null>(null);
   if (action.kind !== "DECISION_REQUIRED") return null;
-  return <div className="owner-decision-packet"><p>{action.decision_context}</p><strong>{action.decision_question}</strong>{action.options.map((option) => <div key={option.option_id}><b>{option.label}</b><span>Benefits: {option.benefits.join("; ")}</span><span>Drawbacks: {option.drawbacks.join("; ")}</span><span>Consequences: {option.downstream_consequences.join("; ")}</span></div>)}<p>Recommendation: {action.recommendation_option_id} — {action.recommendation_reasoning}</p><p>Default if unanswered: {action.default_if_no_decision}</p><small>Full Pro analysis: {action.pro_analysis_ref}</small></div>;
+  async function answer(optionId: string) {
+    if (submitting || action.kind !== "DECISION_REQUIRED") return;
+    setSubmitting(optionId);
+    setDecisionError(null);
+    try {
+      const response = await fetch("/api/workers/" + encodeURIComponent(worker.id) + "/owner-decision", {
+        method: "POST",
+        headers: ownerMutationHeaders({ "content-type": "application/json" }),
+        body: JSON.stringify({ decision_id: action.decision_id, option_id: optionId }),
+      });
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Owner decision could not be recorded.");
+      if (onRefresh) await onRefresh();
+      else window.location.reload();
+    } catch (error) {
+      setDecisionError(error instanceof Error ? error.message : "Owner decision could not be recorded.");
+    } finally {
+      setSubmitting(null);
+    }
+  }
+  return <div className="owner-decision-packet">
+    <p>{action.decision_context}</p><strong>{action.decision_question}</strong>
+    {action.options.map((option) => <div key={option.option_id}>
+      <b>{option.label}</b><span>Benefits: {option.benefits.join("; ")}</span><span>Drawbacks: {option.drawbacks.join("; ")}</span><span>Consequences: {option.downstream_consequences.join("; ")}</span>
+      {action.status === "OPEN" && <button type="button" className="owner-retry" disabled={Boolean(submitting)} onClick={() => void answer(option.option_id)}>{submitting === option.option_id ? "Recording…" : "Choose " + option.option_id}</button>}
+    </div>)}
+    <p>Recommendation: {action.recommendation_option_id} — {action.recommendation_reasoning}</p>
+    <p>Default if unanswered: {action.default_if_no_decision}</p>
+    {decisionError && <p className="composer-error">{decisionError}</p>}
+    <small>Full Pro analysis: {action.pro_analysis_ref}</small>
+  </div>;
 }
 
 function continuationLabel(worker: WorkerState): string {

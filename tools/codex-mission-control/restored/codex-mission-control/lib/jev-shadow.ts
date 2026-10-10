@@ -111,8 +111,6 @@ export function buildJevShadowState(events: readonly StoredEvent[], chain: { val
   const queue = events.findLast((event) => event.data.type === "work_queue_published")?.data;
   const queueTerminal = queue?.type === "work_queue_published" && queue.items.length > 0
     && queue.items.every((item) => ["DONE", "SUPERSEDED", "CANCELED"].includes(item.status));
-  const ownerAction = [...events].reverse()
-    .find((event) => "owner_action" in event.data && event.data.owner_action.status === "OPEN")?.data;
   const blocker = events.findLast((event) =>
     event.data.type === "structured_blocker_recorded" && event.data.status === "OPEN")?.data;
   const delivery = events.findLast((event) => event.data.type === "outbound_delivery_lifecycle_recorded")?.data;
@@ -121,7 +119,7 @@ export function buildJevShadowState(events: readonly StoredEvent[], chain: { val
   return {
     chain_valid: chain.valid,
     queue_terminal: Boolean(queueTerminal),
-    owner_action_kind: ownerAction && "owner_action" in ownerAction ? ownerAction.owner_action.kind : "NONE",
+    owner_action_kind: worker.correction.ownerAction.status === "OPEN" ? worker.correction.ownerAction.kind : "NONE",
     open_blocker_present: blocker?.type === "structured_blocker_recorded",
     blocker_actor_kind: blocker?.type === "structured_blocker_recorded" ? blocker.required_actor.kind : "NONE",
     delivery_status: delivery?.type === "outbound_delivery_lifecycle_recorded" ? delivery.status : "NONE",
