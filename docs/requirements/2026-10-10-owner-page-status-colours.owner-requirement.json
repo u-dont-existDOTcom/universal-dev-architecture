@@ -1,0 +1,48 @@
+{
+  "requirement_id": "2026-10-10-owner-page-status-colours",
+  "date": "2026-10-10",
+  "source": "Owner message on 2026-10-10 to the Claude Code session doing AskRigor work, after it moved the AskRigor owner questions page into a Markdown file in Git and the page lost its colours.",
+  "owner_statement": "you need to fix the owwner questions page, it used to be color coded so i could see what was questions vs todo, and what was done",
+  "problem": "The published artifact showed each item's state with coloured labels: green for done, amber for to do, blue for next. Converting the page to a Markdown file in Git, as patterns/cross-account-continuity.md requires, kept the words but lost the colours, so the owner could no longer tell questions, to-dos and finished items apart at a glance.",
+  "required_behavior": [
+    "Every item on an owner questions page shows by colour whether it is a question for the owner, something for him to do, next or in progress, or done or decided, with the same colours throughout and a one-line legend under the header.",
+    "In a Git file, the colours use what the host renders: on GitHub, a coloured callout under each section heading and a coloured marker at the start of each item's heading.",
+    "A published view keeps the same colours."
+  ],
+  "basis": [
+    "The owner's statement above.",
+    "The original AskRigor page's colour classes: done green, to do amber, next blue."
+  ],
+  "scope": "Rule 9 and the status note of patterns/owner-questions-page.md, this record, and their tests.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "The owner sees at a glance what is a question, what is for him to do, and what is done.",
+    "notes": "The GitHub callout types and marker colours are the assistant's choice of mechanism; purple marks a question because the original page had no open question to copy a colour from."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/owner-questions-page.md, reached through LESSON-INDEX.md and docs/INDEX.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "The AskRigor owner questions page",
+      "disposition": "PROJECTED",
+      "note": "Colour-coded on 2026-10-10 by the requesting session; GitHub's renderer was checked to produce the callouts."
+    },
+    {
+      "surface": "Other workstreams' owner questions pages",
+      "disposition": "QUEUED",
+      "reason": "Each workstream's own session applies the colours when it next updates its page."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "Colours help only where the reader's GitHub view renders callouts and emoji; the status word stays in every heading, so the meaning survives without colour.",
+    "No repository rule can force a session that never loaded UDA."
+  ]
+}
