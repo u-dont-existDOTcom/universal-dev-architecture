@@ -114,8 +114,12 @@ fails closed without any provider resend.
 ### Owner decisions without manual relay
 
 A supervisory Chat that already has the owner's explicit answer must not ask the
-owner to copy that answer into Work. The configured private GitHub decision
-channel accepts an authenticated owner-direction receipt:
+owner to copy that answer into Work. The GitHub decision channel configured in
+`MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON` accepts an authenticated
+owner-direction receipt. The receipt carries the owner's exact answer, so the
+channel must be an issue in a private repository: Mission Control checks the
+repository's name, not its visibility, and a receipt posted in a public
+repository is public.
 
 ```text
 MISSION_CONTROL_OWNER_DIRECTION_V1
@@ -124,7 +128,7 @@ MISSION_CONTROL_OWNER_DIRECTION_V1
 
 Only a GitHub login listed in the policy's `ownerDirectionWriterLogins` (which
 must be a subset of `authorizedWriterLogins`) can supply this receipt, and only
-as a never-edited comment in the centrally configured private decision channel:
+as a never-edited comment in that configured decision channel:
 GitHub lets any write-access collaborator or app edit another user's comment
 without changing its author. Reconciliation requires the exact current
 owner-outcome ID, epoch and digest, verifies the exact-text digest, and then
