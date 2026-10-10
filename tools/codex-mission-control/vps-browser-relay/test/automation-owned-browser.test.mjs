@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { AutomationOwnedBrowser } from '../src/automation-owned-browser.mjs';
+import { AutomationOwnedBrowser, installAutomationOwnedBrowser } from '../src/automation-owned-browser.mjs';
 import { CHATGPT_RATE_LIMIT_RETRY } from '../src/submission-pacing.mjs';
+import { installStuckRecovery } from '../src/stuck-recovery.mjs';
 
 const rootUrl = 'https://chatgpt.com/';
 const chatA = 'https://chatgpt.com/c/chat-a';
@@ -454,10 +455,158 @@ test('journal confirmation detection forwards the bound expected URL', async () 
   assert.deepEqual(calls, [[raw.byId('owned'), { expectedUrl: chatA }]]);
 });
 
+test('installed recovery stack forwards exact owned readback and rejects unsafe targets without sends or mutations', async (t) => {
+  const installStack = ({ targets, ownedTargets, configureRaw = null }) => {
+    const raw = new FakeRawBrowser(targets);
+    const rawReadCalls = [];
+    const rawMutationCalls = [];
+    const rawOutput = { turns: [{ role: 'assistant', text: 'bound result' }] };
+    raw.recoverBoundConversationTurns = async (...args) => {
+      rawReadCalls.push(args);
+      return rawOutput;
+    };
+    for (const method of ['activateTarget', 'closeTarget', 'submitExactMessage', 'retryExactFailedContinue']) {
+      const implementation = raw[method].bind(raw);
+      raw[method] = async (...args) => {
+        rawMutationCalls.push([method, args]);
+        return implementation(...args);
+      };
+    }
+    configureRaw?.(raw, rawReadCalls);
+    const store = new MemoryOwnershipStore(ownedTargets === null ? null : ownership(7, ownedTargets));
+    const protocol = new FakeProtocol(raw);
+    const protocolMutationCalls = [];
+    for (const method of ['createDedicatedWindow', 'createTarget', 'navigate']) {
+      const implementation = protocol[method].bind(protocol);
+      protocol[method] = async (...args) => {
+        protocolMutationCalls.push([method, args]);
+        return implementation(...args);
+      };
+    }
+    const sendCalls = [];
+    const browser = installStuckRecovery(
+      installAutomationOwnedBrowser(raw, { ownershipStore: store, protocol }),
+      {
+        submitMessage: async (...args) => {
+          sendCalls.push(args);
+          throw new Error('unexpected recovery send');
+        },
+        logger: { warn() {} },
+      },
+    );
+    const assertNoSideEffects = () => {
+      assert.deepEqual(sendCalls, []);
+      assert.deepEqual(rawMutationCalls, []);
+      assert.deepEqual(protocolMutationCalls, []);
+      assert.equal(store.writeCount, 0);
+    };
+    return { browser, protocol, raw, rawOutput, rawReadCalls, assertNoSideEffects };
+  };
+
+  await t.test('forwards the exact target and input and returns the raw output unchanged', async () => {
+    const stack = installStack({
+      targets: [page('owned', chatA, 7)],
+      ownedTargets: { owned: record('owned', 'bootstrap', chatA) },
+    });
+    const target = { ...stack.raw.byId('owned'), automationOwned: true, automationWindowId: 7 };
+    const input = { expectedUrl: chatA };
+
+    const output = await stack.browser.recoverBoundConversationTurns(target, input);
+
+    assert.equal(output, stack.rawOutput);
+    assert.equal(stack.rawReadCalls.length, 1);
+    assert.equal(stack.rawReadCalls[0][0], target);
+    assert.equal(stack.rawReadCalls[0][1], input);
+    stack.assertNoSideEffects();
+  });
+
+  await t.test('rejects a foreign target before raw readback', async () => {
+    const stack = installStack({
+      targets: [page('owned', chatA, 7), page('foreign', chatA, 7)],
+      ownedTargets: { owned: record('owned', 'bootstrap', chatA) },
+    });
+    const target = { ...stack.raw.byId('foreign'), automationWindowId: 7 };
+
+    await assert.rejects(
+      stack.browser.recoverBoundConversationTurns(target, { expectedUrl: chatA }),
+      /UNOWNED_BROWSER_TARGET/,
+    );
+    assert.deepEqual(stack.rawReadCalls, []);
+    stack.assertNoSideEffects();
+  });
+
+  await t.test('rejects a wrong-window target before raw readback', async () => {
+    const stack = installStack({
+      targets: [page('owned', chatA, 8)],
+      ownedTargets: { owned: record('owned', 'bootstrap', chatA) },
+    });
+    const target = { ...stack.raw.byId('owned'), automationWindowId: 7 };
+
+    await assert.rejects(
+      stack.browser.recoverBoundConversationTurns(target, { expectedUrl: chatA }),
+      /AUTOMATION_WINDOW_MISMATCH/,
+    );
+    assert.deepEqual(stack.rawReadCalls, []);
+    stack.assertNoSideEffects();
+  });
+
+  await t.test('rejects a missing target before raw readback', async () => {
+    const stack = installStack({
+      targets: [],
+      ownedTargets: { missing: record('missing', 'bootstrap', chatA) },
+    });
+    const target = { ...page('missing', chatA, 7), automationWindowId: 7 };
+
+    await assert.rejects(
+      stack.browser.recoverBoundConversationTurns(target, { expectedUrl: chatA }),
+      /EXACT_BROWSER_TARGET_MISSING/,
+    );
+    assert.deepEqual(stack.rawReadCalls, []);
+    stack.assertNoSideEffects();
+  });
+
+  await t.test('rejects missing ownership state before raw readback', async () => {
+    const stack = installStack({
+      targets: [page('unclaimed', chatA, 7)],
+      ownedTargets: null,
+    });
+    const target = { ...stack.raw.byId('unclaimed'), automationWindowId: 7 };
+
+    await assert.rejects(
+      stack.browser.recoverBoundConversationTurns(target, { expectedUrl: chatA }),
+      /BROWSER_OWNERSHIP_STATE_MISSING/,
+    );
+    assert.deepEqual(stack.rawReadCalls, []);
+    stack.assertNoSideEffects();
+  });
+
+  await t.test('propagates a raw readback error without sending or mutating', async () => {
+    const rawError = new Error('raw readback failed');
+    const stack = installStack({
+      targets: [page('owned', chatA, 7)],
+      ownedTargets: { owned: record('owned', 'bootstrap', chatA) },
+      configureRaw(raw, rawReadCalls) {
+        raw.recoverBoundConversationTurns = async (...args) => {
+          rawReadCalls.push(args);
+          throw rawError;
+        };
+      },
+    });
+    const target = { ...stack.raw.byId('owned'), automationOwned: true, automationWindowId: 7 };
+
+    await assert.rejects(
+      stack.browser.recoverBoundConversationTurns(target, { expectedUrl: chatA }),
+      (error) => error === rawError,
+    );
+    assert.equal(stack.rawReadCalls.length, 1);
+    stack.assertNoSideEffects();
+  });
+});
+
 class MemoryOwnershipStore {
-  constructor(value) { this.value = value ? structuredClone(value) : null; }
+  constructor(value) { this.value = value ? structuredClone(value) : null; this.writeCount = 0; }
   async read() { return this.value ? structuredClone(this.value) : null; }
-  async write(value) { this.value = structuredClone(value); return structuredClone(value); }
+  async write(value) { this.writeCount += 1; this.value = structuredClone(value); return structuredClone(value); }
 }
 
 function coordinatedBrowser(raw, store, protocol) {

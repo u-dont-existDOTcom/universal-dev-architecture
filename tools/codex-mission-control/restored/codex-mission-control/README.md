@@ -102,6 +102,15 @@ metadata-only. This implementation has deterministic test coverage; live routing
 provider source timestamps, deployments, and production promotion are separate
 boundaries and are not established by these tests.
 
+Route-schema-v6 also supports a deterministic provider-response copier. A trusted
+relay supplies one exact canonical machine block plus hashed prompt, target, and
+turn identities. Mission Control validates the pending request/session binding,
+records append-only browser-DOM readback provenance, reuses one byte-identical
+private comment or publishes exactly once, reads the immutable comment back, and
+only then runs the existing canonical receipt admission. Changed content,
+multiple candidates, a retired/superseded request, or immutable-readback mismatch
+fails closed without any provider resend.
+
 Schema-version-3 canonical decisions may also include one complete optional
 `bounded_execution` residue. After every existing repository, issue, writer,
 nonce, binding, session, lane, owner-outcome, evidence, freshness, capability,
@@ -335,6 +344,20 @@ Continuation is `PAUSE_ALL`, `SAFE_WITHIN_SCOPE`, `CONTINUE_UNRESTRICTED`, or `U
 ## API
 
 Dashboard-facing Next.js BFF:
+
+The main dashboard requests `GET /api/workers?timeline=recent`, forwarded to
+`GET /snapshot?timeline=recent`. This opt-in keeps at most the newest 20 events
+per worker in their existing newest-first order and adds `timelineTotal` and
+`timelineTruncated` to each worker. All other projected fields remain intact.
+Requests without this opt-in retain the full response and omit the new metadata.
+This bounds event count rather than individual event bytes.
+
+`SupervisionConsole` and runtime status retain full history for transcripts,
+route evidence, and reasoning-message counts. `WorkerDetail` continues reading
+`/api/workers/:worker`, feeding full history to `WorkerChannel` and
+`ReasoningTranscript`. The owner-auth smoke script exercises the full default;
+worker verification/recording scripts retain their dedicated worker endpoints.
+The browser relay continues using its existing scoped transport-history MCP tool.
 
 - `GET /api/workers`
 - `GET /api/workers/:worker`

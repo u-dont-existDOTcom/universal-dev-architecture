@@ -19,6 +19,10 @@ const USAGE = `Usage: owner-action <action> [options]
   watch-enroll --project P --worker W --task T [--cadence-ms N]
                                                       enroll an existing worker/task under project P
   watch-set --project P [--state S] [--cadence-ms N]  change an existing watch (S: ACTIVE|PAUSED|TERMINAL|DISABLED)
+  reasoning-replace --project P --request R --failure-receipt-sha H [--reason-code C]
+                                                      atomically supersede one sealed failed request and create one replacement
+  reasoning-retire-unsent --project P --request R --evidence-event E
+                                                      retire one proven-unsent stale request and queue one current evidence-bound review
   reconcile-github                                    run one GitHub decision-receipt reconciliation pass`;
 
 // Deliberately absent: any action that forwards caller-supplied semantic content (such as a source-review
@@ -100,6 +104,36 @@ export async function runOwnerAction(argv: string[]): Promise<{ status: number; 
       if (typeof update === "string") throw new UsageError(update);
       return jsonResult(await daemonFetch(`/fleet-supervisor/${encodeURIComponent(project)}`, {
         method: "POST", headers: daemonMutationHeaders(owner(), { "content-type": "application/json" }), body: JSON.stringify(update),
+      }));
+    }
+    case "reasoning-replace": {
+      const opts = options(rest, ["project", "request", "failure-receipt-sha", "reason-code"]);
+      const project = required(opts, "project");
+      if (!FLEET_PROJECT_ID.test(project)) throw new UsageError("--project is not a valid project id.");
+      const requestId = required(opts, "request");
+      if (!/^fleet-review:[a-f0-9]{32}$/.test(requestId)) throw new UsageError("--request must be one exact fleet-review request ID.");
+      const failureReceiptSha256 = required(opts, "failure-receipt-sha");
+      if (!/^[a-f0-9]{64}$/.test(failureReceiptSha256)) throw new UsageError("--failure-receipt-sha must be a lowercase SHA-256 digest.");
+      const reasonCode = opts["reason-code"] ?? "PROVIDER_EMPTY_COMPLETION";
+      if (reasonCode !== "PROVIDER_EMPTY_COMPLETION" && reasonCode !== "PROVIDER_INVALID_CANONICAL_DECISION") {
+        throw new UsageError("--reason-code must be PROVIDER_EMPTY_COMPLETION or PROVIDER_INVALID_CANONICAL_DECISION.");
+      }
+      return jsonResult(await daemonFetch(`/fleet-supervisor/${encodeURIComponent(project)}/reasoning-replace`, {
+        method: "POST", headers: daemonMutationHeaders(owner(), { "content-type": "application/json" }),
+        body: JSON.stringify({ request_id: requestId, failure_receipt_sha256: failureReceiptSha256, reason_code: reasonCode }),
+      }));
+    }
+    case "reasoning-retire-unsent": {
+      const opts = options(rest, ["project", "request", "evidence-event"]);
+      const project = required(opts, "project");
+      if (!FLEET_PROJECT_ID.test(project)) throw new UsageError("--project is not a valid project id.");
+      const requestId = required(opts, "request");
+      if (!/^fleet-review:[a-f0-9]{32}$/.test(requestId)) throw new UsageError("--request must be one exact fleet-review request ID.");
+      const evidenceEventId = required(opts, "evidence-event");
+      if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,179}$/.test(evidenceEventId)) throw new UsageError("--evidence-event must be one exact durable event ID.");
+      return jsonResult(await daemonFetch(`/fleet-supervisor/${encodeURIComponent(project)}/reasoning-retire-unsent`, {
+        method: "POST", headers: daemonMutationHeaders(owner(), { "content-type": "application/json" }),
+        body: JSON.stringify({ request_id: requestId, evidence_event_id: evidenceEventId }),
       }));
     }
     case "reconcile-github": {

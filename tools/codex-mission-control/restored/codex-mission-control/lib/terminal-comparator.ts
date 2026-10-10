@@ -8,8 +8,11 @@ import type {
   WorkerAlignment,
   OutcomeAdvancement,
   StrategyEfficacy,
+  OwnerActionObligation,
 } from "./schema";
 import { effectiveOutcomeAdvancement, effectiveSameStrategyContinuationAllowed, effectiveStrategyEfficacy } from "./progress-invariants";
+import { decisionRouteStates } from "./reasoning-message-state";
+import { ownerAnswerContinuationRoute } from "./owner-question-route";
 
 export type ContractStatus = "VALID" | "CONTRACT_LAUNDERING" | "OUTCOME_AUTHORITY_UNRESOLVED" | "UNKNOWN";
 export type OwnerOutcomeStatus = "MET" | "UNMET" | "UNKNOWN";
@@ -437,8 +440,17 @@ function latestStored<T extends MissionControlEventV2["type"]>(events: StoredEve
   return [...events].reverse().find((event) => event.schemaVersion === 2 && event.data.type === type);
 }
 
-export function latestOwnerAction(events: StoredEvent[]) {
+export function latestOwnerAction(events: StoredEvent[]): OwnerActionObligation | undefined {
   for (const event of [...events].reverse()) {
+    if (event.data.type === "owner_decision_request_recorded") {
+      const requestId = event.data.request_id;
+      const ownerAction = event.data.owner_action;
+      if (ownerAction.kind !== "DECISION_REQUIRED") continue;
+      const route = decisionRouteStates(events).find((state) => state.decisionRequestId === requestId);
+      return route && (route.status === "RESOLVED" || ownerAnswerContinuationRoute(events, event.data.worker, requestId))
+        ? { ...ownerAction, status: "COMPLETED" as const }
+        : ownerAction;
+    }
     if (event.data.type === "correction_lifecycle_recorded" || event.data.type === "finding_recorded"
       || event.data.type === "supervisor_assessment_recorded" || event.data.type === "outcome_progress_recorded") return event.data.owner_action;
   }

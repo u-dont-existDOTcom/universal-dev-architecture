@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { sha256 } from "../lib/canonical";
-import { discoverDirectWorkCloudDispatches, WORK_CLOUD_EXECUTION_RECEIPT_PREFIX } from "../lib/chatgpt-work-cloud-autodispatch";
+import { discoverDirectWorkCloudDispatches, WORK_CLOUD_EXECUTION_RECEIPT_PREFIX, WORK_CLOUD_SUPERVISOR_HANDOFF_PREFIX } from "../lib/chatgpt-work-cloud-autodispatch";
 import { executionDirectiveArtifactCanonicalJson } from "../lib/github-execution-directive";
 import type { StoredEvent } from "../lib/schema";
 import { WORK_MODEL_ROUTING_POLICY_BASE_COMMIT, WORK_MODEL_ROUTING_POLICY_REF } from "../lib/work-execution-profile";
@@ -78,6 +78,8 @@ test("direct autodispatch derives one exact current-controller request and priva
   assert.equal(candidate.controllerRequest.binding.directiveArtifactSha256, sha256(candidate.directiveArtifactText));
   assert.match(candidate.workPrompt, /EXACT BOUNDED DIRECTIVE FOR alpha/);
   assert.match(candidate.workPrompt, new RegExp(WORK_CLOUD_EXECUTION_RECEIPT_PREFIX.trim()));
+  assert.match(candidate.workPrompt, new RegExp(WORK_CLOUD_SUPERVISOR_HANDOFF_PREFIX.trim()));
+  assert.match(candidate.workPrompt, /do not ask the owner/i);
   assert.match(candidate.workPrompt, /Do not write the receipt to GitHub yourself/);
   assert.match(candidate.workPrompt, /deterministic Mission Control copier/);
   assert.doesNotMatch(candidate.workPrompt, /SOURCE_ATTESTED_NATIVE_WORK/);
@@ -141,4 +143,56 @@ test("pending-setup re-resolution is rate limited; new dispatches are never dela
   assert.equal(selectWorkCloudDispatchCandidate([pending], last, 1_000_000 + retryMs, retryMs), pending);
   // A due setup retry earlier in directive order still yields to a fresh dispatch.
   assert.equal(selectWorkCloudDispatchCandidate([pending, fresh], last, 1_000_000 + retryMs, retryMs), fresh);
+});
+
+
+test("supervisor resolution after a Work question continues the exact existing native Work thread", () => {
+  const base = workerEvents("alpha");
+  const initial = discover(base)[0]!;
+  const ready = event(3, "alpha", `work-cloud-result:${initial.dispatchId}`, {
+    type: "chatgpt_work_cloud_dispatch_recorded", worker: "alpha", dispatch_id: initial.dispatchId,
+    status: "READY", surface_verification: "VERIFIED_NATIVE_WORK", work_thread_id: "stable-work-alpha",
+  });
+  const workQuestionRequestId = "work-question:alpha";
+  const workQuestionRoute = event(4, "alpha", "work-question-route:alpha", {
+    type: "worker_message_recorded", worker: "alpha", message_id: "message:work-question-alpha",
+    thread_id: "thread:work-question-alpha", message_kind: "QUESTION", reply_to_message_id: null, direction_id: null,
+    body: "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n" + JSON.stringify({
+      schemaVersion: 6,
+      requestId: workQuestionRequestId,
+      producerId: "system:work-supervisor-question-router",
+      factualPacket: {
+        taskId: "task:alpha",
+        exactFactualState: JSON.stringify({
+          review_kind: "WORK_SUPERVISOR_QUESTION",
+          source_work_dispatch_id: initial.dispatchId,
+          question_id: "question:alpha",
+          exact_question_sha256: "9".repeat(64),
+        }),
+      },
+    }),
+  });
+  const b = bounded("alpha");
+  const sourceDirective = { id: "directive:alpha:continue", revision: 2, taskId: b.task_id,
+    sourceMessageId: "message:alpha:continue", sourceBodySha256: "4".repeat(64) };
+  const artifact = executionDirectiveArtifactCanonicalJson({ bounded: b, sourceDirective, requestedModel: "gpt-5.6-sol", reasoningEffort: "medium" });
+  const receiptId = "receipt:alpha:continue";
+  const continuationReceipt = event(5, "alpha", receiptId, {
+    type: "github_decision_receipt_ingested", worker: "alpha", request_id: "work-owner-continuation:alpha",
+    task_id: b.task_id, reasoning_lane: "EXTRA_HIGH_DIRECT", supervisor_id: "mc-project-manager", bounded_execution: b,
+    continuation_binding: { decision_request_id: workQuestionRequestId },
+  });
+  const continuationDirective = event(6, "alpha", "directive-event:alpha:continue", {
+    type: "execution_directive_recorded", worker: "alpha", directive_id: sourceDirective.id, directive_revision: 2,
+    task_id: b.task_id, directive_schema_version: 3, source_message_id: sourceDirective.sourceMessageId,
+    source_body_sha256: sourceDirective.sourceBodySha256, directive_artifact_sha256: sha256(artifact),
+    execution_surface: "CHATGPT_WORK_CLOUD", work_execution_profile: profile(), status: "ACTIVE",
+    validated_decision_proof: { authority_path: "VALIDATED_GITHUB_SUPERVISORY_DECISION", receipt_event_id: receiptId },
+  });
+
+  const candidate = discover([...base, ready, workQuestionRoute, continuationReceipt, continuationDirective])[0]!;
+  assert.equal(candidate.controllerRequest.mode, "CONTINUE");
+  assert.equal(candidate.controllerRequest.existingWorkThreadId, "stable-work-alpha");
+  assert.equal(candidate.controllerRequest.binding.directiveRevision, 2);
+  assert.equal(candidate.sourceSupervisorId, "mc-project-manager");
 });

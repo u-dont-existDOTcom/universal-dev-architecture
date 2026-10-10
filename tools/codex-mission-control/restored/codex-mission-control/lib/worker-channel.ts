@@ -96,6 +96,8 @@ export function recordOwnerMessage(
   input: OwnerMessageInput,
   producer: AuthenticatedProducer,
   eventHistory?: readonly StoredEvent[],
+  // Provenance events that must commit in the same transaction as the message and its delivery.
+  companions: Array<{ event: unknown; receivedAt?: string; producer: AuthenticatedProducer }> = [],
 ) {
   const suffix = randomUUID();
   const messageId = input.messageId ?? `message:${suffix}`;
@@ -180,10 +182,10 @@ export function recordOwnerMessage(
     }
   }
   appendItems.push({ event: queuedEvent, producer: systemProducer });
-  const appended = store.appendMany(appendItems, eventHistory);
+  const appended = store.appendMany([...appendItems, ...companions], eventHistory);
   const message = appended[0];
-  const delivery = appended.at(-1)!;
-  return { message, delivery, directionId, messageId, deliveryId };
+  const delivery = appended[appendItems.length - 1]!;
+  return { message, delivery, directionId, messageId, deliveryId, appended };
 }
 
 export function pullWorkerOutbox(

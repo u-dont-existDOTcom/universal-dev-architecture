@@ -12,6 +12,8 @@ import {
   buildTrustedTaskCreationSelectionEnvelope,
   buildWorkExecutionAuthorizationEnvelope,
   currentExecutionDirectiveProof,
+  sameTrustedTaskCreationSelection,
+  sameWorkExecutionAuthorization,
 } from "@/lib/work-execution-runtime";
 import { parseWorkExecutionProfile } from "@/lib/work-execution-profile";
 import type { AuthenticatedProducer } from "@/lib/ingestion-auth";
@@ -110,28 +112,37 @@ export async function POST(request: Request, context: { params: Promise<{ worker
         workerScopes: [worker],
         taskScopes: [binding.taskId],
       };
-      const upstream = await daemonFetch("/events", {
-        method: "POST",
-        headers: daemonMutationHeaders(systemProducer, { "content-type": "application/json" }),
-        body: JSON.stringify(buildWorkExecutionAuthorizationEnvelope({
-          worker,
-          request: parsedInput.request,
-          authorizedProfile,
-          now,
-        })),
+      const authorizationEnvelope = buildWorkExecutionAuthorizationEnvelope({
+        worker,
+        request: parsedInput.request,
+        authorizedProfile,
+        now,
       });
-      const payload = await upstream.json().catch(() => ({})) as { event?: unknown; error?: string };
-      if (!upstream.ok) {
-        return Response.json({
-          ...result,
-          admitted: false,
-          mayExecute: false,
-          authorizedWorkExecutionProfile: null,
-          profileAuthorizationId: null,
-          error: payload.error ?? "Mission Control could not persist the Work execution profile authorization.",
-        }, { status: upstream.status });
+      const existingAuthorization = historyEvents.find((event) => event.eventId === authorizationEnvelope.event_id);
+      if (existingAuthorization) {
+        if (!sameWorkExecutionAuthorization(existingAuthorization, authorizationEnvelope)) {
+          throw new Error("Existing Work execution profile authorization conflicts with this retry.");
+        }
+        profileAuthorizationEvent = existingAuthorization;
+      } else {
+        const upstream = await daemonFetch("/events", {
+          method: "POST",
+          headers: daemonMutationHeaders(systemProducer, { "content-type": "application/json" }),
+          body: JSON.stringify(authorizationEnvelope),
+        });
+        const payload = await upstream.json().catch(() => ({})) as { event?: unknown; error?: string };
+        if (!upstream.ok) {
+          return Response.json({
+            ...result,
+            admitted: false,
+            mayExecute: false,
+            authorizedWorkExecutionProfile: null,
+            profileAuthorizationId: null,
+            error: payload.error ?? "Mission Control could not persist the Work execution profile authorization.",
+          }, { status: upstream.status });
+        }
+        profileAuthorizationEvent = payload.event ?? null;
       }
-      profileAuthorizationEvent = payload.event ?? null;
     }
     let routeEvent = null;
     let routeAcknowledgement: RequestBoundRouteAcknowledgement | null = null;
@@ -156,22 +167,30 @@ export async function POST(request: Request, context: { params: Promise<{ worker
         workerScopes: [worker],
         taskScopes: [binding.taskId],
       };
-      const upstream = await daemonFetch("/events", {
-        method: "POST",
-        headers: daemonMutationHeaders(systemProducer, { "content-type": "application/json" }),
-        body: JSON.stringify(setterEnvelope),
-      });
-      const payload = await upstream.json().catch(() => ({})) as { event?: unknown; error?: string };
-      if (!upstream.ok) {
-        return Response.json({
-          ...result,
-          admitted: false,
-          mayExecute: false,
-          setterEvidenceId: null,
-          error: payload.error ?? "Mission Control could not persist trusted task-creation setter evidence.",
-        }, { status: upstream.status });
+      const existingSetter = historyEvents.find((event) => event.eventId === setterEnvelope.event_id);
+      if (existingSetter) {
+        if (!sameTrustedTaskCreationSelection(existingSetter, setterEnvelope)) {
+          throw new Error("Existing trusted task-creation selection conflicts with this retry.");
+        }
+        setterEvidenceEvent = existingSetter;
+      } else {
+        const upstream = await daemonFetch("/events", {
+          method: "POST",
+          headers: daemonMutationHeaders(systemProducer, { "content-type": "application/json" }),
+          body: JSON.stringify(setterEnvelope),
+        });
+        const payload = await upstream.json().catch(() => ({})) as { event?: unknown; error?: string };
+        if (!upstream.ok) {
+          return Response.json({
+            ...result,
+            admitted: false,
+            mayExecute: false,
+            setterEvidenceId: null,
+            error: payload.error ?? "Mission Control could not persist trusted task-creation setter evidence.",
+          }, { status: upstream.status });
+        }
+        setterEvidenceEvent = payload.event ?? null;
       }
-      setterEvidenceEvent = payload.event ?? null;
       setterEvidenceId = setterEnvelope.data.type === "work_task_creation_selection_applied"
         ? setterEnvelope.data.evidence_id
         : null;

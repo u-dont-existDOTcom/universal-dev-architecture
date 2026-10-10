@@ -12,6 +12,9 @@ import {
 import {
   inBandAppReadbackProducerId,
   inBandAppReadbackSummary,
+  inBandBrowserDomReadbackMethod,
+  inBandBrowserDomReadbackProducerId,
+  inBandBrowserDomReadbackSummary,
   inBandDigestRepairOperation,
   inBandMachineTransformSummary,
   inBandPreSendSummary,
@@ -23,6 +26,7 @@ import {
 import type { AppendEnvelope, CanonicalDecisionEnvelope, StoredEvent } from "../lib/schema";
 import { EventStore } from "../lib/store";
 import { WORK_MODEL_ROUTING_POLICY_BASE_COMMIT, WORK_MODEL_ROUTING_POLICY_REF } from "../lib/work-execution-profile";
+import { WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID } from "../lib/owner-question-route";
 
 const worker = "in-band-fixture", requestId = "in-band-request-1", supervisor = "fixture-supervisor";
 const session = "provider-session:in-band-1", relayId = "collector:fixture-relay";
@@ -209,6 +213,97 @@ test("V6 admits one exact GitHub decision without any MCP receipt and records di
   } finally { f.store.close(); }
 });
 
+test("V6 relocates one exact pre-bound receipt to an owner-configured private channel without changing its bytes", () => {
+  const f = fixture();
+  try {
+    const destinationRepository = "u-dont-existDOTcom/private-receipts";
+    const destinationIssueNumber = 4;
+    const relocatedPolicy: GitHubReceiptPolicy = {
+      ...policy,
+      repository: destinationRepository,
+      decisionIssueNumber: destinationIssueNumber,
+      capabilityIssueNumber: destinationIssueNumber,
+      stageIssueNumber: destinationIssueNumber,
+      decisionReceiptRelocations: [{
+        requestId,
+        sourceRepository: policy.repository,
+        sourceDecisionIssueNumber: policy.decisionIssueNumber,
+        destinationRepository,
+        destinationDecisionIssueNumber: destinationIssueNumber,
+        canonicalReceiptSha256: sha256(f.candidate.body),
+      }],
+    };
+    const candidate = {
+      ...f.candidate,
+      repository: destinationRepository,
+      issueNumber: destinationIssueNumber,
+      createdAt: time("08.000"),
+      immutableUrl: `https://github.com/${destinationRepository}/issues/${destinationIssueNumber}#issuecomment-${f.candidate.commentId}`,
+    };
+    const envelope = buildGitHubDecisionReceiptEnvelope(
+      f.events, candidate, relocatedPolicy, time("09.000"), { submissionAuthorityState: f.authority },
+    );
+    assert.equal(candidate.body, f.candidate.body);
+    assert.equal(envelope.data.type, "github_decision_receipt_ingested");
+    if (envelope.data.type !== "github_decision_receipt_ingested") return;
+    assert.deepEqual(envelope.data.receipt_relocation, {
+      authority: "OWNER_CONFIGURED_EXACT_RECEIPT_RELOCATION",
+      source_repository: policy.repository,
+      source_issue_number: policy.decisionIssueNumber,
+      destination_repository: destinationRepository,
+      destination_issue_number: destinationIssueNumber,
+      canonical_receipt_sha256: sha256(f.candidate.body),
+    });
+    assert.equal(envelope.data.in_band_binding_sha256, f.binding.in_band_binding_sha256);
+    assert.equal(envelope.data.github_receipt.repository, destinationRepository);
+    assert.equal(envelope.data.github_receipt.issue_number, destinationIssueNumber);
+  } finally { f.store.close(); }
+});
+
+test("V6 exact receipt relocation fails closed on changed bytes or an unconfigured source", () => {
+  const f = fixture();
+  try {
+    const destinationRepository = "u-dont-existDOTcom/private-receipts";
+    const destinationIssueNumber = 4;
+    const relocatedPolicy: GitHubReceiptPolicy = {
+      ...policy,
+      repository: destinationRepository,
+      decisionIssueNumber: destinationIssueNumber,
+      capabilityIssueNumber: destinationIssueNumber,
+      stageIssueNumber: destinationIssueNumber,
+      decisionReceiptRelocations: [{
+        requestId,
+        sourceRepository: policy.repository,
+        sourceDecisionIssueNumber: policy.decisionIssueNumber,
+        destinationRepository,
+        destinationDecisionIssueNumber: destinationIssueNumber,
+        canonicalReceiptSha256: sha256(f.candidate.body),
+      }],
+    };
+    const candidate = {
+      ...f.candidate,
+      repository: destinationRepository,
+      issueNumber: destinationIssueNumber,
+      createdAt: time("08.000"),
+      immutableUrl: `https://github.com/${destinationRepository}/issues/${destinationIssueNumber}#issuecomment-${f.candidate.commentId}`,
+    };
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(
+      f.events, { ...candidate, body: `${candidate.body}\n` }, relocatedPolicy, time("09.000"), { submissionAuthorityState: f.authority },
+    ), /exact configured canonical receipt hash/);
+    const wrongSourcePolicy = structuredClone(relocatedPolicy);
+    wrongSourcePolicy.decisionReceiptRelocations![0]!.sourceDecisionIssueNumber += 1;
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(
+      f.events, candidate, wrongSourcePolicy, time("09.000"), { submissionAuthorityState: f.authority },
+    ), /source does not match/);
+    const missingCompletion = f.events.filter((event) => !(event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === "MISSION_CONTROL_RELAY_STAGE_V1"
+      && event.data.refs.includes("generation_state:COMPLETE")));
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(
+      missingCompletion, candidate, relocatedPolicy, time("09.000"), { submissionAuthorityState: f.authority },
+    ), /completion evidence missing|generation evidence incomplete|binding\/admission\/generation\/artifact timing/);
+  } finally { f.store.close(); }
+});
+
 test("V6 accepts top-model policy evidence and binds one observed model label across the session", () => {
   const f = fixture();
   try {
@@ -272,6 +367,50 @@ test("V6 app-owned final-message readback may replace only missing web completio
     }
     assert.throws(() => buildGitHubDecisionReceiptEnvelope(bad, candidate, policy, time("32.000"), { submissionAuthorityState: f.authority }), /completion evidence missing|machine-block transformation/);
     assert.throws(() => buildGitHubDecisionReceiptEnvelope(f.events, candidate, policy, time("32.000"), { submissionAuthorityState: f.authority }), /post-expiry transport copy requires/);
+  } finally { f.store.close(); }
+});
+
+test("V6 admits one exact post-completion browser-DOM recovery readback and rejects false provenance", () => {
+  const f = fixture();
+  try {
+    const candidate = { ...f.candidate, commentId: 5744000098, createdAt: time("06.000"),
+      immutableUrl: `https://github.com/${policy.repository}/issues/53#issuecomment-5744000098` };
+    const readback = evidence(f.store, "browser-dom-readback", inBandBrowserDomReadbackSummary, [
+      "status:COMPLETE", `machine_block_sha256:${sha256(candidate.body)}`, `provider_prompt_sha256:${promptSha256}`,
+      `conversation_url:${conversation}`, "thread_surface:chatgpt", "browser_target_id_sha256:" + "7".repeat(64),
+      "source_reader_app:GitHub", "source_reader_mode:READ_ONLY",
+      "browser_capture_surface:EXISTING_BOUND_CONVERSATION_DOM",
+      "assistant_message_selection:UNIQUE_CANONICAL_BLOCK", "semantic_authority:false",
+      `readback_method:${inBandBrowserDomReadbackMethod}`,
+    ], time("07.000"), inBandBrowserDomReadbackProducerId);
+    const events = [...f.events, readback];
+    assert.equal(buildGitHubDecisionReceiptEnvelope(events, candidate, policy, time("08.000"), { submissionAuthorityState: f.authority }).data.type,
+      "github_decision_receipt_ingested");
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(f.events, candidate, policy, time("08.000"), { submissionAuthorityState: f.authority }),
+      /timing is invalid or stale/);
+
+    const wrongDigest = structuredClone(events);
+    const digestReceipt = wrongDigest.find((event) => event.eventId === readback.eventId)!;
+    if (digestReceipt.data.type === "evidence_receipt_recorded") {
+      digestReceipt.data.refs = digestReceipt.data.refs.map((ref) => ref.startsWith("machine_block_sha256:")
+        ? `machine_block_sha256:${"8".repeat(64)}` : ref);
+    }
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(wrongDigest, candidate, policy, time("08.000"), { submissionAuthorityState: f.authority }),
+      /browser-DOM provider machine block digest/);
+
+    const wrongProducer = structuredClone(events);
+    const producerReceipt = wrongProducer.find((event) => event.eventId === readback.eventId)!;
+    producerReceipt.producerId = inBandAppReadbackProducerId;
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(wrongProducer, candidate, policy, time("08.000"), { submissionAuthorityState: f.authority }),
+      /timing is invalid or stale/);
+
+    const afterExpiryCandidate = { ...candidate, commentId: 5744000097, createdAt: time("31.000"),
+      immutableUrl: `https://github.com/${policy.repository}/issues/53#issuecomment-5744000097` };
+    const afterExpiry = structuredClone(events);
+    const lateReadback = afterExpiry.find((event) => event.eventId === readback.eventId)!;
+    lateReadback.occurredAt = time("32.000");
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(afterExpiry, afterExpiryCandidate, policy, time("33.000"), { submissionAuthorityState: f.authority }),
+      /post-expiry transport copy requires current app-owned completion evidence/);
   } finally { f.store.close(); }
 });
 
@@ -625,5 +764,103 @@ test("V6 rejects wrong GitHub location/writer and never accepts V5 MCP provenanc
     const wrongProvenance = structuredClone(f.decision) as any;
     wrongProvenance.execution_provenance = "REQUEST_BOUND_MCP_GITHUB_OBSERVED";
     assert.throws(() => build(f, f.events, { ...f.candidate, body: canonicalDecisionCommentPrefix + JSON.stringify(wrongProvenance) }), /Invalid input|execution_provenance/);
+  } finally { f.store.close(); }
+});
+
+
+function workQuestionStoredEvent(data: StoredEvent["data"], eventId: string, sequence: number, occurredAt: string): StoredEvent {
+  return {
+    id: sequence, sequence, eventId, schemaVersion: 2, missionId: "mission-control-live",
+    worker: "worker" in data ? data.worker : null, type: data.type, occurredAt, receivedAt: occurredAt,
+    previousHash: null, eventHash: "e".repeat(64), producerId: "test", producerKind: "SYSTEM", data,
+  } as StoredEvent;
+}
+
+function workQuestionEvents(f: ReturnType<typeof fixture>): StoredEvent[] {
+  const events = structuredClone(f.events);
+  const route = events.find((event) => event.data.type === "worker_message_recorded"
+    && event.data.body.startsWith(inBandRequestRoutePrefix));
+  if (!route || route.data.type !== "worker_message_recorded") throw new Error("Expected V6 route");
+  const packet = JSON.parse(route.data.body.slice(inBandRequestRoutePrefix.length));
+  packet.producerId = WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID;
+  packet.factualPacket.exactFactualState = JSON.stringify({
+    review_kind: "WORK_SUPERVISOR_QUESTION",
+    source_work_dispatch_id: "work-cloud:fixture",
+    question_id: "question:fixture",
+    exact_question_sha256: "9".repeat(64),
+  });
+  route.data.body = inBandRequestRoutePrefix + JSON.stringify(packet);
+  events.push(workQuestionStoredEvent({
+    type: "chatgpt_work_cloud_dispatch_recorded",
+    worker,
+    dispatch_id: "work-cloud:fixture",
+    mode: "CREATE",
+    requested_surface: "CHATGPT_WORK_CLOUD",
+    directive_id: "directive:fixture",
+    directive_revision: 1,
+    task_id: "task-1",
+    app_tool: "create_thread",
+    status: "READY",
+    work_thread_id: "work-thread:fixture",
+    client_thread_id: null,
+    approval_state: "ACCEPTED",
+    surface_verification: "VERIFIED_NATIVE_WORK",
+    native_surface_evidence: "TRUSTED_APP_EXECUTOR_CHATGPT_WORK_CLOUD_TARGET",
+    host_id: null,
+    error_code: null,
+    recorded_at: time("02.900"),
+    producer_id: "system:chatgpt-work-cloud-dispatch",
+    source: "TRUSTED_CHATGPT_APP_EXECUTOR_BOUNDARY",
+  } as StoredEvent["data"], "work-question-ready", 100, time("02.900")));
+  return events;
+}
+
+function ownerDecisionAction() {
+  return {
+    kind: "DECISION_REQUIRED" as const,
+    decision_id: "owner-choice-v6",
+    question: "Choose whether to proceed with the one bounded attempt.",
+    context: "The remaining choice is an owner preference, not an engineering fact.",
+    options: [
+      { option_id: "A", label: "Proceed", benefits: ["Continue"], drawbacks: ["Consumes one attempt"], downstream_consequences: ["Resume bounded execution"] },
+      { option_id: "B", label: "Pause", benefits: ["No further attempt"], drawbacks: ["Outcome remains open"], downstream_consequences: ["Stay paused"] },
+    ],
+    recommendation_option_id: "A",
+    recommendation_reasoning: "A preserves the existing evidence boundary.",
+    default_if_no_decision: "B",
+  };
+}
+
+test("V6 Work-question canonical admission requires explicit owner classification and never mixes owner gating with Work execution", () => {
+  const f = fixture();
+  try {
+    const events = workQuestionEvents(f);
+    assert.throws(() => build(f, events), /explicit owner_action classification/);
+
+    const missingExecution = candidateWith(f, (decision) => { decision.owner_action = { kind: "NONE" }; });
+    assert.throws(() => build(f, events, missingExecution), /CHATGPT_WORK_CLOUD bounded continuation/);
+
+    const ownerRequired = candidateWith(f, (decision) => { decision.owner_action = ownerDecisionAction(); });
+    const ownerEnvelope = build(f, events, ownerRequired);
+    assert.equal(ownerEnvelope.data.type, "github_decision_receipt_ingested");
+    if (ownerEnvelope.data.type !== "github_decision_receipt_ingested") return;
+    assert.equal(ownerEnvelope.data.owner_action?.kind, "DECISION_REQUIRED");
+    assert.equal(ownerEnvelope.data.bounded_execution, undefined);
+
+    const invalidMixed = candidateWith(f, (decision) => {
+      decision.owner_action = ownerDecisionAction();
+      decision.bounded_execution = nativeWorkResidue();
+    });
+    assert.throws(() => build(f, events, invalidMixed), /requires the owner|cannot authorize Work continuation/);
+
+    const supervisorResolved = candidateWith(f, (decision) => {
+      decision.owner_action = { kind: "NONE" };
+      decision.bounded_execution = nativeWorkResidue();
+    });
+    const resolvedEnvelope = build(f, events, supervisorResolved);
+    assert.equal(resolvedEnvelope.data.type, "github_decision_receipt_ingested");
+    if (resolvedEnvelope.data.type !== "github_decision_receipt_ingested") return;
+    assert.equal(resolvedEnvelope.data.owner_action?.kind, "NONE");
+    assert.equal(resolvedEnvelope.data.bounded_execution?.execution_surface, "CHATGPT_WORK_CLOUD");
   } finally { f.store.close(); }
 });
