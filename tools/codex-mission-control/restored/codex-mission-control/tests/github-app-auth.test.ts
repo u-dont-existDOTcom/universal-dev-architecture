@@ -155,6 +155,7 @@ test("decision copying stays off without a trusted App bot writer instead of sto
     const env = { ...appEnv, MISSION_CONTROL_GITHUB_APP_BOT_LOGIN: botLogin };
     const copy = githubDecisionCopyTokenProviderFromEnv({ ...base, env, authorizedWriterLogins: writers });
     assert.equal(copy.provider, null);
+    assert.equal(copy.disabledCode, "APP_BOT_WRITER_NOT_CONFIGURED");
     assert.match(copy.disabledReason ?? "", /BOT_LOGIN in receipt-policy authorizedWriterLogins/);
     assert.throws(() => githubReconciliationTokenProviderFromEnv({ ...base, env, authorizedWriterLogins: writers,
       issuesPermission: "write" }), GitHubAppBotWriterNotAuthorizedError);
@@ -162,8 +163,15 @@ test("decision copying stays off without a trusted App bot writer instead of sto
   assert.equal(keyReads, 0);
   assert.equal(tokenRequests, 0);
 
+  // No write credential at all: copying is off and says so, too.
+  const none = githubDecisionCopyTokenProviderFromEnv({ ...base, env: {}, authorizedWriterLogins: ["owner"] });
+  assert.equal(none.provider, null);
+  assert.equal(none.disabledCode, "NO_GITHUB_TOKEN");
+  assert.match(none.disabledReason ?? "", /static GitHub token or GitHub App credentials/);
+
   const trusted = githubDecisionCopyTokenProviderFromEnv({ ...base, authorizedWriterLogins: ["owner", "mission-control-app[bot]"],
     env: { ...appEnv, MISSION_CONTROL_GITHUB_APP_BOT_LOGIN: "mission-control-app[bot]" } });
+  assert.equal(trusted.disabledCode, null);
   assert.equal(trusted.disabledReason, null);
   assert.equal(await trusted.provider?.(), "write-token");
   assert.equal(keyReads, 1);
@@ -180,6 +188,7 @@ test("decision copying stays off without a trusted App bot writer instead of sto
   // A static token keeps enabling copying, as before.
   const staticCopy = githubDecisionCopyTokenProviderFromEnv({ ...base, authorizedWriterLogins: ["owner"],
     env: { MISSION_CONTROL_GITHUB_RECONCILIATION_TOKEN: "static-token" } });
+  assert.equal(staticCopy.disabledCode, null);
   assert.equal(staticCopy.disabledReason, null);
   assert.equal(await staticCopy.provider?.(), "static-token");
 });

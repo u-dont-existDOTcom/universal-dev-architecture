@@ -76,10 +76,10 @@ const githubReconciliationTokenProvider = githubPolicy
 const githubDecisionCopy = githubPolicy?.requestBound?.enabled
   ? githubDecisionCopyTokenProviderFromEnv({ repository: githubPolicy.repository,
     authorizedWriterLogins: githubPolicy.authorizedWriterLogins })
-  : { provider: null, disabledReason: null };
-if (githubDecisionCopy.disabledReason) {
-  // Copying stays off until the App's bot writer is configured; the copy routes answer 503 meanwhile.
-  console.warn(JSON.stringify({ event: "github_decision_copying_off", reason: "APP_BOT_WRITER_NOT_CONFIGURED",
+  : { provider: null, disabledCode: null, disabledReason: null };
+if (githubDecisionCopy.disabledCode) {
+  // Request-bound copying is enabled but has no usable write credential; the copy routes answer 503 meanwhile.
+  console.warn(JSON.stringify({ event: "github_decision_copying_off", reason: githubDecisionCopy.disabledCode,
     detail: githubDecisionCopy.disabledReason }));
 }
 const githubDecisionCopyTokenProvider = githubDecisionCopy.provider;

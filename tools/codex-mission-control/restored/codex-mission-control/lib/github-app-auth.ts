@@ -152,13 +152,22 @@ export function githubReconciliationTokenProviderFromEnv(options: {
  */
 export function githubDecisionCopyTokenProviderFromEnv(
   options: Omit<Parameters<typeof githubReconciliationTokenProviderFromEnv>[0], "issuesPermission">,
-): { provider: GitHubReconciliationTokenProvider | null; disabledReason: string | null } {
+): {
+  provider: GitHubReconciliationTokenProvider | null;
+  disabledCode: "APP_BOT_WRITER_NOT_CONFIGURED" | "NO_GITHUB_TOKEN" | null;
+  disabledReason: string | null;
+} {
+  let provider: GitHubReconciliationTokenProvider | null;
   try {
-    return { provider: githubReconciliationTokenProviderFromEnv({ ...options, issuesPermission: "write" }), disabledReason: null };
+    provider = githubReconciliationTokenProviderFromEnv({ ...options, issuesPermission: "write" });
   } catch (error) {
     if (!(error instanceof GitHubAppBotWriterNotAuthorizedError)) throw error;
-    return { provider: null, disabledReason: error.message };
+    return { provider: null, disabledCode: "APP_BOT_WRITER_NOT_CONFIGURED", disabledReason: error.message };
   }
+  return provider
+    ? { provider, disabledCode: null, disabledReason: null }
+    : { provider: null, disabledCode: "NO_GITHUB_TOKEN",
+      disabledReason: "Decision copying needs a static GitHub token or GitHub App credentials." };
 }
 
 function base64url(value: unknown): string {
