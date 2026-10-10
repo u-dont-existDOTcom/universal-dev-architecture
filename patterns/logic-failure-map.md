@@ -58,6 +58,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-3.7 | A vivid or detailed account treated as strong evidence. | Ask what independent evidence it adds; keep denominators. | `patterns/interview-evidence-information-gain.md` | |
 | LF-3.8 | An old pass or green label trusted as a current result. | Reproduce the exact boundary before relying on it. | `patterns/external-evaluation-reproducibility.md` | |
 | LF-3.9 | A large practical effect from one or a few studies is treated as established although independent evidence streams do not echo it. | Ask what should be observable if the claim were true; check replication, intervention identity, relevant historical use, and real-world reports when exposure is sufficient. | `patterns/consilience-and-expected-observability.md` | |
+| LF-3.10 | A system keeps model rewrites of a source as its record (summaries, extracted facts, a graph) and patches its gate fix after fix, while the simplest baseline, keeping the source and quoting it at use time, was never measured. | Before the build, and at the third fix in a row to one stage: measure that baseline; admit model output only as pointers to exact spans; state full-scale costs as numbers. | `patterns/stand-in-pipeline-design-admission.md`; `patterns/research-before-reinvention.md` | |
 
 ### 4. Reasoning
 

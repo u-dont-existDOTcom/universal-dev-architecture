@@ -8461,6 +8461,52 @@
       }
     },
     {
+      "id": "patterns/stand-in-pipeline-design-admission.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "owner rule: before building a pipeline whose model output stands in for a source"
+      },
+      "actors": [
+        "reasoning agent",
+        "Codex/Work executor"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "persistence"
+      ],
+      "destinations": [
+        "design plan",
+        "measured baseline record",
+        "owner questions page"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/stand-in-pipeline-design-admission.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Index route only. No task-time record yet checks for a measured baseline, pointer-only model layers, judge agreement, sampling, full-scale cost numbers or the third-fix trigger.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Add trigger-bound obligations: detect a stand-in pipeline at design or plan time; require a measured baseline record before the build; check that model-written layers are pointers to exact spans; require a judge-agreement record before a gate counts a judge; require a seeded random sample with a sequential stop; require numeric full-scale costs in owner-facing design proposals; count consecutive fixes per pipeline stage and reopen admission at the third.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
       "id": "patterns/structured-natal-chart-comparison.md",
       "kind": "pattern",
       "indexed": true,
