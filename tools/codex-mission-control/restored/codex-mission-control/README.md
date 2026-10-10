@@ -345,6 +345,20 @@ Continuation is `PAUSE_ALL`, `SAFE_WITHIN_SCOPE`, `CONTINUE_UNRESTRICTED`, or `U
 
 Dashboard-facing Next.js BFF:
 
+The main dashboard requests `GET /api/workers?timeline=recent`, forwarded to
+`GET /snapshot?timeline=recent`. This opt-in keeps at most the newest 20 events
+per worker in their existing newest-first order and adds `timelineTotal` and
+`timelineTruncated` to each worker. All other projected fields remain intact.
+Requests without this opt-in retain the full response and omit the new metadata.
+This bounds event count rather than individual event bytes.
+
+`SupervisionConsole` and runtime status retain full history for transcripts,
+route evidence, and reasoning-message counts. `WorkerDetail` continues reading
+`/api/workers/:worker`, feeding full history to `WorkerChannel` and
+`ReasoningTranscript`. The owner-auth smoke script exercises the full default;
+worker verification/recording scripts retain their dedicated worker endpoints.
+The browser relay continues using its existing scoped transport-history MCP tool.
+
 - `GET /api/workers`
 - `GET /api/workers/:worker`
 - `GET /api/events`

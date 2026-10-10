@@ -42,6 +42,14 @@ function loginRequest(token: string) {
   });
 }
 
+function tunnelLoginRequest(token: string, requestOrigin = "http://127.0.0.1:3300") {
+  return new Request("http://127.0.0.1:3000/api/auth/login", {
+    method: "POST",
+    headers: { host: "127.0.0.1:3300", origin: requestOrigin },
+    body: new URLSearchParams({ token }),
+  });
+}
+
 test("documented local startup exports the session secret before starting the stack", () => {
   const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
   const setup = readme.match(/## Run locally[\s\S]*?```bash\n([\s\S]*?)```/);
@@ -87,7 +95,7 @@ test("login issues session and CSRF cookies with Max-Age=31536000", async (t) =>
   const settings = configureOwner(t);
   const response = await login(loginRequest(settings.MISSION_CONTROL_OWNER_TOKEN));
   assert.equal(response.status, 303);
-  assert.equal(response.headers.get("location"), `${origin}/`);
+  assert.equal(response.headers.get("location"), "/");
   const cookies = response.headers.getSetCookie();
   assert.equal(cookies.length, 2);
   for (const name of [ownerSessionCookie, ownerCsrfCookie]) {
@@ -136,5 +144,45 @@ test("login refuses a wrong owner token without issuing either cookie", async (t
   const response = await login(loginRequest(`${settings.MISSION_CONTROL_OWNER_TOKEN}x`));
   assert.equal(response.status, 401);
   assert.deepEqual(await response.json(), { error: "Invalid owner credential." });
+  assert.deepEqual(response.headers.getSetCookie(), []);
+});
+
+test("login through an SSH tunnel redirects relatively and issues both cookies", async (t) => {
+  const settings = configureOwner(t);
+  delete process.env.MISSION_CONTROL_PUBLIC_ORIGIN;
+  const response = await login(tunnelLoginRequest(settings.MISSION_CONTROL_OWNER_TOKEN));
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get("location"), "/");
+  const cookies = response.headers.getSetCookie();
+  assert.equal(cookies.length, 2);
+  for (const name of [ownerSessionCookie, ownerCsrfCookie]) {
+    const cookie = cookies.find((value) => value.startsWith(`${name}=`));
+    assert.ok(cookie);
+    const [pair, ...options] = cookie.split("; ");
+    assert.deepEqual(options, name === ownerSessionCookie
+      ? ["Path=/", "HttpOnly", "SameSite=Strict", "Max-Age=31536000"]
+      : ["Path=/", "SameSite=Strict", "Max-Age=31536000"]);
+    assert.ok(pair.slice(name.length + 1));
+    if (name === ownerSessionCookie) {
+      assert.ok(verifyOwnerSessionToken(decodeURIComponent(pair.slice(name.length + 1))));
+    }
+  }
+});
+
+test("login through an SSH tunnel rejects a wrong token without issuing cookies", async (t) => {
+  const settings = configureOwner(t);
+  delete process.env.MISSION_CONTROL_PUBLIC_ORIGIN;
+  const response = await login(tunnelLoginRequest(`${settings.MISSION_CONTROL_OWNER_TOKEN}x`));
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), { error: "Invalid owner credential." });
+  assert.deepEqual(response.headers.getSetCookie(), []);
+});
+
+test("login through an SSH tunnel rejects a cross-origin request without issuing cookies", async (t) => {
+  const settings = configureOwner(t);
+  delete process.env.MISSION_CONTROL_PUBLIC_ORIGIN;
+  const response = await login(tunnelLoginRequest(settings.MISSION_CONTROL_OWNER_TOKEN, "http://127.0.0.1:3301"));
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), { error: "Cross-origin login rejected." });
   assert.deepEqual(response.headers.getSetCookie(), []);
 });
