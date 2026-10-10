@@ -6,5 +6,6 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const authentication = authenticateOwnerRequest(request);
   if (!authentication.ok) return ownerAuthFailure(authentication);
-  return relayJson("/snapshot");
+  const timeline = new URL(request.url).searchParams.get("timeline");
+  return relayJson(timeline === "recent" ? "/snapshot?timeline=recent" : "/snapshot");
 }

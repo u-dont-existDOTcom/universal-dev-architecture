@@ -64,7 +64,7 @@ export function Dashboard() {
     busy.current = true;
     setLoading(true);
     const results = await Promise.allSettled([
-      readDashboardData<Snapshot>("/api/workers", validTaskSnapshot),
+      readDashboardData<Snapshot>("/api/workers?timeline=recent", validTaskSnapshot),
       readDashboardData<OperatorStatusProjection>("/api/operator-status", validOperatorSnapshot),
     ]);
     const next: Record<string, SnapshotFailure> = {};

@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { ZodError } from "zod";
 import { snapshotFromEvents, workerSnapshotFromEvents, workerTransportSnapshotFromEvents } from "../lib/dashboard-data";
+import { snapshotForTimeline } from "../lib/snapshot-response";
 import { seedIssue47Store, seedStore } from "../lib/seed";
 import { startLiveWorkerSourceWatcher } from "../lib/live-worker-source";
 import {
@@ -143,7 +144,8 @@ const server = http.createServer(async (request, response) => {
       return json(response, submissionAuthorityMatch[1] === "admissions/validate" || submissionAuthorityMatch[1] === "aborts" || submissionAuthorityMatch[1] === "expired-preclick-retries/cancel" ? 200 : 201, result);
     }
     if (request.method === "GET" && url.pathname === "/snapshot") {
-      return json(response, 200, snapshotFromEvents(eventHistory(), dashboardProjectionOptions()));
+      const snapshot = snapshotFromEvents(eventHistory(), dashboardProjectionOptions());
+      return json(response, 200, snapshotForTimeline(snapshot, url.searchParams.get("timeline")));
     }
     if (request.method === "GET" && url.pathname === "/events") {
       const eventId = url.searchParams.get("event_id");
