@@ -413,6 +413,37 @@ export class EventStore {
     }));
   }
 
+  submissionAuthorityProofSnapshot(pacingDomain: string): {
+    state: unknown | null;
+    ledger: { valid: boolean; errors: string[] };
+    records: Array<Record<string, unknown>>;
+  } {
+    // These synchronous reads use the daemon-owned connection, so no other
+    // scheduler mutation can interleave within this snapshot.
+    const state = this.submissionAuthorityState(pacingDomain);
+    const ledger = this.verifySubmissionAuthorityLedger(pacingDomain);
+    const rows = this.db.prepare(`
+      SELECT sequence, ledger_json, previous_hash, event_hash
+      FROM provider_submission_authority_ledger
+      WHERE pacing_domain = ? ORDER BY sequence
+    `).all(pacingDomain) as Array<{
+      sequence: number;
+      ledger_json: string;
+      previous_hash: string | null;
+      event_hash: string;
+    }>;
+    return {
+      state,
+      ledger,
+      records: rows.map((row) => ({
+        sequence: Number(row.sequence),
+        ...JSON.parse(row.ledger_json),
+        previousHash: row.previous_hash,
+        eventHash: row.event_hash,
+      })),
+    };
+  }
+
   submissionAuthorityBoundaryLedger(pacingDomain: string): Array<Record<string, unknown>> {
     const rows = this.db.prepare(`
       SELECT sequence, ledger_json, previous_hash, event_hash
@@ -1310,7 +1341,8 @@ export class EventStore {
       "supervision_route_recorded", "research_verdict_recorded", "supervision_design_feedback_recorded",
       "verification_validity_recorded", "owner_decision_recorded", "symphony_runtime_observed", "live_worker_evidence_observed",
       "reasoning_supervision_recorded", "execution_directive_recorded", "work_execution_profile_authorized",
-      "work_execution_preflight_recorded", "chatgpt_work_cloud_dispatch_requested", "chatgpt_work_cloud_dispatch_recorded", "codex_execution_started", "execution_receipt_recorded",
+      "work_execution_preflight_recorded", "chatgpt_work_cloud_dispatch_requested", "chatgpt_work_cloud_dispatch_recorded",
+      "work_supervisor_handoff_recorded", "owner_decision_request_recorded", "codex_execution_started", "execution_receipt_recorded",
       "outcome_progress_recorded", "supervision_alert_recorded",
     ]);
     if (contractRequiredTypes.has(data.type) && contracts.length === 0) {
@@ -1320,7 +1352,9 @@ export class EventStore {
 
   private validateCorrection(envelope: AppendEnvelope, validationHistory?: readonly StoredEvent[]) {
     const data = envelope.data;
-    if ("owner_action" in data) {
+    if (data.type === "supervisor_assessment_recorded" || data.type === "finding_recorded"
+      || data.type === "correction_lifecycle_recorded" || data.type === "outcome_progress_recorded"
+      || data.type === "owner_decision_request_recorded") {
       const continuationPolicy = "continuation_policy" in data ? data.continuation_policy : undefined;
       this.validateObligationReferences(
         data.worker,

@@ -21,7 +21,7 @@ test("submission-authority BFF authenticates a bound relay kind before forwardin
     let forwarded = 0;
     globalThis.fetch = async (url, init) => {
       forwarded += 1;
-      assert.ok(["/submission-authority/status", "/submission-authority/admissions", "/submission-authority/expired-preclick-retries/cancel"].includes(new URL(String(url)).pathname));
+      assert.ok(["/submission-authority/status", "/submission-authority/admissions/proof", "/submission-authority/admissions", "/submission-authority/expired-preclick-retries/cancel"].includes(new URL(String(url)).pathname));
       const headers = new Headers(init?.headers);
       assert.equal(headers.get("x-mission-control-producer-id"), "collector:primary");
       assert.equal(headers.get("x-mission-control-producer-kind"), "COLLECTOR");
@@ -46,13 +46,25 @@ test("submission-authority BFF authenticates a bound relay kind before forwardin
     assert.equal(allowed.status, 200);
     assert.equal(forwarded, 1);
 
+    const proofId = "send-admission:proof-route";
+    const malformedProof = await route.GET(new Request("https://mission-control.example/api/submission-authority/admissions/proof?admission_id=wrong&extra=1", {
+      headers: { authorization: `Bearer ${relayToken}`, "x-mission-control-producer-id": "collector:primary" },
+    }), { params: Promise.resolve({ operation: ["admissions", "proof"] }) });
+    assert.equal(malformedProof.status, 400);
+    assert.equal(forwarded, 1);
+    const proof = await route.GET(new Request(`https://mission-control.example/api/submission-authority/admissions/proof?admission_id=${encodeURIComponent(proofId)}`, {
+      headers: { authorization: `Bearer ${relayToken}`, "x-mission-control-producer-id": "collector:primary" },
+    }), { params: Promise.resolve({ operation: ["admissions", "proof"] }) });
+    assert.equal(proof.status, 200);
+    assert.equal(forwarded, 2);
+
     const posted = await route.POST(new Request("https://mission-control.example/api/submission-authority/admissions", {
       method: "POST",
       headers: { authorization: `Bearer ${relayToken}`, "x-mission-control-producer-id": "collector:primary", "content-type": "application/json" },
       body: "{}",
     }), { params: Promise.resolve({ operation: ["admissions"] }) });
     assert.equal(posted.status, 200);
-    assert.equal(forwarded, 2);
+    assert.equal(forwarded, 3);
 
     const cancelled = await route.POST(new Request("https://mission-control.example/api/submission-authority/expired-preclick-retries/cancel", {
       method: "POST",
@@ -60,7 +72,7 @@ test("submission-authority BFF authenticates a bound relay kind before forwardin
       body: JSON.stringify({ queueItemId: "queue:test", requestId: "request:test", sourceRouteExpiresAt: "2026-09-21T00:00:00.000Z" }),
     }), { params: Promise.resolve({ operation: ["expired-preclick-retries", "cancel"] }) });
     assert.equal(cancelled.status, 200);
-    assert.equal(forwarded, 3);
+    assert.equal(forwarded, 4);
   } finally {
     globalThis.fetch = originalFetch;
     restore("MISSION_CONTROL_INTERNAL_TOKEN", originalEnvironment.MISSION_CONTROL_INTERNAL_TOKEN);

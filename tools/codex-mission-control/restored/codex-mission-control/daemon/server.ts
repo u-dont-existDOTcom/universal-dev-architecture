@@ -21,19 +21,28 @@ import {
   githubDecisionProducer,
   ingestGitHubSupervisionCandidate,
   parseGitHubReceiptPolicy,
+  pendingDecisionRequests,
   reconcileGitHubDecisionReceipts,
   type GitHubDecisionCandidate,
+  type ReasoningReplacementReasonCode,
 } from "../lib/github-decision-receipts";
 import { SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
 import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
 import { GitHubReconciliationCoordinator } from "../lib/github-reconciliation-coordinator";
-import { FleetSupervisorRuntime, routeFleetSupervisorReasoning } from "../lib/fleet-supervisor";
+import {
+  FleetSupervisorRuntime,
+  replaceFleetSupervisorReasoningRequest,
+  retireUnsentFleetSupervisorReasoningRequest,
+  routeFleetSupervisorReasoning,
+} from "../lib/fleet-supervisor";
 import { enrollFleetSupervisorWatch, parseFleetWatchEnrollment } from "../lib/fleet-watch-enrollment";
 import { observeFleetSupervisorWithJev } from "../lib/jev-shadow";
 import { boundedJevShadowHook, sampleJevShadowOnStateChange } from "../lib/jev-shadow-hook";
 import { FleetSupervisorLoop, fleetSupervisorSlowTickMs, fleetSupervisorStallMs } from "../lib/fleet-supervisor-loop";
 import { jevShadowSummaryForProducer, jevShadowSummaryTool } from "../lib/jev-shadow-surface";
+import { githubReconciliationTokenProviderFromEnv } from "../lib/github-app-auth";
+import { ProviderDecisionCopier, ProviderDecisionValidationError } from "../lib/provider-decision-copier";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
 const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
@@ -61,15 +70,34 @@ const githubChallengeEvents = ensureConfiguredCapabilityChallenges(
 const githubReconciliationEventCache = githubPolicy && githubReconciliationStartupEvents
   ? GitHubReconciliationEventCache.fromEvents(store, [...githubReconciliationStartupEvents, ...githubChallengeEvents])
   : null;
+const githubReconciliationTokenProvider = githubPolicy
+  ? githubReconciliationTokenProviderFromEnv({ repository: githubPolicy.repository })
+  : null;
+const githubDecisionCopyTokenProvider = githubPolicy?.requestBound?.enabled
+  ? githubReconciliationTokenProviderFromEnv({ repository: githubPolicy.repository, issuesPermission: "write",
+    authorizedWriterLogins: githubPolicy.authorizedWriterLogins })
+  : null;
 const eventHistory = () => githubReconciliationEventCache?.eventsForRead(store) ?? store.allEvents();
 const githubReconciliationCoordinator = githubPolicy && githubReconciliationEventCache
   ? new GitHubReconciliationCoordinator({
     execute: () => reconcileGitHubDecisionReceipts(store, {
-      token: process.env.MISSION_CONTROL_GITHUB_RECONCILIATION_TOKEN,
+      tokenProvider: githubReconciliationTokenProvider ?? undefined,
       policy: githubPolicy,
       eventCache: githubReconciliationEventCache,
     }),
     latestSequence: () => store.latestSequence(),
+    onAppended: (events) => {
+      for (const event of events) notifications.emit("event", event);
+    },
+  })
+  : null;
+const providerDecisionCopier = githubPolicy && githubDecisionCopyTokenProvider
+  ? new ProviderDecisionCopier({
+    store,
+    policy: githubPolicy,
+    tokenProvider: githubDecisionCopyTokenProvider,
+    eventCache: githubReconciliationEventCache,
+    eventHistory,
     onAppended: (events) => {
       for (const event of events) notifications.emit("event", event);
     },
@@ -113,6 +141,93 @@ const server = http.createServer(async (request, response) => {
       notifications.emit("event", { type: "fleet_supervisor_watch_configured", projectId: result.watch.projectId });
       return json(response, result.created ? 201 : 200, result);
     }
+    const fleetReasoningReplacementMatch = url.pathname.match(/^\/fleet-supervisor\/([^/]+)\/reasoning-replace$/);
+    if (request.method === "POST" && fleetReasoningReplacementMatch) {
+      const producer = authorizeMutation(request);
+      if (!["OWNER_AUTHORITY", "UI"].includes(producer.kind)) return json(response, 403, { error: "Only an authenticated owner surface may replace a reasoning request." });
+      const projectId = decodeURIComponent(fleetReasoningReplacementMatch[1]);
+      const watch = store.fleetSupervisorWatch(projectId);
+      if (!watch) return json(response, 404, { error: "Fleet watch not found." });
+      if (watch.state !== "PAUSED") return json(response, 409, { error: "Reasoning replacement requires the exact fleet watch to be paused." });
+      const body = await readJson(request) as Record<string, unknown>;
+      let reasonCode: ReasoningReplacementReasonCode | undefined;
+      if (body.reason_code === undefined) reasonCode = undefined;
+      else if (body.reason_code === "PROVIDER_EMPTY_COMPLETION"
+        || body.reason_code === "PROVIDER_INVALID_CANONICAL_DECISION") reasonCode = body.reason_code;
+      else {
+        return json(response, 400, { error: "Reasoning replacement reason_code is invalid." });
+      }
+      try {
+        const replacementInput = {
+          requestId: typeof body.request_id === "string" ? body.request_id : "",
+          failureReceiptSha256: typeof body.failure_receipt_sha256 === "string" ? body.failure_receipt_sha256 : "",
+          ...(reasonCode ? { reasonCode } : {}),
+        };
+        const result = replaceFleetSupervisorReasoningRequest(store, watch, replacementInput);
+        notifications.emit("event", result.event);
+        return json(response, result.duplicate ? 200 : 201, {
+          status: "REASONING_REQUEST_REPLACED",
+          projectId,
+          worker: watch.worker,
+          supersededRequestId: result.supersededRequestId,
+          replacementRequestId: result.replacementRequestId,
+          eventId: result.event.eventId,
+          duplicate: result.duplicate,
+          oldRequestLateReceiptsAdmissible: false,
+        });
+      } catch (error) {
+        return json(response, 409, { error: error instanceof Error ? error.message : "Reasoning replacement was rejected." });
+      }
+    }
+    const fleetReasoningRetirementMatch = url.pathname.match(/^\/fleet-supervisor\/([^/]+)\/reasoning-retire-unsent$/);
+    if (request.method === "POST" && fleetReasoningRetirementMatch) {
+      const producer = authorizeMutation(request);
+      if (!["OWNER_AUTHORITY", "UI"].includes(producer.kind)) return json(response, 403, { error: "Only an authenticated owner surface may retire a proven-unsent reasoning request." });
+      const projectId = decodeURIComponent(fleetReasoningRetirementMatch[1]);
+      const watch = store.fleetSupervisorWatch(projectId);
+      if (!watch) return json(response, 404, { error: "Fleet watch not found." });
+      if (watch.state !== "PAUSED") return json(response, 409, { error: "Unsent reasoning retirement requires the exact fleet watch to be paused." });
+      const body = await readJson(request) as Record<string, unknown>;
+      const requestId = typeof body.request_id === "string" ? body.request_id : "";
+      const evidenceEventId = typeof body.evidence_event_id === "string" ? body.evidence_event_id : "";
+      try {
+        const proof = await submissionAuthority.proveRequestUnsent(requestId);
+        if (!proof.provenUnsent) {
+          return json(response, 409, {
+            error: "Submission authority did not prove the exact request unsent.",
+            requestId,
+            proof: {
+              ledgerValid: proof.ledgerValid,
+              matchingStateSections: proof.matchingStateSections,
+              queueRecordCount: proof.queueRecordCount,
+              admissionRecordCount: proof.admissionRecordCount,
+              proofSha256: proof.proofSha256,
+            },
+          });
+        }
+        const result = retireUnsentFleetSupervisorReasoningRequest(store, watch, {
+          requestId,
+          evidenceEventId,
+        }, proof);
+        notifications.emit("event", result.retirementEvent);
+        notifications.emit("event", result.reviewEvent);
+        return json(response, result.duplicate ? 200 : 201, {
+          status: "REASONING_REQUEST_RETIRED_UNSENT_AND_REQUEUED",
+          projectId,
+          worker: watch.worker,
+          retiredRequestId: result.retiredRequestId,
+          retirementEventId: result.retirementEvent.eventId,
+          reviewRequestId: result.reviewRequestId,
+          reviewEventId: result.reviewEvent.eventId,
+          evidenceEventId,
+          duplicate: result.duplicate,
+          watchState: watch.state,
+          providerSendBoundaryCrossed: false,
+        });
+      } catch (error) {
+        return json(response, 409, { error: error instanceof Error ? error.message : "Unsent reasoning retirement was rejected." });
+      }
+    }
     const fleetWatchMatch = url.pathname.match(/^\/fleet-supervisor\/([^/]+)$/);
     if (request.method === "POST" && fleetWatchMatch) {
       const producer = authorizeMutation(request);
@@ -130,6 +245,13 @@ const server = http.createServer(async (request, response) => {
       const producer = authorizeMutation(request);
       return json(response, 200, await submissionAuthority.ledger(producer, Number(url.searchParams.get("limit") ?? 200)));
     }
+    if (request.method === "GET" && url.pathname === "/submission-authority/admissions/proof") {
+      const producer = authorizeMutation(request);
+      if (url.searchParams.size !== 1 || !url.searchParams.has("admission_id")) {
+        return json(response, 400, { error: "Exact admission proof requires one admission_id query parameter." });
+      }
+      return json(response, 200, await submissionAuthority.exactAdmissionProof(url.searchParams.get("admission_id") ?? "", producer));
+    }
     if (request.method === "GET" && url.pathname === "/operator-status") {
       const producer = authorizeMutation(request);
       if (producer.kind !== "OWNER_AUTHORITY" && producer.kind !== "UI") {
@@ -137,11 +259,11 @@ const server = http.createServer(async (request, response) => {
       }
       return json(response, 200, await submissionAuthority.operatorStatus());
     }
-    const submissionAuthorityMatch = url.pathname.match(/^\/submission-authority\/(admissions(?:\/validate)?|relay-target-transitions\/(?:begin|commit|abort)|boundaries|target-bindings|provider-rate-limits|aborts|expired-preclick-retries\/cancel|outcomes|relay-health)$/);
+    const submissionAuthorityMatch = url.pathname.match(/^\/submission-authority\/(admissions(?:\/validate)?|relay-target-transitions\/(?:begin|commit|abort)|boundaries|target-bindings|provider-rate-limits|aborts|(?:expired|superseded)-preclick-retries\/cancel|outcomes|relay-health)$/);
     if (request.method === "POST" && submissionAuthorityMatch) {
       const producer = authorizeMutation(request);
       const result = await submissionAuthority.execute(submissionAuthorityMatch[1], await readJson(request), producer);
-      return json(response, submissionAuthorityMatch[1] === "admissions/validate" || submissionAuthorityMatch[1] === "aborts" || submissionAuthorityMatch[1] === "expired-preclick-retries/cancel" ? 200 : 201, result);
+      return json(response, submissionAuthorityMatch[1] === "admissions/validate" || submissionAuthorityMatch[1] === "aborts" || submissionAuthorityMatch[1].endsWith("-preclick-retries/cancel") ? 200 : 201, result);
     }
     if (request.method === "GET" && url.pathname === "/snapshot") {
       const snapshot = snapshotFromEvents(eventHistory(), dashboardProjectionOptions());
@@ -231,6 +353,33 @@ const server = http.createServer(async (request, response) => {
         return json(response, 200, await githubReconciliationCoordinator.run("OWNER_RECOVERY"));
       } catch {
         return json(response, 502, { error: "GitHub reconciliation failed.", code: "GITHUB_RECONCILIATION_FAILED" });
+      }
+    }
+    if (request.method === "POST" && url.pathname === "/github/decision-receipts/copy") {
+      const producer = authorizeMutation(request);
+      if (!providerDecisionCopier) {
+        return json(response, 503, { error: "Provider decision copy is not configured." });
+      }
+      try {
+        return json(response, 200, await providerDecisionCopier.copy(await readJson(request), producer));
+      } catch (error) {
+        return json(response, 409, { error: error instanceof Error ? error.message : "Provider decision copy was rejected." });
+      }
+    }
+    if (request.method === "POST" && url.pathname === "/github/decision-receipts/validate") {
+      const producer = authorizeMutation(request);
+      if (!providerDecisionCopier) {
+        return json(response, 503, { error: "Provider decision validation is not configured." });
+      }
+      try {
+        return json(response, 200, providerDecisionCopier.validate(await readJson(request), producer));
+      } catch (error) {
+        return json(response, 409, {
+          error: error instanceof Error ? error.message : "Provider decision validation was rejected.",
+          code: error instanceof ProviderDecisionValidationError
+            ? error.code
+            : "CANONICAL_SCHEMA_VALIDATION_UNAVAILABLE",
+        });
       }
     }
     if (request.method === "POST" && url.pathname === "/github/decision-receipts") {
@@ -570,7 +719,12 @@ function startFleetSupervisor() {
   const stallMs = fleetSupervisorStallMs(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_STALL_MS, configured, process.env);
   const slowTickMs = fleetSupervisorSlowTickMs(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_SLOW_TICK_MS);
   const runtime = new FleetSupervisorRuntime(store, {
-    routeReasoning: (watch, decision, events) => routeFleetSupervisorReasoning(store, watch, decision, events),
+    routeReasoning: async (watch, decision, events) => {
+      const pending = pendingDecisionRequests(store.workerEvents(watch.worker)).at(-1);
+      const proof = pending && Date.parse(pending.expiresAt) <= Date.now()
+        ? await submissionAuthority.proveRequestUnsent(pending.requestId) : undefined;
+      return routeFleetSupervisorReasoning(store, watch, decision, events, proof);
+    },
     observeJevShadow: sampleJevShadowOnStateChange(boundedJevShadowHook((_watch, decision, events, chain, signal) =>
       observeFleetSupervisorWithJev(decision.trigger, events, chain, { signal }))),
     notifyOwner: (watch, decision) => notifications.emit("event", {

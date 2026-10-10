@@ -1,6 +1,7 @@
 import type { MissionControlEventV2 } from "./schema";
 import { POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID } from "./post-work-reasoning-route";
 import { SOURCE_REVIEW_ROUTER_PRODUCER_ID } from "./source-review-route";
+import { WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID } from "./owner-question-route";
 
 export const producerKinds = [
   "OWNER_AUTHORITY", "WORKER", "SUPERVISOR", "COLLECTOR", "VERIFIER", "SYSTEM", "UI",
@@ -15,7 +16,7 @@ export const authenticatedEventTypes = [
   "owner_decision_recorded", "supervision_route_recorded", "research_verdict_recorded", "reasoning_message_recorded", "reasoning_supervision_recorded",
   "execution_directive_recorded", "work_execution_profile_authorized", "work_task_creation_selection_applied", "work_execution_preflight_recorded",
   "chatgpt_work_cloud_dispatch_requested", "chatgpt_work_cloud_handoff_intent_recorded", "chatgpt_work_cloud_dispatch_recorded",
-  "chatgpt_work_cloud_execution_receipt_recorded", "codex_execution_started", "execution_receipt_recorded", "work_model_routing_checkpoint_recorded", "outcome_progress_recorded",
+  "chatgpt_work_cloud_execution_receipt_recorded", "work_supervisor_handoff_recorded", "owner_decision_request_recorded", "codex_execution_started", "execution_receipt_recorded", "work_model_routing_checkpoint_recorded", "outcome_progress_recorded",
   "supervision_alert_recorded", "supervision_design_feedback_recorded", "symphony_runtime_observed",
   "live_worker_evidence_observed", "symphony_adapter_diagnostic_recorded", "review_marked", "supervisor_chat_link_set",
   "owner_message_recorded", "outbound_delivery_lifecycle_recorded", "worker_message_recorded",
@@ -44,7 +45,7 @@ const workerEvents = new Set<MissionControlEventV2["type"]>([
 const supervisorEvents = new Set<MissionControlEventV2["type"]>([
   "supervisor_assessment_recorded", "finding_recorded", "finding_status_changed",
   "correction_lifecycle_recorded", "supervision_route_recorded", "supervision_design_feedback_recorded",
-  "reasoning_supervision_recorded", "execution_directive_recorded", "outcome_progress_recorded",
+  "reasoning_supervision_recorded", "execution_directive_recorded", "owner_decision_request_recorded", "outcome_progress_recorded",
   "supervision_alert_recorded", "reasoning_message_recorded",
 ]);
 const collectorEvents = new Set<MissionControlEventV2["type"]>([
@@ -79,7 +80,7 @@ export function producerMayEmit(producer: AuthenticatedProducer, event: MissionC
     if (event.type === "work_task_creation_selection_applied") return true;
     if (["work_execution_profile_authorized", "work_execution_preflight_recorded", "work_model_routing_checkpoint_recorded",
       "chatgpt_work_cloud_dispatch_requested", "chatgpt_work_cloud_handoff_intent_recorded",
-      "chatgpt_work_cloud_dispatch_recorded", "chatgpt_work_cloud_execution_receipt_recorded"].includes(event.type)) return true;
+      "chatgpt_work_cloud_dispatch_recorded", "chatgpt_work_cloud_execution_receipt_recorded", "work_supervisor_handoff_recorded"].includes(event.type)) return true;
     if (event.type === "worker_message_recorded") {
       return systemSupervisoryRouteMatches(producer, event);
     }
@@ -101,7 +102,7 @@ function systemSupervisoryRouteMatches(
   event: Extract<MissionControlEventV2, { type: "worker_message_recorded" }>,
 ): boolean {
   if (producer.kind !== "SYSTEM"
-    || ![POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID, SOURCE_REVIEW_ROUTER_PRODUCER_ID].includes(producer.id)
+    || ![POST_EXECUTION_REASONING_ROUTER_PRODUCER_ID, SOURCE_REVIEW_ROUTER_PRODUCER_ID, WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID].includes(producer.id)
     || !event.body.startsWith("MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n")) return false;
   try {
     const value: unknown = JSON.parse(event.body.slice("MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n".length));
@@ -124,7 +125,7 @@ function scopeMatches(scopes: string[], value: string | null): boolean {
 function embeddedIdentityMatches(producer: AuthenticatedProducer, event: MissionControlEventV2): boolean {
   if (["work_task_creation_selection_applied", "chatgpt_work_cloud_dispatch_requested",
     "chatgpt_work_cloud_handoff_intent_recorded", "chatgpt_work_cloud_dispatch_recorded",
-    "chatgpt_work_cloud_execution_receipt_recorded"].includes(event.type)) {
+    "chatgpt_work_cloud_execution_receipt_recorded", "work_supervisor_handoff_recorded"].includes(event.type)) {
     return producer.kind === "SYSTEM" && "producer_id" in event && event.producer_id === producer.id;
   }
   if (event.type === "worker_message_recorded" && producer.kind === "SYSTEM") {

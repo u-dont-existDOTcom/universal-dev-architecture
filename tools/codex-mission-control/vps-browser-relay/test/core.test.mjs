@@ -6,6 +6,10 @@ import {
   CONTINUE_NUDGE_DELAY_MS,
   MANAGED_CHATGPT_HARD_CEILING_TABS,
   IN_BAND_REQUEST_STEP,
+  IN_BAND_COPY_CONFIRMED_STATUS,
+  IN_BAND_COPY_PENDING_STATUS,
+  IN_BAND_RECOVERY_BLOCKED_STATUS,
+  IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX,
   MCP_BINDING_PRELOAD_STEP,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
@@ -224,6 +228,16 @@ test('V6 carries exact request authority in-band and selects GitHub without any 
     type: 'SEND_CONTROL', step: IN_BAND_REQUEST_STEP, model: 'EXTRA_HIGH',
   });
   assert.equal(nextSupervisoryCycleAction(route, { status: 'FAILED_RETRYABLE', preBoundaryAbortConfirmed: true }, Date.parse('2026-09-02T00:01:00.000Z')).recovery, 'V6_ONE_SEND_EXHAUSTED_NO_REPLAY');
+  assert.deepEqual(nextSupervisoryCycleAction(route, { status: IN_BAND_COPY_PENDING_STATUS }), {
+    type: 'RECOVER_AND_PUBLISH', step: IN_BAND_REQUEST_STEP,
+  });
+  assert.equal(nextSupervisoryCycleAction(route, { status: completedCycleStepStatus(IN_BAND_REQUEST_STEP) }).type, 'RECOVER_AND_PUBLISH');
+  assert.equal(nextSupervisoryCycleAction(route, { status: IN_BAND_COPY_CONFIRMED_STATUS }).type, 'WAIT_GITHUB_RECEIPT');
+  assert.equal(nextSupervisoryCycleAction(route, { status: IN_BAND_RECOVERY_BLOCKED_STATUS }).type, 'RECOVER_AND_PUBLISH');
+  assert.equal(nextSupervisoryCycleAction(route, {
+    status: IN_BAND_RECOVERY_BLOCKED_STATUS,
+    recoveryVersion: 'STRUCTURAL_TURN_BINDING_V1',
+  }).recovery, 'STRUCTURAL_READBACK_RECOVERY_EXHAUSTED_NO_RESEND');
 });
 
 test('canonical project manager is fleet-wide while specialist routing remains worker-bound', () => {
@@ -425,6 +439,157 @@ test('new schema v4 parses and extracts without changing staged schema v3 compat
   assert.equal(routes[0].packet.routeSchemaVersion, 4);
 });
 
+test('a valid V6 empty-completion replacement fences only its exact old route', () => {
+  const chat = parseChatDirectory([chatFixture()])[0];
+  const prior = inBandSupervisoryPacket('old-request', 'old-nonce', '2026-09-02T12:00:00.000Z');
+  const replacement = {
+    ...structuredClone(prior),
+    requestId: 'fresh-request',
+    nonce: 'fresh-nonce',
+    queuedAt: '2026-09-02T12:01:00.000Z',
+    expiresAt: '2026-09-03T12:01:00.000Z',
+    factualPacket: { ...structuredClone(prior.factualPacket), packetId: 'packet:fresh-request' },
+    supersedesRequestId: prior.requestId,
+    supersession: {
+      schemaVersion: 1,
+      reasonCode: 'PROVIDER_EMPTY_COMPLETION',
+      failureReceiptSha256: 'f'.repeat(64),
+      authorization: 'OWNER_EXPLICIT_ONE_REPLACEMENT',
+      replacementOrdinal: 1,
+    },
+  };
+  const routes = extractQueuedRoutes(v6ReplacementSnapshot(prior, replacement), [chat], defaultState());
+  assert.deepEqual(routes.map((route) => route.requestId), ['fresh-request']);
+  const newestFirst = v6ReplacementSnapshot(prior, replacement);
+  newestFirst.workers[0].timeline.reverse();
+  assert.deepEqual(extractQueuedRoutes(newestFirst, [chat], defaultState())
+    .map((route) => route.requestId), ['fresh-request']);
+  assert.equal(parseSupervisoryCycleRouteBody(IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(replacement)).supersedesRequestId, 'old-request');
+  const secondReplacement = {
+    ...structuredClone(replacement), requestId: 'second-fresh-request', nonce: 'second-fresh-nonce',
+    queuedAt: '2026-09-02T12:02:00.000Z', expiresAt: '2026-09-03T12:02:00.000Z',
+    factualPacket: { ...structuredClone(replacement.factualPacket), packetId: 'packet:second-fresh-request' },
+  };
+  assert.deepEqual(extractQueuedRoutes(v6ReplacementSnapshot(prior, replacement, secondReplacement), [chat], defaultState())
+    .map((route) => route.requestId), ['fresh-request']);
+});
+
+test('a sent COMPLETE invalid-canonical replacement requires its exact sealed trusted failure evidence', () => {
+  const chat = parseChatDirectory([chatFixture()])[0];
+  const prior = inBandSupervisoryPacket('old-invalid-request', 'old-invalid-nonce', '2026-09-02T12:00:00.000Z');
+  const sessionId = 'provider-session:invalid-canonical';
+  const failureSha = '8'.repeat(64);
+  const canonicalBodySha = '7'.repeat(64);
+  const proofEventId = 'reasoning-replacement-proof:test';
+  const proofPayload = {
+    schemaVersion: 1, supersededRequestId: prior.requestId, replacementRequestId: 'fresh-invalid-request',
+    reasonCode: 'PROVIDER_INVALID_CANONICAL_DECISION', failureReceiptSha256: failureSha,
+    canonicalBodySha256: canonicalBodySha, providerSessionId: sessionId,
+    trustedRelayProducerId: 'collector:fixture-relay', failureEvidenceEventId: 'invalid-disposition',
+    completeSessionEventId: 'complete-session',
+  };
+  const proofSha = sha256(canonicalJson(proofPayload));
+  const replacement = {
+    ...structuredClone(prior), requestId: 'fresh-invalid-request', nonce: 'fresh-invalid-nonce',
+    queuedAt: '2026-09-02T12:01:00.000Z', expiresAt: '2026-09-03T12:01:00.000Z',
+    factualPacket: { ...structuredClone(prior.factualPacket), packetId: 'packet:fresh-invalid-request' },
+    supersedesRequestId: prior.requestId,
+    supersession: {
+      schemaVersion: 1, reasonCode: 'PROVIDER_INVALID_CANONICAL_DECISION', failureReceiptSha256: failureSha,
+      failureProviderSessionId: sessionId, failureCanonicalBodySha256: canonicalBodySha,
+      proofEventId, proofSha256: proofSha,
+      authorization: 'OWNER_EXPLICIT_ONE_REPLACEMENT', replacementOrdinal: 1,
+    },
+  };
+  const snapshot = v6ReplacementSnapshot(prior, replacement);
+  snapshot.workers[0].timeline.splice(1, 0,
+    trustedFailureEvent(2, 'complete-session', 'MISSION_CONTROL_PROVIDER_SESSION_V1', prior, sessionId,
+      ['lifecycle_status:COMPLETE']),
+    trustedFailureEvent(3, 'invalid-disposition', 'MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1', prior, sessionId,
+      [`failure_receipt_sha256:${failureSha}`, `canonical_body_sha256:${canonicalBodySha}`,
+        'classification:PROVIDER_INVALID_CANONICAL_DECISION', 'canonical_decision_admitted:false']));
+  snapshot.workers[0].timeline.at(-1).sequence = 5;
+  const state = defaultState();
+  state.deliveries[`request:${prior.requestId}`] = { status: 'SUBMITTED_CONFIRMED' };
+  assert.deepEqual(extractQueuedRoutes(snapshot, [chat], state).map((route) => route.requestId), [],
+    'raw collector evidence cannot authorize a replacement');
+  snapshot.workers[0].timeline.splice(3, 0, replacementProofEvent(4, proofEventId, proofPayload, proofSha));
+  assert.deepEqual(extractQueuedRoutes(snapshot, [chat], state).map((route) => route.requestId), [replacement.requestId]);
+  const crossWorkerProof = structuredClone(snapshot);
+  const misplacedProof = crossWorkerProof.workers[0].timeline.splice(3, 1)[0];
+  misplacedProof.data.worker = 'worker-b';
+  crossWorkerProof.workers.push({ id: 'worker-b', name: 'Worker B', timeline: [misplacedProof] });
+  assert.deepEqual(extractQueuedRoutes(crossWorkerProof, [chat], state).map((route) => route.requestId), [],
+    'a proof from another worker timeline cannot authorize this worker replacement');
+  const untrustedProof = structuredClone(snapshot);
+  untrustedProof.workers[0].timeline.find((event) => event.eventId === proofEventId).data.producer_id = 'collector:fixture-relay';
+  untrustedProof.workers[0].timeline.find((event) => event.eventId === proofEventId).data.producer_role = 'COLLECTOR';
+  assert.deepEqual(extractQueuedRoutes(untrustedProof, [chat], state).map((route) => route.requestId), []);
+  const lateProof = structuredClone(snapshot);
+  lateProof.workers[0].timeline.find((event) => event.eventId === proofEventId).sequence = 6;
+  assert.deepEqual(extractQueuedRoutes(lateProof, [chat], state).map((route) => route.requestId), []);
+  const malformed = structuredClone(replacement);
+  malformed.supersession.failureProviderSessionId = '';
+  assert.equal(parseSupervisoryCycleRouteBody(IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(malformed)), null);
+});
+
+test('a verifier-bound RETIRED_UNSENT receipt removes only its exact stale route', () => {
+  const chat = parseChatDirectory([chatFixture()])[0];
+  const stale = inBandSupervisoryPacket('fleet-review:' + '5'.repeat(32), 'stale-nonce', '2026-09-02T12:00:00.000Z');
+  const current = {
+    ...structuredClone(stale),
+    requestId: 'fleet-review:' + '6'.repeat(32),
+    nonce: 'current-nonce',
+    queuedAt: '2026-09-02T12:02:00.000Z',
+    factualPacket: {
+      ...structuredClone(stale.factualPacket),
+      packetId: 'packet:current',
+      exactFactualState: 'current sealed evidence',
+    },
+  };
+  const snapshot = { workers: [{ id: 'worker-a', name: 'Worker A', timeline: [
+    { eventId: 'stale-route', sequence: 1, occurredAt: stale.queuedAt, data: { type: 'worker_message_recorded', message_id: 'stale-message', body: IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(stale) } },
+    { eventId: 'retired-unsent', sequence: 2, occurredAt: '2026-09-02T12:01:00.000Z', data: {
+      type: 'evidence_receipt_recorded', summary: 'MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1', verified: true,
+      producer_id: 'verifier:fleet-supervisor-request-retirement', producer_role: 'VERIFIER',
+      refs: [`request:${stale.requestId}`, 'lifecycle_status:RETIRED_UNSENT', 'provider_send_boundary:NOT_CROSSED',
+        'submission_authority_queue_records:0', 'submission_authority_admission_records:0', 'provider_transport_evidence_records:0'],
+    } },
+    { eventId: 'current-route', sequence: 3, occurredAt: current.queuedAt, data: { type: 'worker_message_recorded', message_id: 'current-message', body: IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(current) } },
+  ] }] };
+  assert.deepEqual(extractQueuedRoutes(snapshot, [chat], defaultState()).map((route) => route.requestId), [current.requestId]);
+
+  const tampered = structuredClone(snapshot);
+  tampered.workers[0].timeline[1].data.producer_role = 'COLLECTOR';
+  assert.deepEqual(extractQueuedRoutes(tampered, [chat], defaultState()).map((route) => route.requestId),
+    [stale.requestId, current.requestId]);
+});
+
+test('a tampered V6 replacement cannot fence the old route or become generation-eligible', () => {
+  const chat = parseChatDirectory([chatFixture()])[0];
+  const prior = inBandSupervisoryPacket('old-request', 'old-nonce', '2026-09-02T12:00:00.000Z');
+  const tampered = {
+    ...structuredClone(prior),
+    requestId: 'fresh-request',
+    nonce: 'fresh-nonce',
+    queuedAt: '2026-09-02T12:01:00.000Z',
+    expiresAt: '2026-09-03T12:01:00.000Z',
+    factualPacket: { ...structuredClone(prior.factualPacket), packetId: 'packet:fresh-request', decisionRequested: 'different decision' },
+    supersedesRequestId: prior.requestId,
+    supersession: {
+      schemaVersion: 1,
+      reasonCode: 'PROVIDER_EMPTY_COMPLETION',
+      failureReceiptSha256: 'f'.repeat(64),
+      authorization: 'OWNER_EXPLICIT_ONE_REPLACEMENT',
+      replacementOrdinal: 1,
+    },
+  };
+  assert.deepEqual(extractQueuedRoutes(v6ReplacementSnapshot(prior, tampered), [chat], defaultState())
+    .map((route) => route.requestId), ['old-request']);
+  const malformed = { ...tampered, supersession: { ...tampered.supersession, replacementOrdinal: 2 } };
+  assert.equal(parseSupervisoryCycleRouteBody(IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(malformed)), null);
+});
+
 test('ambiguous routes never receive automatic recovery', () => {
   assert.equal(nextSupervisoryCycleAction(escalatedRoute(), { status: 'AMBIGUOUS_AFTER_RESTART' }), null);
 });
@@ -568,4 +733,68 @@ function directSupervisoryBody(lane) {
     githubReceipt: { repository: 'o/r', issueNumber: 1, stageIssueNumber: 2 }, factualPacket: { packetId: 'p1', taskId: 't1', exactFactualState: 'x', evidenceRefs: [], decisionRequested: 'decide' },
     queuedAt: '2026-09-02T00:00:00.000Z', expiresAt: '2026-09-03T00:00:00.000Z',
   });
+}
+
+function inBandSupervisoryPacket(requestId, nonce, queuedAt) {
+  return {
+    schemaVersion: 6,
+    packetKind: 'PROVIDER_SESSION_SUPERVISORY_CYCLE',
+    requestId,
+    nonce,
+    reasoningLane: 'EXTRA_HIGH_DIRECT',
+    destination: 'SPECIALIST_SUPERVISOR_CHAT',
+    destinationSupervisorId: 'spec',
+    providerDeliveryState: 'QUEUED_FOR_PROVIDER_RELAY',
+    evidenceCapsule: { id: 'cap1', sha256: 'a'.repeat(64) },
+    ownerOutcome: { id: 'out1', epoch: 1, sha256: 'b'.repeat(64) },
+    githubReceipt: { repository: 'o/r', issueNumber: 1, stageIssueNumber: 2 },
+    factualPacket: {
+      packetId: `packet:${requestId}`,
+      taskId: 'task-1',
+      exactFactualState: 'same frozen state',
+      evidenceRefs: ['https://github.com/o/r/issues/3'],
+      decisionRequested: 'same decision',
+    },
+    queuedAt,
+    expiresAt: '2026-09-03T12:00:00.000Z',
+  };
+}
+
+function v6ReplacementSnapshot(prior, ...replacements) {
+  return { workers: [{ id: 'worker-a', name: 'Worker A', timeline: [
+    { eventId: 'old-route', sequence: 1, occurredAt: prior.queuedAt, data: { type: 'worker_message_recorded', message_id: 'old-message', body: IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(prior) } },
+    ...replacements.map((replacement, index) => ({
+      eventId: `fresh-route-${index + 1}`, sequence: index + 2, occurredAt: replacement.queuedAt,
+      data: { type: 'worker_message_recorded', message_id: `fresh-message-${index + 1}`, body: IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(replacement) },
+    })),
+  ] }] };
+}
+
+function trustedFailureEvent(sequence, eventId, summary, prior, providerSessionId, refs) {
+  return {
+    eventId, sequence, occurredAt: '2026-09-02T12:00:30.000Z', data: {
+      type: 'evidence_receipt_recorded', receipt_id: eventId, producer_id: 'collector:fixture-relay', producer_role: 'COLLECTOR',
+      evidence_class: 'ARTIFACT', independence: 'SAME_PROVENANCE', freshness: 'CURRENT', exact_candidate_sha256: null,
+      summary, refs: [`request:${prior.requestId}`, `supervisor:${prior.destinationSupervisorId}`,
+        `provider_session:${providerSessionId}`, ...refs], verified: true, changed_path_manifest: null,
+    },
+  };
+}
+
+function replacementProofEvent(sequence, eventId, payload, proofSha) {
+  return {
+    eventId, sequence, occurredAt: '2026-09-02T12:00:45.000Z', data: {
+      type: 'evidence_receipt_recorded', worker: 'worker-a', receipt_id: eventId,
+      producer_id: 'verifier:fleet-supervisor-reasoning-replacement', producer_role: 'VERIFIER',
+      evidence_class: 'ARTIFACT', independence: 'INDEPENDENT', freshness: 'CURRENT',
+      exact_candidate_sha256: proofSha, summary: 'MISSION_CONTROL_REASONING_REPLACEMENT_PROOF_V1',
+      refs: [`request:${payload.supersededRequestId}`, `replacement_request:${payload.replacementRequestId}`,
+        `reason_code:${payload.reasonCode}`, `failure_receipt_sha256:${payload.failureReceiptSha256}`,
+        `canonical_body_sha256:${payload.canonicalBodySha256}`, `provider_session:${payload.providerSessionId}`,
+        `trusted_relay_producer:${payload.trustedRelayProducerId}`, `failure_evidence_event:${payload.failureEvidenceEventId}`,
+        `complete_session_event:${payload.completeSessionEventId}`, 'authorization:OWNER_EXPLICIT_ONE_REPLACEMENT',
+        'canonical_decision_admitted:false', 'historical_request_preserved:true'],
+      verified: true, changed_path_manifest: null,
+    },
+  };
 }

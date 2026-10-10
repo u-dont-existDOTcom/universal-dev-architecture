@@ -26,6 +26,15 @@ const COMPOSER_QUERY = `([...document.querySelectorAll('${COMPOSER_SELECTOR_LIST
 const MODEL_CONTROL_SELECTOR_LIST = 'button[data-testid="model-switcher-dropdown-button"], form[data-chatgpt-composer] button[data-codex-intelligence-trigger][aria-haspopup="menu"]';
 const TOOLS_CONTROL_SELECTOR_LIST = 'button[data-testid="composer-plus-btn"], button[aria-label="Add files and more"]';
 const STOP_CONTROL_SELECTOR_LIST = 'button[data-testid="stop-button"], form[data-chatgpt-composer] button[aria-label="Stop"], button[aria-label="Stop generating"], button[aria-label="Stop streaming"]';
+export const GITHUB_APP_MENTION = Object.freeze({
+  label: 'GitHub',
+  name: 'github',
+  display: 'GitHub',
+  path: 'app://connector_76869538009648d5b282a4bb21c3d157',
+  href: 'app://connector_76869538009648d5b282a4bb21c3d157',
+  promptLinkLabel: '$github',
+  autocompleteLabel: 'GitHub Triage PRs, issues, CI, and publish flows',
+});
 
 export const JOURNAL_WRITE_CONFIRMATION_FN = `function(expectedUrl) {
   const normalize = (value) => {
@@ -628,6 +637,27 @@ export function appSelectionState(observation, labelWanted, { listRewound = true
   return { type: 'OPEN_TOOLS' };
 }
 
+export function appMentionSelectionState(observation, { required }) {
+  if (observation?.composerAmbiguous || !observation?.composerFound) throw new Error('ChatGPT composer is unavailable or ambiguous for app-mention selection.');
+  if (!Number.isInteger(observation.mentionCount) || !Number.isInteger(observation.exactMentionCount)
+    || observation.mentionCount > 1 || observation.exactMentionCount !== observation.mentionCount) {
+    throw new Error('ChatGPT composer contains an ambiguous or wrong app mention.');
+  }
+  if (observation.exactMentionCount === 1) {
+    if (!required) throw new Error('ChatGPT composer contains an unexpected GitHub app mention.');
+    if (!observation.mentionExactBodyEmpty) throw new Error('GitHub app mention is not isolated in an otherwise empty composer.');
+    return { type: 'MENTION_BOUND' };
+  }
+  if (!required) return { type: 'NO_MENTION' };
+  if (observation.composerEmpty) return { type: 'INSERT_QUERY' };
+  if (observation.queryExact) {
+    if (observation.optionCount > 1) throw new Error('Exact GitHub app autocomplete option is ambiguous.');
+    if (observation.optionCount === 1 && observation.optionRect) return { type: 'CLICK_OPTION' };
+    return { type: 'WAIT_OPTION' };
+  }
+  throw new Error('ChatGPT composer is contaminated during GitHub app-mention selection.');
+}
+
 function normalizeExpectedSurfaceUrl(value) {
   const url = new URL(value);
   if (url.protocol === 'https:' && url.hostname === 'chatgpt.com' && !url.username && !url.password && url.pathname === '/') {
@@ -639,14 +669,31 @@ function normalizeExpectedSurfaceUrl(value) {
 // Self-contained for execution inside the identified input composer only. Return
 // comparison metadata, never the composer text. textContent loses paragraph
 // breaks; innerText adds layout-dependent breaks, so neither is byte authority.
-export function composerTextState(element, expectedBody) {
+export function composerTextState(element, expectedBody, expectedMentions = []) {
   const unsupported = () => ({ ok: false, reason: 'COMPOSER_MARKUP_UNSUPPORTED', length: null });
+  if (!Array.isArray(expectedMentions) || expectedMentions.length > 1) return unsupported();
+  const expectedMention = expectedMentions[0] ?? null;
   let value;
   if (element.tagName === 'TEXTAREA' && typeof element.value === 'string') {
+    if (expectedMention) return unsupported();
     value = element.value;
   } else {
     if (!['true', 'plaintext-only'].includes(element.getAttribute('contenteditable'))) return unsupported();
-    const inlineText = (nodes) => {
+    const mentionMatches = (node) => node?.nodeType === 1 && node.tagName === 'SPAN'
+      && node.getAttribute('app-mention-name') === expectedMention?.name
+      && node.getAttribute('app-mention-display-name') === expectedMention?.display
+      && node.getAttribute('app-mention-path') === expectedMention?.path
+      && node.getAttribute('data-prompt-link-href') === expectedMention?.href
+      && node.getAttribute('data-prompt-link-label') === expectedMention?.promptLinkLabel
+      && node.getAttribute('data-appearance') === 'inline-mention'
+      && node.getAttribute('data-layout') === 'inline-flow'
+      && node.getAttribute('contenteditable') === 'false';
+    const inlineText = (inputNodes, allowMentionPrefix = false) => {
+      let nodes = inputNodes;
+      if (expectedMention && allowMentionPrefix) {
+        if (!mentionMatches(nodes[0]) || nodes[1]?.nodeType !== 3 || !nodes[1].nodeValue.startsWith(' ')) return null;
+        nodes = [{ nodeType: 3, nodeValue: nodes[1].nodeValue.slice(1) }, ...nodes.slice(2)];
+      }
       let text = '';
       for (let index = 0; index < nodes.length; index += 1) {
         const node = nodes[index];
@@ -663,6 +710,33 @@ export function composerTextState(element, expectedBody) {
           // The editor may wrap an inserted URL. Only its exact generated,
           // undecorated text-only form preserves the submitted plaintext.
           text += children[0].nodeValue;
+          continue;
+        }
+        if (node.nodeType === 1 && node.tagName === 'SPAN'
+          && node.getAttribute('data-rich-text-generated-autolink') !== null) {
+          const attributes = node.getAttributeNames();
+          const allowed = ['rich-link-source-app-id', 'class', 'data-appearance', 'data-layout', 'data-font-weight',
+            'data-tone', 'data-underline-on-hover', 'data-breakable-url', 'text-link-href', 'data-rich-text-generated-autolink'];
+          const outerChildren = [...node.childNodes];
+          const wrapper = outerChildren[0];
+          const wrapperChildren = wrapper?.nodeType === 1 && wrapper.tagName === 'SPAN' ? [...wrapper.childNodes] : [];
+          const icon = wrapperChildren[0];
+          const label = wrapperChildren[1];
+          const href = node.getAttribute('text-link-href');
+          if (attributes.length !== allowed.length || !attributes.every((name) => allowed.includes(name))
+            || node.getAttribute('rich-link-source-app-id') !== 'github'
+            || node.getAttribute('data-appearance') !== 'inline-mention'
+            || node.getAttribute('data-layout') !== 'inline-flow'
+            || node.getAttribute('data-breakable-url') !== ''
+            || node.getAttribute('data-rich-text-generated-autolink') !== ''
+            || outerChildren.length !== 1 || wrapper.getAttributeNames().length !== 1 || wrapper.getAttributeNames()[0] !== 'class'
+            || wrapperChildren.length !== 2 || icon?.nodeType !== 1 || icon.tagName !== 'SPAN'
+            || icon.getAttribute('data-inline-url-icon') !== '' || icon.getAttribute('aria-hidden') !== 'true'
+            || icon.getAttribute('contenteditable') !== 'false' || icon.textContent !== ''
+            || label?.nodeType !== 3 || !href || label.nodeValue !== href || node.textContent !== href) return null;
+          // ChatGPT's generated connected-app URL chip is accepted only when
+          // its exact text remains identical to the underlying URL.
+          text += href;
           continue;
         }
         if (node.nodeType !== 1 || node.tagName !== 'BR') return null;
@@ -683,15 +757,21 @@ export function composerTextState(element, expectedBody) {
     const nodes = [...element.childNodes];
     if (nodes.some((node) => node.nodeType === 1 && node.tagName === 'P')) {
       if (!nodes.every((node) => node.nodeType === 1 && node.tagName === 'P')) return unsupported();
-      const paragraphs = nodes.map((node) => inlineText([...node.childNodes]));
+      const paragraphs = nodes.map((node, index) => inlineText([...node.childNodes], Boolean(expectedMention) && index === 0));
       if (paragraphs.some((text) => text === null)) return unsupported();
       value = paragraphs.join('\n');
     } else {
-      value = inlineText(nodes);
+      value = inlineText(nodes, Boolean(expectedMention));
       if (value === null) return unsupported();
     }
   }
-  return { ok: true, exact: value === expectedBody, empty: value.length === 0, length: value.length };
+  return {
+    ok: true,
+    exact: value === expectedBody,
+    empty: value.length === 0,
+    length: value.length,
+    ...(expectedMention ? { verifiedMentionCount: 1 } : {}),
+  };
 }
 
 const COMPOSER_LOOKUP = `
@@ -702,19 +782,61 @@ const COMPOSER_LOOKUP = `
   const element = visible[0];
 `;
 
-export const PREPARE_COMPOSER_FN = `function(expectedBody) {
+export const PREPARE_COMPOSER_FN = `function(expectedBody, expectedMentions) {
   ${COMPOSER_LOOKUP}
-  const state = (${composerTextState.toString()})(element, expectedBody);
+  const state = (${composerTextState.toString()})(element, expectedBody, expectedMentions);
   if (!state.ok) return state;
   if (!state.empty && !state.exact) return { ok: false, reason: 'COMPOSER_CONTAMINATED', length: state.length };
   element.focus();
-  return { ok: true, alreadyExact: state.exact };
+  if ((expectedMentions || []).length === 1 && typeof getSelection === 'function' && typeof document.createRange === 'function') {
+    const selection = getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+  return { ok: true, alreadyExact: state.exact, ...(state.verifiedMentionCount ? { verifiedMentionCount: state.verifiedMentionCount } : {}) };
 }`;
 
-export const VERIFY_COMPOSER_FN = `function(expectedBody) {
+export const VERIFY_COMPOSER_FN = `function(expectedBody, expectedMentions) {
   ${COMPOSER_LOOKUP}
-  const state = (${composerTextState.toString()})(element, expectedBody);
-  return { exact: state.ok && state.exact, length: state.length, ...(state.ok ? {} : { reason: state.reason }) };
+  const state = (${composerTextState.toString()})(element, expectedBody, expectedMentions);
+  return { exact: state.ok && state.exact, length: state.length, ...(state.verifiedMentionCount ? { verifiedMentionCount: state.verifiedMentionCount } : {}), ...(state.ok ? {} : { reason: state.reason }) };
+}`;
+
+export const APP_MENTION_STATE_FN = `function(expected) {
+  const visible = (element) => Boolean(element && element.getClientRects().length)
+    && getComputedStyle(element).visibility !== 'hidden' && getComputedStyle(element).display !== 'none';
+  const rect = (element) => { const value = element.getBoundingClientRect(); return { x: value.x, y: value.y, width: value.width, height: value.height }; };
+  const label = (element) => ((element && (element.getAttribute('aria-label') || element.innerText || element.textContent)) || '').trim().replace(/\\s+/g, ' ');
+  const composers = [...document.querySelectorAll('${COMPOSER_SELECTOR_LIST}')].filter(visible);
+  if (composers.length !== 1) return { composerFound: composers.length > 0, composerAmbiguous: composers.length > 1 };
+  const composer = composers[0];
+  const mentions = [...composer.querySelectorAll('[app-mention-name], [data-prompt-link-href^="app://"]')];
+  const exactMentions = mentions.filter((node) => node.getAttribute('app-mention-name') === expected.name
+    && node.getAttribute('app-mention-display-name') === expected.display
+    && node.getAttribute('app-mention-path') === expected.path
+    && node.getAttribute('data-prompt-link-href') === expected.href
+    && node.getAttribute('data-prompt-link-label') === expected.promptLinkLabel
+    && node.getAttribute('data-appearance') === 'inline-mention'
+    && node.getAttribute('data-layout') === 'inline-flow'
+    && node.getAttribute('contenteditable') === 'false');
+  const empty = (${composerTextState.toString()})(composer, '', []);
+  const query = (${composerTextState.toString()})(composer, '@' + expected.display, []);
+  const bound = (${composerTextState.toString()})(composer, '', [expected]);
+  const options = [...document.querySelectorAll('button, [role="button"], [role="option"], [role="menuitem"]')]
+    .filter(visible).filter((element) => label(element) === expected.autocompleteLabel);
+  return {
+    composerFound: true,
+    composerEmpty: empty.ok && empty.exact,
+    queryExact: query.ok && query.exact,
+    mentionCount: mentions.length,
+    exactMentionCount: exactMentions.length,
+    mentionExactBodyEmpty: bound.ok && bound.exact,
+    optionCount: options.length,
+    optionRect: options.length === 1 ? rect(options[0]) : null,
+  };
 }`;
 
 export function hasSystemsThinkingNudgeCue(value) {
@@ -942,6 +1064,120 @@ const CONTINUE_TURN_STRUCTURE_FN = `function(expectedUrl) {
   return { urlMismatch: false, turns, assistantContentObserved: false };
 }`;
 
+export const BOUND_TURN_READBACK_FN = `function(expectedUrl, expectedMention) {
+  const normalizeUrl = (value) => {
+    try {
+      const url = new URL(value);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
+      return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
+    } catch { return null; }
+  };
+  if (normalizeUrl(location.href) !== expectedUrl) return { urlMismatch: true, currentUrl: location.href, turns: [] };
+  const textOf = (element) => (typeof element?.innerText === 'string' ? element.innerText : element?.textContent || '').replace(/\\r\\n?/g, '\\n');
+  const mentionState = (root) => {
+    const mentions = [...root.querySelectorAll('[app-mention-name], [data-prompt-link-href^="app://"]')];
+    const exact = mentions.filter((node) => {
+      const fullComposerIdentity = node.getAttribute('app-mention-name') === expectedMention.name
+        && node.getAttribute('app-mention-display-name') === expectedMention.display
+        && node.getAttribute('app-mention-path') === expectedMention.path
+        && node.getAttribute('data-prompt-link-href') === expectedMention.href
+        && node.getAttribute('data-prompt-link-label') === expectedMention.promptLinkLabel
+        && textOf(node) === expectedMention.display;
+      const renderedPromptLinkIdentity = node.getAttribute('data-prompt-link-href') === expectedMention.href
+        && node.getAttribute('data-prompt-link-label') === expectedMention.promptLinkLabel
+        && textOf(node) === expectedMention.display;
+      return fullComposerIdentity || renderedPromptLinkIdentity;
+    });
+    return { count: mentions.length, exactCount: exact.length, exact: mentions.length === 1 && exact.length === 1 };
+  };
+  const legacyRoleNodes = [...document.querySelectorAll('[data-message-author-role="user"], [data-message-author-role="assistant"]')];
+  const modernRoots = [...document.querySelectorAll('[data-turn-key], [data-chatgpt-search-unit-key][data-content-search-unit-key]')]
+    .filter((root) => root.hasAttribute('data-turn-key')
+      ? Boolean(root.querySelector('[data-user-message-bubble]'))
+      : (root.querySelector('[data-conversation-role]')?.getAttribute('data-conversation-role') || textOf(root.querySelector('[data-conversation-role]'))) === 'assistant');
+  if (legacyRoleNodes.length > 0 && modernRoots.length > 0) {
+    return { urlMismatch: false, structureAmbiguous: true, currentUrl: location.href, turns: [] };
+  }
+  const turns = [];
+  if (modernRoots.length > 0) {
+    for (const root of modernRoots) {
+      if (root.hasAttribute('data-turn-key')) {
+        const content = root.querySelector('[data-user-message-bubble] [data-markdown-text-tone]')
+          || root.querySelector('[data-user-message-bubble]') || root;
+        turns.push({
+          key: root.getAttribute('data-turn-key'), keySource: 'data-turn-key', role: 'user',
+          text: textOf(content), mentionBinding: mentionState(content), contentRootCount: 1,
+        });
+      } else {
+        const contentRoots = [...root.querySelectorAll('[data-markdown-text-style]')];
+        const key = root.getAttribute('data-content-search-unit-key')
+          || root.getAttribute('data-chatgpt-search-unit-key')
+          || root.querySelector('[data-chatgpt-selection-message-id]')?.getAttribute('data-chatgpt-selection-message-id')
+          || null;
+        turns.push({
+          key, keySource: root.hasAttribute('data-content-search-unit-key') ? 'data-content-search-unit-key' : 'data-chatgpt-search-unit-key',
+          role: 'assistant', text: contentRoots.length === 1 ? textOf(contentRoots[0]) : null,
+          mentionBinding: null, contentRootCount: contentRoots.length,
+        });
+      }
+    }
+    return { urlMismatch: false, structureAmbiguous: false, structureKind: 'CHATGPT_DATA_TURN_KEY_V1', currentUrl: location.href, turns };
+  }
+  const seenContainers = new Set();
+  for (const roleNode of legacyRoleNodes) {
+    const container = roleNode.closest('article[data-testid^="conversation-turn-"], article[data-turn-id], [data-testid^="conversation-turn-"]') || roleNode;
+    if (seenContainers.has(container)) continue;
+    seenContainers.add(container);
+    const role = roleNode.getAttribute('data-message-author-role');
+    const key = roleNode.getAttribute('data-message-id')
+      || container.getAttribute('data-turn-id') || container.getAttribute('data-testid') || container.id || null;
+    const contentRoots = role === 'assistant' ? [...roleNode.querySelectorAll('.markdown, [class*="markdown"], [class*="prose"]')] : [];
+    const roots = contentRoots.length === 1 ? contentRoots : [roleNode];
+    turns.push({ key, keySource: 'legacy-message-or-turn-id', role,
+      text: roots.map(textOf).join(''), mentionBinding: role === 'user' ? mentionState(roleNode) : null,
+      contentRootCount: role === 'assistant' ? contentRoots.length : 1 });
+  }
+  return { urlMismatch: false, structureAmbiguous: false, structureKind: 'CHATGPT_LEGACY_AUTHOR_ROLE_V1', currentUrl: location.href, turns };
+}`;
+
+export const SUBMITTED_USER_TURN_ANCHOR_FN = `function(expectedUrl, expectedMention) {
+  const normalizeUrl = (value) => {
+    try {
+      const url = new URL(value);
+      const match = url.pathname.match(/^\\/c\\/((?:WEB:)?[A-Za-z0-9_-]+)\\/?$/);
+      return url.protocol === 'https:' && url.hostname === 'chatgpt.com' && match ? 'https://chatgpt.com/c/' + match[1] : null;
+    } catch { return null; }
+  };
+  if (normalizeUrl(location.href) !== expectedUrl) return { urlMismatch: true, currentUrl: location.href };
+  const textOf = (element) => (typeof element?.innerText === 'string' ? element.innerText : element?.textContent || '').replace(/\\r\\n?/g, '\\n');
+  const exactMention = (root) => {
+    const mentions = [...root.querySelectorAll('[app-mention-name], [data-prompt-link-href^="app://"]')];
+    if (expectedMention === null) return mentions.length === 0;
+    const exact = mentions.filter((node) => (node.getAttribute('data-prompt-link-href') === expectedMention.href
+      && node.getAttribute('data-prompt-link-label') === expectedMention.promptLinkLabel
+      && textOf(node) === expectedMention.display));
+    return mentions.length === 1 && exact.length === 1;
+  };
+  const modern = [...document.querySelectorAll('[data-turn-key]')].filter((root) => root.querySelector('[data-user-message-bubble]'));
+  const legacy = [...document.querySelectorAll('[data-message-author-role="user"]')].map((roleNode) => roleNode.closest('article[data-testid^="conversation-turn-"], article[data-turn-id], [data-testid^="conversation-turn-"]') || roleNode);
+  if (modern.length > 0 && legacy.length > 0) return { urlMismatch: false, structureAmbiguous: true, candidateCount: modern.length + legacy.length };
+  const candidates = modern.length > 0 ? modern : [...new Set(legacy)];
+  if (candidates.length !== 1) return { urlMismatch: false, structureAmbiguous: false, candidateCount: candidates.length };
+  const root = candidates[0];
+  const modernContent = root.querySelector('[data-user-message-bubble] [data-markdown-text-tone]') || root.querySelector('[data-user-message-bubble]');
+  const key = modern.length > 0 ? root.getAttribute('data-turn-key')
+    : (root.querySelector('[data-message-author-role="user"]')?.getAttribute('data-message-id')
+      || root.getAttribute('data-turn-id') || root.getAttribute('data-testid') || root.id || null);
+  const content = modernContent || root;
+  return {
+    urlMismatch: false, structureAmbiguous: false, candidateCount: 1, key,
+    keySource: modern.length > 0 ? 'data-turn-key' : 'legacy-message-or-turn-id',
+    structureKind: modern.length > 0 ? 'CHATGPT_DATA_TURN_KEY_V1' : 'CHATGPT_LEGACY_AUTHOR_ROLE_V1',
+    role: 'user', messageOrdinal: 1, mentionBindingVerified: exactMention(content),
+    assistantContentObserved: false,
+  };
+}`;
+
 const CLICK_FAILED_CONTINUE_RETRY_FN = `function(expectedUrl, binding) {
   const normalizeUrl = (value) => {
     try {
@@ -1084,6 +1320,9 @@ export class ChromeDevtoolsBrowser {
     if (new Set(knownLabels).size !== knownLabels.length || new Set(requiredLabels).size !== requiredLabels.length) throw new Error('App labels must be unique.');
     if (requiredLabels.some((label) => !knownLabels.includes(label))) throw new Error('Every required app label must be present in knownLabels.');
     return this.#withPageClient(target, async (client) => {
+      const githubRequired = requiredLabels.includes(GITHUB_APP_MENTION.label);
+      let githubMention = await client.callFunction(APP_MENTION_STATE_FN, [GITHUB_APP_MENTION]);
+      let githubAction = appMentionSelectionState(githubMention, { required: githubRequired });
       const removedLabels = [];
       for (const label of knownLabels) {
         const observation = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
@@ -1100,7 +1339,32 @@ export class ChromeDevtoolsBrowser {
       }
 
       const selectedLabels = [];
+      const composerMentions = [];
       for (const label of requiredLabels) {
+        if (label === GITHUB_APP_MENTION.label) {
+          if (githubAction.type !== 'MENTION_BOUND') {
+            if (githubAction.type !== 'INSERT_QUERY') throw new Error('ChatGPT composer could not begin GitHub app-mention selection.');
+            const prepared = await client.callFunction(PREPARE_COMPOSER_FN, ['', []]);
+            if (!prepared?.ok || !prepared.alreadyExact) throw new Error('ChatGPT composer could not be prepared for GitHub app-mention selection.');
+            await client.send('Input.insertText', { text: `@${GITHUB_APP_MENTION.display}` });
+            githubMention = await waitFor(async () => {
+              const next = await client.callFunction(APP_MENTION_STATE_FN, [GITHUB_APP_MENTION]);
+              const action = appMentionSelectionState(next, { required: true });
+              return ['CLICK_OPTION', 'MENTION_BOUND'].includes(action.type) ? { ...next, action } : false;
+            }, this.pageReadyTimeoutMs, 150, 'Exact GitHub app autocomplete option did not appear.');
+            if (githubMention.action.type !== 'MENTION_BOUND') {
+              await this.#clickRect(client, githubMention.optionRect);
+              githubMention = await waitFor(async () => {
+                const next = await client.callFunction(APP_MENTION_STATE_FN, [GITHUB_APP_MENTION]);
+                return appMentionSelectionState(next, { required: true }).type === 'MENTION_BOUND' ? next : false;
+              }, this.pageReadyTimeoutMs, 150, 'Exact GitHub app mention was not established in the composer.');
+            }
+            githubAction = { type: 'MENTION_BOUND' };
+          }
+          selectedLabels.push(label);
+          composerMentions.push({ ...GITHUB_APP_MENTION });
+          continue;
+        }
         let listRewound = false;
         for (let attempt = 0; ; attempt += 1) {
           if (attempt >= 40) throw new Error(`ChatGPT did not expose or select exact app label ${label} within 40 steps.`);
@@ -1149,8 +1413,15 @@ export class ChromeDevtoolsBrowser {
       const verified = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, null]);
       appSelectionState(verified, null);
       for (const label of knownLabels) {
-        const expected = requiredLabels.includes(label) ? 1 : 0;
+        const expected = requiredLabels.includes(label) && label !== GITHUB_APP_MENTION.label ? 1 : 0;
         if (verified.chipCounts?.[label] !== expected) throw new Error(`Per-message app chip verification failed for exact label ${label}.`);
+      }
+      githubMention = await client.callFunction(APP_MENTION_STATE_FN, [GITHUB_APP_MENTION]);
+      const expectedMentionCount = githubRequired ? 1 : 0;
+      githubAction = appMentionSelectionState(githubMention, { required: githubRequired });
+      if (githubMention?.exactMentionCount !== expectedMentionCount || githubMention?.mentionCount !== expectedMentionCount
+        || (githubRequired ? githubAction.type !== 'MENTION_BOUND' : githubAction.type !== 'NO_MENTION')) {
+        throw new Error('Per-message GitHub app-mention verification failed.');
       }
       return {
         status: 'MESSAGE_APPS_SELECTED',
@@ -1158,6 +1429,8 @@ export class ChromeDevtoolsBrowser {
         selectedLabels,
         clearedPriorLabels: removedLabels,
         verifiedChipCounts: verified.chipCounts,
+        verifiedMentionCounts: { [GITHUB_APP_MENTION.label]: githubMention.exactMentionCount },
+        composerMentions,
         inspectedAssistantOutput: false,
       };
     });
@@ -1165,6 +1438,11 @@ export class ChromeDevtoolsBrowser {
 
   async detectJournalWriteConfirmation(target, { expectedUrl }) {
     return this.#withPageClient(target, (client) => client.callFunction(JOURNAL_WRITE_CONFIRMATION_FN, [expectedUrl]));
+  }
+
+  async recoverBoundConversationTurns(target, { expectedUrl }) {
+    const normalized = normalizeConversationUrl(expectedUrl);
+    return this.#withPageClient(target, (client) => client.callFunction(BOUND_TURN_READBACK_FN, [normalized, GITHUB_APP_MENTION]));
   }
 
   async approveJournalWriteConfirmation(target, { expectedUrl, appName, toolName, button }) {
@@ -1382,8 +1660,20 @@ export class ChromeDevtoolsBrowser {
     await client.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
   }
 
-  async submitExactMessage(target, { expectedUrl, body, bodySha256, onBeforeSubmissionBoundary = null, onSubmissionBoundary = null }) {
+  async submitExactMessage(target, {
+    expectedUrl,
+    body,
+    bodySha256,
+    composerMentions = [],
+    onBeforeSubmissionBoundary = null,
+    onSubmissionBoundary = null,
+  }) {
     if (!body || typeof body !== 'string') throw new Error('Cannot submit an empty message.');
+    if (sha256(body) !== bodySha256) throw new Error('Message body SHA-256 does not match the exact body supplied for submission.');
+    if (!Array.isArray(composerMentions) || composerMentions.length > 1
+      || composerMentions.some((mention) => canonicalJson(mention) !== canonicalJson(GITHUB_APP_MENTION))) {
+      throw new Error('Composer app-mention binding is missing, ambiguous, or not the exact verified GitHub connector.');
+    }
     if (onSubmissionBoundary !== null && typeof onSubmissionBoundary !== 'function') {
       throw new Error('Submission boundary observer must be a function when provided.');
     }
@@ -1406,14 +1696,15 @@ export class ChromeDevtoolsBrowser {
           return result?.composerFound;
         }, this.pageReadyTimeoutMs, 500, 'ChatGPT composer did not become ready.');
 
-        const composer = await client.callFunction(PREPARE_COMPOSER_FN, [body]);
+        const composer = await client.callFunction(PREPARE_COMPOSER_FN, [body, composerMentions]);
         if (!composer?.ok) {
           if (composer?.reason === 'COMPOSER_CONTAMINATED') throw new Error('Composer contains different text; relay refused to overwrite it.');
           throw new Error(`Composer is not ready: ${composer?.reason ?? 'UNKNOWN'}.`);
         }
         if (!composer.alreadyExact) await client.send('Input.insertText', { text: body });
-        const verified = await client.callFunction(VERIFY_COMPOSER_FN, [body]);
+        const verified = await client.callFunction(VERIFY_COMPOSER_FN, [body, composerMentions]);
         if (!verified?.exact) throw new Error(`Composer byte check failed before submission (expected ${body.length} characters, observed ${verified?.length ?? 'unknown'}).`);
+        if ((verified.verifiedMentionCount ?? 0) !== composerMentions.length) throw new Error('Composer app-mention binding changed before submission.');
 
         relayStage = 'READY_TO_CLICK';
         if (onBeforeSubmissionBoundary) await onBeforeSubmissionBoundary();
@@ -1463,16 +1754,32 @@ export class ChromeDevtoolsBrowser {
         }
 
         relayStage = 'GENERATION_STARTED';
+        const boundConversationUrl = normalized === 'https://chatgpt.com/' ? started.conversationUrl : normalized;
+        const submittedUserTurnAnchor = await waitFor(async () => {
+          const anchor = await client.callFunction(SUBMITTED_USER_TURN_ANCHOR_FN, [boundConversationUrl, composerMentions[0] ?? null]);
+          if (anchor?.urlMismatch || anchor?.structureAmbiguous || anchor?.candidateCount !== 1
+            || typeof anchor?.key !== 'string' || !anchor.key || anchor.role !== 'user'
+            || anchor.messageOrdinal !== 1 || anchor.mentionBindingVerified !== true) return false;
+          return anchor;
+        }, this.pageReadyTimeoutMs, 200, 'Submitted user-turn structural anchor was not recoverable after generation start.');
         return {
           status: 'GENERATION_STARTED',
           targetId: target.id,
-          conversationUrl: normalized === 'https://chatgpt.com/' ? started.conversationUrl : normalized,
+          conversationUrl: boundConversationUrl,
           bodySha256,
           bodyLength: body.length,
           clickedAtObserved,
           generationStarted: true,
           startSignal: started.startSignal,
           startedAtObserved: new Date().toISOString(),
+          submittedUserTurnAnchor: {
+            key: submittedUserTurnAnchor.key,
+            keySource: submittedUserTurnAnchor.keySource,
+            structureKind: submittedUserTurnAnchor.structureKind,
+            role: submittedUserTurnAnchor.role,
+            messageOrdinal: submittedUserTurnAnchor.messageOrdinal,
+            mentionBindingVerified: submittedUserTurnAnchor.mentionBindingVerified,
+          },
           providerSourceTime: null,
           inspectedAssistantOutput: false,
           limitations: [
