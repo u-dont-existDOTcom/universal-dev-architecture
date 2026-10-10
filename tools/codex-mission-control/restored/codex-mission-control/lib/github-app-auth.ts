@@ -7,6 +7,14 @@ const refreshSkewMs = 5 * 60_000;
 
 export type GitHubReconciliationTokenProvider = () => Promise<string | undefined>;
 
+/** The App's own `[bot]` login is not configured, or the receipt policy does not trust it as a writer. */
+export class GitHubAppBotWriterNotAuthorizedError extends Error {
+  constructor() {
+    super("GitHub App copying requires MISSION_CONTROL_GITHUB_APP_BOT_LOGIN in receipt-policy authorizedWriterLogins.");
+    this.name = "GitHubAppBotWriterNotAuthorizedError";
+  }
+}
+
 export interface GitHubAppInstallationTokenProviderOptions {
   appId: string;
   installationId: string;
@@ -117,7 +125,7 @@ export function githubReconciliationTokenProviderFromEnv(options: {
       const botLogin = env.MISSION_CONTROL_GITHUB_APP_BOT_LOGIN?.trim();
       if (!botLogin || !/^[A-Za-z0-9-]+\[bot\]$/.test(botLogin)
         || !options.authorizedWriterLogins?.includes(botLogin)) {
-        throw new Error('GitHub App copying requires MISSION_CONTROL_GITHUB_APP_BOT_LOGIN in receipt-policy authorizedWriterLogins.');
+        throw new GitHubAppBotWriterNotAuthorizedError();
       }
     }
     if (!isAbsolute(privateKeyPath!)) throw new Error("GitHub App private-key path must be absolute.");
@@ -134,6 +142,32 @@ export function githubReconciliationTokenProviderFromEnv(options: {
     return () => provider.token();
   }
   return staticToken ? async () => staticToken : null;
+}
+
+/**
+ * Write-capable token provider for request-bound decision copying. When the App's bot writer is not configured
+ * and trusted by the receipt policy, copying stays off (null provider with the reason) instead of stopping the
+ * daemon: no comment can be published under an untrusted author either way, and everything else keeps running.
+ * Every other configuration error still throws, exactly as for read-only reconciliation.
+ */
+export function githubDecisionCopyTokenProviderFromEnv(
+  options: Omit<Parameters<typeof githubReconciliationTokenProviderFromEnv>[0], "issuesPermission">,
+): {
+  provider: GitHubReconciliationTokenProvider | null;
+  disabledCode: "APP_BOT_WRITER_NOT_CONFIGURED" | "NO_GITHUB_TOKEN" | null;
+  disabledReason: string | null;
+} {
+  let provider: GitHubReconciliationTokenProvider | null;
+  try {
+    provider = githubReconciliationTokenProviderFromEnv({ ...options, issuesPermission: "write" });
+  } catch (error) {
+    if (!(error instanceof GitHubAppBotWriterNotAuthorizedError)) throw error;
+    return { provider: null, disabledCode: "APP_BOT_WRITER_NOT_CONFIGURED", disabledReason: error.message };
+  }
+  return provider
+    ? { provider, disabledCode: null, disabledReason: null }
+    : { provider: null, disabledCode: "NO_GITHUB_TOKEN",
+      disabledReason: "Decision copying needs a static GitHub token or GitHub App credentials." };
 }
 
 function base64url(value: unknown): string {
