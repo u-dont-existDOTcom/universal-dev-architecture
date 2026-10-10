@@ -382,8 +382,8 @@ test("dashboard owner answer remains retryable until a matching supervisor conti
     process.env.MISSION_CONTROL_OWNER_TOKEN = token;
     process.env.MISSION_CONTROL_INTERNAL_TOKEN = "internal-test-" + "i".repeat(40);
     process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify(policy());
-    let timestamp = "2026-10-07T12:11:00.000Z";
-    context.mock.method(Date.prototype, "toISOString", () => timestamp);
+    // Mock the clock, not toISOString: the route derives expiry windows from real Date arithmetic.
+    context.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-07T12:11:00.000Z") });
     const history = [...before];
     let failRoute = true;
     let routeWrites = 0;
@@ -413,7 +413,7 @@ test("dashboard owner answer remains retryable until a matching supervisor conti
       assert.equal(first.status, 200);
       const firstBody = await first.json();
       assert.equal(latestOwnerAction(history)?.status, "COMPLETED");
-      timestamp = "2026-10-07T12:20:00.000Z";
+      context.mock.timers.setTime(Date.parse("2026-10-07T12:20:00.000Z"));
       const retry = await submit();
       assert.equal(retry.status, 200);
       assert.equal((await retry.json()).continuation_event_id, firstBody.continuation_event_id);

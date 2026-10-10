@@ -78,6 +78,31 @@ def stage_started(request_id: str = "issue178-v3", conversation_url: str = "http
     })
 
 
+def bounded_work_execution() -> dict:
+    return {
+        "schema_version": 1, "task_id": "task:mission-control-development", "job_id": "work-question-continuation",
+        "execution_objective": "Continue the exact existing Work thread with the supervisor's answer.",
+        "reasoning_summary": "All semantic choices are frozen by the supervisor.",
+        "strategy_id": "strategy:work-question", "strategy_causal_hypothesis": "The supervisor's answer unblocks Work.",
+        "predicted_outcome_change": "Work resumes the bounded task.",
+        "success_threshold": "The bounded task completes with all required checks.",
+        "failure_threshold": "Any scope, branch, content, or check mismatch.",
+        "next_decision_changing_evidence": "The exact privacy-safe Work execution receipt.",
+        "reviewed_evidence_boundary": "The Work question and the current owner outcome.",
+        "inputs": [{"type": "GITHUB_REF", "ref": "main", "sha256": None}],
+        "allowed_actions": ["CREATE_CHILD_BRANCH"], "allowed_paths": ["docs/evidence/work-question.txt"],
+        "allowed_commands": ["git diff --check"], "forbidden_actions": ["MERGE_MAIN"], "forbidden_paths": [],
+        "forbidden_decisions": ["CHANGE_METHODOLOGY"], "required_evidence": ["COMMIT_SHA"],
+        "required_tests_or_checks": ["git diff --check"], "stop_and_return_triggers": ["ANY_MISMATCH"],
+        "maximum_execution_cycles": 1, "execution_capability": {"type": "LOCAL_FILESYSTEM_COMMAND"},
+        "workspace": "/workspace", "output_schema": {"status": "string"},
+        "prompt": "Execute only the exact bounded continuation and return execution facts.",
+        "deadline": "2026-09-21T18:30:00Z",
+        "work_execution_profile": {"model": "GPT_5_6_SOL", "effort": "MEDIUM", "routingTier": "SOL_MEDIUM", "routingTriggers": [], "fastModeRequest": "DO_NOT_ENABLE_FAST", "assuranceRequirement": "SET_REQUEST_SUFFICIENT", "policyRef": "patterns/work-model-and-effort-routing.md", "routingPolicyBaseCommit": "fc3d0d7592a4fa69e94ff8ae31d9a4e5433b73cb", "contractVersion": "TRUSTED_SETTER_V1"},
+        "execution_surface": "CHATGPT_WORK_CLOUD",
+    }
+
+
 class MissionControlReceiptCopierTests(unittest.TestCase):
     def test_thread_selector_requires_explicit_app_readback_observed_at(self) -> None:
         candidate = copier.discover_decision_candidates([route_event(), pre_send(), session_complete(), stage_started()], now=NOW)[0]
@@ -332,7 +357,7 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
         self.assertIn("Do not write the receipt to GitHub yourself", work)
         self.assertIn("deterministic Mission Control copier", work)
 
-    def test_work_result_consumer_records_private_handoff_before_publication_and_recovers_old_receipts(self) -> None:
+    def _work_fixture(self) -> tuple[dict, dict, dict, dict]:
         request = event(200, {
             "type": "chatgpt_work_cloud_dispatch_requested", "worker": "mission-control-development",
             "dispatch_id": "work-cloud:handoff", "directive_id": "directive:handoff", "directive_revision": 1,
@@ -357,67 +382,155 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
             "status": "BLOCKED", "terminalState": "SUPERVISOR_REASONING_REQUIRED", "checksPassed": 0,
             "checksFailed": 0, "checksNotRun": 1, "blockerCodes": ["SUPERVISOR_REASONING_REQUIRED"], "artifactSha256s": [],
         }
+        return request, result, handoff, receipt
+
+    def test_private_work_handoff_is_recorded_before_the_public_receipt_is_published(self) -> None:
+        request, result, handoff, receipt = self._work_fixture()
         block = copier.WORK_RECEIPT_PREFIX + json.dumps(receipt)
-        private = "MISSION_CONTROL_WORK_SUPERVISOR_HANDOFF_V1\n" + json.dumps(handoff)
-        thread = {"finalAgentMessage": "2026-10-10 00:00:00 UTC\n" + private + "\n" + block}
-        for recovery, fails in ((False, False), (False, True), (True, False)):
-            with self.subTest(recovery=recovery, fails=fails), tempfile.TemporaryDirectory() as directory:
+        private = copier.WORK_HANDOFF_PREFIX + json.dumps(handoff)
+        thread = {"finalAgentMessage": "2026-10-10 00:00:00 UTC\n" + private + "\n" + block,
+                  "observedAt": "2026-10-10T00:00:05Z"}
+        for fails_first in (False, True):
+            with self.subTest(fails_first=fails_first), tempfile.TemporaryDirectory() as directory:
                 config = copier.Config("primary", "mission-control-development", "/app", "/private/env",
                                        "owner/repo", 4, 0, Path(directory), 10, "gh")
-                events = [request, result]
-                if recovery:
-                    copier.save_state(config, {"schemaVersion": 1, "published": {
-                        "work:work-cloud:handoff": {"commentId": 42, "kind": "work", "sha256": copier.sha256_text(block)},
-                    }})
-                    events.append(event(202, {"type": "chatgpt_work_cloud_execution_receipt_recorded",
-                                              "dispatch_id": "work-cloud:handoff", "terminal_state": "SUPERVISOR_REASONING_REQUIRED"}))
-                calls = []
+                calls: list[str] = []
+                failing = [fails_first]
 
                 def remote(command, *, input_text=None, timeout=60):
                     self.assertIn("scripts/record-work-supervisor-handoff.ts", command[-1])
-                    self.assertNotIn(question, " ".join(command))
+                    self.assertNotIn(handoff["question"], " ".join(command))
                     sent = json.loads(input_text)
-                    self.assertEqual(sent["question"], question)
-                    self.assertEqual(sent["factualState"], facts)
+                    self.assertEqual(sent["question"], handoff["question"])
+                    self.assertEqual(sent["factualState"], handoff["factualState"])
                     self.assertEqual(sent["workThreadId"], "native-work:handoff")
-                    self.assertEqual(sent["dispatchId"], handoff["dispatchId"])
-                    self.assertTrue(sent["questionId"])
-                    copier.parse_iso(sent["observedAt"])
+                    self.assertEqual(sent["dispatchId"], "work-cloud:handoff")
+                    self.assertEqual(sent["questionId"], "work-question:" + copier.sha256_text(
+                        "work-cloud:handoff:" + handoff["questionSha256"])[:32])
+                    self.assertEqual(sent["observedAt"], "2026-10-10T00:00:05.000Z")
                     calls.append("record")
-                    if fails:
+                    if failing[0]:
                         raise copier.CopierError("recording unavailable")
                     return json.dumps({"status": "RECORDED", "dispatchId": sent["dispatchId"]})
 
                 def publish(*args, **kwargs):
-                    self.assertEqual(calls, ["record"])
+                    self.assertEqual(calls[-1], "record")
                     self.assertEqual(kwargs["body"], block)
-                    self.assertNotIn(question, kwargs["body"])
+                    self.assertNotIn(handoff["question"], kwargs["body"])
                     calls.append("publish")
                     return 42
 
-                with patch.object(copier, "fetch_events", return_value=events), \
+                with patch.object(copier, "fetch_events", return_value=[request, result]), \
                      patch.object(copier, "read_thread", return_value=thread), \
                      patch.object(copier, "run", side_effect=remote), \
                      patch.object(copier, "publish_exact", side_effect=publish):
-                    if fails:
+                    if fails_first:
                         with self.assertRaisesRegex(copier.CopierError, "unavailable"):
                             copier.process_once(config)
                         self.assertEqual(calls, ["record"])
                         self.assertEqual(copier.load_state(config)["published"], {})
-                        fails = False
+                        failing[0] = False
                         calls.clear()
                     copier.process_once(config)
-                    self.assertEqual(calls, ["record"] if recovery else ["record", "publish"])
+                    self.assertEqual(calls, ["record", "publish"])
                     copier.process_once(config)
-                    self.assertEqual(calls, ["record"] if recovery else ["record", "publish"])
+                    self.assertEqual(calls, ["record", "publish"])
 
+    def test_private_work_handoff_must_precede_its_receipt_and_bind_the_dispatch(self) -> None:
+        request, result, handoff, receipt = self._work_fixture()
         candidate = copier.discover_work_candidates([request, result])[0]
-        for invalid in (dict(handoff, dispatchId="other"), dict(handoff, questionSha256="0" * 64)):
-            with self.assertRaises(copier.CopierError):
-                copier.work_supervisor_handoff("MISSION_CONTROL_WORK_SUPERVISOR_HANDOFF_V1\n" + json.dumps(invalid) + "\n" + block,
-                                               receipt, candidate)
-        with self.assertRaisesRegex(copier.CopierError, "missing"):
-            copier.work_supervisor_handoff(block, receipt, candidate)
+        block = copier.WORK_RECEIPT_PREFIX + json.dumps(receipt)
+        private = copier.WORK_HANDOFF_PREFIX + json.dumps(handoff)
+        self.assertIsNone(copier.extract_private_work_handoff(block))
+        with self.assertRaisesRegex(copier.CopierError, "final public Work receipt"):
+            copier.extract_private_work_handoff(block + "\n" + private)
+        with self.assertRaisesRegex(copier.CopierError, "more than one"):
+            copier.extract_private_work_handoff(private + "\n" + private + "\n" + block)
+        parsed = copier.extract_private_work_handoff(private + "\n" + block)
+        self.assertEqual(copier.validate_private_work_handoff(parsed, candidate), handoff)
+        for case, invalid in (("dispatch", dict(handoff, dispatchId="work-cloud:other")),
+                              ("digest", dict(handoff, questionSha256="0" * 64)), ("extra field", dict(handoff, extra="field"))):
+            with self.subTest(case=case):
+                with self.assertRaises(copier.CopierError):
+                    copier.validate_private_work_handoff(
+                        copier.extract_private_work_handoff(copier.WORK_HANDOFF_PREFIX + json.dumps(invalid) + "\n" + block),
+                        candidate)
+        completed = dict(receipt, status="COMPLETED", terminalState="CANARY_COMPLETE", blockerCodes=[], checksNotRun=0)
+        thread = {"finalAgentMessage": private + "\n" + copier.WORK_RECEIPT_PREFIX + json.dumps(completed)}
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(copier, "fetch_events", return_value=[request, result]), \
+             patch.object(copier, "read_thread", return_value=thread), \
+             patch.object(copier, "run", side_effect=AssertionError("must not record")), \
+             patch.object(copier, "publish_exact", side_effect=AssertionError("must not publish")):
+            config = copier.Config("primary", "mission-control-development", "/app", "/private/env",
+                                   "owner/repo", 4, 0, Path(directory), 10, "gh")
+            with self.assertRaisesRegex(copier.CopierError, "BLOCKED receipt"):
+                copier.process_once(config)
+
+    def test_receipt_without_private_handoff_is_published_without_recording(self) -> None:
+        request, result, _handoff, receipt = self._work_fixture()
+        block = copier.WORK_RECEIPT_PREFIX + json.dumps(receipt)
+        published: list[str] = []
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(copier, "fetch_events", return_value=[request, result]), \
+             patch.object(copier, "read_thread", return_value={"finalAgentMessage": block}), \
+             patch.object(copier, "run", side_effect=AssertionError("must not record")), \
+             patch.object(copier, "publish_exact", side_effect=lambda *a, **k: published.append(k["body"]) or 7):
+            config = copier.Config("primary", "mission-control-development", "/app", "/private/env",
+                                   "owner/repo", 4, 0, Path(directory), 10, "gh")
+            copier.process_once(config)
+        self.assertEqual(published, [block])
+
+    def test_owner_action_is_strict_and_work_question_decisions_never_mix_owner_gating_with_execution(self) -> None:
+        decision_action = {
+            "kind": "DECISION_REQUIRED", "decision_id": "decision:owner-choice",
+            "question": "Choose A or B.", "context": "Only the owner can choose.",
+            "options": [
+                {"option_id": "A", "label": "Proceed", "benefits": ["Continue"], "drawbacks": ["One attempt"], "downstream_consequences": ["Resume"]},
+                {"option_id": "B", "label": "Pause", "benefits": ["No attempt"], "drawbacks": ["Stays open"], "downstream_consequences": ["Wait"]},
+            ],
+            "recommendation_option_id": "A", "recommendation_reasoning": "A keeps the evidence boundary.",
+            "default_if_no_decision": "B",
+        }
+        copier.validate_owner_action(None)
+        copier.validate_owner_action({"kind": "NONE"})
+        copier.validate_owner_action(decision_action)
+        for invalid in ({"kind": "NONE", "extra": 1}, {"kind": "OTHER"}, dict(decision_action, recommendation_option_id="C"),
+                        dict(decision_action, options=[decision_action["options"][0], decision_action["options"][0]]),
+                        dict(decision_action, options=decision_action["options"][:1]), "NONE"):
+            with self.subTest(invalid=str(invalid)[:60]), self.assertRaises(copier.CopierError):
+                copier.validate_owner_action(invalid)
+
+        route = route_event()
+        body = json.loads(route["data"]["body"][len(copier.V6_ROUTE_PREFIX):])
+        body["producerId"] = "system:work-supervisor-question-router"
+        route["data"]["body"] = copier.V6_ROUTE_PREFIX + json.dumps(body, separators=(",", ":"))
+        candidate = copier.discover_decision_candidates([route, pre_send(), session_complete(), stage_started()], now=NOW)[0]
+        exact = "Resolve the Work question from existing authority."
+        payload = {
+            "schema_version": 5, "envelope_kind": "MISSION_CONTROL_CANONICAL_DECISION", "request_id": "issue178-v3",
+            "supervisor_id": "mc-project-manager", "provider_session_id": "provider-session:v3", "nonce": "nonce-v3",
+            "in_band_binding_sha256": "3" * 64, "execution_provenance": copier.IN_BAND_PROVENANCE,
+            "evidence_capsule": {"id": "capsule:v3", "sha256": "1" * 64},
+            "owner_outcome": {"id": "owner-outcome:issue178", "epoch": 2, "sha256": "2" * 64},
+            "reasoning_lane": "EXTRA_HIGH_DIRECT",
+            "decision_block": {"decision_id": "decision:v3", "exact_text": exact, "sha256": copier.sha256_text(exact)},
+            "pro_decision_block": {"used": False, "model_mode": None, "exact_text": None, "sha256": None},
+            "writer_contract": {"mode": "EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", "reinterpretation_allowed": False},
+        }
+        work = bounded_work_execution()
+
+        def check(**fields):
+            value = {**payload, **fields}
+            copier.validate_decision_block(copier.DECISION_PREFIX + json.dumps(value, separators=(",", ":")), value, candidate)
+
+        check(owner_action={"kind": "NONE"}, bounded_execution=work)
+        check(owner_action=decision_action)
+        for fields, message in (({}, "require owner_action"),
+                                ({"owner_action": {"kind": "NONE"}}, "CHATGPT_WORK_CLOUD"),
+                                ({"owner_action": decision_action, "bounded_execution": work}, "before owner input")):
+            with self.subTest(message=message), self.assertRaisesRegex(copier.CopierError, message):
+                check(**fields)
 
 
 if __name__ == "__main__":

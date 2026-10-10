@@ -62,6 +62,12 @@ class WorkCandidate:
 
 
 @dataclasses.dataclass(frozen=True)
+class WorkSupervisorHandoff:
+    block: str
+    payload: dict[str, Any]
+
+
+@dataclasses.dataclass(frozen=True)
 class DecisionMachineBlockResolution:
     thread_id: str
     observed_at: str
@@ -231,7 +237,6 @@ def discover_work_candidates(events: list[dict[str, Any]], *, min_sequence: int 
         str(event_data(event).get("dispatch_id"))
         for event in events
         if event_data(event).get("type") == "chatgpt_work_cloud_execution_receipt_recorded"
-        and event_data(event).get("terminal_state") != "SUPERVISOR_REASONING_REQUIRED"
     }
     requests: dict[str, tuple[int, dict[str, Any]]] = {}
     results: dict[str, tuple[int, dict[str, Any]]] = {}
@@ -410,11 +415,59 @@ def validate_bounded_execution(value: Any, candidate: DecisionCandidate) -> None
     _equal(profile.get("contractVersion"), "TRUSTED_SETTER_V1", "bounded_execution.work_execution_profile.contractVersion")
 
 
+def validate_owner_action(value: Any) -> None:
+    if value is None:
+        return
+    if not isinstance(value, dict):
+        raise CopierError("owner_action must be an object")
+    kind = value.get("kind")
+    if kind == "NONE":
+        if value != {"kind": "NONE"}:
+            raise CopierError("owner_action NONE must contain only kind")
+        return
+    required = {
+        "kind", "decision_id", "question", "context", "options",
+        "recommendation_option_id", "recommendation_reasoning", "default_if_no_decision",
+    }
+    if kind != "DECISION_REQUIRED" or set(value) != required:
+        raise CopierError("owner_action must be NONE or a strict DECISION_REQUIRED object")
+    decision_id = _nonempty_string(value.get("decision_id"), "owner_action.decision_id", maximum=180)
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]*", decision_id):
+        raise CopierError("owner_action.decision_id must be a StableId")
+    for field, maximum in (("question", 8_000), ("context", 12_000), ("recommendation_reasoning", 8_000), ("default_if_no_decision", 4_000)):
+        _nonempty_string(value.get(field), f"owner_action.{field}", maximum=maximum)
+    options = value.get("options")
+    if not isinstance(options, list) or not 2 <= len(options) <= 8:
+        raise CopierError("owner_action.options must contain 2-8 options")
+    option_ids: set[str] = set()
+    for index, option in enumerate(options):
+        if not isinstance(option, dict) or set(option) != {
+            "option_id", "label", "benefits", "drawbacks", "downstream_consequences",
+        }:
+            raise CopierError(f"owner_action.options[{index}] is invalid")
+        option_id = _nonempty_string(option.get("option_id"), f"owner_action.options[{index}].option_id", maximum=180)
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]*", option_id):
+            raise CopierError(f"owner_action.options[{index}].option_id must be a StableId")
+        if option_id in option_ids:
+            raise CopierError("owner_action option IDs must be unique")
+        option_ids.add(option_id)
+        _nonempty_string(option.get("label"), f"owner_action.options[{index}].label", maximum=500)
+        for field in ("benefits", "drawbacks", "downstream_consequences"):
+            items = option.get(field)
+            if not isinstance(items, list) or not 1 <= len(items) <= 10 or any(
+                not isinstance(item, str) or not item.strip() or len(item) > 2_000 for item in items
+            ):
+                raise CopierError(f"owner_action.options[{index}].{field} is invalid")
+    recommendation = _nonempty_string(value.get("recommendation_option_id"), "owner_action.recommendation_option_id", maximum=180)
+    if recommendation not in option_ids:
+        raise CopierError("owner_action.recommendation_option_id must identify one listed option")
+
+
 def validate_decision_block(block: str, payload: dict[str, Any], candidate: DecisionCandidate) -> None:
     route = candidate.route
     binding_sha = ref_value(candidate.pre_send_refs, "in_band_binding_sha256:")
     required_top = {"schema_version", "envelope_kind", "request_id", "supervisor_id", "provider_session_id", "nonce", "in_band_binding_sha256", "execution_provenance", "evidence_capsule", "owner_outcome", "reasoning_lane", "decision_block", "pro_decision_block", "writer_contract"}
-    optional_top = {"continuation_binding", "continuation_binding_sha256", "bounded_execution"}
+    optional_top = {"continuation_binding", "continuation_binding_sha256", "bounded_execution", "owner_action"}
     if not required_top.issubset(payload) or set(payload) - required_top - optional_top:
         raise CopierError("canonical decision fields do not match the strict schema")
     _equal(payload.get("schema_version"), 5, "schema_version")
@@ -445,7 +498,21 @@ def validate_decision_block(block: str, payload: dict[str, Any], candidate: Deci
         _equal(pro.get("sha256"), decision.get("sha256"), "pro_decision_block.sha256")
     else:
         raise CopierError("unsupported reasoning lane")
+    validate_owner_action(payload.get("owner_action"))
     validate_bounded_execution(payload.get("bounded_execution"), candidate)
+    if route.get("producerId") == "system:work-supervisor-question-router":
+        owner_action = payload.get("owner_action")
+        bounded = payload.get("bounded_execution")
+        if not isinstance(owner_action, dict):
+            raise CopierError("Work supervisor-question decisions require owner_action")
+        if owner_action.get("kind") == "NONE":
+            if not isinstance(bounded, dict) or bounded.get("execution_surface") != "CHATGPT_WORK_CLOUD":
+                raise CopierError("supervisor-resolved Work question requires one CHATGPT_WORK_CLOUD bounded continuation")
+        elif owner_action.get("kind") == "DECISION_REQUIRED":
+            if bounded is not None:
+                raise CopierError("owner-required Work question cannot authorize Work continuation before owner input")
+        else:
+            raise CopierError("Work supervisor-question owner_action is invalid")
     if not block.startswith(DECISION_PREFIX):
         raise CopierError("decision block prefix mismatch")
 
@@ -475,6 +542,86 @@ def repair_decision_digest_only(
     if source_equivalent != repaired:
         raise CopierError("digest-only repair changed semantic decision fields")
     return repaired_block, repaired
+
+
+def extract_private_work_handoff(text: str | None) -> WorkSupervisorHandoff | None:
+    if not isinstance(text, str):
+        return None
+    start = text.find(WORK_HANDOFF_PREFIX)
+    if start < 0:
+        return None
+    public_start = text.find(WORK_RECEIPT_PREFIX, start + len(WORK_HANDOFF_PREFIX))
+    if public_start < 0:
+        raise CopierError("private Work supervisor handoff is missing the required final public Work receipt")
+    if text.find(WORK_HANDOFF_PREFIX, start + len(WORK_HANDOFF_PREFIX)) >= 0:
+        raise CopierError("more than one private Work supervisor handoff was emitted")
+    block = text[start:public_start].strip()
+    try:
+        payload = json.loads(block[len(WORK_HANDOFF_PREFIX):])
+    except json.JSONDecodeError as exc:
+        raise CopierError("private Work supervisor handoff is not strict JSON") from exc
+    if not isinstance(payload, dict):
+        raise CopierError("private Work supervisor handoff payload must be an object")
+    return WorkSupervisorHandoff(block=block, payload=payload)
+
+
+def validate_private_work_handoff(handoff: WorkSupervisorHandoff, candidate: WorkCandidate) -> dict[str, Any]:
+    payload = handoff.payload
+    allowed = {
+        "schemaVersion", "dispatchId", "worker", "taskId", "handoffKind",
+        "question", "factualState", "evidenceRefs", "questionSha256", "factualStateSha256",
+    }
+    if set(payload) != allowed:
+        raise CopierError("private Work supervisor handoff contains unexpected or missing fields")
+    _equal(payload.get("schemaVersion"), 1, "privateHandoff.schemaVersion")
+    _equal(payload.get("dispatchId"), candidate.dispatch_id, "privateHandoff.dispatchId")
+    _equal(payload.get("worker"), candidate.request.get("worker"), "privateHandoff.worker")
+    _equal(payload.get("taskId"), candidate.request.get("task_id"), "privateHandoff.taskId")
+    _equal(payload.get("handoffKind"), "REASONING_REQUIRED", "privateHandoff.handoffKind")
+    question = _nonempty_string(payload.get("question"), "privateHandoff.question", maximum=8_000)
+    factual = _nonempty_string(payload.get("factualState"), "privateHandoff.factualState", maximum=12_000)
+    refs = payload.get("evidenceRefs")
+    if not isinstance(refs, list) or len(refs) > 50 or any(
+        not isinstance(item, str) or not item.strip() or len(item) > 2_000 for item in refs
+    ):
+        raise CopierError("privateHandoff.evidenceRefs is invalid")
+    _equal(payload.get("questionSha256"), sha256_text(question), "privateHandoff.questionSha256")
+    _equal(payload.get("factualStateSha256"), sha256_text(factual), "privateHandoff.factualStateSha256")
+    return payload
+
+
+def record_work_supervisor_handoff(
+    config: Config, candidate: WorkCandidate, payload: dict[str, Any], observed_at: str,
+) -> dict[str, Any]:
+    question_sha = str(payload["questionSha256"])
+    question_id = f"work-question:{sha256_text(candidate.dispatch_id + ':' + question_sha)[:32]}"
+    request = {
+        "worker": candidate.request.get("worker"),
+        "dispatchId": candidate.dispatch_id,
+        "workThreadId": candidate.thread_id,
+        "taskId": candidate.request.get("task_id"),
+        "questionId": question_id,
+        "question": payload["question"],
+        "questionSha256": question_sha,
+        "factualState": payload["factualState"],
+        "factualStateSha256": payload["factualStateSha256"],
+        "evidenceRefs": payload["evidenceRefs"],
+        "observedAt": observed_at,
+    }
+    command = (
+        f"cd {shlex.quote(config.remote_app_root)} && set -a; . {shlex.quote(config.remote_env_file)}; set +a; "
+        "node_modules/.bin/tsx scripts/record-work-supervisor-handoff.ts"
+    )
+    output = run([
+        "ssh", "-o", "BatchMode=yes", "-o", "ClearAllForwardings=yes", config.primary_ssh, command,
+    ], input_text=json.dumps(request), timeout=90)
+    try:
+        value = json.loads(output)
+    except json.JSONDecodeError as exc:
+        raise CopierError("Work supervisor handoff recorder returned invalid JSON") from exc
+    if not isinstance(value, dict) or value.get("status") != "RECORDED":
+        raise CopierError("Work supervisor handoff was not recorded")
+    return value
 
 
 def validate_work_receipt(block: str, payload: dict[str, Any], candidate: WorkCandidate) -> None:
@@ -509,58 +656,6 @@ def validate_work_receipt(block: str, payload: dict[str, Any], candidate: WorkCa
         raise CopierError("artifactSha256s must contain only SHA-256 values")
     if not block.startswith(WORK_RECEIPT_PREFIX):
         raise CopierError("Work receipt prefix mismatch")
-
-
-def work_supervisor_handoff(text: str, receipt: dict[str, Any], candidate: WorkCandidate) -> dict[str, Any] | None:
-    index = text.find(WORK_HANDOFF_PREFIX)
-    if index < 0:
-        if receipt.get("terminalState") == "SUPERVISOR_REASONING_REQUIRED":
-            raise CopierError("Work supervisor handoff is missing")
-        return None
-    public_index = text.find(WORK_RECEIPT_PREFIX)
-    if index >= public_index or text.count(WORK_HANDOFF_PREFIX) != 1:
-        raise CopierError("Work supervisor handoff must precede the public receipt exactly once")
-    parsed = extract_machine_block(text[index:public_index], WORK_HANDOFF_PREFIX)
-    assert parsed is not None
-    _, payload = parsed
-    allowed = {"schemaVersion", "dispatchId", "worker", "taskId", "handoffKind", "question",
-               "factualState", "evidenceRefs", "questionSha256", "factualStateSha256"}
-    if set(payload) != allowed:
-        raise CopierError("Work supervisor handoff contains unexpected or missing fields")
-    for field, expected in (("schemaVersion", 1), ("dispatchId", candidate.dispatch_id),
-                            ("worker", candidate.request.get("worker")), ("taskId", candidate.request.get("task_id")),
-                            ("handoffKind", "REASONING_REQUIRED")):
-        _equal(payload.get(field), expected, field)
-    for field, maximum in (("question", 8_000), ("factualState", 12_000)):
-        exact = _nonempty_string(payload.get(field), field, maximum=maximum)
-        _equal(payload.get(field + "Sha256"), sha256_text(exact), field + "Sha256")
-    refs = payload.get("evidenceRefs")
-    if not isinstance(refs, list) or len(refs) > 50 or any(not isinstance(v, str) or not v.strip() or len(v) > 2_000 for v in refs):
-        raise CopierError("Work supervisor handoff evidenceRefs are invalid")
-    if (receipt.get("status") != "BLOCKED" or receipt.get("terminalState") != "SUPERVISOR_REASONING_REQUIRED"
-        or "SUPERVISOR_REASONING_REQUIRED" not in receipt.get("blockerCodes", [])):
-        raise CopierError("Work supervisor handoff requires the blocked reasoning receipt")
-    return {
-        "worker": payload["worker"], "dispatchId": candidate.dispatch_id, "taskId": payload["taskId"],
-        "workThreadId": candidate.thread_id,
-        "questionId": "work-question:" + sha256_text(payload["questionSha256"] + ":" + payload["factualStateSha256"])[:32],
-        "question": payload["question"], "questionSha256": payload["questionSha256"],
-        "factualState": payload["factualState"], "factualStateSha256": payload["factualStateSha256"],
-        "evidenceRefs": refs,
-    }
-
-
-def record_work_supervisor_handoff(config: Config, handoff: dict[str, Any]) -> None:
-    command = (
-        f"cd {shlex.quote(config.remote_app_root)} && set -a; . {shlex.quote(config.remote_env_file)}; set +a; "
-        "node_modules/.bin/tsx scripts/record-work-supervisor-handoff.ts"
-    )
-    # Keep private text on stdin, never in a shell argument or the GitHub receipt.
-    output = run(["ssh", "-o", "BatchMode=yes", "-o", "ClearAllForwardings=yes", config.primary_ssh, command],
-                 input_text=json.dumps(handoff), timeout=90)
-    value = json.loads(output)
-    if not isinstance(value, dict) or value.get("status") != "RECORDED" or value.get("dispatchId") != handoff["dispatchId"]:
-        raise CopierError("Work supervisor handoff was not recorded")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -869,25 +964,31 @@ def process_once(config: Config) -> dict[str, Any]:
     events = fetch_events(config)
     for candidate in discover_work_candidates(events, min_sequence=config.min_sequence):
         key = f"work:{candidate.dispatch_id}"
-        if key in published and published[key].get("handoffChecked"):
+        if key in published:
             continue
         thread = read_thread(config, candidate.thread_id)
-        parsed = extract_machine_block(thread.get("finalAgentMessage"), WORK_RECEIPT_PREFIX)
+        final_message = thread.get("finalAgentMessage")
+        private_handoff = extract_private_work_handoff(final_message)
+        parsed = extract_machine_block(final_message, WORK_RECEIPT_PREFIX)
         if not parsed:
             continue
         block, payload = parsed
         validate_work_receipt(block, payload, candidate)
-        handoff = work_supervisor_handoff(thread["finalAgentMessage"], payload, candidate)
-        if handoff:
-            handoff["observedAt"] = dt.datetime.now(dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
-            record_work_supervisor_handoff(config, handoff)
-        if key in published:
-            published[key]["handoffChecked"] = True
-            save_state(config, state)
-            continue
+        if private_handoff:
+            handoff_payload = validate_private_work_handoff(private_handoff, candidate)
+            if (payload.get("status") != "BLOCKED"
+                or payload.get("terminalState") != "SUPERVISOR_REASONING_REQUIRED"
+                or "SUPERVISOR_REASONING_REQUIRED" not in (payload.get("blockerCodes") or [])):
+                raise CopierError("private Work supervisor handoff requires the matching privacy-safe BLOCKED receipt")
+            observed_at = thread.get("observedAt")
+            if not isinstance(observed_at, str):
+                observed_at = dt.datetime.now(dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+            else:
+                observed_at = parse_iso(observed_at).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+            record_work_supervisor_handoff(config, candidate, handoff_payload, observed_at)
         comment_id = publish_exact(config, issue=config.stage_issue, body=block, prefix=WORK_RECEIPT_PREFIX,
                                    identity_field="dispatchId", identity=candidate.dispatch_id)
-        published[key] = {"commentId": comment_id, "sha256": sha256_text(block), "kind": "work", "handoffChecked": True}
+        published[key] = {"commentId": comment_id, "sha256": sha256_text(block), "kind": "work"}
         copied.append({"kind": "work", "dispatchId": candidate.dispatch_id, "commentId": comment_id})
         save_state(config, state)
 
