@@ -3,7 +3,7 @@ import { daemonFetch, daemonMutationHeaders } from "@/lib/daemon-client";
 import { parseGitHubReceiptPolicy } from "@/lib/github-decision-receipts";
 import type { AuthenticatedProducer } from "@/lib/ingestion-auth";
 import { authenticateOwnerRequest, ownerAuthFailure } from "@/lib/owner-auth";
-import { buildOwnerAnswerContinuationRoute, WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID } from "@/lib/owner-question-route";
+import { buildOwnerAnswerContinuationRoute, ownerAnswerContinuationRoute, WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID } from "@/lib/owner-question-route";
 import type { AppendEnvelope, StoredEvent } from "@/lib/schema";
 
 export async function POST(request: Request, context: { params: Promise<{ worker: string }> }) {
@@ -74,6 +74,11 @@ export async function POST(request: Request, context: { params: Promise<{ worker
       events = await workerEvents(worker);
     }
 
+    const existingContinuation = ownerAnswerContinuationRoute(events, worker, decisionRequestId);
+    if (existingContinuation) return Response.json({ status: "ROUTED_TO_SUPERVISOR", worker,
+      decision_id: decisionId, option_id: optionId, decision_request_id: decisionRequestId,
+      continuation_event_id: existingContinuation.eventId });
+
     const now = new Date().toISOString();
     const continuationRoute = buildOwnerAnswerContinuationRoute(events, {
       worker, resumeDecisionRequestId: decisionRequestId, recordedAt: now,
@@ -88,6 +93,9 @@ export async function POST(request: Request, context: { params: Promise<{ worker
     });
     if (!routed.ok && routed.status !== 409) {
       return Response.json({ error: "Owner answer was recorded, but supervisor continuation could not be routed." }, { status: routed.status });
+    }
+    if (routed.status === 409 && !ownerAnswerContinuationRoute(await workerEvents(worker), worker, decisionRequestId)) {
+      return Response.json({ error: "Owner answer was recorded, but no matching durable continuation exists." }, { status: 409 });
     }
     return Response.json({ status: "ROUTED_TO_SUPERVISOR", worker, decision_id: decisionId, option_id: optionId,
       decision_request_id: decisionRequestId, continuation_event_id: continuationRoute.event_id });

@@ -4,6 +4,8 @@ import { inBandRequestRoutePrefix } from "./in-band-request-binding";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import { requestRouteEventId } from "./request-bound-supervision";
 import { deriveOwnerResponseContinuation } from "./owner-response-continuation";
+import { parseRouteContinuation } from "./owner-response-continuation-schema";
+import { decisionRouteStates } from "./reasoning-message-state";
 import type { AppendEnvelope, StoredEvent } from "./schema";
 
 export const WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID = "system:work-supervisor-question-router";
@@ -264,6 +266,11 @@ export function buildOwnerAnswerContinuationRoute(
   input: { worker: string; resumeDecisionRequestId: string; recordedAt: string },
   policy: GitHubReceiptPolicy | null,
 ): AppendEnvelope {
+  const existing = ownerAnswerContinuationRoute(events, input.worker, input.resumeDecisionRequestId);
+  if (existing?.data.type === "worker_message_recorded") return {
+    schema_version: 2, event_id: existing.eventId, mission_id: existing.missionId,
+    occurred_at: existing.occurredAt, data: existing.data,
+  };
   if (!policy?.requestBound?.enabled) throw new Error("Owner-answer continuation requires in-band routing.");
   const worker = stableId(input.worker, "worker");
   const resumeDecisionRequestId = stableId(input.resumeDecisionRequestId, "resumeDecisionRequestId");
@@ -282,7 +289,8 @@ export function buildOwnerAnswerContinuationRoute(
     issuedAt: recordedAt,
     expiresAt,
   }, recordedAt);
-  const requestId = `work-owner-continuation:${sha256(continuation.digest).slice(0, 32)}`;
+  // Causal identity stays stable even when concurrent attempts allocate different validity windows.
+  const requestId = `work-owner-continuation:${continuation.binding.continuation_id.slice(0, 32)}`;
   const nonce = `work-owner-continuation-nonce:${sha256(requestId + ":" + origin.root.ownerOutcome.sha256).slice(0, 32)}`;
   const decisionRequested = "Apply the exact owner answer to the prior Work question. Return owner_action {kind:NONE} and one CHATGPT_WORK_CLOUD bounded_execution that continues the exact existing Work thread. Do not request another owner decision unless the owner answer itself introduces a genuinely new tradeoff.";
   const root = {
@@ -327,6 +335,39 @@ export function buildOwnerAnswerContinuationRoute(
       direction_id: null,
     },
   };
+}
+
+export function ownerAnswerContinuationRoute(
+  events: StoredEvent[], worker: string, decisionRequestId: string,
+): StoredEvent | null {
+  const state = decisionRouteStates(events).find((route) => route.decisionRequestId === decisionRequestId
+    && route.request.worker === worker);
+  const delivery = state?.supervisorResponse;
+  const owner = state?.projectManagerResponse ?? delivery;
+  if (!state || !delivery || !owner || state.status === "INVALID_BINDING") return null;
+  for (const event of events) {
+    if (event.worker !== worker || event.producerKind !== "SYSTEM"
+      || event.producerId !== WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID
+      || event.data.type !== "worker_message_recorded" || !event.data.body.startsWith(inBandRequestRoutePrefix)) continue;
+    try {
+      const root = JSON.parse(event.data.body.slice(inBandRequestRoutePrefix.length));
+      const continuation = parseRouteContinuation(root);
+      const binding = continuation?.binding;
+      if (!binding || root.worker !== worker || root.producerId !== WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID
+        || root.actionBlockedOrRouted !== "OWNER_RESPONSE_REVIEW"
+        || binding.worker !== worker || binding.decision_request_id !== decisionRequestId
+        || binding.supervisor_id !== state.request.data.stable_supervisor_id
+        || binding.supervisor_id !== delivery.data.stable_supervisor_id) continue;
+      const matches = [
+        [binding.originating_supervisor_message, state.request],
+        [binding.owner_input, owner],
+        [binding.supervisor_delivery, delivery],
+      ] as const;
+      if (matches.every(([ref, message]) => ref.event_id === message.eventId
+        && ref.message_id === message.data.message_id && ref.body_sha256 === message.data.body_sha256)) return event;
+    } catch { /* Malformed or unrelated routes cannot complete an owner obligation. */ }
+  }
+  return null;
 }
 
 export function workQuestionRequestIdForDispatch(

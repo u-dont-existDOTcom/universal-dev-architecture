@@ -27,6 +27,7 @@ from typing import Any, Iterable
 V6_ROUTE_PREFIX = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n"
 DECISION_PREFIX = "MISSION_CONTROL_CANONICAL_DECISION_V1\n"
 WORK_RECEIPT_PREFIX = "MISSION_CONTROL_WORK_CLOUD_EXECUTION_RECEIPT_V1\n"
+WORK_HANDOFF_PREFIX = "MISSION_CONTROL_WORK_SUPERVISOR_HANDOFF_V1\n"
 PROVIDER_SESSION_SUMMARY = "MISSION_CONTROL_PROVIDER_SESSION_V1"
 IN_BAND_PRE_SEND_SUMMARY = "MISSION_CONTROL_IN_BAND_REQUEST_BINDING_PRE_SEND_V1"
 IN_BAND_PROVENANCE = "IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED"
@@ -230,6 +231,7 @@ def discover_work_candidates(events: list[dict[str, Any]], *, min_sequence: int 
         str(event_data(event).get("dispatch_id"))
         for event in events
         if event_data(event).get("type") == "chatgpt_work_cloud_execution_receipt_recorded"
+        and event_data(event).get("terminal_state") != "SUPERVISOR_REASONING_REQUIRED"
     }
     requests: dict[str, tuple[int, dict[str, Any]]] = {}
     results: dict[str, tuple[int, dict[str, Any]]] = {}
@@ -507,6 +509,58 @@ def validate_work_receipt(block: str, payload: dict[str, Any], candidate: WorkCa
         raise CopierError("artifactSha256s must contain only SHA-256 values")
     if not block.startswith(WORK_RECEIPT_PREFIX):
         raise CopierError("Work receipt prefix mismatch")
+
+
+def work_supervisor_handoff(text: str, receipt: dict[str, Any], candidate: WorkCandidate) -> dict[str, Any] | None:
+    index = text.find(WORK_HANDOFF_PREFIX)
+    if index < 0:
+        if receipt.get("terminalState") == "SUPERVISOR_REASONING_REQUIRED":
+            raise CopierError("Work supervisor handoff is missing")
+        return None
+    public_index = text.find(WORK_RECEIPT_PREFIX)
+    if index >= public_index or text.count(WORK_HANDOFF_PREFIX) != 1:
+        raise CopierError("Work supervisor handoff must precede the public receipt exactly once")
+    parsed = extract_machine_block(text[index:public_index], WORK_HANDOFF_PREFIX)
+    assert parsed is not None
+    _, payload = parsed
+    allowed = {"schemaVersion", "dispatchId", "worker", "taskId", "handoffKind", "question",
+               "factualState", "evidenceRefs", "questionSha256", "factualStateSha256"}
+    if set(payload) != allowed:
+        raise CopierError("Work supervisor handoff contains unexpected or missing fields")
+    for field, expected in (("schemaVersion", 1), ("dispatchId", candidate.dispatch_id),
+                            ("worker", candidate.request.get("worker")), ("taskId", candidate.request.get("task_id")),
+                            ("handoffKind", "REASONING_REQUIRED")):
+        _equal(payload.get(field), expected, field)
+    for field, maximum in (("question", 8_000), ("factualState", 12_000)):
+        exact = _nonempty_string(payload.get(field), field, maximum=maximum)
+        _equal(payload.get(field + "Sha256"), sha256_text(exact), field + "Sha256")
+    refs = payload.get("evidenceRefs")
+    if not isinstance(refs, list) or len(refs) > 50 or any(not isinstance(v, str) or not v.strip() or len(v) > 2_000 for v in refs):
+        raise CopierError("Work supervisor handoff evidenceRefs are invalid")
+    if (receipt.get("status") != "BLOCKED" or receipt.get("terminalState") != "SUPERVISOR_REASONING_REQUIRED"
+        or "SUPERVISOR_REASONING_REQUIRED" not in receipt.get("blockerCodes", [])):
+        raise CopierError("Work supervisor handoff requires the blocked reasoning receipt")
+    return {
+        "worker": payload["worker"], "dispatchId": candidate.dispatch_id, "taskId": payload["taskId"],
+        "workThreadId": candidate.thread_id,
+        "questionId": "work-question:" + sha256_text(payload["questionSha256"] + ":" + payload["factualStateSha256"])[:32],
+        "question": payload["question"], "questionSha256": payload["questionSha256"],
+        "factualState": payload["factualState"], "factualStateSha256": payload["factualStateSha256"],
+        "evidenceRefs": refs,
+    }
+
+
+def record_work_supervisor_handoff(config: Config, handoff: dict[str, Any]) -> None:
+    command = (
+        f"cd {shlex.quote(config.remote_app_root)} && set -a; . {shlex.quote(config.remote_env_file)}; set +a; "
+        "node_modules/.bin/tsx scripts/record-work-supervisor-handoff.ts"
+    )
+    # Keep private text on stdin, never in a shell argument or the GitHub receipt.
+    output = run(["ssh", "-o", "BatchMode=yes", "-o", "ClearAllForwardings=yes", config.primary_ssh, command],
+                 input_text=json.dumps(handoff), timeout=90)
+    value = json.loads(output)
+    if not isinstance(value, dict) or value.get("status") != "RECORDED" or value.get("dispatchId") != handoff["dispatchId"]:
+        raise CopierError("Work supervisor handoff was not recorded")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -815,7 +869,7 @@ def process_once(config: Config) -> dict[str, Any]:
     events = fetch_events(config)
     for candidate in discover_work_candidates(events, min_sequence=config.min_sequence):
         key = f"work:{candidate.dispatch_id}"
-        if key in published:
+        if key in published and published[key].get("handoffChecked"):
             continue
         thread = read_thread(config, candidate.thread_id)
         parsed = extract_machine_block(thread.get("finalAgentMessage"), WORK_RECEIPT_PREFIX)
@@ -823,9 +877,17 @@ def process_once(config: Config) -> dict[str, Any]:
             continue
         block, payload = parsed
         validate_work_receipt(block, payload, candidate)
+        handoff = work_supervisor_handoff(thread["finalAgentMessage"], payload, candidate)
+        if handoff:
+            handoff["observedAt"] = dt.datetime.now(dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+            record_work_supervisor_handoff(config, handoff)
+        if key in published:
+            published[key]["handoffChecked"] = True
+            save_state(config, state)
+            continue
         comment_id = publish_exact(config, issue=config.stage_issue, body=block, prefix=WORK_RECEIPT_PREFIX,
                                    identity_field="dispatchId", identity=candidate.dispatch_id)
-        published[key] = {"commentId": comment_id, "sha256": sha256_text(block), "kind": "work"}
+        published[key] = {"commentId": comment_id, "sha256": sha256_text(block), "kind": "work", "handoffChecked": True}
         copied.append({"kind": "work", "dispatchId": candidate.dispatch_id, "commentId": comment_id})
         save_state(config, state)
 

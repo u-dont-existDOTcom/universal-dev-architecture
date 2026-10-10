@@ -5,7 +5,9 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
+import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULE_PATH = ROOT / "tools" / "codex-mission-control" / "owner-runtime" / "supervisor_receipt_copier.py"
@@ -329,6 +331,93 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
         self.assertIn("deterministic Mission Control copier", core)
         self.assertIn("Do not write the receipt to GitHub yourself", work)
         self.assertIn("deterministic Mission Control copier", work)
+
+    def test_work_result_consumer_records_private_handoff_before_publication_and_recovers_old_receipts(self) -> None:
+        request = event(200, {
+            "type": "chatgpt_work_cloud_dispatch_requested", "worker": "mission-control-development",
+            "dispatch_id": "work-cloud:handoff", "directive_id": "directive:handoff", "directive_revision": 1,
+            "task_id": "task:mission-control-development",
+        })
+        result = event(201, {
+            "type": "chatgpt_work_cloud_dispatch_recorded", "worker": "mission-control-development",
+            "dispatch_id": "work-cloud:handoff", "status": "READY", "surface_verification": "VERIFIED_NATIVE_WORK",
+            "work_thread_id": "native-work:handoff",
+        })
+        question = "Which repair is authorized? $() `private`"
+        facts = "The exact request is unsent."
+        handoff = {
+            "schemaVersion": 1, "dispatchId": "work-cloud:handoff", "worker": "mission-control-development",
+            "taskId": "task:mission-control-development", "handoffKind": "REASONING_REQUIRED",
+            "question": question, "questionSha256": copier.sha256_text(question),
+            "factualState": facts, "factualStateSha256": copier.sha256_text(facts), "evidenceRefs": ["event:failure"],
+        }
+        receipt = {
+            "schemaVersion": 1, "dispatchId": "work-cloud:handoff", "worker": "mission-control-development",
+            "taskId": "task:mission-control-development", "directiveId": "directive:handoff", "directiveRevision": 1,
+            "status": "BLOCKED", "terminalState": "SUPERVISOR_REASONING_REQUIRED", "checksPassed": 0,
+            "checksFailed": 0, "checksNotRun": 1, "blockerCodes": ["SUPERVISOR_REASONING_REQUIRED"], "artifactSha256s": [],
+        }
+        block = copier.WORK_RECEIPT_PREFIX + json.dumps(receipt)
+        private = "MISSION_CONTROL_WORK_SUPERVISOR_HANDOFF_V1\n" + json.dumps(handoff)
+        thread = {"finalAgentMessage": "2026-10-10 00:00:00 UTC\n" + private + "\n" + block}
+        for recovery, fails in ((False, False), (False, True), (True, False)):
+            with self.subTest(recovery=recovery, fails=fails), tempfile.TemporaryDirectory() as directory:
+                config = copier.Config("primary", "mission-control-development", "/app", "/private/env",
+                                       "owner/repo", 4, 0, Path(directory), 10, "gh")
+                events = [request, result]
+                if recovery:
+                    copier.save_state(config, {"schemaVersion": 1, "published": {
+                        "work:work-cloud:handoff": {"commentId": 42, "kind": "work", "sha256": copier.sha256_text(block)},
+                    }})
+                    events.append(event(202, {"type": "chatgpt_work_cloud_execution_receipt_recorded",
+                                              "dispatch_id": "work-cloud:handoff", "terminal_state": "SUPERVISOR_REASONING_REQUIRED"}))
+                calls = []
+
+                def remote(command, *, input_text=None, timeout=60):
+                    self.assertIn("scripts/record-work-supervisor-handoff.ts", command[-1])
+                    self.assertNotIn(question, " ".join(command))
+                    sent = json.loads(input_text)
+                    self.assertEqual(sent["question"], question)
+                    self.assertEqual(sent["factualState"], facts)
+                    self.assertEqual(sent["workThreadId"], "native-work:handoff")
+                    self.assertEqual(sent["dispatchId"], handoff["dispatchId"])
+                    self.assertTrue(sent["questionId"])
+                    copier.parse_iso(sent["observedAt"])
+                    calls.append("record")
+                    if fails:
+                        raise copier.CopierError("recording unavailable")
+                    return json.dumps({"status": "RECORDED", "dispatchId": sent["dispatchId"]})
+
+                def publish(*args, **kwargs):
+                    self.assertEqual(calls, ["record"])
+                    self.assertEqual(kwargs["body"], block)
+                    self.assertNotIn(question, kwargs["body"])
+                    calls.append("publish")
+                    return 42
+
+                with patch.object(copier, "fetch_events", return_value=events), \
+                     patch.object(copier, "read_thread", return_value=thread), \
+                     patch.object(copier, "run", side_effect=remote), \
+                     patch.object(copier, "publish_exact", side_effect=publish):
+                    if fails:
+                        with self.assertRaisesRegex(copier.CopierError, "unavailable"):
+                            copier.process_once(config)
+                        self.assertEqual(calls, ["record"])
+                        self.assertEqual(copier.load_state(config)["published"], {})
+                        fails = False
+                        calls.clear()
+                    copier.process_once(config)
+                    self.assertEqual(calls, ["record"] if recovery else ["record", "publish"])
+                    copier.process_once(config)
+                    self.assertEqual(calls, ["record"] if recovery else ["record", "publish"])
+
+        candidate = copier.discover_work_candidates([request, result])[0]
+        for invalid in (dict(handoff, dispatchId="other"), dict(handoff, questionSha256="0" * 64)):
+            with self.assertRaises(copier.CopierError):
+                copier.work_supervisor_handoff("MISSION_CONTROL_WORK_SUPERVISOR_HANDOFF_V1\n" + json.dumps(invalid) + "\n" + block,
+                                               receipt, candidate)
+        with self.assertRaisesRegex(copier.CopierError, "missing"):
+            copier.work_supervisor_handoff(block, receipt, candidate)
 
 
 if __name__ == "__main__":

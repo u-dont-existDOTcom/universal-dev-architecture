@@ -12,6 +12,7 @@ import type {
 } from "./schema";
 import { effectiveOutcomeAdvancement, effectiveSameStrategyContinuationAllowed, effectiveStrategyEfficacy } from "./progress-invariants";
 import { decisionRouteStates } from "./reasoning-message-state";
+import { ownerAnswerContinuationRoute } from "./owner-question-route";
 
 export type ContractStatus = "VALID" | "CONTRACT_LAUNDERING" | "OUTCOME_AUTHORITY_UNRESOLVED" | "UNKNOWN";
 export type OwnerOutcomeStatus = "MET" | "UNMET" | "UNKNOWN";
@@ -446,7 +447,7 @@ export function latestOwnerAction(events: StoredEvent[]): OwnerActionObligation 
       const ownerAction = event.data.owner_action;
       if (ownerAction.kind !== "DECISION_REQUIRED") continue;
       const route = decisionRouteStates(events).find((state) => state.decisionRequestId === requestId);
-      return route && route.status !== "OWNER_RESPONSE_REQUIRED"
+      return route && (route.status === "RESOLVED" || ownerAnswerContinuationRoute(events, event.data.worker, requestId))
         ? { ...ownerAction, status: "COMPLETED" as const }
         : ownerAction;
     }

@@ -4,6 +4,7 @@ import test from "node:test";
 import { canonicalJson, sha256 } from "../lib/canonical";
 import { canonicalOwnerActionSchema, type StoredEvent } from "../lib/schema";
 import { inBandRequestRoutePrefix } from "../lib/in-band-request-binding";
+import { continuationId } from "../lib/owner-response-continuation-schema";
 import { producerMayEmit, type AuthenticatedProducer } from "../lib/ingestion-auth";
 import { latestOwnerAction } from "../lib/terminal-comparator";
 import {
@@ -229,7 +230,7 @@ test("owner-action classification requires a real option and recommendation bind
   assert.equal(canonicalOwnerActionSchema.safeParse({ ...decision, recommendation_option_id: "C" }).success, false);
 });
 
-test("dashboard owner answer becomes completed owner obligation and queues a supervisor continuation", () => {
+test("dashboard owner answer remains retryable until a matching supervisor continuation is durable", async (t) => {
   const events = baseEvents();
   const built = buildWorkSupervisorQuestionRoute(events, {
     worker,
@@ -331,7 +332,13 @@ test("dashboard owner answer becomes completed owner obligation and queues a sup
     recorded_by: "owner:test",
   }, "owner:test", "OWNER_AUTHORITY");
   const answered = [...before, ownerReply];
-  assert.equal(latestOwnerAction(answered)?.status, "COMPLETED");
+  assert.equal(latestOwnerAction(answered)?.status, "OPEN");
+  assert.equal(latestOwnerAction([...before, { ...ownerReply, data: {
+    ...ownerReply.data, surface_role: "PROJECT_MANAGER",
+  } } as StoredEvent])?.status, "OPEN");
+  assert.equal(latestOwnerAction([...before, { ...ownerReply, data: {
+    ...ownerReply.data, parent_message_id: "message:unrelated",
+  } } as StoredEvent])?.status, "OPEN");
 
   const continuation = buildOwnerAnswerContinuationRoute(answered, {
     worker,
@@ -345,4 +352,81 @@ test("dashboard owner answer becomes completed owner obligation and queues a sup
   assert.equal(continuationPacket.continuationOwnerResponseExactText, "A");
   assert.equal(continuationPacket.continuationBinding.path, "DIRECT");
   assert.equal(continuationPacket.continuationBinding.decision_request_id, packet.requestId);
+  const queued = { ...stored(11, continuation.event_id, continuation.data, WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID, "SYSTEM"),
+    occurredAt: continuation.occurred_at };
+  assert.equal(latestOwnerAction([...answered, queued])?.status, "COMPLETED");
+  assert.equal(latestOwnerAction([...answered, { ...queued, producerId: "system:unrelated" }])?.status, "OPEN");
+  const unrelated = JSON.parse(continuation.data.body.slice(inBandRequestRoutePrefix.length));
+  unrelated.continuationBinding.supervisor_delivery.event_id = "owner-reply:other";
+  unrelated.continuationBinding.owner_input.event_id = "owner-reply:other";
+  delete unrelated.continuationBinding.continuation_id;
+  unrelated.continuationBinding.continuation_id = continuationId(unrelated.continuationBinding);
+  unrelated.continuationBindingSha256 = sha256(canonicalJson(unrelated.continuationBinding));
+  assert.equal(latestOwnerAction([...answered, stored(11, "route:other", {
+    ...continuation.data, body: inBandRequestRoutePrefix + canonicalJson(unrelated),
+  }, WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID, "SYSTEM")])?.status, "OPEN");
+
+  await t.test("concurrent construction and retries preserve the durable owner-reply route identity", () => {
+    const later = { worker, resumeDecisionRequestId: packet.requestId, recordedAt: "2026-10-07T12:20:00.000Z" };
+    const concurrent = buildOwnerAnswerContinuationRoute(answered, later, policy());
+    assert.equal(concurrent.event_id, continuation.event_id);
+    assert.equal(concurrent.occurred_at, later.recordedAt); // An unqueued answer can still get a fresh valid window.
+    assert.deepEqual(buildOwnerAnswerContinuationRoute([...answered, queued], later, policy()), continuation);
+  });
+
+  await t.test("owner-decision POST recovers failed appends and returns the existing route after a lost response", async (context) => {
+    const names = ["MISSION_CONTROL_OWNER_TOKEN", "MISSION_CONTROL_INTERNAL_TOKEN", "MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON"] as const;
+    const saved = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+    const previousFetch = globalThis.fetch;
+    const token = "owner-test-" + "o".repeat(40);
+    process.env.MISSION_CONTROL_OWNER_TOKEN = token;
+    process.env.MISSION_CONTROL_INTERNAL_TOKEN = "internal-test-" + "i".repeat(40);
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = JSON.stringify(policy());
+    let timestamp = "2026-10-07T12:11:00.000Z";
+    context.mock.method(Date.prototype, "toISOString", () => timestamp);
+    const history = [...before];
+    let failRoute = true;
+    let routeWrites = 0;
+    globalThis.fetch = async (_url, init) => {
+      if (init?.method !== "POST") return Response.json({ events: history });
+      const envelope = JSON.parse(String(init.body));
+      if (envelope.data.type === "worker_message_recorded") {
+        routeWrites++;
+        if (failRoute) return Response.json({ error: "Unavailable" }, { status: 503 });
+      }
+      const producer = new Headers(init.headers);
+      history.push(stored(history.length + 1, envelope.event_id, envelope.data,
+        producer.get("x-mission-control-producer-id")!, producer.get("x-mission-control-producer-kind")!));
+      return Response.json({ event: history.at(-1) });
+    };
+    try {
+      const { POST } = await import("../app/api/workers/[worker]/owner-decision/route");
+      const submit = (optionId = "A") => POST(new Request("https://mc.test.invalid/api/workers/alpha/owner-decision", {
+        method: "POST", headers: { authorization: "Bearer " + token, "content-type": "application/json" },
+        body: JSON.stringify({ decision_id: "decision:alpha", option_id: optionId }),
+      }), { params: Promise.resolve({ worker }) });
+      assert.equal((await submit()).status, 503);
+      assert.equal(history.filter((event) => event.data.type === "reasoning_message_recorded" && event.data.author_role === "OWNER").length, 1);
+      assert.equal(latestOwnerAction(history)?.status, "OPEN");
+      failRoute = false;
+      const first = await submit(); // Persisted, but the client loses this response.
+      assert.equal(first.status, 200);
+      const firstBody = await first.json();
+      assert.equal(latestOwnerAction(history)?.status, "COMPLETED");
+      timestamp = "2026-10-07T12:20:00.000Z";
+      const retry = await submit();
+      assert.equal(retry.status, 200);
+      assert.equal((await retry.json()).continuation_event_id, firstBody.continuation_event_id);
+      assert.equal(routeWrites, 2); // One failed append and one durable append; retry is read-only.
+      assert.equal(history.filter((event) => event.data.type === "worker_message_recorded"
+        && event.data.body.includes('"actionBlockedOrRouted":"OWNER_RESPONSE_REVIEW"')).length, 1);
+      assert.equal((await submit("B")).status, 409);
+    } finally {
+      globalThis.fetch = previousFetch;
+      for (const name of names) {
+        if (saved[name] === undefined) delete process.env[name];
+        else process.env[name] = saved[name];
+      }
+    }
+  });
 });
