@@ -164,6 +164,9 @@ def validate(root: Path | str) -> list[str]:
                 or len(manifest_backed_ids) != len(set(manifest_backed_ids))):
             errors.append("manifest_backed_ids must be a nonempty unique list of exact source identities")
             manifest_backed_ids = []
+        # This identity must survive coordinated edits to both manifest collections.
+        if "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md" not in manifest_backed_ids:
+            errors.append("missing required owner-outcome manifest identity")
         for eid in requirement.get("source_clause_manifest", {}):
             if eid not in manifest_backed_ids:
                 errors.append("source clause manifest identity is not independently pinned: " + eid)
@@ -308,6 +311,26 @@ def validate(root: Path | str) -> list[str]:
                     if (manifest.get("clause_count") != len(clauses)
                             or manifest.get("clauses_sha256") != canonical_hash(clauses)):
                         errors.append(prefix + "obligation_map differs from independent source clause manifest")
+                    # Slice 2b's mixed carriers require their independent pin.
+                    if (eid == "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md"
+                            and "bindings_sha256" not in manifest):
+                        errors.append(prefix + "missing independent obligation carrier pin")
+                    if ("bindings_sha256" in manifest
+                            and manifest["bindings_sha256"] != canonical_hash(obligation_map)):
+                        errors.append(prefix + "obligation carriers differ from independent manifest")
+                    if (source and "source_sha256" in manifest
+                            and manifest["source_sha256"] != hashlib.sha256(source["source"].encode()).hexdigest()):
+                        errors.append(prefix + "whole source differs from independent source pin")
+                    if (eid == "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md"
+                            and "deferred_catalog" not in manifest):
+                        errors.append(prefix + "missing independent deferred candidate catalog pin")
+                    if "deferred_catalog" in manifest:
+                        deferred = manifest["deferred_catalog"]
+                        try:
+                            if hashlib.sha256(file_at(root, deferred["path"]).read_bytes()).hexdigest() != deferred["sha256"]:
+                                errors.append(prefix + "deferred candidate catalog differs from independent pin")
+                        except (KeyError, TypeError, ValueError) as exc:
+                            errors.append(prefix + "invalid deferred candidate catalog: " + str(exc))
                     if entry.get("kind") == "pattern" and source:
                         # Independent pins cover the pre-section span and every
                         # section body so new prose, even beside mapped clauses,
@@ -358,6 +381,50 @@ def validate(root: Path | str) -> list[str]:
                             errors.append(prefix + "duplicate obligation_map sentence")
                         else:
                             sentences.add(sentence)
+                        carriers = {key for key in ("record", "exception", "implementation", "legacy") if key in item}
+                        if len(carriers) != 1:
+                            errors.append(prefix + "obligation_map needs exactly one carrier")
+                            continue
+                        if "legacy" in item:
+                            legacy = item["legacy"]
+                            if (disposition != "STRUCTURED_PARTIAL" or not isinstance(legacy, dict)
+                                    or not specific_reason(legacy.get("reason"))
+                                    or legacy.get("due_phase") not in PHASES
+                                    or not isinstance(legacy.get("destination"), str)
+                                    or not legacy["destination"].strip()
+                                    or not isinstance(sentence, str)
+                                    or sentence not in entry.get("legacy_remainder", "")):
+                                errors.append(prefix + "legacy clause needs exact partial remainder and boundary")
+                            continue
+                        if "implementation" in item:
+                            # Existing server behavior stays a server obligation,
+                            # never a worker's semantic receipt. This checks exact
+                            # code/test references, not test execution or entailment.
+                            impl = item["implementation"]
+                            if (not isinstance(impl, dict) or not impl.get("obligation_id")
+                                    or impl.get("due_phase") not in PHASES
+                                    or not impl.get("destination") or not impl.get("acceptance_evidence")):
+                                errors.append(prefix + "incomplete implementation obligation")
+                                continue
+                            for key, needle_key in (("code", "symbol"), ("tests", "test")):
+                                refs = impl.get(key)
+                                if not isinstance(refs, list) or not refs:
+                                    errors.append(prefix + "implementation needs exact code and test references")
+                                    continue
+                                for ref in refs:
+                                    try:
+                                        body = file_at(root, ref.get("path")).read_text(encoding="utf-8")
+                                        needle = ref.get(needle_key)
+                                        if (not isinstance(needle, str) or not needle.strip()
+                                                or needle not in body):
+                                            raise ValueError("implementation code/test anchor missing")
+                                        if not any(e.get("path") == ref["path"] for e in entry["evidence"]):
+                                            raise ValueError("implementation path missing from entry evidence")
+                                        if needle_key == "test" and body.count('test(' + json.dumps(needle, ensure_ascii=False) + ',') != 1:
+                                            raise ValueError("implementation test name missing or ambiguous")
+                                    except (ValueError, AttributeError) as exc:
+                                        errors.append(prefix + str(exc))
+                            continue
                         if "exception" in item:
                             exception = item["exception"]
                             if "record" in item or "obligation_id" in item:

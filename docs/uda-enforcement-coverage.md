@@ -1,4 +1,4 @@
-# UDA enforcement coverage — first integration, continuity and migration slices 1–2a
+# UDA enforcement coverage — first integration, continuity and migration slices 1–2b
 
 Rules can be readable and easy to find without ever changing an answer or blocking an action. This inventory makes that gap visible. It checks declared coverage, not the semantic truth of an agent's judgment or live enforcement across every consumer. The owner outcome remains OPEN.
 
@@ -45,17 +45,17 @@ Indexed patterns: 84
 
 Migration backlog: 77
 
-Task-time records: 70, sourced from 12 files, with 2 mechanical and 78 semantic obligations. Corrected slice 2a adds 28 records and extends three continuity records; its 31 records carry 32 semantic behaviors and 281 mapped clause rows.
+Task-time records: 75, sourced from 13 files, with 2 mechanical and 83 semantic obligations. Corrected slice 2a adds 28 records and extends three continuity records; its 31 records carry 32 semantic behaviors and 281 mapped clause rows.
 
 | Disposition | Count |
 |---|---:|
 | STRUCTURED_ENFORCED | 9 |
-| STRUCTURED_PARTIAL | 8 |
+| STRUCTURED_PARTIAL | 9 |
 | WORKFLOW_ONLY | 10 |
-| LEGACY_UNSTRUCTURED | 69 |
+| LEGACY_UNSTRUCTURED | 68 |
 | NOT_ACTIVE | 2 |
 
-Six root sections, the two review/merge patterns and exclusive active-task locks are STRUCTURED_ENFORCED. Context-compaction resilience and terminal admission are STRUCTURED_PARTIAL with exact operative remainders, alongside the six earlier partial sources. The parent owner outcome remains OPEN for owner-outcome/operating-system slice 2b and later priorities.
+Six root sections, the two review/merge patterns and exclusive active-task locks are STRUCTURED_ENFORCED. Context-compaction resilience and terminal admission are STRUCTURED_PARTIAL with exact operative remainders, alongside the six earlier partial sources. Slice 2b also makes the owner-outcome invariant STRUCTURED_PARTIAL with exact server and Work-budget remainders. The parent owner outcome remains OPEN for operating-system slice 2c and later priorities.
 
 The immutable baseline pins 84 identities. Corrected backlog falls from 78 before slice 2a to 77: only the task-lock pattern is a complete promotion. Seven baseline identities are removed, with zero additions. P1 is 15, P2 is 47 and P3 is 15. The two review/merge identities never belonged to the baseline. The owner explicitly required correcting overstated dispositions; the requirement records that authority and pins partial clause maps without authorizing new baseline identities.
 
@@ -608,7 +608,7 @@ This is an owner-side instruction draft; this repository change does not edit ow
 
 The fixtures in `tests/fixtures/dominated-route/` use abstract inputs/outputs. The old final presents a two-command route, then the same transform command's direct-output option, and calls the latter preferable: its golden FAIL receipt blocks. The repaired one-command final's PASS receipt admits and stays one line (under 160 characters). Replaying a PASS receipt for the old payload or rewriting the final without a new receipt blocks. When intermediate approval before output is a real material tradeoff, both alternatives remain and the golden PASS receipt admits them. These fixtures pin source provenance to the exact source blob for commit-independent golden bindings; production compilation preserves repository-revision provenance. The isolated regression checks the dominated-route slice; the existing mechanical suites separately check timestamps and elapsed time.
 
-Both passes of the first integration are implemented. This establishes inventory, activation-state reporting, semantic binding admission and a behavioral regression; it does not establish universal live behavioral enforcement. The parent owner outcome remains OPEN; kernel slice 1 left 78 partial/legacy identities, and corrected slice 2a leaves 77. Later slices migrate the remaining P1 patterns and subsequent priorities. The baseline pin remains unchanged: no added identities and seven fully structured removals are now reported.
+Both passes of the first integration are implemented. This establishes inventory, activation-state reporting, semantic binding admission and a behavioral regression; it does not establish universal live behavioral enforcement. The parent owner outcome remains OPEN; kernel slice 1 left 78 partial/legacy identities, corrected slice 2a leaves 77, and partial slice 2b keeps 77. Later slices migrate the remaining P1 patterns and subsequent priorities. The baseline pin remains unchanged: no added identities and seven fully structured removals are now reported.
 
 ## Usage-limit continuity slice
 
@@ -644,7 +644,7 @@ The report now counts the following evidence classes. An entry may occur in seve
 | ROUTING | 82 |
 | COMPILATION | 8 |
 | ADMISSION | 27 |
-| BEHAVIORAL_REGRESSION | 24 |
+| BEHAVIORAL_REGRESSION | 25 |
 
 At its historical integration boundary, the continuity slice changed one LEGACY_UNSTRUCTURED entry to STRUCTURED_PARTIAL, with 96 entries, 82 indexed patterns and 84 backlog identities (P1 22, P2 47, P3 15), zero additions and removals. The current counts above include the later kernel and review/merge migrations. No baseline pin was changed. The source lock and representative Work handoff projection are regenerated; Mission Control runtime and owner settings are untouched. A worker that never loaded UDA remains outside its protection, and an optional status-line warning remains surface-specific.
 
@@ -981,3 +981,226 @@ Operative remainder: Unselected operative clauses retained in prose after consol
 | - Parallel agents may have separate locks in separate worktrees, but shared mutable state must still be serialized. | uda.task-lock.scope-authority / scope-authority-at-boundary |
 | - A lock prevents task drift; it does not prove the substantive implementation is correct. | uda.task-lock.scope-authority / scope-authority-at-boundary |
 | Claim readiness only when the task-specific acceptance command verifies every required artifact; claim completion only after protected merge and an immutable receipt. | uda.task-lock.terminal-states / terminal-states-at-boundary |
+
+
+## Owner-outcome migration slice 2b
+
+The unchanged owner-outcome pattern has 158 mapped clause rows across all 17 level-two sections. Section 3’s references are explanatory established-work context; its closing adaptation directive is operative and stays legacy. Incident narrative and the worked scenario's Given material, illustrative epoch/dashboard examples and relationship lists are not obligations. Failure, repair, limits and conflict-authority clauses remain mapped. Whole-source, pre-section, per-section, clause and carrier pins are independent of regenerable source locks. The map has 48 worker-record rows, 14 exact existing Mission Control implementation/test rows, 96 literal legacy rows and zero exceptions. This is STRUCTURED_PARTIAL; reference validation, compilation and bound receipts do not prove semantic truth or universal live invocation.
+
+The five active semantic records are `uda.owner-outcome.epoch-amendment`, `uda.owner-outcome.derived-contract`, `uda.owner-outcome.supervisor-order`, `uda.owner-outcome.terminal-evidence` and `uda.owner-outcome.child-parent-closure`. Epoch amendment is due before accepting materially changed authority; derived-contract comparison is due before acceptance; supervisor ordering is due before its verdict; exact-candidate terminal evidence and parent-open child closure are due in the actual closure payload. Only epoch amendment permits bound NOT_APPLICABLE for a correction that does not amend the outcome. Neither parent integrity nor required completion evidence permits N/A. No mechanical predicate is used to judge semantic equivalence.
+
+All triggers use declared existing facts: governance_required, owner_correction_present, action_classes (derived_contract_acceptance, owner_outcome_supervision or existing task_completion), and continuity_required for deferred proposals. Unknown facts fail closed. Every record refreshes all facts its trigger or scope reads plus role, actor, envelope.bootstrap and envelope.legacy_rule_ids. Existing example envelopes already declare these facts; none is changed. A bounded Work handoff does not declare contract acceptance, supervision judgment, amendment or completion. It retains both selected continuity records. If those events later occur, its omitted-rule guards require current facts, recompilation and fresh receipts at their real boundary.
+
+Existing server obligations cite exact code symbols and unique named tests in `tests/mission-control.test.ts`: immutable epoch append/supersession, five laundering findings, current authority checks, unmet-root rejection despite GREEN, parent-open child regression, article root rejection and the dashboard's current-gap field. Those tests remain server evidence. Worker receipts do not stand in for the schema, packet validator, comparator implementation, dashboard or implementation-test campaign. Missing fields, complete packet validation/status/approval, full named decisions, most dashboard fields and missing specific implementation/adversarial tests remain literal legacy. The existing article regression emits HOLD_SAME_STRATEGY_AND_SELECT_REPLACEMENT_METHOD rather than the pattern's CONTINUE_HUMANIZATION; its full expected block remains legacy even though root rejection is implemented.
+
+The validator accepts exactly one clause carrier: task-time record, existing implementation obligation with exact code/test anchors, allowed exception, or partial legacy with an exact sentence and due boundary. Every implementation file must also be listed as evidence; named tests must resolve uniquely. New whole-source/carrier/deferred-catalog pins prevent same-sentence reclassification from laundering coverage. Legacy carriers cannot promote a partial pattern to enforced. These checks validate references and pins; they do not execute or certify the referenced tests.
+
+| Source section | Found rows | Worker records | Existing MC tests | Excepted | Legacy |
+|---|---:|---:|---:|---:|---:|
+| 1. Normative correction | 5 | 1 | 0 | 0 | 4 |
+| 2. Failure model | 8 | 0 | 5 | 0 | 3 |
+| 3. Established-work basis and adaptation decision | 1 | 0 | 0 | 0 | 1 |
+| 4. Owner-outcome authority | 19 | 5 | 3 | 0 | 11 |
+| 5. Required owner-outcome schema | 3 | 0 | 0 | 0 | 3 |
+| 6. Derived task-contract requirements | 10 | 10 | 0 | 0 | 0 |
+| 7. Outcome-preservation proof | 9 | 9 | 0 | 0 | 0 |
+| 8. Checkpoint and packet requirements | 14 | 0 | 0 | 0 | 14 |
+| 9. Supervisor order of operations | 10 | 10 | 0 | 0 | 0 |
+| 10. Deterministic terminal-state comparator | 21 | 6 | 2 | 0 | 13 |
+| 11. Workflow-state semantics | 5 | 2 | 0 | 0 | 3 |
+| 12. Dashboard requirements | 12 | 0 | 1 | 0 | 11 |
+| 13. Exact regression scenario: article humanization at 13.82% | 3 | 0 | 1 | 0 | 2 |
+| 14. Existing-task migration | 10 | 0 | 0 | 0 | 10 |
+| 15. Required implementation tests | 22 | 0 | 2 | 0 | 20 |
+| 16. Limits | 5 | 5 | 0 | 0 | 0 |
+| 17. Required relationship to other Mission Control patterns | 1 | 0 | 0 | 0 | 1 |
+| Total | 158 | 48 | 14 | 0 | 96 |
+
+### Work budget and exact deferred candidates
+
+Both actual sizes are measured through the compiler and Mission Control's production adapter; caps and all example facts remain unchanged.
+
+| Boundary, UTF-8 bytes | Before slice 2b | After slice 2b | Cap |
+|---|---:|---:|---:|
+| Rendered Work contract | 32,429 | 32,561 | 32,768 |
+| Injected Work block | 37,194 | 37,194 | 40,960 |
+
+The five omitted event records add 132 rendered guard bytes and zero injected bytes; 207 rendered bytes remain. Three broader worker-duty proposals would actually be selected by unchanged Work facts if activated. Their complete definitions and source selectors are preserved as CANDIDATE in `rules/rule-graph/owner-outcome-budget-deferred.v1.json`, outside active metadata. Their mapped clauses remain legacy. The table measures explicit hypothetical CURRENT activation against the final five-record catalog, not the compiler's intentionally inactive CANDIDATE state:
+
+| Proposed record | Rendered addition | Rendered total | Injected addition | Injected total |
+|---|---:|---:|---:|---:|
+| uda.owner-outcome.source-authority | 2,345 | 34,906 | 3,479 | 40,673 |
+| uda.owner-outcome.checkpoint-packet | 1,326 | 33,887 | 1,936 | 39,130 |
+| uda.owner-outcome.migration-repair | 1,965 | 34,526 | 2,789 | 39,983 |
+| All three together, shared values accounted for | 5,034 | 37,595 | 7,190 | 44,384 |
+
+Source recovery/normalization, meaningful checkpoint carriage and next-safe-checkpoint migration duties therefore await a supervisor budget decision. Packet carriage beyond persistence also needs its own real handoff/supervision binding; server validation is separately legacy. No limit is increased and no existing record is removed, consolidated or rescoped to buy space. These proposals demonstrate binding in isolated fixtures without being claimed as activated enforcement.
+
+Counts change from 9 enforced / 8 partial / 10 workflow-only / 69 legacy / 2 inactive to 9 / 9 / 10 / 68 / 2. Backlog stays 77 (P1 15, P2 47, P3 15); baseline remains 84 with seven removals and zero additions. One formerly wholly unstructured pattern becomes partial, but no identity is removed from backlog. Parent outcome remains OPEN for slice 2c and later.
+
+The table-driven regression covers all five active and three explicitly hypothetical deferred records with domain-neutral envelopes, violating/compliant finals and separately written near-misses. Hash-free golden judgments bind at test time; tests pin every phase, destination, trigger, N/A flag and refresh fact, check UNKNOWN, changed scope, exact payload replay and fresh recompilation. Mutation cases remove records, every active selector, per-section map items and the inherited exception sentence, and alter legacy/implementation carriers, source pins and deferred definitions. These are binding and coverage regressions, not live enforcement or authenticated independent judgment.
+
+### Exact slice-2b obligation map
+
+The following table is the inventory's complete obligation_map, including literal legacy clauses. Code blocks are shown with explicit line breaks. Exact server evidence and due boundaries live in each implementation item; legacy items retain their reason and original boundary.
+
+| Section | Exact clause | Carrier |
+|---|---|---|
+| 1-normative-correction | This pattern supersedes any workflow rule that tells an existing worker to preserve a current task checkpoint, acceptance criteria, completion boundary, or supervisor framing **without first validating it against the originating owner outcome**. | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |
+| 1-normative-correction | The governing invariant is: | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |
+| 1-normative-correction | > A downstream task contract, checkpoint, review packet, supervisor verdict, or workflow state may refine or operationalize the owner’s requested outcome, but it may not omit, weaken, replace, or terminally bypass that outcome without an explicit owner decision. | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |
+| 1-normative-correction | A technically valid body of supporting work does not prove task completion. Preservation gates, editorial readiness, tests, reviewer approval, source integrity, or `READY_FOR_OWNER_REVIEW` are non-satisfying proxies unless the owner’s actual requested outcome made one of them the final result. | uda.owner-outcome.terminal-evidence / terminal-evidence-at-boundary |
+| 1-normative-correction | Mission Control must prevent the laundering step rather than merely detecting ordinary drift after accepting the laundered contract as authority. | LEGACY: pre-action → mission-control-owner-outcome |
+| 2-failure-model | This is not repaired by adding a stronger semantic supervisor alone. A more intelligent supervisor can still approve a laundered contract when the packet omits the parent outcome. | LEGACY: pre-action → mission-control-owner-outcome |
+| 2-failure-model | Required detections include: | LEGACY: pre-action → mission-control-owner-outcome |
+| 2-failure-model | - `CONTRACT_LAUNDERING` | Existing MC: laundering-detection; final-delivery → mission-control-terminal-comparator |
+| 2-failure-model | - `SCOPE_CONTRACTION` | Existing MC: laundering-detection; final-delivery → mission-control-terminal-comparator |
+| 2-failure-model | - `OBJECTIVE_SUBSTITUTION` | Existing MC: laundering-detection; final-delivery → mission-control-terminal-comparator |
+| 2-failure-model | - `PROXY_SUBSTITUTION` | Existing MC: laundering-detection; final-delivery → mission-control-terminal-comparator |
+| 2-failure-model | - `COMPLETION_ILLUSION` | Existing MC: laundering-detection; final-delivery → mission-control-terminal-comparator |
+| 2-failure-model | - `OUTCOME_AUTHORITY_UNRESOLVED` | LEGACY: pre-action → mission-control-owner-outcome |
+| 3-established-work-basis-and-adaptation-decision | Use traceability and refinement principles, then add exact task/packet/hash identity and fail-closed terminal comparison. | LEGACY: pre-action → mission-control-comparator-implementation |
+| 4-owner-outcome-authority | “Immutable” means immutable within an outcome epoch, not that the owner can never change the goal. | uda.owner-outcome.epoch-amendment / epoch-amendment-at-boundary |
+| 4-owner-outcome-authority | Each owner outcome is append-only and versioned: | Existing MC: immutable-epoch-storage; persistence → mission-control-owner-outcome-store |
+| 4-owner-outcome-authority | A change requires: | uda.owner-outcome.epoch-amendment / epoch-amendment-at-boundary |
+| 4-owner-outcome-authority | - an explicit owner instruction or decision; | uda.owner-outcome.epoch-amendment / epoch-amendment-at-boundary |
+| 4-owner-outcome-authority | - a new outcome epoch/revision; | Existing MC: immutable-epoch-storage; persistence → mission-control-owner-outcome-store |
+| 4-owner-outcome-authority | - a supersession link; | Existing MC: immutable-epoch-storage; persistence → mission-control-owner-outcome-store |
+| 4-owner-outcome-authority | - an impact review of active derived tasks and packets. | uda.owner-outcome.epoch-amendment / epoch-amendment-at-boundary |
+| 4-owner-outcome-authority | A worker, supervisor, planner, or task generator cannot silently revise the owner outcome. | uda.owner-outcome.epoch-amendment / epoch-amendment-at-boundary |
+| 4-owner-outcome-authority | The outcome record must preserve: | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |
+| 4-owner-outcome-authority | - the original owner request verbatim; | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |
+| 4-owner-outcome-authority | - later explicit owner corrections that materially affect the result; | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |
+| 4-owner-outcome-authority | - source references and timestamps where available; | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |
+| 4-owner-outcome-authority | - the normalized result; | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |
+| 4-owner-outcome-authority | - required evidence and thresholds; | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |
+| 4-owner-outcome-authority | - known non-satisfying proxies; | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |
+| 4-owner-outcome-authority | - exact hash. | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |
+| 4-owner-outcome-authority | If the original request is unavailable or materially ambiguous, the state is `OUTCOME_AUTHORITY_UNRESOLVED`. The worker may continue clearly useful reversible contributing work, but may not declare the root outcome satisfied. | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |
+| 4-owner-outcome-authority | The normalized result exists to make execution testable. It must not soften modality, remove thresholds, narrow scope, or convert a final outcome into review readiness. | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |
+| 4-owner-outcome-authority | When the verbatim and normalized forms conflict, the verbatim owner request and later explicit corrections control until the owner resolves the discrepancy. | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |
+| 5-required-owner-outcome-schema | Every nontrivial durable root task must include or reference: | LEGACY: pre-action → mission-control-owner-outcome |
+| 5-required-owner-outcome-schema | ```yaml<br>owner_outcome:<br>  schema_version: 1<br>  owner_outcome_id: OO-...<br>  epoch: 1<br><br>  source_refs:<br>    - source_type: owner_message<br>      ref: "..."<br>      recorded_at: "..."<br><br>  verbatim_owner_request:<br>    - "Exact owner wording..."<br><br>  normalized_result: ><br>    The exact final result that would satisfy the request.<br><br>  required_outcomes:<br>    - id: RO-001<br>      text: "Required final property or result"<br>      modality: must<br>      terminal_required: true<br>      target:<br>        type: threshold \| exact_state \| qualitative_judgment \| artifact<br>        value: "..."<br>      required_evidence:<br>        - evidence class<br><br>  completion_evidence:<br>    - exact candidate/hash binding<br>    - outcome-specific direct evidence<br><br>  non_satisfying_proxies:<br>    - "review ready"<br>    - "tests pass"<br>    - "supervisor approved"<br><br>  permitted_intermediate_states:<br>    - state: EARLY_OWNER_EVALUATION<br>      terminal: false<br><br>  explicit_owner_amendments: []<br>  supersedes: null<br>  owner_outcome_sha256: "..."<br>``` | LEGACY: pre-action → mission-control-owner-outcome |
+| 5-required-owner-outcome-schema | The owner may supply a less structured request. The system constructs this record without changing its meaning. | LEGACY: pre-action → mission-control-owner-outcome |
+| 6-derived-task-contract-requirements | Every downstream task contract must declare its relationship to the owner outcome: | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 6-derived-task-contract-requirements | ```yaml<br>derivation:<br>  parent_owner_outcome_id: OO-...<br>  parent_owner_outcome_epoch: 1<br>  parent_owner_outcome_sha256: "..."<br>  contribution_type: decompose \| refine \| implement \| verify \| support<br><br>  required_outcome_coverage:<br>    - required_outcome_id: RO-001<br>      relation: directly_satisfies \| contributes \| verifies \| not_addressed<br>      task_criterion_ids: [AC-...]<br>      explanation: "..."<br><br>  intentionally_not_addressed:<br>    - required_outcome_id: RO-...<br>      parent_task_remains_open: true<br>      owner_authorization_ref: null<br>``` | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 6-derived-task-contract-requirements | Hard rules: | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 6-derived-task-contract-requirements | 1. A child contract may be narrower as a **subtask**, but it must preserve a trace to the parent outcome and state that the parent remains open. | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 6-derived-task-contract-requirements | 2. A root task contract may not omit a terminal-required owner outcome. | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 6-derived-task-contract-requirements | 3. A threshold may not be weakened. | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 6-derived-task-contract-requirements | 4. `must` may not become `should`, “good enough,” “review ready,” or “owner can decide later.” | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 6-derived-task-contract-requirements | 5. A direct outcome may not be replaced by a supporting proxy. | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 6-derived-task-contract-requirements | 6. Deferral does not erase an outcome. It requires either an explicit owner decision or an open parent task that still owns the requirement. | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 6-derived-task-contract-requirements | 7. A new task contract is invalid until the derivation comparison passes. | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 7-outcome-preservation-proof | Before accepting a derived contract, construct a coverage matrix: | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 7-outcome-preservation-proof | \| Owner required outcome \| Derived criterion(s) \| Relation \| Evidence required \| Weakened? \| Parent remains open? \|<br>\|---\|---\|---\|---\|---\|---\| | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 7-outcome-preservation-proof | The contract passes only when: | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 7-outcome-preservation-proof | - every terminal-required owner outcome is represented; | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 7-outcome-preservation-proof | - each mapped criterion has equal or stronger modality and target; | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 7-outcome-preservation-proof | - the proposed evidence can prove that outcome rather than only a proxy; | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 7-outcome-preservation-proof | - any unaddressed outcome remains explicitly owned by an open parent task; | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 7-outcome-preservation-proof | - no terminal state is reachable while a required root outcome is unowned. | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 7-outcome-preservation-proof | If semantic equivalence cannot be determined deterministically, route the bounded comparison to Extra High or Pro according to the intelligence-routing policy. The comparison must include both the verbatim owner outcome and the derived contract. | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 8-checkpoint-and-packet-requirements | Every meaningful checkpoint and every supervision packet must carry: | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.checkpoint-packet |
+| 8-checkpoint-and-packet-requirements | ```text<br>owner_outcome_id / epoch / SHA-256<br>verbatim owner request<br>normalized final result<br>required owner outcomes<br>current evidence for each required outcome<br>current gap to each required outcome<br>unmet and unknown required outcomes<br>known non-satisfying proxies<br>current derived-contract mapping<br>proposed workflow/terminal state<br>terminal-comparator result<br>``` | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.checkpoint-packet |
+| 8-checkpoint-and-packet-requirements | A compact packet may reference content-addressed records, but it may not omit the effective owner outcome. | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.checkpoint-packet |
+| 8-checkpoint-and-packet-requirements | Packet validation fails closed when: | LEGACY: pre-action → mission-control-packet-admission |
+| 8-checkpoint-and-packet-requirements | - the owner-outcome record is absent; | LEGACY: pre-action → mission-control-packet-admission |
+| 8-checkpoint-and-packet-requirements | - its hash or epoch is stale; | LEGACY: pre-action → mission-control-packet-admission |
+| 8-checkpoint-and-packet-requirements | - a required outcome is omitted; | LEGACY: pre-action → mission-control-packet-admission |
+| 8-checkpoint-and-packet-requirements | - the normalized result conflicts with verbatim authority; | LEGACY: pre-action → mission-control-packet-admission |
+| 8-checkpoint-and-packet-requirements | - the packet presents only downstream acceptance criteria; | LEGACY: pre-action → mission-control-packet-admission |
+| 8-checkpoint-and-packet-requirements | - current gaps or unmet outcomes are missing; | LEGACY: pre-action → mission-control-packet-admission |
+| 8-checkpoint-and-packet-requirements | - a proxy is presented as direct completion evidence. | LEGACY: pre-action → mission-control-packet-admission |
+| 8-checkpoint-and-packet-requirements | Required packet status: | LEGACY: pre-action → mission-control-packet-admission |
+| 8-checkpoint-and-packet-requirements | ```text<br>CONTRACT_VALID<br>CONTRACT_LAUNDERING<br>OUTCOME_AUTHORITY_UNRESOLVED<br>PACKET_INCOMPLETE<br>``` | LEGACY: pre-action → mission-control-packet-admission |
+| 8-checkpoint-and-packet-requirements | A supervisor must not issue `ON_TRACK`, GREEN, or completion approval from a packet whose contract status is not `CONTRACT_VALID`. | LEGACY: pre-action → mission-control-packet-admission |
+| 9-supervisor-order-of-operations | The supervisor’s first question is not “Did the worker satisfy the task contract?” | uda.owner-outcome.supervisor-order / supervisor-order-at-boundary |
+| 9-supervisor-order-of-operations | It is: | uda.owner-outcome.supervisor-order / supervisor-order-at-boundary |
+| 9-supervisor-order-of-operations | > Does the current task contract and proposed finish line preserve the originating owner outcome without omission, weakening, or proxy substitution? | uda.owner-outcome.supervisor-order / supervisor-order-at-boundary |
+| 9-supervisor-order-of-operations | Required order: | uda.owner-outcome.supervisor-order / supervisor-order-at-boundary |
+| 9-supervisor-order-of-operations | 1. Validate owner-outcome identity and authority. | uda.owner-outcome.supervisor-order / supervisor-order-at-boundary |
+| 9-supervisor-order-of-operations | 2. Compare the derived contract to the owner outcome. | uda.owner-outcome.supervisor-order / supervisor-order-at-boundary |
+| 9-supervisor-order-of-operations | 3. Validate the proposed terminal-state semantics. | uda.owner-outcome.supervisor-order / supervisor-order-at-boundary |
+| 9-supervisor-order-of-operations | 4. Only then assess worker progress, method, verification, and alignment. | uda.owner-outcome.supervisor-order / supervisor-order-at-boundary |
+| 9-supervisor-order-of-operations | If the contract is laundered, the supervisor returns RED without approving the narrower framing, even when the worker completed every supplied acceptance criterion. | uda.owner-outcome.supervisor-order / supervisor-order-at-boundary |
+| 9-supervisor-order-of-operations | Supervisor approval is itself a judgment artifact. It is never substitute evidence for the owner outcome. | uda.owner-outcome.supervisor-order / supervisor-order-at-boundary |
+| 10-deterministic-terminal-state-comparator | ```text<br>owner-outcome record<br>current derived task contract<br>root/subtask identity<br>proposed workflow state<br>candidate artifact/commit/hash<br>fresh evidence ledger<br>owner decisions/amendments<br>``` | LEGACY: pre-action → mission-control-owner-outcome |
+| 10-deterministic-terminal-state-comparator | 1. Verify owner-outcome epoch and hash. | Existing MC: owner-epoch-hash-check; final-delivery → mission-control-terminal-comparator |
+| 10-deterministic-terminal-state-comparator | 2. Verify the derived contract has a complete backward trace. | LEGACY: pre-action → mission-control-owner-outcome |
+| 10-deterministic-terminal-state-comparator | 3. Detect omitted, weakened, deferred-without-owner, or proxy-replaced outcomes. | LEGACY: pre-action → mission-control-owner-outcome |
+| 10-deterministic-terminal-state-comparator | 4. Determine whether the proposed state is terminal for the subtask, parent task, or root owner outcome. | LEGACY: pre-action → mission-control-owner-outcome |
+| 10-deterministic-terminal-state-comparator | 5. Bind evidence to the exact candidate/commit/hash. | LEGACY: pre-action → mission-control-owner-outcome |
+| 10-deterministic-terminal-state-comparator | 6. Evaluate every terminal-required outcome as MET / UNMET / UNKNOWN. | LEGACY: pre-action → mission-control-owner-outcome |
+| 10-deterministic-terminal-state-comparator | 7. Refuse root terminalization unless every terminal-required outcome is MET. | Existing MC: root-terminal-required-met; final-delivery → mission-control-terminal-comparator |
+| 10-deterministic-terminal-state-comparator | 8. Preserve supporting completed work and generate the remaining outcome gap. | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.migration-repair |
+| 10-deterministic-terminal-state-comparator | if owner outcome missing or ambiguous:<br>  HOLD: OUTCOME_AUTHORITY_UNRESOLVED | LEGACY: pre-action → mission-control-owner-outcome |
+| 10-deterministic-terminal-state-comparator | if derived contract omits or weakens a required outcome:<br>  RED: CONTRACT_LAUNDERING + SCOPE_CONTRACTION | LEGACY: pre-action → mission-control-owner-outcome |
+| 10-deterministic-terminal-state-comparator | if a proxy is used as direct satisfaction:<br>  RED: PROXY_SUBSTITUTION + COMPLETION_ILLUSION | LEGACY: pre-action → mission-control-owner-outcome |
+| 10-deterministic-terminal-state-comparator | if proposed root terminal state has any UNMET outcome:<br>  RED: OWNER_OUTCOME_UNMET + COMPLETION_ILLUSION | LEGACY: pre-action → mission-control-owner-outcome |
+| 10-deterministic-terminal-state-comparator | if proposed root terminal state has any UNKNOWN outcome:<br>  HOLD: COMPLETION_EVIDENCE_INSUFFICIENT | LEGACY: pre-action → mission-control-owner-outcome |
+| 10-deterministic-terminal-state-comparator | if a subtask is complete but parent outcomes remain:<br>  ALLOW: SUBTASK_COMPLETE_PARENT_OPEN | uda.owner-outcome.child-parent-closure / child-parent-closure-at-boundary |
+| 10-deterministic-terminal-state-comparator | if owner requested early evaluation and state is explicitly nonterminal:<br>  ALLOW: EARLY_OWNER_EVALUATION_PARENT_OPEN | uda.owner-outcome.child-parent-closure / child-parent-closure-at-boundary |
+| 10-deterministic-terminal-state-comparator | if every required root outcome is MET with fresh exact-candidate evidence:<br>  ALLOW: OWNER_OUTCOME_SATISFIED | LEGACY: pre-action → mission-control-owner-outcome |
+| 10-deterministic-terminal-state-comparator | A workflow label does not determine whether a task is complete. | uda.owner-outcome.terminal-evidence / terminal-evidence-at-boundary |
+| 10-deterministic-terminal-state-comparator | The following are nonterminal by default for a root outcome: | uda.owner-outcome.terminal-evidence / terminal-evidence-at-boundary |
+| 10-deterministic-terminal-state-comparator | ```text<br>READY_FOR_OWNER_REVIEW<br>HUMAN_REVIEW<br>HANDOFF_READY<br>EDITORIAL_REVIEW_READY<br>SUPERVISOR_APPROVED<br>PR_READY<br>TESTS_GREEN<br>``` | uda.owner-outcome.terminal-evidence / terminal-evidence-at-boundary |
+| 10-deterministic-terminal-state-comparator | They become terminal only when the owner explicitly requested that state as the final outcome. | uda.owner-outcome.terminal-evidence / terminal-evidence-at-boundary |
+| 11-workflow-state-semantics | Mission Control must distinguish: | LEGACY: pre-action → mission-control-owner-outcome |
+| 11-workflow-state-semantics | ```text<br>IN_PROGRESS<br>SUBTASK_COMPLETE_PARENT_OPEN<br>EARLY_OWNER_EVALUATION_PARENT_OPEN<br>HANDOFF_READY_PARENT_OPEN<br>DONE_CANDIDATE<br>OWNER_OUTCOME_SATISFIED<br>CANCELED_BY_OWNER<br>``` | LEGACY: pre-action → mission-control-owner-outcome |
+| 11-workflow-state-semantics | Only `OWNER_OUTCOME_SATISFIED` or an explicit owner cancellation/scope amendment closes the root outcome. | uda.owner-outcome.terminal-evidence / terminal-evidence-at-boundary |
+| 11-workflow-state-semantics | A worker may request early owner feedback without pretending the task is finished. | uda.owner-outcome.child-parent-closure / child-parent-closure-at-boundary |
+| 11-workflow-state-semantics | The dashboard must show the current outcome gap and keep the task open. | LEGACY: publication → mission-control-dashboard |
+| 12-dashboard-requirements | For every root task, show: | LEGACY: publication → mission-control-dashboard |
+| 12-dashboard-requirements | - verbatim/normalized owner outcome summary; | LEGACY: publication → mission-control-dashboard |
+| 12-dashboard-requirements | - outcome epoch and freshness; | LEGACY: publication → mission-control-dashboard |
+| 12-dashboard-requirements | - root outcome progress; | LEGACY: publication → mission-control-dashboard |
+| 12-dashboard-requirements | - subtask progress separately; | LEGACY: publication → mission-control-dashboard |
+| 12-dashboard-requirements | - unmet required outcomes; | LEGACY: publication → mission-control-dashboard |
+| 12-dashboard-requirements | - current gap; | Existing MC: dashboard-outcome-gap; publication → mission-control-dashboard |
+| 12-dashboard-requirements | - proposed terminal state; | LEGACY: publication → mission-control-dashboard |
+| 12-dashboard-requirements | - terminal-comparator result; | LEGACY: publication → mission-control-dashboard |
+| 12-dashboard-requirements | - proxy evidence warnings; | LEGACY: publication → mission-control-dashboard |
+| 12-dashboard-requirements | - contract-laundering status. | LEGACY: publication → mission-control-dashboard |
+| 12-dashboard-requirements | Do not display 100% task progress merely because a narrowed subtask or supporting gate is complete. | LEGACY: publication → mission-control-dashboard |
+| 13-exact-regression-scenario-article-humanization-at-1382 | ```text<br>traffic_light: RED<br>contract_status: CONTRACT_LAUNDERING<br>findings:<br>  - SCOPE_CONTRACTION<br>  - OBJECTIVE_SUBSTITUTION<br>  - PROXY_SUBSTITUTION<br>  - COMPLETION_ILLUSION<br>root_outcome_status: UNMET<br>required_directive: CONTINUE_HUMANIZATION<br>owner_decision_required: false<br>``` | LEGACY: pre-action → mission-control-owner-outcome |
+| 13-exact-regression-scenario-article-humanization-at-1382 | The completed preservation and editorial work remains valid evidence and must not be discarded. It is supporting work, not the final outcome. | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.migration-repair |
+| 13-exact-regression-scenario-article-humanization-at-1382 | A supervisor that returns GREEN or accepts root termination fails the regression. | Existing MC: article-root-rejection; final-delivery → mission-control-terminal-comparator |
+| 14-existing-task-migration | At the next safe checkpoint, every active nontrivial worker must: | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.migration-repair |
+| 14-existing-task-migration | 1. recover the original owner request and material later corrections; | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.migration-repair |
+| 14-existing-task-migration | 2. create or verify the owner-outcome record; | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.migration-repair |
+| 14-existing-task-migration | 3. compare the current task contract and completion boundary against it; | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.migration-repair |
+| 14-existing-task-migration | 4. preserve valid supporting work; | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.migration-repair |
+| 14-existing-task-migration | 5. reopen or continue any required outcome that was omitted or replaced by a proxy; | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.migration-repair |
+| 14-existing-task-migration | 6. update the current gap and unmet-outcome ledger; | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.migration-repair |
+| 14-existing-task-migration | 7. invalidate stale supervisor approvals that evaluated only a laundered contract. | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.migration-repair |
+| 14-existing-task-migration | Do not restart the project or discard valid work merely because the contract was narrowed. Repair the authority chain and continue from the latest useful boundary. | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.migration-repair |
+| 14-existing-task-migration | If the original request cannot be recovered, do not silently preserve the narrowed checkpoint. Mark `OUTCOME_AUTHORITY_UNRESOLVED`, search the canonical project records, and pause only the terminal/completion decision if useful reversible work can continue safely. | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.migration-repair |
+| 15-required-implementation-tests | Mission Control must test at least: | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | 1. Complete derived contract passes. | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | 2. Omitted owner outcome returns `CONTRACT_LAUNDERING`. | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | 3. Weakened threshold returns `CONTRACT_LAUNDERING`. | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | 4. `must` changed to `should` fails. | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | 5. Supporting proxy substituted for direct outcome fails. | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | 6. Subtask completion with parent open succeeds without closing root. | Existing MC: child-open-regression; pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | 7. Early owner evaluation succeeds only as nonterminal. | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | 8. Supervisor GREEN cannot override an unmet required outcome. | Existing MC: green-unmet-regression; pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | 9. Stale owner-outcome epoch invalidates packet and review. | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | 10. Exact-candidate mismatch invalidates completion evidence. | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | 11. Unknown required outcome blocks root terminalization. | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | 12. The `13.82% Human` regression returns RED and continued humanization. | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | 13. Explicit owner amendment creates a new outcome epoch and safely re-evaluates active tasks. | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | 14. Valid supporting work survives contract repair. | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | Mutation/adversarial tests must include: | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | - deleting the Pangram outcome from the packet; | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | - renaming `READY_FOR_OWNER_REVIEW` to `DONE`; | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | - replacing the direct target with “supervisor approved”; | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | - lowering the target in a child contract; | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | - hiding unmet outcomes from the dashboard; | LEGACY: pre-action → mission-control-implementation-tests |
+| 15-required-implementation-tests | - marking parent closed when only a subtask is complete. | LEGACY: pre-action → mission-control-implementation-tests |
+| 16-limits | - Owner language can be genuinely ambiguous. The system must preserve uncertainty rather than manufacture a precise target. | uda.owner-outcome.terminal-evidence / terminal-evidence-at-boundary |
+| 16-limits | - Not every outcome is numeric. Qualitative outcomes still require explicit criteria and evidence appropriate to the claim. | uda.owner-outcome.terminal-evidence / terminal-evidence-at-boundary |
+| 16-limits | - A child task may validly finish before the owner outcome is satisfied, provided the parent remains open and the state is labeled truthfully. | uda.owner-outcome.child-parent-closure / child-parent-closure-at-boundary |
+| 16-limits | - An owner may explicitly redefine the finish line. That creates a new outcome epoch; it does not retroactively make the old contract faithful. | uda.owner-outcome.epoch-amendment / epoch-amendment-at-boundary |
+| 16-limits | - Deterministic mapping catches structural omissions and threshold weakening. Semantic equivalence may still require Extra High, Pro, or the owner. | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 17-required-relationship-to-other-mission-control-patterns | When they conflict, this owner correction governs task-contract authority and terminal-state integrity. | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |

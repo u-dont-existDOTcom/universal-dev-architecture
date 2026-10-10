@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "task_id": "synthetic-owner-outcome-boundary",
+  "bootstrap": {
+    "state": "LOADED",
+    "source": "synthetic current directive"
+  },
+  "facts": {
+    "governance_required": {
+      "state": "KNOWN",
+      "value": true,
+      "provenance": "synthetic declared boundary"
+    },
+    "role": {
+      "state": "KNOWN",
+      "value": "universal_internal",
+      "provenance": "synthetic declared boundary"
+    },
+    "actor": {
+      "state": "KNOWN",
+      "value": "work",
+      "provenance": "synthetic declared boundary"
+    },
+    "destination": {
+      "state": "KNOWN",
+      "value": "synthetic-boundary",
+      "provenance": "synthetic declared boundary"
+    },
+    "action_classes": {
+      "state": "KNOWN",
+      "value": [],
+      "provenance": "synthetic declared boundary"
+    },
+    "owner_correction_present": {
+      "state": "KNOWN",
+      "value": true,
+      "provenance": "synthetic declared boundary"
+    },
+    "continuity_required": {
+      "state": "KNOWN",
+      "value": true,
+      "provenance": "synthetic declared boundary"
+    },
+    "owner_outcome_status": {
+      "state": "KNOWN",
+      "value": "OPEN",
+      "provenance": "synthetic declared boundary"
+    },
+    "task_mode": {
+      "state": "KNOWN",
+      "value": "IMPLEMENTATION",
+      "provenance": "synthetic declared boundary"
+    },
+    "owner_requires_live_root": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "synthetic declared boundary"
+    },
+    "explicit_boundary_binding_requested": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "synthetic declared boundary"
+    },
+    "usage_warning_visible": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "synthetic declared boundary"
+    },
+    "request_kind": {
+      "state": "KNOWN",
+      "value": "plain_answer",
+      "provenance": "synthetic declared boundary"
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "At persistence this meaningful checkpoint carries owner outcome ID, epoch and exact identity; verbatim request; normalized final result; every required owner outcome; current evidence and gap for each; unmet and unknown outcomes; known non-satisfying proxies; current derived-contract mapping; proposed workflow and terminal state; and terminal-comparator result. Referenced records are content-addressed and preserve the effective owner outcome. One required result is UNMET and another UNKNOWN, so the root stays open. This persistence record does not claim that a server packet validator or approval gate was executed.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The checkpoint contains only completed child acceptance criteria and reports the whole root complete.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "I persisted the parent identity, exact source reference, evidence, derived mapping, workflow label and comparator result in a compact packet. Its unknown required result is included. I omitted the unmet outcome and its gap to keep the summary concise; the child acceptance checklist supplies the finish line instead.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "checkpoint-packet-at-boundary",
+    "non_substitute": "a compact packet hiding an unmet gap"
+  }
+}

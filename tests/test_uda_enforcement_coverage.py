@@ -378,6 +378,22 @@ class EnforcementCoverageTests(unittest.TestCase):
         self.write(coverage.REQUIREMENT, requirement)
         self.rejected("source clause manifest identity is not independently pinned")
 
+    def test_owner_outcome_manifest_identity_cannot_be_removed_from_both_collections(self):
+        target = "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md"
+        requirement = self.read(coverage.REQUIREMENT)
+        requirement["source_clause_manifest"].pop(target)
+        requirement["manifest_backed_ids"].remove(target)
+        self.write(coverage.REQUIREMENT, requirement)
+        with self.subTest(boundary="API"):
+            self.rejected("missing required owner-outcome manifest identity")
+        with self.subTest(boundary="CLI"):
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "scripts/uda_enforcement_coverage.py"),
+                 "validate", "--root", str(self.root)],
+                capture_output=True, text=True)
+            self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+            self.assertIn("missing required owner-outcome manifest identity", result.stdout)
+
     def test_missing_exception_reason_fails(self):
         self.change(lambda entries: self.workflow(entries).pop("exception_reason"))
         self.rejected("missing or generic exception_reason")
@@ -463,7 +479,9 @@ class EnforcementCoverageTests(unittest.TestCase):
 
     def test_condensed_requirement_retains_counts_and_exact_list_pointers(self):
         findings = self.read(coverage.REQUIREMENT)["related_findings"]
-        self.assertLess(len(json.dumps(findings, indent=2, ensure_ascii=False).encode()), 4096)
+        # Each slice adds a short finding; earlier historical findings remain intact.
+        for finding in findings:
+            self.assertLess(len(json.dumps(finding, indent=2, ensure_ascii=False).encode()), 4096)
         historical = next(f for f in findings if f["finding_id"] == "pass-2-inventory")
         # A later migration must not rewrite the pass-2 historical snapshot.
         counts = historical["identity_counts_by_disposition"]

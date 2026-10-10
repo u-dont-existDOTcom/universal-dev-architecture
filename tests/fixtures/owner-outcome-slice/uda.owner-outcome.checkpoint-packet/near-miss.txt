@@ -1,0 +1,1 @@
+I persisted the parent identity, exact source reference, evidence, derived mapping, workflow label and comparator result in a compact packet. Its unknown required result is included. I omitted the unmet outcome and its gap to keep the summary concise; the child acceptance checklist supplies the finish line instead.
