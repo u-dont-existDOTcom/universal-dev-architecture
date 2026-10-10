@@ -41,7 +41,7 @@ import { observeFleetSupervisorWithJev } from "../lib/jev-shadow";
 import { boundedJevShadowHook, sampleJevShadowOnStateChange } from "../lib/jev-shadow-hook";
 import { FleetSupervisorLoop, fleetSupervisorSlowTickMs, fleetSupervisorStallMs } from "../lib/fleet-supervisor-loop";
 import { jevShadowSummaryForProducer, jevShadowSummaryTool } from "../lib/jev-shadow-surface";
-import { githubReconciliationTokenProviderFromEnv } from "../lib/github-app-auth";
+import { githubDecisionCopyTokenProviderFromEnv, githubReconciliationTokenProviderFromEnv } from "../lib/github-app-auth";
 import { ProviderDecisionCopier, ProviderDecisionValidationError } from "../lib/provider-decision-copier";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
@@ -73,10 +73,16 @@ const githubReconciliationEventCache = githubPolicy && githubReconciliationStart
 const githubReconciliationTokenProvider = githubPolicy
   ? githubReconciliationTokenProviderFromEnv({ repository: githubPolicy.repository })
   : null;
-const githubDecisionCopyTokenProvider = githubPolicy?.requestBound?.enabled
-  ? githubReconciliationTokenProviderFromEnv({ repository: githubPolicy.repository, issuesPermission: "write",
+const githubDecisionCopy = githubPolicy?.requestBound?.enabled
+  ? githubDecisionCopyTokenProviderFromEnv({ repository: githubPolicy.repository,
     authorizedWriterLogins: githubPolicy.authorizedWriterLogins })
-  : null;
+  : { provider: null, disabledReason: null };
+if (githubDecisionCopy.disabledReason) {
+  // Copying stays off until the App's bot writer is configured; the copy routes answer 503 meanwhile.
+  console.warn(JSON.stringify({ event: "github_decision_copying_off", reason: "APP_BOT_WRITER_NOT_CONFIGURED",
+    detail: githubDecisionCopy.disabledReason }));
+}
+const githubDecisionCopyTokenProvider = githubDecisionCopy.provider;
 const eventHistory = () => githubReconciliationEventCache?.eventsForRead(store) ?? store.allEvents();
 const githubReconciliationCoordinator = githubPolicy && githubReconciliationEventCache
   ? new GitHubReconciliationCoordinator({
