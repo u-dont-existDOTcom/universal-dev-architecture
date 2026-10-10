@@ -325,7 +325,7 @@ export function HealthyCard({ worker }: { worker: WorkerState }) {
         <span>Strategy <strong>{worker.progress.strategyEfficacy.replaceAll("_", " ")}</strong></span>
       </div>
       <TaskControlState worker={worker} />
-      <SupervisorLink url={worker.supervisorChatUrl} label={worker.supervisorChatLabel} placeholder={worker.supervisorChatIsPlaceholder} />
+      <SupervisorLink url={worker.supervisorChatUrl} label={worker.supervisorChatLabel} placeholder={worker.supervisorChatIsPlaceholder} workerId={worker.id} />
       <Link className="healthy-evidence-link" href={`/worker/${worker.id}`}>Evidence + decision trail →</Link>
     </article>
   );
