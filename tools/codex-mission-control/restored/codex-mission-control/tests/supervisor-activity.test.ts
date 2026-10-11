@@ -13,10 +13,23 @@ import { seedIssue47Store } from "../lib/seed";
 import { snapshotForTimeline } from "../lib/snapshot-response";
 import { EventStore } from "../lib/store";
 import { projectWorker } from "../lib/projection";
-import { latestSupervisorConversation, supervisorActivity } from "../lib/supervisor-activity";
-import { validOperatorSnapshot } from "../lib/owner-view";
+import { latestSupervisorConversation, supervisorActivity, type SupervisorRequestAdmission } from "../lib/supervisor-activity";
+import { validOperatorSnapshot, validTaskSnapshot } from "../lib/owner-view";
 
 const WORKER = "auth";
+const RELAYS: ReadonlySet<string> = new Set(["collector:relay-primary"]);
+/** Admits every question in these events (as Mission Control's parser does for well-formed packets) and trusts the relay. */
+function admitAll(events: StoredEvent[], replaced: string[] = []): SupervisorRequestAdmission {
+  const admitted = events.flatMap((event) => {
+    if (event.data.type !== "worker_message_recorded") return [];
+    const body = (event.data as { body: string }).body;
+    try { return [String(JSON.parse(body.slice(body.indexOf("\n") + 1)).requestId)]; } catch { return []; }
+  });
+  return { admitted: new Set(admitted), replaced: new Set(replaced), trustedRelays: RELAYS };
+}
+function activityOf(events: StoredEvent[], replaced: string[] = []) {
+  return supervisorActivity(events, NOW, admitAll(events, replaced));
+}
 const NOW = new Date("2026-10-11T12:00:00Z");
 let sequence = 0;
 
@@ -56,7 +69,7 @@ function transport(requestId: string, at: string, refs: string[], producer = rel
   return stored({
     type: "evidence_receipt_recorded", receipt_id: `receipt:${requestId}:${at}`, producer_id: producer.id, producer_role: producer.kind,
     evidence_class: "ARTIFACT", independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: null,
-    summary: "MISSION_CONTROL_RELAY_STAGE_V1", refs: [`request:${requestId}`, ...refs], verified: true, changed_path_manifest: null, ...extra,
+    summary: "MISSION_CONTROL_RELAY_STAGE_V1", refs: [`request:${requestId}`, "supervisor:mc-project-manager", ...refs], verified: true, changed_path_manifest: null, ...extra,
   }, at, producer);
 }
 
@@ -70,7 +83,7 @@ function decision(requestId: string, at: string, extra: Record<string, unknown> 
 
 test("a supervisor question moves from queued to sent, finished and answered, with the chat where it ran", () => {
   const events = [route("fleet-review:1", "2026-10-11T10:00:00Z", { question: "Is the auth task on track?" })];
-  let activity = supervisorActivity(events, NOW);
+  let activity = activityOf(events);
   assert.equal(activity.total, 1);
   assert.equal(activity.requests[0].state, "QUEUED");
   assert.equal(activity.requests[0].origin, "ROUTINE_CHECK");
@@ -79,20 +92,20 @@ test("a supervisor question moves from queued to sent, finished and answered, wi
   assert.match(supervisorStatusLine(activity, NOW), /^Asked 2 hours ago; waiting to be sent\.$/);
 
   events.push(transport("fleet-review:1", "2026-10-11T10:05:00Z", ["generation_state:STARTED", "conversation_url:https://chatgpt.com/c/WEB:provisional"]));
-  activity = supervisorActivity(events, NOW);
+  activity = activityOf(events);
   assert.equal(activity.requests[0].state, "SENT");
   assert.equal(activity.requests[0].sentAt, "2026-10-11T10:05:00Z");
   assert.equal(latestSupervisorConversation(activity), "https://chatgpt.com/c/WEB:provisional");
 
   events.push(transport("fleet-review:1", "2026-10-11T10:20:00Z", ["lifecycle_status:COMPLETE", "conversation_url:https://chatgpt.com/c/real-123"]));
-  activity = supervisorActivity(events, NOW);
+  activity = activityOf(events);
   assert.equal(activity.requests[0].state, "FINISHED");
   assert.equal(latestSupervisorConversation(activity), "https://chatgpt.com/c/real-123", "the real address wins over the provisional one");
   events.push(transport("fleet-review:1", "2026-10-11T10:21:00Z", ["generation_state:COMPLETE", "conversation_url:https://chatgpt.com/c/WEB:provisional"]));
-  assert.equal(latestSupervisorConversation(supervisorActivity(events, NOW)), "https://chatgpt.com/c/real-123", "and stays ahead of a later provisional one");
+  assert.equal(latestSupervisorConversation(activityOf(events)), "https://chatgpt.com/c/real-123", "and stays ahead of a later provisional one");
 
   events.push(decision("fleet-review:1", "2026-10-11T10:30:00Z", { bounded_execution: { reasoning_summary: "The task is on track; run the migration tests next." } }));
-  activity = supervisorActivity(events, NOW);
+  activity = activityOf(events);
   assert.equal(activity.requests[0].state, "ANSWERED");
   assert.equal(activity.requests[0].answer, "The task is on track; run the migration tests next.");
   assert.equal(activity.answered, 1);
@@ -100,15 +113,22 @@ test("a supervisor question moves from queued to sent, finished and answered, wi
   assert.equal(supervisorStatusLine(activity, NOW), "Answered 1 hour ago: The task is on track; run the migration tests next.");
 });
 
-test("only the relay's verified evidence counts as sent, and only a ChatGPT conversation is offered as the chat", () => {
+test("only the policy's relay collectors count as sent, for this supervisor after queueing, and only a ChatGPT conversation is offered", () => {
   const events = [
     route("fleet-review:2", "2026-10-11T10:00:00Z"),
     transport("fleet-review:2", "2026-10-11T10:01:00Z", ["generation_state:STARTED", "conversation_url:https://chatgpt.com/c/claimed"], { id: `worker:${WORKER}`, kind: "WORKER" }),
     transport("fleet-review:2", "2026-10-11T10:02:00Z", ["generation_state:STARTED", "conversation_url:https://chatgpt.com/c/unverified"], relay, { verified: false }),
     transport("fleet-review:2", "2026-10-11T10:03:00Z", ["conversation_url:https://example.org/c/elsewhere"]),
     transport("fleet-review:2", "2026-10-11T10:04:00Z", ["conversation_url:https://chatgpt.com/"]),
+    transport("fleet-review:2", "2026-10-11T10:05:00Z", ["generation_state:STARTED", "conversation_url:https://chatgpt.com/c/other-collector"], { id: "collector:somebody-else", kind: "COLLECTOR" }),
+    transport("fleet-review:2", "2026-10-11T10:06:00Z", ["generation_state:STARTED", "conversation_url:https://chatgpt.com/c/other-summary"], relay, { summary: "MISSION_CONTROL_SOMETHING_ELSE_V1" }),
+    transport("fleet-review:2", "2026-10-11T09:59:00Z", ["generation_state:STARTED", "conversation_url:https://chatgpt.com/c/before-queued"]),
+    stored({ type: "evidence_receipt_recorded", receipt_id: "wrong-supervisor", producer_id: relay.id, producer_role: "COLLECTOR",
+      evidence_class: "ARTIFACT", independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: null,
+      summary: "MISSION_CONTROL_RELAY_STAGE_V1", refs: ["request:fleet-review:2", "supervisor:someone-else", "generation_state:STARTED",
+        "conversation_url:https://chatgpt.com/c/wrong-supervisor"], verified: true, changed_path_manifest: null }, "2026-10-11T10:07:00Z", relay),
   ];
-  const activity = supervisorActivity(events, NOW);
+  const activity = activityOf(events);
   assert.equal(activity.requests[0].state, "QUEUED");
   assert.equal(activity.requests[0].conversationUrl, null);
   assert.equal(latestSupervisorConversation(activity), null);
@@ -136,7 +156,8 @@ test("expired, withdrawn and replaced questions say so", () => {
     route("fleet-review:first", "2026-10-11T09:00:00Z"),
     route("fleet-review:second", "2026-10-11T09:30:00Z", { supersedes: "fleet-review:first" }),
   ];
-  const states = Object.fromEntries(supervisorActivity(events, NOW).requests.map((request) => [request.requestId, request.state]));
+  // Mission Control's admission says "second" validly replaced "first" (see the projection test for the rule itself).
+  const states = Object.fromEntries(activityOf(events, ["fleet-review:first"]).requests.map((request) => [request.requestId, request.state]));
   assert.deepEqual(states, {
     "fleet-review:second": "QUEUED",
     "fleet-review:first": "REPLACED",
@@ -144,10 +165,10 @@ test("expired, withdrawn and replaced questions say so", () => {
     "fleet-review:withdrawn": "WITHDRAWN",
     "fleet-review:silent": "NO_ANSWER",
   });
-  const all = supervisorActivity(events, NOW);
+  const all = activityOf(events, ["fleet-review:first"]);
   assert.equal(all.total, 6);
   assert.equal(all.requests.length, 5, "newest five");
-  const expired = supervisorActivity(events.slice(0, 1), NOW);
+  const expired = activityOf(events.slice(0, 1));
   assert.equal(expired.requests[0].state, "EXPIRED_UNSENT");
   assert.equal(supervisorStatusLine(expired, NOW), "Asked 2 days ago; never sent, and it expired 27 hours ago.");
 });
@@ -159,12 +180,12 @@ test("an answer that asks the owner to decide is shown as such, and other routes
     route("work-owner-continuation:def", "2026-10-11T11:00:00Z"),
     route("post-work-review:ghi", "2026-10-11T11:10:00Z"),
   ];
-  const requests = supervisorActivity(events, NOW).requests;
+  const requests = activityOf(events).requests;
   assert.deepEqual(requests.map((request) => request.origin), ["AFTER_WORK", "OWNER_ANSWER", "WORK_QUESTION"]);
   assert.equal(requests[2].answer, "Asks you to decide: Keep the old rows?");
-  assert.deepEqual(supervisorActivity([...events].reverse(), NOW), supervisorActivity(events, NOW), "a newest-first timeline gives the same answer");
-  assert.equal(supervisorActivity([], NOW).total, 0);
-  assert.equal(supervisorStatusLine(supervisorActivity([], NOW), NOW), "Not asked anything yet.");
+  assert.deepEqual(activityOf([...events].reverse()), activityOf(events), "a newest-first timeline gives the same answer");
+  assert.equal(activityOf([]).total, 0);
+  assert.equal(supervisorStatusLine(activityOf([]), NOW), "Not asked anything yet.");
   assert.equal(supervisorStatusLine(undefined, NOW), "Not asked anything yet.");
 });
 
@@ -174,7 +195,7 @@ test("the worker page lists the questions with their chats, and the button opens
     transport("fleet-review:1", "2026-10-11T10:05:00Z", ["generation_state:STARTED", "conversation_url:https://chatgpt.com/c/real-123"]),
     decision("fleet-review:1", "2026-10-11T10:30:00Z", { bounded_execution: { reasoning_summary: "On track." } }),
   ];
-  const activity = supervisorActivity(events, NOW);
+  const activity = activityOf(events);
   const html = renderToStaticMarkup(createElement(SupervisorActivityPanel, { activity, now: NOW }));
   assert.match(html, /What its supervisor is doing/);
   assert.match(html, /1 question so far, 1 answered, the last 1 hour ago/);
@@ -198,10 +219,10 @@ test("the task card says what its supervisor was last asked, and links to that c
     assert.deepEqual(recent.supervisorActivity, worker.supervisorActivity, "the dashboard's trimmed snapshot keeps it");
     const empty = renderToStaticMarkup(createElement(OwnerTaskCard, { worker }));
     assert.match(empty, /<dt>Supervisor<\/dt><dd>Not asked anything yet\.<\/dd>/);
-    const activity = supervisorActivity([
+    const activity = activityOf([
       route("fleet-review:1", "2026-10-11T10:00:00Z"),
       transport("fleet-review:1", "2026-10-11T10:05:00Z", ["generation_state:STARTED", "conversation_url:https://chatgpt.com/c/real-123"]),
-    ], NOW);
+    ]);
     const busy = renderToStaticMarkup(createElement(OwnerTaskCard, { worker: { ...worker, supervisorActivity: activity } }));
     assert.match(busy, /<dt>Supervisor<\/dt><dd>Asked [^<]*; sent [^<]*, working on it\.<\/dd>/);
     assert.match(busy, /href="https:\/\/chatgpt\.com\/c\/real-123"[^>]*>.*Open its latest supervisor chat/);
@@ -261,10 +282,10 @@ test("the supervision page reads current (V5/V6) questions and stops waiting onc
   assert.equal(packet?.requestId, "fleet-review:page");
   assert.equal(packet?.destinationSupervisorId, "mc-project-manager");
   assert.equal(parseInternalRoutePacket(body.replace("CYCLE_V6", "CYCLE_V5"))?.requestId, "fleet-review:page");
-  const pending = supervisorActivity([queued], NOW);
+  const pending = activityOf([queued]);
   assert.equal(pending.states["fleet-review:page"], "QUEUED", "the projection hands the page every question's state");
   assert.equal(pendingRoute({ state: pending.states["fleet-review:page"] }), true);
-  const answered = supervisorActivity([queued, decision("fleet-review:page", "2026-10-11T11:00:00Z")], NOW);
+  const answered = activityOf([queued, decision("fleet-review:page", "2026-10-11T11:00:00Z")]);
   assert.equal(pendingRoute({ state: answered.states["fleet-review:page"] }), false);
   assert.equal(pendingRoute({ state: "EXPIRED_UNSENT" }), false);
   const store = new EventStore(":memory:");
@@ -284,7 +305,7 @@ test("the button keeps the newest chat that was reached even when newer question
     transport("fleet-review:reached", "2026-10-11T01:05:00Z", ["generation_state:STARTED", "conversation_url:https://chatgpt.com/c/reached-chat"]),
     ...[1, 2, 3, 4, 5].map((n) => route(`fleet-review:unsent-${n}`, `2026-10-11T0${n + 1}:00:00Z`)),
   ];
-  const activity = supervisorActivity(events, NOW);
+  const activity = activityOf(events);
   assert.equal(activity.requests.length, 5);
   assert.ok(activity.requests.every((request) => request.conversationUrl === null), "the five listed questions never reached a chat");
   assert.equal(activity.latestConversationUrl, "https://chatgpt.com/c/reached-chat");
@@ -313,11 +334,11 @@ test("a malformed or foreign route packet is not shown as a question", () => {
     route("fleet-review:expiry", at, { expiresAt: "2026-10-11T09:00:00Z" }),
     route("fleet-review:task", at, { patch: { factualPacket: { decisionRequested: "x" } } }),
   ];
-  assert.equal(supervisorActivity(bad, NOW).total, 0);
+  assert.equal(activityOf(bad).total, 0);
   const good = route("fleet-review:good", at);
-  assert.equal(supervisorActivity([...bad, good], NOW).total, 1);
-  assert.equal(supervisorActivity([good], NOW, { admitted: new Set(), replaced: new Set() }).total, 0, "a request Mission Control didn't admit is not shown");
-  assert.equal(supervisorActivity([good], NOW, { admitted: new Set(["fleet-review:good"]), replaced: new Set() }).total, 1);
+  assert.equal(activityOf([...bad, good]).total, 1);
+  assert.equal(supervisorActivity([good], NOW, { admitted: new Set(), replaced: new Set(), trustedRelays: RELAYS }).total, 0, "a request Mission Control didn't admit is not shown");
+  assert.equal(supervisorActivity([good], NOW, { admitted: new Set(["fleet-review:good"]), replaced: new Set(), trustedRelays: RELAYS }).total, 1);
 });
 
 test("the projection counts only requests Mission Control's own parser accepts", () => {
@@ -343,21 +364,21 @@ test("a request the fleet check retired because it expired reads as expired, not
     summary: "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1", refs: [`request:${requestId}`, "lifecycle_status:RETIRED_UNSENT", ...refs],
     verified: true, changed_path_manifest: null,
   }, "2026-10-11T11:00:00Z", { id: "verifier:fleet-supervisor-request-retirement", kind: "VERIFIER" });
-  const states = Object.fromEntries(supervisorActivity([
+  const states = Object.fromEntries(activityOf([
     route("fleet-review:aged", "2026-10-11T10:00:00Z"),
     retirement("fleet-review:aged", ["retirement_reason:REQUEST_EXPIRED"]),
     route("fleet-review:pulled", "2026-10-11T10:10:00Z"),
     retirement("fleet-review:pulled", []),
-  ], NOW).requests.map((request) => [request.requestId, request.state]));
+  ]).requests.map((request) => [request.requestId, request.state]));
   assert.deepEqual(states, { "fleet-review:pulled": "WITHDRAWN", "fleet-review:aged": "EXPIRED_UNSENT" });
 });
 
 test("a replacement counts only when Mission Control admits it", () => {
   const first = route("fleet-review:first", "2026-10-11T09:00:00Z");
   const second = route("fleet-review:second", "2026-10-11T09:30:00Z", { supersedes: "fleet-review:first" });
-  const admittedReplacement = supervisorActivity([first, second], NOW, { admitted: new Set(["fleet-review:first", "fleet-review:second"]), replaced: new Set(["fleet-review:first"]) });
+  const admittedReplacement = supervisorActivity([first, second], NOW, { admitted: new Set(["fleet-review:first", "fleet-review:second"]), replaced: new Set(["fleet-review:first"]), trustedRelays: RELAYS });
   assert.deepEqual(admittedReplacement.states, { "fleet-review:first": "REPLACED", "fleet-review:second": "QUEUED" });
-  const rejectedReplacement = supervisorActivity([first, second], NOW, { admitted: new Set(["fleet-review:first"]), replaced: new Set() });
+  const rejectedReplacement = supervisorActivity([first, second], NOW, { admitted: new Set(["fleet-review:first"]), replaced: new Set(), trustedRelays: RELAYS });
   assert.deepEqual(rejectedReplacement.states, { "fleet-review:first": "QUEUED" }, "a rejected replacement neither replaces nor shows");
   const store = new EventStore(":memory:");
   try {
@@ -370,5 +391,22 @@ test("a replacement counts only when Mission Control admits it", () => {
     // Without the supersession record and failure proof Mission Control requires of a replacement, it keeps the first.
     const projected = projectWorker([...base, ours(first), ours(second)], NOW);
     assert.deepEqual(projected.supervisorActivity.states, { "fleet-review:first": "QUEUED" });
+  } finally { store.close(); }
+});
+
+test("a task snapshot with a malformed supervisor activity is not accepted as a refresh", () => {
+  const store = new EventStore(":memory:");
+  try {
+    seedIssue47Store(store);
+    const snapshot = snapshotFromStore(store);
+    assert.equal(validTaskSnapshot(snapshot), true);
+    const withActivity = (supervisorActivity: unknown) => ({ ...snapshot, workers: snapshot.workers.map((worker, index) => index === 0 ? { ...worker, supervisorActivity } : worker) });
+    const good = activityOf([route("fleet-review:1", "2026-10-11T10:00:00Z"), transport("fleet-review:1", "2026-10-11T10:05:00Z", ["generation_state:STARTED", "conversation_url:https://chatgpt.com/c/real-123"])]);
+    assert.equal(validTaskSnapshot(withActivity(good)), true);
+    assert.equal(validTaskSnapshot(withActivity(undefined)), true, "a snapshot from a build without it still renders");
+    for (const bad of [{}, null, { ...good, requests: "x" }, { ...good, states: { a: "LOST" } }, { ...good, requests: [{ ...good.requests[0], state: "LOST" }] },
+      { ...good, requests: [{ ...good.requests[0], conversationUrl: 5 }] }, { ...good, total: "1" }]) {
+      assert.equal(validTaskSnapshot(withActivity(bad)), false, JSON.stringify(bad).slice(0, 80));
+    }
   } finally { store.close(); }
 });

@@ -7,10 +7,14 @@ import { isSpecificChatAddress } from "./supervisor-chat-address";
  * answer that came back. Every request opens a fresh conversation, so "the supervisor chat" of a task is the
  * conversation of its latest request. Read-only: nothing here changes what Mission Control sends or accepts.
  */
-export type SupervisorRequestState =
-  | "QUEUED" | "SENT" | "FINISHED" | "ANSWERED" | "NO_ANSWER" | "EXPIRED_UNSENT" | "WITHDRAWN" | "REPLACED";
-export type SupervisorRequestOrigin =
-  | "ROUTINE_CHECK" | "WORK_QUESTION" | "OWNER_ANSWER" | "AFTER_WORK" | "SOURCE_REVIEW" | "OTHER";
+export const SUPERVISOR_REQUEST_STATES = [
+  "QUEUED", "SENT", "FINISHED", "ANSWERED", "NO_ANSWER", "EXPIRED_UNSENT", "WITHDRAWN", "REPLACED",
+] as const;
+export const SUPERVISOR_REQUEST_ORIGINS = [
+  "ROUTINE_CHECK", "WORK_QUESTION", "OWNER_ANSWER", "AFTER_WORK", "SOURCE_REVIEW", "OTHER",
+] as const;
+export type SupervisorRequestState = typeof SUPERVISOR_REQUEST_STATES[number];
+export type SupervisorRequestOrigin = typeof SUPERVISOR_REQUEST_ORIGINS[number];
 
 export interface SupervisorRequestActivity {
   requestId: string;
@@ -44,21 +48,28 @@ const ROUTE_PREFIX = /^MISSION_CONTROL_INTERNAL_SUPERVIS(?:ORY_CYCLE_V[2-6]|OR_R
 const INTERNAL_ROUTE_PREFIX = "MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n";
 const RETIRED_UNSENT_SUMMARY = "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1";
 const RETIREMENT_PRODUCER = "verifier:fleet-supervisor-request-retirement";
+// The relay's provider-session and stage receipts: the only transport evidence that says a question was sent, finished
+// or ran in a given conversation.
+const TRANSPORT_SUMMARIES = new Set(["MISSION_CONTROL_PROVIDER_SESSION_V1", "MISSION_CONTROL_RELAY_STAGE_V1"]);
 const QUESTION_LIMIT = 400;
 const ANSWER_LIMIT = 600;
 
 export const emptySupervisorActivity: SupervisorActivity = { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, states: {} };
 
-interface Draft extends SupervisorRequestActivity { sequence: number; supersedes: string | null; conversationSequence: number; conversationIsProvisional: boolean }
+interface Draft extends SupervisorRequestActivity { sequence: number; conversationSequence: number; conversationIsProvisional: boolean }
 
 /**
- * Which cycle requests (V2-V6) Mission Control admits, and which of those an admitted replacement superseded, from its
- * own request parser and replacement rules (`admittedCycleRequests`). The projection always passes it; without it
- * (tests and tools), only the structural checks below apply and a packet's own "supersedes" field marks a replacement.
+ * What Mission Control itself accepts, from its request admission and receipt policy: the cycle requests (V2-V6) it
+ * admits (`admittedCycleRequests`: its request parser and replacement rules), the admitted ones an admitted replacement
+ * superseded, and the relay collectors (the policy's request-bound relay producers) whose transport receipts count.
  */
-export interface SupervisorRequestAdmission { admitted: ReadonlySet<string>; replaced: ReadonlySet<string> }
+export interface SupervisorRequestAdmission {
+  admitted: ReadonlySet<string>;
+  replaced: ReadonlySet<string>;
+  trustedRelays: ReadonlySet<string>;
+}
 
-export function supervisorActivity(events: readonly StoredEvent[], now: Date = new Date(), admission?: SupervisorRequestAdmission): SupervisorActivity {
+export function supervisorActivity(events: readonly StoredEvent[], now: Date, admission: SupervisorRequestAdmission): SupervisorActivity {
   const all = supervisorRequests(events, now, admission);
   if (!all.length) return emptySupervisorActivity;
   const answered = all.filter((request) => request.answeredAt);
@@ -78,7 +89,7 @@ export function isPendingSupervisorRequest(request: Pick<SupervisorRequestActivi
 }
 
 /** Every supervisor question in these events with its current state, newest first. */
-export function supervisorRequests(unordered: readonly StoredEvent[], now: Date = new Date(), admission?: SupervisorRequestAdmission): SupervisorRequestActivity[] {
+export function supervisorRequests(unordered: readonly StoredEvent[], now: Date, admission: SupervisorRequestAdmission): SupervisorRequestActivity[] {
   // Callers pass ledger order or a newest-first timeline; read oldest first either way.
   const events = [...unordered].sort((a, b) => a.sequence - b.sequence);
   const drafts = new Map<string, Draft>();
@@ -88,7 +99,7 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date 
     const packet = parsePacket(data.body);
     const requestId = text(packet?.requestId);
     if (!packet || !requestId || drafts.has(requestId) || !event.worker || !routeLooksValid(data.body, packet, event.worker)) continue;
-    if (admission && !data.body.startsWith(INTERNAL_ROUTE_PREFIX) && !admission.admitted.has(requestId)) continue;
+    if (!data.body.startsWith(INTERNAL_ROUTE_PREFIX) && !admission.admitted.has(requestId)) continue;
     const factual = record(packet.factualPacket);
     drafts.set(requestId, {
       requestId,
@@ -100,7 +111,6 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date 
       state: "QUEUED",
       sentAt: null, finishedAt: null, answeredAt: null, answer: null, conversationUrl: null,
       sequence: event.sequence,
-      supersedes: text(packet?.supersedesRequestId),
       conversationSequence: -1,
       conversationIsProvisional: false,
     });
@@ -110,8 +120,7 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date 
   const withdrawn = new Set<string>();
   const retiredExpired = new Set<string>();
   const replaced = new Set<string>();
-  if (admission) for (const requestId of admission.replaced) replaced.add(requestId);
-  else for (const draft of drafts.values()) if (draft.supersedes && drafts.has(draft.supersedes)) replaced.add(draft.supersedes);
+  for (const requestId of admission.replaced) replaced.add(requestId);
   for (const event of events) {
     const data = event.data;
     if (data.type === "github_decision_receipt_ingested") {
@@ -134,8 +143,12 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date 
       }
       continue;
     }
-    // Transport evidence counts only from the relay's own collectors, never from a worker's or supervisor's claim.
-    if (event.producerKind !== "COLLECTOR" || data.producer_role !== "COLLECTOR" || data.producer_id !== event.producerId) continue;
+    // Transport evidence counts only from the relay collectors the receipt policy names, for this question's supervisor
+    // and after it was queued; never from a worker's, supervisor's or other collector's claim.
+    if (!admission.trustedRelays.has(event.producerId) || event.producerKind !== "COLLECTOR"
+      || data.producer_role !== "COLLECTOR" || data.producer_id !== event.producerId || !TRANSPORT_SUMMARIES.has(data.summary)) continue;
+    if (draft.supervisorId && refValue(data.refs, "supervisor") !== draft.supervisorId) continue;
+    if (!(Date.parse(event.occurredAt) >= Date.parse(draft.queuedAt))) continue;
     const generation = refValue(data.refs, "generation_state");
     const lifecycle = refValue(data.refs, "lifecycle_status");
     if (generation === "STARTED" && (!draft.sentAt || event.occurredAt < draft.sentAt)) draft.sentAt = event.occurredAt;

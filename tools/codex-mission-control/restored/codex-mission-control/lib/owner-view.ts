@@ -1,6 +1,7 @@
 import type { WorkerState } from "./projection";
 import type { OwnerActionObligation } from "./schema";
 import type { WorkQueueItemProjection } from "./worker-channel";
+import { SUPERVISOR_REQUEST_ORIGINS, SUPERVISOR_REQUEST_STATES } from "./supervisor-activity";
 
 export type SnapshotFailure = { kind: "session" | "network" | "server"; message: string };
 export class SnapshotError extends Error {
@@ -121,9 +122,25 @@ function fleetSupervisorValid(value: unknown) {
     && typeof at(watch, "cadenceMs") === "number"
     && ["nextTickAt", "lastTickAt"].every(key => at(watch, key) === null || date(at(watch, key))));
 }
+// The task cards and the worker page read the supervisor activity; a malformed one is not a usable refresh. A snapshot
+// from a build without it still renders (the views fall back to "not asked anything yet").
+function supervisorActivityValid(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!record(value) || typeof value.total !== "number" || typeof value.answered !== "number") return false;
+  if (!nullableString(value.lastAnsweredAt) || !nullableString(value.latestConversationUrl)) return false;
+  if (!record(value.states) || !Object.values(value.states).every((state) => (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(state))) return false;
+  return Array.isArray(value.requests) && value.requests.every((request) => record(request)
+    && strings(request, ["requestId", "queuedAt"])
+    && (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(request.state)
+    && (SUPERVISOR_REQUEST_ORIGINS as readonly unknown[]).includes(request.origin)
+    && ["supervisorId", "question", "expiresAt", "sentAt", "finishedAt", "answeredAt", "answer", "conversationUrl"].every((key) => nullableString(request[key])));
+}
+function nullableString(value: unknown): boolean { return value === null || typeof value === "string"; }
+
 function workerValid(value: unknown) {
   if (!strings(value, ["id", "name", "status", "objective.goal", "currentStep", "connection.state", "operatorState.traffic", "operatorState.label", "operatorState.reason", "workerToContractAlignment", "contractToOwnerAlignment", "overallTraffic", "channel.freshness", "correction.ownerActionType", "correction.ownerActionText", "correction.statusLabel", "correction.nextReviewTrigger", "correction.ownerAction.kind", "progress.outcomeAdvancement", "progress.strategyEfficacy", "progress.latestEvidence", "progress.previousEvidence", "progress.bestEvidence", "progress.baselineEvidence", "progress.targetEvidence", "progress.requiredIntervention", "executionSupervision.surface", "executionSupervision.proEscalationState", "executionSupervision.codexExecutionState"])) return false;
   if (!["channel.queue", "channel.blockers", "channel.proposals"].every(path => Array.isArray(at(value, path))) || !stringArray(at(value, "nextSteps")) || !date(at(value, "lastCheckpointAt"))) return false;
+  if (!supervisorActivityValid(at(value, "supervisorActivity"))) return false;
   for (const path of ["primaryProblemSummary", "blocker", "correction.directive", "channel.latestDirectionBody", "executionSupervision.activeDirectiveId"]) { const part = at(value, path); if (part !== null && typeof part !== "string") return false; }
   if (at(value, "correction.ownerAction.kind") === "DECISION_REQUIRED") {
     const action = at(value, "correction.ownerAction");

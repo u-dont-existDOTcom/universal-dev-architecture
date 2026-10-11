@@ -1,6 +1,6 @@
 import { isSpecificChatAddress } from "./supervisor-chat-address";
 import { supervisorActivity, type SupervisorActivity, type SupervisorRequestAdmission } from "./supervisor-activity";
-import { admittedCycleRequests } from "./github-decision-receipts";
+import { admittedCycleRequests, parseGitHubReceiptPolicy } from "./github-decision-receipts";
 import { correctionStatusLabel } from "./correction-lifecycle";
 import { driftConfig, DriftConfig } from "./drift-config";
 import type {
@@ -251,10 +251,16 @@ export interface WorkerState {
   timeline: StoredEvent[];
 }
 
-/** Which supervisor questions Mission Control admits (its own request parser and replacement rules, V2-V6). */
+/** Which supervisor questions and relay receipts Mission Control itself accepts (see SupervisorRequestAdmission). */
 function supervisorRequestAdmission(events: StoredEvent[]): SupervisorRequestAdmission {
   const { admitted, superseded } = admittedCycleRequests(events);
-  return { admitted: new Set(admitted.map((request) => request.requestId)), replaced: superseded };
+  let trustedRelays: string[] = [];
+  try {
+    trustedRelays = parseGitHubReceiptPolicy()?.requestBound?.relayProducerIds ?? [];
+  } catch {
+    // An invalid receipt policy trusts no relay: questions still show, but not as sent.
+  }
+  return { admitted: new Set(admitted.map((request) => request.requestId)), replaced: superseded, trustedRelays: new Set(trustedRelays) };
 }
 
 export function projectWorkers(events: StoredEvent[], now = new Date(), config: DriftConfig = driftConfig): WorkerState[] {
