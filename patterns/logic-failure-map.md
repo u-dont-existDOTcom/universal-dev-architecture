@@ -97,7 +97,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 
 | ID | Failure | Quick check | Covered by | MAST |
 |---|---|---|---|---|
-| LF-7.1 | No check, or a check that never reaches the real endpoint. | Name the direct evidence that the outcome happened. | `patterns/development-assurance-lanes.md`; `patterns/outcome-advancement-and-strategy-efficacy.md`; `patterns/mission-control-owner-discovered-supervision-escape-assurance.md` | FM-3.2 |
+| LF-7.1 | No check, or a check that never reaches the real endpoint. | Name the direct evidence that the outcome happened. | `patterns/development-assurance-lanes.md`; `patterns/outcome-advancement-and-strategy-efficacy.md`; `patterns/mission-control-owner-discovered-supervision-escape-assurance.md`; `patterns/written-rule-checker-coverage.md` | FM-3.2 |
 | LF-7.2 | A check that passes for the wrong reason: a test pinning wording, asserting the implementation instead of the behavior, or a misread result. | Would the check fail if the outcome were wrong? | Root `AGENTS.md` (Code review rules) | FM-3.3 |
 | LF-7.3 | A record that overstates what was checked: a receipt, flag, count or status claiming more than happened. | Derive each flag from what actually ran. | Root `AGENTS.md` (Code review rules: "Do not claim a control is active without mechanical evidence") | FM-3.3 |
 | LF-7.4 | A failure put in the wrong class, so it gets the wrong fix: a serialization error treated as reasoning, a mechanical error escalated as reasoning. | Classify before changing model or approach. | `patterns/structured-output-failure-boundary.md`; `patterns/work-model-and-effort-routing.md` (failure classes) | |

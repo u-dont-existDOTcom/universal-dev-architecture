@@ -9678,6 +9678,63 @@
       }
     },
     {
+      "id": "patterns/written-rule-checker-coverage.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "owner rule: when a project keeps written rules that name something a machine should check"
+      },
+      "actors": [
+        "reasoning agent",
+        "workstream maintainer",
+        "reviewer"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "project registry tying each written rule item to its check and example",
+        "project test that runs every mechanical example through its checker",
+        "logic-failure-map entry and sibling audit for an owner-found failure",
+        "trace of an owner change the agent agrees with to the check that should have produced it"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/written-rule-checker-coverage.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "docs/INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_written_rule_checker_coverage.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Static tests preserve the seven rules, both owner statements, reference-implementation boundary, evidence limits and routes. They do not establish that any project keeps a registry, that its registry test runs, or that a checker fires on its examples. No task-time record or runtime guard is claimed.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Bind the same-change rule at the edit boundary of a project's written rules and checker, so an added written item without its registry entry, check and example fails at review or pre-commit.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
       "id": "patterns/youtube-transcript-workflow.md",
       "kind": "pattern",
       "indexed": true,

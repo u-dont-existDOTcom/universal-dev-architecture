@@ -141,6 +141,8 @@ When a workstream needs anything from the owner, keep it on that workstream's on
 
 When work may continue from another of the owner's accounts, load `../patterns/cross-account-continuity.md`: Git holds the state a successor needs, and the local handoff note points to it. Owner requirement: `requirements/2026-10-10-cross-account-continuity.owner-requirement.json`.
 
+When a project keeps written rules that name something a machine should check alongside a checker meant to enforce them, a listed item gets through that the checker should have caught, or the owner shows a change you agree with, load `../patterns/written-rule-checker-coverage.md`: a rule is active only when a check implements it and a test shows the check firing, a registry ties each written item to its check and example, a failure is debugged at the mechanism with every sibling item audited, and an owner change you agree with is traced to the check that should have produced it. Owner requirement: `requirements/2026-10-11-written-rule-checker-coverage.owner-requirement.json`.
+
 Before other fixes in a project, read its lane in `../suggested-fixes/`, and file suggestions for projects you aren't working on there: `../patterns/suggested-fix-queue.md`.
 
 When a pipeline accepts work units on a language-model reviewer's findings, or a repair loop re-reviews after each fix, load `../patterns/convergent-review-acceptance-gates.md`: re-review only changed items, bound the repairs, gate on aggregates with hard floors, and estimate the gate's false-failure rate before running at scale.

@@ -670,6 +670,23 @@
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
       "implemented": "Owner-required one-command turn stamp (2026-10-11-one-command-turn-stamp): one new clock-cadence selector and obligation_map row; per-turn clause pin 27 -> 28; dispositions and backlog unchanged. Work 32561/37194 -> 32680/unmeasured bytes (rendered/injected; the injected block was not re-measured with the Mission Control adapter). No live enforcement claim."
+    },
+    {
+      "finding_id": "slice-written-rule-checker-coverage",
+      "date": "2026-10-11",
+      "identity_counts_by_disposition": {
+        "STRUCTURED_ENFORCED": 9,
+        "STRUCTURED_PARTIAL": 9,
+        "WORKFLOW_ONLY": 10,
+        "LEGACY_UNSTRUCTURED": 70,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 79,
+      "baseline_shrinkage": 7,
+      "root_owner_outcome": "OPEN",
+      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "Owner-required written-rule checker coverage pattern routed and statically tested. One exact authorized legacy addition; the 84-identity baseline and task-time records stay unchanged. Work 32561/37194 -> 32680/unmeasured bytes (rendered/injected; this change leaves the Work contract as the one-command turn stamp left it, and the injected block was not re-measured). No live enforcement claim."
     }
   ],
   "learning_state_at_merge": [
