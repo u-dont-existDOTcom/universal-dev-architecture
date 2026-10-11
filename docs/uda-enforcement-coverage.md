@@ -1216,4 +1216,4 @@ The following table is the inventory's complete obligation_map, including litera
 
 ## Written-rule checker coverage integration
 
-`patterns/written-rule-checker-coverage.md` is LEGACY_UNSTRUCTURED with an index trigger and P2 conditional migration priority. Its tests preserve the six rules, the owner quotation, the example-deployment boundary, the evidence limits and routes; they do not prove that any project keeps a registry, that a registry test runs, or that a checker fires on its examples. The exact addition is recorded separately from the unchanged baseline identities. No task-time records, source locks or generated contracts change.
+`patterns/written-rule-checker-coverage.md` is LEGACY_UNSTRUCTURED with an index trigger and P2 conditional migration priority. Its tests preserve the seven rules, both owner quotations, the example-deployment boundary, the evidence limits and routes; they do not prove that any project keeps a registry, that a registry test runs, or that a checker fires on its examples. The exact addition is recorded separately from the unchanged baseline identities. No task-time records, source locks or generated contracts change.

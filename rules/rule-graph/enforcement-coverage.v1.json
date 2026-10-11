@@ -9701,7 +9701,8 @@
       "destinations": [
         "project registry tying each written rule item to its check and example",
         "project test that runs every mechanical example through its checker",
-        "logic-failure-map entry and sibling audit for an owner-found failure"
+        "logic-failure-map entry and sibling audit for an owner-found failure",
+        "trace of an owner change the agent agrees with to the check that should have produced it"
       ],
       "enforcement_types": [
         "unobserved"
@@ -9726,7 +9727,7 @@
           "class": "TEXT_PRESENCE"
         }
       ],
-      "review_notes": "Static tests preserve the six rules, owner statement, reference-implementation boundary, evidence limits and routes. They do not establish that any project keeps a registry, that its registry test runs, or that a checker fires on its examples. No task-time record or runtime guard is claimed.",
+      "review_notes": "Static tests preserve the seven rules, both owner statements, reference-implementation boundary, evidence limits and routes. They do not establish that any project keeps a registry, that its registry test runs, or that a checker fires on its examples. No task-time record or runtime guard is claimed.",
       "migration": {
         "priority": "P2",
         "next_step": "Bind the same-change rule at the edit boundary of a project's written rules and checker, so an added written item without its registry entry, check and example fails at review or pre-commit.",

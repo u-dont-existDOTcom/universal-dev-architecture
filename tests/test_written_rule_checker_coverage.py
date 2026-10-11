@@ -17,6 +17,7 @@ RULE_HEADINGS = [
     "Add to both in the same change.",
     "When something doesn't run as intended, debug the mechanism, not the instance.",
     "A flag is resolved by the rule's own exceptions, not by where the text came from.",
+    "An owner's change you agree with is a check that didn't run.",
 ]
 OWNER_FILE_NAMES = (
     "tools/humanization/",
@@ -36,7 +37,7 @@ class WrittenRuleCheckerCoverageTests(unittest.TestCase):
         self.assertEqual(numbers, [str(n) for n in range(1, len(RULE_HEADINGS) + 1)])
         return re.findall(r"(?m)^\d+\. \*\*(.+?)\*\*", rule)
 
-    def test_six_rules_and_key_phrases(self) -> None:
+    def test_seven_rules_and_key_phrases(self) -> None:
         self.assertEqual(self.rule_headings(self.pattern), RULE_HEADINGS)
         for phrase in (
             "It is not active until a check implements it and a test shows the check firing on an example of the thing the rule names",
@@ -58,16 +59,22 @@ class WrittenRuleCheckerCoverageTests(unittest.TestCase):
             "Record the finding on the logic-failure map (`patterns/logic-failure-map.md`, rule 1).",
             "the reviewer keeps it only for a reason the rule itself gives.",
             "\"It was already there\" is not one of those reasons unless the rule says so.",
+            "When the owner shows you a change to your work (a rewrite, a cut, a move) and you agree with it, find what would have let you make it yourself",
+            "the signal you already had and why nothing acted on it, or the check that didn't exist.",
+            "Fix or add that check as in rule 5, and tell the owner in a line or two what it was.",
+            "Leave out only what you couldn't have known, such as the owner's own experience or a preference they hadn't stated.",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, self.pattern)
 
-    def test_problem_names_the_three_ways_a_rule_and_its_check_drift_apart(self) -> None:
+    def test_problem_names_the_ways_a_rule_and_its_check_drift_apart(self) -> None:
         problem = self.pattern.split("## Problem", 1)[1].split("\n## ", 1)[0]
         for phrase in (
             "**A rule with no check.**",
             "**A check that can't fire.**",
             "**A flag that gets waved through.**",
+            "**a check nobody wrote.**",
+            "Unless each such change is traced to its cause, the owner keeps making the same kind of change by hand.",
             "Nothing ties them together, so they drift apart without anyone noticing",
         ):
             with self.subTest(phrase=phrase):
@@ -79,6 +86,7 @@ class WrittenRuleCheckerCoverageTests(unittest.TestCase):
             "This adds no gate on work that has no written mechanical rules.",
             "Rules about meaning stay with a reader or a model judge.",
             "The registry test proves that each check fires on its example. It does not prove the check catches every phrasing a reader would call the same thing.",
+            "Rule 7 covers changes you agree with. When you disagree with an owner's change, say why; that is a discussion, not a missed check.",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, bounds)
@@ -87,6 +95,7 @@ class WrittenRuleCheckerCoverageTests(unittest.TestCase):
         status = self.pattern.split("## Status", 1)[1].split("\n## ", 1)[0]
         self.assertIn("Origin: **OWNER**, 2026-10-11.", status)
         self.assertIn("any time something is not executing as intended it should be debugged", status)
+        self.assertIn("when i show you changes (and you agree) you need to fix yourself so you could have figured it out yourself", status)
         self.assertIn(
             "`docs/requirements/2026-10-11-written-rule-checker-coverage.owner-requirement.json`",
             status,
@@ -114,6 +123,15 @@ class WrittenRuleCheckerCoverageTests(unittest.TestCase):
             "can we debug that? any time something is not executing as intended it should be debugged. "
             "make sure to send that to UDA worker it should be in UDA.",
         )
+        second = data["second_owner_request"]
+        self.assertEqual(second["date"], "2026-10-11")
+        self.assertEqual(
+            second["owner_statement"],
+            "do you see now how you could have figured all that out? it's a rule i hope that when i show you changes "
+            "(and you agree) you need to fix yourself so you could have figured it out yourself (minus info you couldn't "
+            "have, like my own experience)",
+        )
+        self.assertTrue(second["required_behavior"])
         self.assertEqual(data["origin"]["classification"], "OWNER_REQUIRED")
         self.assertTrue(data["authority"].startswith("OWNER_REQUIRED"))
         self.assertTrue(data["execution_surfaces"])
