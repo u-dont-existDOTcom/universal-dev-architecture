@@ -6,7 +6,7 @@ import { OwnerTaskCard, supervisionHistory } from "../components/Dashboard";
 import { parseInternalRoutePacket, pendingRoute, supervisionReadModel, workflowState } from "../components/SupervisionConsole";
 import { SupervisionHealthLine, SupervisorActivityPanel, supervisorStatusLine } from "../components/SupervisorActivity";
 import { LATEST_CHAT_LABEL, supervisorChatView } from "../components/SupervisorLink";
-import { snapshotFromStore } from "../lib/dashboard-data";
+import { snapshotFromEvents, snapshotFromStore, workerSnapshotFromEvents } from "../lib/dashboard-data";
 import { retiredUnsentRequests } from "../lib/github-decision-receipts";
 import { inBandRequestRole, inBandRequestStep } from "../lib/in-band-request-binding";
 import type { OperatorStatusProjection } from "../lib/operator-status-contract";
@@ -15,10 +15,10 @@ import type { StoredEvent } from "../lib/schema";
 import { seedIssue47Store } from "../lib/seed";
 import { snapshotForTimeline } from "../lib/snapshot-response";
 import { EventStore } from "../lib/store";
-import { projectWorker } from "../lib/projection";
+import { projectWorker, projectWorkers } from "../lib/projection";
 import {
-  lastSupervisorQuestionSentAt, latestSupervisorConversation, SUPERVISOR_TRANSPORT_BINDINGS, supervisorActivity,
-  type SupervisorRequestAdmission,
+  conflictedRelaySessions, isSupervisorActivity, lastSupervisorQuestionSentAt, latestSupervisorConversation,
+  SUPERVISOR_TRANSPORT_BINDINGS, supervisorActivity, type SupervisorRequestAdmission,
 } from "../lib/supervisor-activity";
 import { validOperatorSnapshot, validTaskSnapshot } from "../lib/owner-view";
 
@@ -32,10 +32,11 @@ function admitAll(events: StoredEvent[], replaced: string[] = [], retired: Retir
     const body = (event.data as { body: string }).body;
     try { return [String(JSON.parse(body.slice(body.indexOf("\n") + 1)).requestId)]; } catch { return []; }
   });
-  return { admitted: new Set(admitted), replaced: new Set(replaced), retired: new Map(Object.entries(retired)), trustedRelays: RELAYS };
+  return { admitted: new Set(admitted), replaced: new Set(replaced), retired: new Map(Object.entries(retired)), trustedRelays: RELAYS,
+    conflictedSessions: conflictedRelaySessions(events, RELAYS) };
 }
 function admission(admitted: string[], replaced: string[] = []): SupervisorRequestAdmission {
-  return { admitted: new Set(admitted), replaced: new Set(replaced), retired: new Map(), trustedRelays: RELAYS };
+  return { admitted: new Set(admitted), replaced: new Set(replaced), retired: new Map(), trustedRelays: RELAYS, conflictedSessions: new Set() };
 }
 function activityOf(events: StoredEvent[], replaced: string[] = [], retired: Retired = {}) {
   return supervisorActivity(events, NOW, admitAll(events, replaced, retired));
@@ -116,14 +117,19 @@ function decision(requestId: string, at: string, extra: Record<string, unknown> 
   }, at, { id: "system:github-decision-receipts", kind: "SYSTEM" });
 }
 
+/** These events as if recorded for another task, numbered from `offset` on. */
+function movedTo(id: string, events: StoredEvent[], offset: number): StoredEvent[] {
+  return events.map((event, index): StoredEvent => ({ ...event, worker: id, sequence: offset + index + 1,
+    data: { ...event.data, worker: id, ...(event.data.type === "worker_message_recorded" ? { body: (event.data as { body: string }).body.replaceAll(`"worker":"${WORKER}"`, `"worker":"${id}"`) } : {}) } as StoredEvent["data"] }));
+}
 /** These events moved into the seeded live-slice task, after its own, so the real projection reads them. */
 function inSeededTask(store: EventStore, events: StoredEvent[]): StoredEvent[] {
   const id = "mission-control-live-slice";
   const base = store.workerEvents(id);
-  const offset = base.at(-1)!.sequence;
-  return [...base, ...events.map((event): StoredEvent => ({ ...event, worker: id, sequence: offset + event.sequence,
-    data: { ...event.data, worker: id, ...(event.data.type === "worker_message_recorded" ? { body: (event.data as { body: string }).body.replaceAll(`"worker":"${WORKER}"`, `"worker":"${id}"`) } : {}) } as StoredEvent["data"] }))];
+  return [...base, ...movedTo(id, events, base.at(-1)!.sequence)];
 }
+const receiptPolicy = (enabled: boolean) => JSON.stringify({ repository: "owner/receipts", decisionIssueNumber: 1, capabilityIssueNumber: 2, stageIssueNumber: 3,
+  authorizedWriterLogins: ["owner"], capabilityChallenges: [], requestBound: { enabled, relayProducerIds: ["collector:relay-primary"] } });
 
 test("a supervisor question moves from queued to sent, finished and answered, with the chat where it ran", () => {
   const events = [route("fleet-review:1", "2026-10-11T10:00:00Z", { question: "Is the auth task on track?" })];
@@ -463,6 +469,45 @@ test("the last supervisor question time comes from the questions themselves, acr
   assert.equal(lastSupervisorQuestionSentAt([]), null);
 });
 
+test("a provider session the relay reused for another task counts for neither task", () => {
+  const store = new EventStore(":memory:");
+  const saved = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+  try {
+    seedIssue47Store(store);
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = receiptPolicy(true);
+    const ledger = store.allEvents();
+    const [first, second] = projectWorkers(ledger, NOW).map((worker) => worker.id);
+    const url = "https://chatgpt.com/c/shared-chat";
+    const one = movedTo(first, [route("fleet-review:one", "2026-10-11T10:00:00Z"), ...sent("fleet-review:one", "2026-10-11T10:05:00Z", url, { session: "ps-shared" })], ledger.at(-1)!.sequence);
+    const two = movedTo(second, [route("fleet-review:two", "2026-10-11T10:00:00Z"), ...sent("fleet-review:two", "2026-10-11T10:06:00Z", url, { session: "ps-shared" })], one.at(-1)!.sequence);
+    const own = movedTo(second, [route("fleet-review:own", "2026-10-11T10:10:00Z"), ...sent("fleet-review:own", "2026-10-11T10:11:00Z", "https://chatgpt.com/c/own-chat")], two.at(-1)!.sequence);
+    const events = [...ledger, ...one, ...two, ...own];
+    const requests = new Map(snapshotFromEvents(events).workers.flatMap((worker) => worker.supervisorActivity.requests).map((request) => [request.requestId, request]));
+    assert.deepEqual([requests.get("fleet-review:one")?.state, requests.get("fleet-review:one")?.conversationUrl], ["QUEUED", null]);
+    assert.deepEqual([requests.get("fleet-review:two")?.state, requests.get("fleet-review:two")?.conversationUrl], ["QUEUED", null]);
+    assert.deepEqual([requests.get("fleet-review:own")?.state, requests.get("fleet-review:own")?.conversationUrl], ["SENT", "https://chatgpt.com/c/own-chat"]);
+    const page = workerSnapshotFromEvents(events, first)!.worker.supervisorActivity.requests[0];
+    assert.equal(page.state, "QUEUED", "the task's own page reads the whole ledger too");
+  } finally {
+    if (saved === undefined) delete process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON; else process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = saved;
+    store.close();
+  }
+});
+
+test("an activity whose chat address isn't one ChatGPT conversation is not accepted", () => {
+  const good = activityOf([route("fleet-review:1", "2026-10-11T10:00:00Z"), ...sent("fleet-review:1", "2026-10-11T10:05:00Z", "https://chatgpt.com/c/real-123")]);
+  assert.equal(isSupervisorActivity(good), true);
+  for (const address of ["https://chatgpt.com/", "https://chatgpt.com/settings", "/settings", "javascript:alert(1)", "https://example.org/c/x"]) {
+    const latest = { ...good, latestConversationUrl: address };
+    const listed = { ...good, requests: [{ ...good.requests[0], conversationUrl: address }] };
+    for (const bad of [latest, listed]) {
+      assert.equal(isSupervisorActivity(bad), false, address);
+      assert.equal(latestSupervisorConversation(bad), null);
+      assert.equal(supervisorStatusLine(bad, NOW), "Not available right now.");
+    }
+  }
+});
+
 test("relay receipts count only while the receipt policy enables the request-bound protocol", () => {
   const store = new EventStore(":memory:");
   const saved = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
@@ -470,8 +515,7 @@ test("relay receipts count only while the receipt policy enables the request-bou
     seedIssue47Store(store);
     const events = inSeededTask(store, [route("fleet-review:policy", "2026-10-11T10:00:00Z"),
       ...sent("fleet-review:policy", "2026-10-11T10:05:00Z", "https://chatgpt.com/c/policy-chat")]);
-    const policy = (enabled: boolean) => JSON.stringify({ repository: "owner/receipts", decisionIssueNumber: 1, capabilityIssueNumber: 2, stageIssueNumber: 3,
-      authorizedWriterLogins: ["owner"], capabilityChallenges: [], requestBound: { enabled, relayProducerIds: ["collector:relay-primary"] } });
+    const policy = receiptPolicy;
     process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = policy(true);
     let [request] = projectWorker(events, NOW).supervisorActivity.requests;
     assert.equal(request.state, "SENT");

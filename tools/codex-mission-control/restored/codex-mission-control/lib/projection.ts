@@ -1,5 +1,5 @@
 import { isSpecificChatAddress } from "./supervisor-chat-address";
-import { supervisorActivity, type SupervisorActivity, type SupervisorRequestAdmission } from "./supervisor-activity";
+import { conflictedRelaySessions, supervisorActivity, type SupervisorActivity, type SupervisorRequestAdmission } from "./supervisor-activity";
 import { admittedCycleRequests, parseGitHubReceiptPolicy, retiredUnsentRequests } from "./github-decision-receipts";
 import { correctionStatusLabel } from "./correction-lifecycle";
 import { driftConfig, DriftConfig } from "./drift-config";
@@ -251,9 +251,11 @@ export interface WorkerState {
   timeline: StoredEvent[];
 }
 
-/** Which supervisor questions and relay receipts Mission Control itself accepts (see SupervisorRequestAdmission). */
-function supervisorRequestAdmission(events: StoredEvent[]): SupervisorRequestAdmission {
-  const { admitted, superseded } = admittedCycleRequests(events);
+/** The relay evidence every task's supervisor view shares: the trusted relay collectors, and the sessions they reused. */
+export interface SupervisorRelayContext { trustedRelays: ReadonlySet<string>; conflictedSessions: ReadonlySet<string> }
+
+/** Give it the whole ledger: a provider session reused for another task must count for neither. */
+function supervisorRelayContext(events: StoredEvent[]): SupervisorRelayContext {
   let trustedRelays: string[] = [];
   try {
     const requestBound = parseGitHubReceiptPolicy()?.requestBound;
@@ -262,11 +264,22 @@ function supervisorRequestAdmission(events: StoredEvent[]): SupervisorRequestAdm
   } catch {
     // An invalid receipt policy trusts no relay: questions still show, but not as sent.
   }
+  const relays = new Set(trustedRelays);
+  return { trustedRelays: relays, conflictedSessions: conflictedRelaySessions(events, relays) };
+}
+
+/**
+ * Which supervisor questions and relay receipts Mission Control itself accepts (see SupervisorRequestAdmission), for
+ * one task's events; the relay context comes from the whole ledger when the caller has it.
+ */
+function supervisorRequestAdmission(events: StoredEvent[], relay: SupervisorRelayContext = supervisorRelayContext(events)): SupervisorRequestAdmission {
+  const { admitted, superseded } = admittedCycleRequests(events);
   // Retired only with the full no-send proof Mission Control's own pending set requires; the fleet check retires an
   // expired request on its own (reason REQUEST_EXPIRED), and any other retirement is a deliberate withdrawal.
   const retired = new Map([...retiredUnsentRequests(events)].map(([requestId, reason]) =>
     [requestId, reason === "REQUEST_EXPIRED" ? "EXPIRED_UNSENT" as const : "WITHDRAWN" as const]));
-  return { admitted: new Set(admitted.map((request) => request.requestId)), replaced: superseded, retired, trustedRelays: new Set(trustedRelays) };
+  return { admitted: new Set(admitted.map((request) => request.requestId)), replaced: superseded, retired,
+    trustedRelays: relay.trustedRelays, conflictedSessions: relay.conflictedSessions };
 }
 
 export function projectWorkers(events: StoredEvent[], now = new Date(), config: DriftConfig = driftConfig): WorkerState[] {
@@ -277,23 +290,26 @@ export function projectWorkers(events: StoredEvent[], now = new Date(), config: 
   const workerIds = [...new Set(events.map((event) => event.worker)
     .filter((worker): worker is string => typeof worker === "string" && projectableWorkers.has(worker)))];
   const telemetryCompletedCount = completedWorkRoutingTelemetryCount(events);
+  const relay = supervisorRelayContext(events);
   return workerIds
-    .map((worker) => projectWorker(events.filter((event) => event.worker === worker), now, config))
+    .map((worker) => projectWorker(events.filter((event) => event.worker === worker), now, config, relay))
     .map((worker) => ({ ...worker, workExecution: { ...worker.workExecution, telemetryCompletedCount } }))
     .sort((left, right) => attentionPriority(left) - attentionPriority(right)
       || severityScore(right.activeFindings[0]?.severity) - severityScore(left.activeFindings[0]?.severity)
       || new Date(left.lastCheckpointAt).getTime() - new Date(right.lastCheckpointAt).getTime());
 }
 
-export function projectWorker(events: StoredEvent[], now = new Date(), config: DriftConfig = driftConfig): WorkerState {
+/** One task's projection; `relay` carries the relay evidence from the whole ledger (projectWorkers passes it). */
+export function projectWorker(events: StoredEvent[], now = new Date(), config: DriftConfig = driftConfig, relay?: SupervisorRelayContext): WorkerState {
   const contract = latest(events, "task_contract_recorded");
-  return contract ? projectV2Worker(events, contract, now) : projectLegacyWorker(events, now, config);
+  return contract ? projectV2Worker(events, contract, now, relay) : projectLegacyWorker(events, now, config, relay);
 }
 
 function projectV2Worker(
   events: StoredEvent[],
   contract: Extract<MissionControlEventV2, { type: "task_contract_recorded" }>,
   now: Date,
+  relay?: SupervisorRelayContext,
 ): WorkerState {
   const checkpoint = latest(events, "worker_checkpoint_recorded");
   const assessment = latest(events, "supervisor_assessment_recorded");
@@ -394,7 +410,7 @@ function projectV2Worker(
     supervisorChatUrl: supervisorUrl,
     supervisorChatLabel: supervisorLabel,
     supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
-    supervisorActivity: supervisorActivity(events, now, supervisorRequestAdmission(events)),
+    supervisorActivity: supervisorActivity(events, now, supervisorRequestAdmission(events, relay)),
     status,
     health: comparison.overallTraffic,
     workerToContractAlignment: comparison.workerToContractAlignment,
@@ -707,7 +723,7 @@ function projectCorrection(
   };
 }
 
-function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConfig): WorkerState {
+function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConfig, relay?: SupervisorRelayContext): WorkerState {
   const objectiveEvent = events.find((event) => event.data.type === "objective_created");
   if (!objectiveEvent || objectiveEvent.data.type !== "objective_created") throw new Error("Worker has no objective contract");
   const objective = objectiveEvent.data;
@@ -794,7 +810,7 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
     supervisorChatUrl: supervisorUrl,
     supervisorChatLabel: legacySupervisorChat.label,
     supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
-    supervisorActivity: supervisorActivity(events, now, supervisorRequestAdmission(events)),
+    supervisorActivity: supervisorActivity(events, now, supervisorRequestAdmission(events, relay)),
     status: heartbeat?.status ?? "working",
     health: overall,
     workerToContractAlignment: workerAlignment,

@@ -81,8 +81,9 @@ interface Draft extends SupervisorRequestActivity { sequence: number; version: n
 /**
  * What Mission Control itself accepts, from its request admission and receipt policy: the cycle requests (V2-V6) it
  * admits (`admittedCycleRequests`: its request parser and replacement rules), the admitted ones an admitted replacement
- * superseded, the ones retired with its no-send proof (`retiredUnsentRequests`), and the relay collectors (the policy's
- * request-bound relay producers) whose transport receipts count.
+ * superseded, the ones retired with its no-send proof (`retiredUnsentRequests`), the relay collectors (the policy's
+ * request-bound relay producers) whose transport receipts count, and the provider sessions those receipts name for more
+ * than one owner anywhere in the ledger.
  */
 export interface SupervisorRequestAdmission {
   admitted: ReadonlySet<string>;
@@ -90,6 +91,11 @@ export interface SupervisorRequestAdmission {
   /** Retired before anything was sent: by the fleet check because it expired, or withdrawn. */
   retired: ReadonlyMap<string, "EXPIRED_UNSENT" | "WITHDRAWN">;
   trustedRelays: ReadonlySet<string>;
+  /**
+   * From the whole ledger (`conflictedRelaySessions`), not one task's events: a session reused for another task,
+   * request or supervisor shows in neither.
+   */
+  conflictedSessions: ReadonlySet<string>;
 }
 
 export function supervisorActivity(events: readonly StoredEvent[], now: Date, admission: SupervisorRequestAdmission): SupervisorActivity {
@@ -155,7 +161,7 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
   const all = [...drafts.values()].map((draft): SupervisorRequestActivity => {
     // Sending is tracked only where Mission Control binds the relay's receipts to the request (V5/V6) and trusts a relay.
     const tracked = Boolean(SUPERVISOR_TRANSPORT_BINDINGS[draft.version]) && admission.trustedRelays.size > 0;
-    if (tracked) applyBoundTransport(draft, transport);
+    if (tracked) applyBoundTransport(draft, transport, admission.conflictedSessions);
     const expired = draft.expiresAt !== null && Date.parse(draft.expiresAt) <= nowMs;
     const state: SupervisorRequestState = draft.answeredAt ? "ANSWERED"
       : admission.replaced.has(draft.requestId) ? "REPLACED"
@@ -179,6 +185,14 @@ interface RelayTransport {
   byRequest: Map<string, RelayReceipt[]>;
   /** Per provider session: the one worker, request and supervisor its receipts name, the roles its session receipts name. */
   sessions: Map<string, { owner: string; conflict: boolean; roles: Set<string | null> }>;
+}
+
+/**
+ * The provider sessions the trusted relay's receipts name for more than one worker, request or supervisor, or with more
+ * than one session role. Mission Control's validators never accept a reused session, so give this the whole ledger.
+ */
+export function conflictedRelaySessions(events: readonly StoredEvent[], relays: ReadonlySet<string>): Set<string> {
+  return new Set([...relayTransport(events, relays).sessions].flatMap(([session, use]) => use.conflict || use.roles.size > 1 ? [session] : []));
 }
 
 /**
@@ -220,13 +234,13 @@ function relayTransport(events: readonly StoredEvent[], relays: ReadonlySet<stri
  * ChatGPT conversation; stage receipts at the version's step for that session's first message, in that conversation:
  * sent when it STARTED, finished when it then reached COMPLETE.
  */
-function applyBoundTransport(draft: Draft, transport: RelayTransport): void {
+function applyBoundTransport(draft: Draft, transport: RelayTransport, conflicted: ReadonlySet<string>): void {
   const binding = SUPERVISOR_TRANSPORT_BINDINGS[draft.version]!;
   const owner = JSON.stringify([draft.worker, draft.requestId, draft.supervisorId]);
   const receipts = (transport.byRequest.get(draft.requestId) ?? []).filter((receipt) => {
     const use = receipt.session ? transport.sessions.get(receipt.session) : undefined;
-    return use !== undefined && !use.conflict && use.owner === owner && [...use.roles].every((role) => role === binding.sessionRole)
-      && instant(receipt.event.occurredAt) >= instant(draft.queuedAt);
+    return use !== undefined && !use.conflict && !conflicted.has(receipt.session!) && use.owner === owner
+      && [...use.roles].every((role) => role === binding.sessionRole) && instant(receipt.event.occurredAt) >= instant(draft.queuedAt);
   });
   const sessions = new Map<string, BoundSession>();
   for (const receipt of receipts) {
@@ -277,14 +291,14 @@ function sessionConversation(conversations: ReadonlySet<string>): string | null 
 }
 
 /**
- * Whether a value has the full shape of a task's supervisor activity. Anything else (missing, malformed, another
- * build's) is unknown, never an empty history: the dashboard refuses such a refresh, and every view says it isn't
- * available.
+ * Whether a value has the full shape of a task's supervisor activity, with every chat address naming one ChatGPT
+ * conversation. Anything else (missing, malformed, another build's) is unknown, never an empty history: the dashboard
+ * and the supervision page refuse such a refresh, and every view says it isn't available.
  */
 export function isSupervisorActivity(value: unknown): value is SupervisorActivity {
   const activity = record(value);
   if (!activity || typeof activity.total !== "number" || typeof activity.answered !== "number") return false;
-  if (!nullableString(activity.lastAnsweredAt) || !nullableString(activity.latestConversationUrl) || !nullableString(activity.lastSentAt)) return false;
+  if (!nullableString(activity.lastAnsweredAt) || !chatAddressOrNull(activity.latestConversationUrl) || !nullableString(activity.lastSentAt)) return false;
   const states = record(activity.states);
   if (!states || !Object.values(states).every((state) => (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(state))) return false;
   return Array.isArray(activity.requests) && activity.requests.every((item: unknown) => {
@@ -292,7 +306,8 @@ export function isSupervisorActivity(value: unknown): value is SupervisorActivit
     return request !== null && typeof request.requestId === "string" && typeof request.queuedAt === "string"
       && (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(request.state)
       && (SUPERVISOR_REQUEST_ORIGINS as readonly unknown[]).includes(request.origin)
-      && ["supervisorId", "question", "expiresAt", "sentAt", "finishedAt", "answeredAt", "answer", "conversationUrl"].every((key) => nullableString(request[key]));
+      && ["supervisorId", "question", "expiresAt", "sentAt", "finishedAt", "answeredAt", "answer"].every((key) => nullableString(request[key]))
+      && chatAddressOrNull(request.conversationUrl);
   });
 }
 
@@ -379,6 +394,10 @@ function parsePacket(body: string): Record<string, unknown> | null {
 }
 function nullableString(value: unknown): boolean {
   return value === null || typeof value === "string";
+}
+/** A chat address in the activity is one specific ChatGPT conversation, or none: never a home, settings or other page. */
+function chatAddressOrNull(value: unknown): boolean {
+  return value === null || (typeof value === "string" && isSpecificChatAddress(value));
 }
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null;
