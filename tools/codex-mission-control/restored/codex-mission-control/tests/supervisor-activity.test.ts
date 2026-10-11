@@ -368,7 +368,9 @@ test("a question sent in more than one session, or a V6 question started twice, 
   assert.deepEqual([once.requests[0].state, once.requests[0].sentAt], ["SENT", "2026-10-11T10:02:00Z"], "a V5 question takes its first start");
   const late = activityOf([route(id, "2026-10-10T09:00:00Z", { expiresAt: "2026-10-11T09:00:00Z" }), ...sent(id, "2026-10-10T09:01:00Z", first),
     ...sent(id, "2026-10-10T09:02:00Z", second, { session: "ps-second" })]);
-  assert.equal(late.requests[0].state, "NO_ANSWER");
+  assert.equal(late.requests[0].state, "NO_ANSWER_DUPLICATE_SEND", "expiry doesn't hide the duplicate send");
+  assert.equal(supervisorStatusLine(late, NOW), "Asked 27 hours ago; sent more than once, and no answer came back before it expired.");
+  assert.equal(pendingRoute({ state: "NO_ANSWER_DUPLICATE_SEND" }), false);
   assert.equal(pendingRoute({ state: "DUPLICATE_SEND" }), true, "still pending for Mission Control until it expires or is replaced");
   // An answer doesn't hide a duplicate send: both show.
   const answered = activityOf([queued, ...sent(id, "2026-10-11T10:01:00Z", first), decision(id, "2026-10-11T10:30:00Z", { bounded_execution: { reasoning_summary: "On track." } }),
@@ -384,16 +386,27 @@ test("an activity state without the times it is about is not accepted", () => {
   const request = good.requests[0];
   const times = { sentAt: "2026-10-11T10:05:00Z", finishedAt: "2026-10-11T10:06:00Z", answeredAt: "2026-10-11T10:07:00Z", expiresAt: "2026-10-12T12:00:00Z" };
   const required: Array<[string, keyof typeof times]> = [["SENT", "sentAt"], ["FINISHED", "sentAt"], ["FINISHED", "finishedAt"], ["DUPLICATE_SEND", "sentAt"],
-    ["ANSWERED", "answeredAt"], ["NO_ANSWER", "sentAt"], ["NO_ANSWER", "expiresAt"], ["EXPIRED", "expiresAt"], ["EXPIRED_UNSENT", "expiresAt"]];
+    ["ANSWERED", "answeredAt"], ["ANSWERED_DUPLICATE_SEND", "answeredAt"], ["ANSWERED_DUPLICATE_SEND", "sentAt"], ["NO_ANSWER", "sentAt"],
+    ["NO_ANSWER", "expiresAt"], ["NO_ANSWER_DUPLICATE_SEND", "sentAt"], ["NO_ANSWER_DUPLICATE_SEND", "expiresAt"], ["EXPIRED", "expiresAt"],
+    ["EXPIRED_UNSENT", "expiresAt"]];
+  // One question in a given state, with the state map and the totals agreeing.
+  const withRequest = (listed: Record<string, unknown>) => ({ ...good, requests: [listed], states: { [request.requestId]: listed.state },
+    answered: ["ANSWERED", "ANSWERED_DUPLICATE_SEND"].includes(String(listed.state)) ? 1 : 0 });
   for (const [state, time] of required) {
     const filled = { ...request, ...times, state };
-    assert.equal(isSupervisorActivity({ ...good, requests: [filled] }), true, `${state} with its times`);
-    assert.equal(isSupervisorActivity({ ...good, requests: [{ ...filled, [time]: null }] }), false, `${state} without ${time}`);
+    assert.equal(isSupervisorActivity(withRequest(filled)), true, `${state} with its times`);
+    assert.equal(isSupervisorActivity(withRequest({ ...filled, [time]: null })), false, `${state} without ${time}`);
   }
   assert.equal(isSupervisorActivity({ ...good, requests: [{ ...request, sentAt: "yesterday" }] }), false);
   assert.equal(isSupervisorActivity({ ...good, requests: [{ ...request, queuedAt: "soon" }] }), false);
   assert.equal(isSupervisorActivity({ ...good, lastSentAt: "never" }), false);
   assert.equal(supervisorStatusLine({ ...good, requests: [{ ...request, sentAt: null }] }, NOW), "Not available right now.");
+  // The listed questions, the state map and the totals must describe the same questions.
+  assert.equal(isSupervisorActivity({ ...good, requests: [{ ...request, ...times, state: "ANSWERED" }] }), false, "listed as answered, mapped as sent");
+  assert.equal(isSupervisorActivity({ ...good, total: 2 }), false);
+  assert.equal(isSupervisorActivity({ ...good, answered: 1 }), false);
+  assert.equal(isSupervisorActivity({ ...good, requests: [request, request], total: 2, states: { ...good.states, other: "QUEUED" }, routeEvents: { ...good.routeEvents, other: 1 } }), false, "the same question listed twice");
+  assert.equal(isSupervisorActivity({ ...good, requests: [{ ...request, requestId: "elsewhere" }] }), false, "a listed question missing from the map");
 });
 
 test("older routes (V3, V4) are never shown as sent: only waiting, answered or expired", () => {

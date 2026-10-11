@@ -11,13 +11,13 @@ import { isSpecificChatAddress } from "./supervisor-chat-address";
  * SENT and FINISHED (the relay started or finished the question in the request's own session), DUPLICATE_SEND (sent
  * more than once, which Mission Control's validators reject, so no answer to it can be accepted), ANSWERED,
  * ANSWERED_DUPLICATE_SEND (answered, and also sent more than once: the violation stays visible), NO_ANSWER
- * (sent, then expired without an answer), EXPIRED (expired without an answer, with no send recorded or tracked),
+ * (sent, then expired without an answer), NO_ANSWER_DUPLICATE_SEND (sent more than once, then expired without one), EXPIRED (expired without an answer, with no send recorded or tracked),
  * EXPIRED_UNSENT and WITHDRAWN (retired with Mission Control's proof that nothing was sent: on expiry, or withdrawn),
  * REPLACED (an admitted replacement superseded it).
  */
 export const SUPERVISOR_REQUEST_STATES = [
-  "QUEUED", "WAITING", "SENT", "FINISHED", "DUPLICATE_SEND", "ANSWERED", "ANSWERED_DUPLICATE_SEND", "NO_ANSWER", "EXPIRED",
-  "EXPIRED_UNSENT", "WITHDRAWN", "REPLACED",
+  "QUEUED", "WAITING", "SENT", "FINISHED", "DUPLICATE_SEND", "ANSWERED", "ANSWERED_DUPLICATE_SEND", "NO_ANSWER",
+  "NO_ANSWER_DUPLICATE_SEND", "EXPIRED", "EXPIRED_UNSENT", "WITHDRAWN", "REPLACED",
 ] as const;
 export const SUPERVISOR_REQUEST_ORIGINS = [
   "ROUTINE_CHECK", "WORK_QUESTION", "OWNER_ANSWER", "AFTER_WORK", "SOURCE_REVIEW", "OTHER",
@@ -88,7 +88,7 @@ interface Draft extends SupervisorRequestActivity { sequence: number; version: n
 const STATE_TIMES: Partial<Record<SupervisorRequestState, ReadonlyArray<"expiresAt" | "sentAt" | "finishedAt" | "answeredAt">>> = {
   SENT: ["sentAt"], FINISHED: ["sentAt", "finishedAt"], DUPLICATE_SEND: ["sentAt"], ANSWERED: ["answeredAt"],
   ANSWERED_DUPLICATE_SEND: ["answeredAt", "sentAt"],
-  NO_ANSWER: ["sentAt", "expiresAt"], EXPIRED: ["expiresAt"], EXPIRED_UNSENT: ["expiresAt"],
+  NO_ANSWER: ["sentAt", "expiresAt"], NO_ANSWER_DUPLICATE_SEND: ["sentAt", "expiresAt"], EXPIRED: ["expiresAt"], EXPIRED_UNSENT: ["expiresAt"],
 };
 
 /**
@@ -201,7 +201,7 @@ function projectRequests(unordered: readonly StoredEvent[], now: Date, admission
       : admission.replaced.has(draft.requestId) ? "REPLACED"
         : retiredState
           ?? (!tracked ? (expired ? "EXPIRED" : "WAITING")
-            : draft.duplicateSend ? (expired ? "NO_ANSWER" : "DUPLICATE_SEND")
+            : draft.duplicateSend ? (expired ? "NO_ANSWER_DUPLICATE_SEND" : "DUPLICATE_SEND")
               : draft.sentAt ? (expired ? "NO_ANSWER" : draft.finishedAt ? "FINISHED" : "SENT")
                 : expired ? "EXPIRED" : "QUEUED");
     return {
@@ -254,7 +254,14 @@ export function isSupervisorActivity(value: unknown): value is SupervisorActivit
   const routeEvents = record(activity.routeEvents);
   if (!routeEvents || Object.keys(routeEvents).length !== Object.keys(states).length
     || !Object.keys(states).every((requestId) => Number.isSafeInteger(routeEvents[requestId]))) return false;
-  return Array.isArray(activity.requests) && activity.requests.every((item: unknown) => {
+  if (!Array.isArray(activity.requests) || activity.requests.length > RECENT_REQUESTS) return false;
+  // The listed questions, the state of every question and the totals all describe one set: they must agree.
+  const stateValues = Object.values(states);
+  if (activity.total !== stateValues.length
+    || activity.answered !== stateValues.filter((state) => state === "ANSWERED" || state === "ANSWERED_DUPLICATE_SEND").length) return false;
+  const listed = activity.requests.map((item: unknown) => record(item)?.requestId);
+  if (new Set(listed).size !== listed.length) return false;
+  return activity.requests.every((item: unknown) => {
     const request = record(item);
     return request !== null && typeof request.requestId === "string" && timeOrNull(request.queuedAt) && request.queuedAt !== null
       && (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(request.state)
@@ -262,7 +269,8 @@ export function isSupervisorActivity(value: unknown): value is SupervisorActivit
       && ["supervisorId", "question", "answer"].every((key) => nullableString(request[key]))
       && ["expiresAt", "sentAt", "finishedAt", "answeredAt"].every((key) => timeOrNull(request[key]))
       && (STATE_TIMES[request.state as SupervisorRequestState] ?? []).every((key) => request[key] !== null)
-      && chatAddressOrNull(request.conversationUrl);
+      && chatAddressOrNull(request.conversationUrl)
+      && typeof request.requestId === "string" && Object.hasOwn(states, request.requestId) && states[request.requestId] === request.state;
   });
 }
 

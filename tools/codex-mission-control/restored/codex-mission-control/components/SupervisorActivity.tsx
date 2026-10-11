@@ -20,6 +20,7 @@ export const SUPERVISOR_REQUEST_STATE: Record<SupervisorRequestActivity["state"]
   ANSWERED: "Answered",
   ANSWERED_DUPLICATE_SEND: "Answered, but it was also sent more than once",
   NO_ANSWER: "Sent, but no answer came back before it expired",
+  NO_ANSWER_DUPLICATE_SEND: "Sent more than once, and no answer came back before it expired",
   EXPIRED: "Expired without an answer",
   EXPIRED_UNSENT: "Never sent; it expired",
   WITHDRAWN: "Withdrawn before it was sent",
@@ -46,6 +47,7 @@ export function supervisorStatusLine(activity: unknown, now = new Date()): strin
     case "FINISHED": return `${asked}; finished ${timeAgo(latest.finishedAt!, now)}, answer not recorded yet.`;
     case "DUPLICATE_SEND": return `${asked}; sent more than once, so its answer can't be accepted.`;
     case "NO_ANSWER": return `Sent ${timeAgo(latest.sentAt ?? latest.queuedAt, now)}; no answer came back before it expired.`;
+    case "NO_ANSWER_DUPLICATE_SEND": return `${asked}; sent more than once, and no answer came back before it expired.`;
     case "WAITING": return `${asked}; waiting for an answer.`;
     case "EXPIRED": return `${asked}; it expired ${timeAgo(latest.expiresAt!, now)} without an answer.`;
     case "EXPIRED_UNSENT": return `${asked}; never sent, and it expired ${timeAgo(latest.expiresAt!, now)}.`;
