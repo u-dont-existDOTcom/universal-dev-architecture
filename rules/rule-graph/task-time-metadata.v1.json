@@ -2844,7 +2844,7 @@
     },
     {
       "rule_id": "uda.review.item-degradation",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/convergent-review-acceptance-gates.md",
@@ -2867,7 +2867,7 @@
           },
           {
             "kind": "exact_text",
-            "text": "a unit is discarded, or the pipeline halted, because some items stay flagged."
+            "text": "a unit is discarded, or the pipeline halted, because some items stay flagged;"
           }
         ]
       },
@@ -2939,7 +2939,7 @@
     },
     {
       "rule_id": "uda.review.acceptance-floors",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/convergent-review-acceptance-gates.md",
@@ -2950,7 +2950,7 @@
           },
           {
             "kind": "exact_text",
-            "text": "An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses."
+            "text": "An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses when the rule 4 bound supports a floor of zero and a stated allowed count when it does not, counting only critical misses confirmed under rules 6 and 7."
           },
           {
             "kind": "exact_text",
@@ -2975,6 +2975,78 @@
           {
             "kind": "exact_text",
             "text": "Gate on aggregates with hard floors."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Confirm a blocking verdict before it stops work."
+          },
+          {
+            "kind": "exact_text",
+            "text": "When one model's verdict would trip a hard floor, stop a run or discard completed work, get a second, independent judgment of that verdict first."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Use a different model family where one is available, otherwise a fresh run under its own identity, or a deterministic check."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Count the violation only when the second judgment agrees, and record and report the rest as unconfirmed."
+          },
+          {
+            "kind": "exact_text",
+            "text": "When no second judgment can be had, the first verdict stands, so confirmation never hides a violation."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The second judge rules only on what the first flagged; it adds no violations of its own."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Define every label a gate counts, once, for every role."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A gate that counts a label, such as critical, blocking or high severity, needs one written definition of it."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Give that definition, in the same words, to every role that assigns the label and every role that judges against it."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A label that one role assigns at its own discretion may be reported, never gated."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Read a review's status from what it names."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A claimed status never overrides the review's own verdicts."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A review that names no finding, no item left unassessed and no proposed repair has nothing to repair, whatever status it claims."
+          },
+          {
+            "kind": "exact_text",
+            "text": "One that claims it is incomplete counts as finished only when its coverage can be checked mechanically and is complete; otherwise it stays incomplete."
+          },
+          {
+            "kind": "exact_text",
+            "text": "one model's verdict can trip a hard floor, stop a run or discard work without a second, independent judgment;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "a gate counts a label that no single written definition gives to every role that assigns or judges it;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "a reviewer's claimed status can hold back work that its own verdicts pass;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "Rule 6 assumes the second judge's errors are not the same as the first's; a judge from the same model family, given the same packet, is a weaker check than a different family or a deterministic test."
           }
         ]
       },
@@ -3014,13 +3086,17 @@
       "obligations": [
         {
           "obligation_id": "acceptance-floors-at-boundary",
-          "required_behavior": "Judge acceptance against advance aggregate hard floors and disclose failures without masking per-unit requirements.",
+          "required_behavior": "Judge acceptance against advance aggregate hard floors and disclose failures without masking per-unit requirements. A model verdict trips a floor, stops a run or discards work only when an independent second judgment confirms it; a gated label has one written definition for every role; a review's status is read from what it names.",
           "due_phase": "pre-action",
           "destination": "review-acceptance-decision",
-          "acceptance_evidence": "Floors and a provenance-grounded reference are frozen before the gate. Measures are not traded against hard floors. Noninterchangeable units/strata have their own minimum. Failed units and error counts accompany the aggregate, each measure on its own line. Pooled recall plus zero critical misses is an example, not a mandatory metric set. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "acceptance_evidence": "Floors and a provenance-grounded reference are frozen before the gate. Measures are not traded against hard floors. Noninterchangeable units/strata have their own minimum. Failed units and error counts accompany the aggregate, each measure on its own line. Pooled recall plus zero critical misses is an example, not a mandatory metric set; a zero floor holds only where the false-failure bound supports it, otherwise a stated allowed count. Before one model's verdict trips a hard floor, stops a run or discards completed work, a second, independent judgment (another model family where available, else a fresh run under its own identity or a deterministic check) rules only on what was flagged and adds no violations; only agreed violations count, the rest are recorded and reported as unconfirmed, and the first verdict stands when no second judgment can be had. A same-family second judge given the same packet is reported as the weaker check. Every counted label, such as critical, blocking or high severity, has one written definition given in the same words to every role that assigns or judges it; a label one role assigns at its own discretion is reported, never gated. A claimed review status never overrides the review's own verdicts: a review naming no finding, no unassessed item and no proposed repair has nothing to repair, and one claiming to be incomplete counts as finished only when its coverage is mechanically checked and complete. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
           "non_substitutes": [
             "a pooled pass that conceals an empty required unit",
-            "trading a hard floor against another measure"
+            "trading a hard floor against another measure",
+            "one model's unconfirmed verdict counted as a hard-floor violation",
+            "a second judge that adds violations the first did not flag",
+            "a gated label assigned at one role's discretion or defined differently for assigner and judge",
+            "a claimed review status overriding the review's own verdicts"
           ],
           "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
@@ -3046,7 +3122,7 @@
     },
     {
       "rule_id": "uda.review.false-failure",
-      "revision": 5,
+      "revision": 6,
       "status": "CURRENT",
       "source": {
         "path": "patterns/convergent-review-acceptance-gates.md",
@@ -3113,7 +3189,7 @@
           },
           {
             "kind": "exact_text",
-            "text": "If the conservative bound would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after."
+            "text": "If the conservative bound would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 and 6 to 9 before the run, not after."
           },
           {
             "kind": "exact_text",
@@ -3158,6 +3234,10 @@
           {
             "kind": "exact_text",
             "text": "Apply the binomial tail to each aggregate, per-unit and per-stratum floor using its own n, p and allowed misses k, or measure that floor's false-failure rate on independently known-correct work."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A floor of zero over many model judgments is admissible only when the bound supports it; otherwise state the floor as an allowed count k from the bound, or make the check deterministic."
           }
         ]
       },
@@ -3200,7 +3280,7 @@
           "required_behavior": "Bound pilot sampling uncertainty before scale, including every hard floor, and enlarge an inadequate pilot or redesign when conservative rejection would change the decision.",
           "due_phase": "pre-action",
           "destination": "review-scale-gate-design",
-          "acceptance_evidence": "Estimate unit/run acceptance and each aggregate, per-unit and per-stratum floor with its own n, p and allowed misses k. For recall floor r, k = n - ceil(r*n); use P(Binomial(n, p) > k), or measure that floor's known-correct false-failure rate. The zero-miss formula applies only when k = 0. Derive p only from independently known-correct pilot or earlier-cycle items with findings adjudicated false; divide the number of distinct eligible reviewed items with at least one adjudicated false flag by all eligible reviewed items, including unflagged items; count each item once even if it has multiple false findings. Exclude genuine defects and unadjudicated records, and label p as a guess when these labels are unavailable. State the confidence level and method, pilot counts and predeclared sample size adequate for the tolerable false-failure rate at the intended scale. Use a one-sided upper confidence bound for p in every unit/run and hard-floor calculation, or a one-sided lower confidence bound on each measured floor pass rate. Zero false flags among t independent items imply p_upper = 1 - alpha^(1/t), not zero; all u independent floor passes imply q_lower = alpha^(1/u), not one. If the bounds cannot rule out material rejection, enlarge the pilot or redesign before scale; never admit on a point estimate alone. Independence/constant-rate assumptions are planning limits; prefer measured known-correct pass rates. Redesign via change scope, bounded item degradation and aggregate floors before scale when material. Missed real defects require another reviewer or deterministic check. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "acceptance_evidence": "Estimate unit/run acceptance and each aggregate, per-unit and per-stratum floor with its own n, p and allowed misses k. For recall floor r, k = n - ceil(r*n); use P(Binomial(n, p) > k), or measure that floor's known-correct false-failure rate. The zero-miss formula applies only when k = 0. Derive p only from independently known-correct pilot or earlier-cycle items with findings adjudicated false; divide the number of distinct eligible reviewed items with at least one adjudicated false flag by all eligible reviewed items, including unflagged items; count each item once even if it has multiple false findings. Exclude genuine defects and unadjudicated records, and label p as a guess when these labels are unavailable. State the confidence level and method, pilot counts and predeclared sample size adequate for the tolerable false-failure rate at the intended scale. Use a one-sided upper confidence bound for p in every unit/run and hard-floor calculation, or a one-sided lower confidence bound on each measured floor pass rate. Zero false flags among t independent items imply p_upper = 1 - alpha^(1/t), not zero; all u independent floor passes imply q_lower = alpha^(1/u), not one. If the bounds cannot rule out material rejection, enlarge the pilot or redesign before scale; never admit on a point estimate alone. Independence/constant-rate assumptions are planning limits; prefer measured known-correct pass rates. Redesign via change scope, bounded item degradation, aggregate floors, confirmed blocking verdicts, shared label definitions, statuses read from reviews and resumable stops before scale when material. A zero floor over many model judgments is admitted only when the conservative bound supports it; otherwise the floor is an allowed count k from the bound, or the check is deterministic. Missed real defects require another reviewer or deterministic check. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
           "non_substitutes": [
             "a false-failure estimate made only after the scale run",
             "a guessed p presented as a measured pilot",
@@ -3208,7 +3288,8 @@
             "a zero-miss calculation applied to a floor that allows misses",
             "zero observed false flags treated as zero risk",
             "an empirical pass rate extrapolated without a confidence bound",
-            "raw false-finding count as the Bernoulli numerator"
+            "raw false-finding count as the Bernoulli numerator",
+            "a zero floor over many model judgments admitted without a bound that supports it"
           ],
           "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
@@ -3234,7 +3315,7 @@
     },
     {
       "rule_id": "uda.review.cycle-escalation",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/convergent-review-acceptance-gates.md",
@@ -3254,6 +3335,26 @@
           {
             "kind": "exact_text",
             "text": "Track findings per cycle and stop early when they do not fall."
+          },
+          {
+            "kind": "exact_text",
+            "text": "A tripped gate keeps the work it already checked."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Design every gate stop so the run can continue under changed rules without redoing what already passed, and record each continuation with the stop it replaced."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Starting over is a cost to justify on the owner questions page, never the only way on."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Report the stop to the owner when it happens, with what restarts it."
+          },
+          {
+            "kind": "exact_text",
+            "text": "the only way past a tripped gate discards work that already passed, or the stop is not reported when it happens."
           }
         ]
       },
@@ -3293,13 +3394,15 @@
       "obligations": [
         {
           "obligation_id": "cycle-escalation-at-boundary",
-          "required_behavior": "Persist findings and IDs after every cycle; stop at stall and escalate with evidence while independent units continue.",
+          "required_behavior": "Persist findings and IDs after every cycle; stop at stall and escalate with evidence while independent units continue; keep checked work through every gate stop, record each continuation and report each stop when it happens.",
           "due_phase": "persistence",
           "destination": "review-cycle-ledger",
-          "acceptance_evidence": "Every completed cycle records counts and item IDs. Flat or bouncing repairs meet the advance stall rule, stop rounds and apply item degradation. The owner questions page has counts, changes by cycle and options; independent units keep moving while the decision waits. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "acceptance_evidence": "Every completed cycle records counts and item IDs. Flat or bouncing repairs meet the advance stall rule, stop rounds and apply item degradation. The owner questions page has counts, changes by cycle and options; independent units keep moving while the decision waits. A tripped gate keeps the work it already checked: the run can continue under changed rules without redoing what passed, each continuation is recorded with the stop it replaced, the stop reaches the owner when it happens with what restarts it, and starting over is a cost justified on the owner questions page, never the only way on. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
           "non_substitutes": [
             "cycle counts mentioned only in disposable chat",
-            "a stall declaration followed by another spend round"
+            "a stall declaration followed by another spend round",
+            "a restart from zero as the only way past a tripped gate",
+            "a gate stop reported only later, or not at all"
           ],
           "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
@@ -3325,7 +3428,7 @@
     },
     {
       "rule_id": "uda.review.declared-authority",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/convergent-review-acceptance-gates.md",
@@ -3361,6 +3464,22 @@
           {
             "kind": "exact_text",
             "text": "it covers only gates whose checker is a noisy reviewer. It adds no blocking gate and lowers no declared one."
+          },
+          {
+            "kind": "exact_text",
+            "text": "No new gates of this kind."
+          },
+          {
+            "kind": "exact_text",
+            "text": "An agent never designs a gate that fails rules 6 to 9."
+          },
+          {
+            "kind": "exact_text",
+            "text": "When it finds an existing one, including a declared one, it puts the redesign on the owner questions page as a proposal, as for a declared zero-finding gate."
+          },
+          {
+            "kind": "exact_text",
+            "text": "it constrains how gates over model judgments are designed; it adds no gate and lowers no declared one."
           }
         ]
       },
@@ -3400,13 +3519,15 @@
       "obligations": [
         {
           "obligation_id": "declared-authority-at-boundary",
-          "required_behavior": "Keep declared gates hard and limit this advice to noisy-reviewer gates without adding authority or comparative claims.",
+          "required_behavior": "Keep declared gates hard and limit this advice to noisy-reviewer gates without adding authority or comparative claims; design no gate that fails rules 6 to 9 and propose the redesign of an existing one.",
           "due_phase": "pre-action",
           "destination": "review-gate-authority",
-          "acceptance_evidence": "Agent-designed/open gates alone may change through this advice. A declared zero-finding gate continues as declared; false-failure and aggregate alternatives are proposals on the owner questions page until authority changes. No new blocking gate, lowered declared gate or claim of a better reviewer/model follows from this pattern.",
+          "acceptance_evidence": "Agent-designed/open gates alone may change through this advice. A declared zero-finding gate continues as declared; false-failure and aggregate alternatives are proposals on the owner questions page until authority changes. No new blocking gate, lowered declared gate or claim of a better reviewer/model follows from this pattern. No agent designs a gate that fails rules 6 to 9 (an unconfirmed blocking verdict, a counted label without one shared definition, a claimed status over the review's verdicts, or a restart as the only way past a stop); an existing one, including a declared one, gets a redesign proposal on the owner questions page, and a declared gate keeps running as declared until its authority changes it. The amendment constrains gate design; it adds no gate and lowers no declared one.",
           "non_substitutes": [
             "an aggregate proposal treated as authorization to lower a declared gate",
-            "claiming the pattern proves one model better"
+            "claiming the pattern proves one model better",
+            "an agent-designed gate that fails rules 6 to 9",
+            "a declared gate changed without its authority because it fails rules 6 to 9"
           ],
           "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
@@ -3432,14 +3553,14 @@
     },
     {
       "rule_id": "uda.review.failure-repair",
-      "revision": 1,
+      "revision": 2,
       "status": "CURRENT",
       "source": {
         "path": "patterns/convergent-review-acceptance-gates.md",
         "selectors": [
           {
             "kind": "exact_text",
-            "text": "Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; and put the counts on the owner questions page."
+            "text": "Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; add the confirmation of rule 6; write the label's definition for every role (rule 7); read statuses from what reviews name (rule 8); make the stop resumable and reported (rule 9); and put the counts on the owner questions page."
           }
         ]
       },
@@ -3482,7 +3603,7 @@
           "required_behavior": "Repair an observed review-gate failure before resuming its affected action.",
           "due_phase": "pre-action",
           "destination": "repaired-review-gate",
-          "acceptance_evidence": "Restore the estimate, change-only review, fixed bound and stall rule, aggregate acceptance as a proposal for declared gates, item withholding with output gaps and counts on the owner questions page. Independent authorized work remains executable. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
+          "acceptance_evidence": "Restore the estimate, change-only review, fixed bound and stall rule, aggregate acceptance as a proposal for declared gates, item withholding with output gaps, independent confirmation of blocking verdicts, one written definition of each counted label for every role, statuses read from what reviews name, resumable and reported gate stops, and counts on the owner questions page. Independent authorized work remains executable. A reason-bound NOT_APPLICABLE receipt must establish the conditional payload/action is absent.",
           "non_substitutes": [
             "a repair plan presented as a repaired gate"
           ],

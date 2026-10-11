@@ -1,14 +1,14 @@
 {
-  "catalog_sha256": "ffc2cbbfb82026e33bc439970683dcc7a69c5772c037faaeea392f0d9c20b97e",
+  "catalog_sha256": "f84147f88b0e1d13500452d76d142081cd3d78b25e74e19348d5cebc6efea5eb",
   "compiler_sha256": "7ea7e14d49c8e2d10a5c015119a71b4457392fb6090a30f4cb38c9777be10509",
-  "content_sha256": "fda6bb929ed11434db9b6f0c9d031d3f35fabf0c139a5361a9d8d9b7c6c615c1",
+  "content_sha256": "14031cbebaceaea165404a9c2dcc32240de402c6e917ab6ccc8d4dbb3139f99d",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
       "extracted_utf8_bytes": 268,
-      "git_blob_sha1": "b45dcddfe80aa56a56fbaf1e9e916941d52ae50f",
+      "git_blob_sha1": "e21d04966fce932279f42f71f8c6489ae6729fb2",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:b45dcddfe80aa56a56fbaf1e9e916941d52ae50f",
+      "repository_revision": "BLOB:e21d04966fce932279f42f71f8c6489ae6729fb2",
       "rule_id": "uda.active-contract.boundary-binding",
       "selectors": [
         {
@@ -1618,9 +1618,9 @@
     {
       "extracted_sha256": "20246d4cb4a4c9f5f46331555fae123081c44aa8fb779019e93784f7f4a0fd24",
       "extracted_utf8_bytes": 116,
-      "git_blob_sha1": "b45dcddfe80aa56a56fbaf1e9e916941d52ae50f",
+      "git_blob_sha1": "e21d04966fce932279f42f71f8c6489ae6729fb2",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:b45dcddfe80aa56a56fbaf1e9e916941d52ae50f",
+      "repository_revision": "BLOB:e21d04966fce932279f42f71f8c6489ae6729fb2",
       "rule_id": "uda.owner-correction.reactivate",
       "selectors": [
         {
@@ -1644,11 +1644,11 @@
       ]
     },
     {
-      "extracted_sha256": "76b4dd7362e3bde038b7673c23f2307b68cd08a8d58fd93422160b7ce0ec39cb",
-      "extracted_utf8_bytes": 965,
-      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "extracted_sha256": "229380abe398e2a4fca3f0dd0bf8321fa2ad0f79cfb148718033124e5606ed55",
+      "extracted_utf8_bytes": 2987,
+      "git_blob_sha1": "3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "repository_revision": "BLOB:3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "rule_id": "uda.review.acceptance-floors",
       "selectors": [
         {
@@ -1657,7 +1657,7 @@
         },
         {
           "kind": "exact_text",
-          "text": "An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses."
+          "text": "An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses when the rule 4 bound supports a floor of zero and a stated allowed count when it does not, counting only critical misses confirmed under rules 6 and 7."
         },
         {
           "kind": "exact_text",
@@ -1682,15 +1682,87 @@
         {
           "kind": "exact_text",
           "text": "Gate on aggregates with hard floors."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Confirm a blocking verdict before it stops work."
+        },
+        {
+          "kind": "exact_text",
+          "text": "When one model's verdict would trip a hard floor, stop a run or discard completed work, get a second, independent judgment of that verdict first."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Use a different model family where one is available, otherwise a fresh run under its own identity, or a deterministic check."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Count the violation only when the second judgment agrees, and record and report the rest as unconfirmed."
+        },
+        {
+          "kind": "exact_text",
+          "text": "When no second judgment can be had, the first verdict stands, so confirmation never hides a violation."
+        },
+        {
+          "kind": "exact_text",
+          "text": "The second judge rules only on what the first flagged; it adds no violations of its own."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Define every label a gate counts, once, for every role."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A gate that counts a label, such as critical, blocking or high severity, needs one written definition of it."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Give that definition, in the same words, to every role that assigns the label and every role that judges against it."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A label that one role assigns at its own discretion may be reported, never gated."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Read a review's status from what it names."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A claimed status never overrides the review's own verdicts."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A review that names no finding, no item left unassessed and no proposed repair has nothing to repair, whatever status it claims."
+        },
+        {
+          "kind": "exact_text",
+          "text": "One that claims it is incomplete counts as finished only when its coverage can be checked mechanically and is complete; otherwise it stays incomplete."
+        },
+        {
+          "kind": "exact_text",
+          "text": "one model's verdict can trip a hard floor, stop a run or discard work without a second, independent judgment;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "a gate counts a label that no single written definition gives to every role that assigns or judges it;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "a reviewer's claimed status can hold back work that its own verdicts pass;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "Rule 6 assumes the second judge's errors are not the same as the first's; a judge from the same model family, given the same packet, is a weaker check than a different family or a deterministic test."
         }
       ]
     },
     {
       "extracted_sha256": "a4bcc2d17730492dd2c173345237c52fcad8c6c28182966e6efabb7e677404a0",
       "extracted_utf8_bytes": 1170,
-      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "git_blob_sha1": "3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "repository_revision": "BLOB:3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "rule_id": "uda.review.change-scope",
       "selectors": [
         {
@@ -1728,11 +1800,11 @@
       ]
     },
     {
-      "extracted_sha256": "e9906a5e3786af1c90aa253b4e82b42e3987fedfa61ae72f195cd3af50a1e5b4",
-      "extracted_utf8_bytes": 490,
-      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "extracted_sha256": "e4c8a3000ebd45505dc82380b11295039ce972fe47aa241c298cfa271de289d4",
+      "extracted_utf8_bytes": 974,
+      "git_blob_sha1": "3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "repository_revision": "BLOB:3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "rule_id": "uda.review.cycle-escalation",
       "selectors": [
         {
@@ -1750,15 +1822,35 @@
         {
           "kind": "exact_text",
           "text": "Track findings per cycle and stop early when they do not fall."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A tripped gate keeps the work it already checked."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Design every gate stop so the run can continue under changed rules without redoing what already passed, and record each continuation with the stop it replaced."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Starting over is a cost to justify on the owner questions page, never the only way on."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Report the stop to the owner when it happens, with what restarts it."
+        },
+        {
+          "kind": "exact_text",
+          "text": "the only way past a tripped gate discards work that already passed, or the stop is not reported when it happens."
         }
       ]
     },
     {
-      "extracted_sha256": "3f616d735d636efbba1f81975f5f8c03edb45f605a657db6f8089107a2349064",
-      "extracted_utf8_bytes": 855,
-      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "extracted_sha256": "73cf898925dfd102e82e276b13160d566194866b41859bf2706053300f016450",
+      "extracted_utf8_bytes": 1202,
+      "git_blob_sha1": "3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "repository_revision": "BLOB:3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "rule_id": "uda.review.declared-authority",
       "selectors": [
         {
@@ -1792,29 +1884,45 @@
         {
           "kind": "exact_text",
           "text": "it covers only gates whose checker is a noisy reviewer. It adds no blocking gate and lowers no declared one."
+        },
+        {
+          "kind": "exact_text",
+          "text": "No new gates of this kind."
+        },
+        {
+          "kind": "exact_text",
+          "text": "An agent never designs a gate that fails rules 6 to 9."
+        },
+        {
+          "kind": "exact_text",
+          "text": "When it finds an existing one, including a declared one, it puts the redesign on the owner questions page as a proposal, as for a declared zero-finding gate."
+        },
+        {
+          "kind": "exact_text",
+          "text": "it constrains how gates over model judgments are designed; it adds no gate and lowers no declared one."
         }
       ]
     },
     {
-      "extracted_sha256": "16294aa2651f0a6d13d25bc3fd7514b127b08a64c42783fc098d1b79f8c31441",
-      "extracted_utf8_bytes": 279,
-      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "extracted_sha256": "693ef9eec86cbc8424bdb6fc78829f5f924b5176397ad93648c9413831f433c9",
+      "extracted_utf8_bytes": 459,
+      "git_blob_sha1": "3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "repository_revision": "BLOB:3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "rule_id": "uda.review.failure-repair",
       "selectors": [
         {
           "kind": "exact_text",
-          "text": "Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; and put the counts on the owner questions page."
+          "text": "Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; add the confirmation of rule 6; write the label's definition for every role (rule 7); read statuses from what reviews name (rule 8); make the stop resumable and reported (rule 9); and put the counts on the owner questions page."
         }
       ]
     },
     {
-      "extracted_sha256": "6f4539cbe33e9061b1e4f01c6a05cba9cb91c293228ccfa09ec2d8150267740a",
-      "extracted_utf8_bytes": 3626,
-      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "extracted_sha256": "1e38dbcf59004d44d35064a44e4eb2d44268c2326304c994a85a341fa356e07c",
+      "extracted_utf8_bytes": 3824,
+      "git_blob_sha1": "3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "repository_revision": "BLOB:3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "rule_id": "uda.review.false-failure",
       "selectors": [
         {
@@ -1879,7 +1987,7 @@
         },
         {
           "kind": "exact_text",
-          "text": "If the conservative bound would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after."
+          "text": "If the conservative bound would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 and 6 to 9 before the run, not after."
         },
         {
           "kind": "exact_text",
@@ -1924,15 +2032,19 @@
         {
           "kind": "exact_text",
           "text": "Apply the binomial tail to each aggregate, per-unit and per-stratum floor using its own n, p and allowed misses k, or measure that floor's false-failure rate on independently known-correct work."
+        },
+        {
+          "kind": "exact_text",
+          "text": "A floor of zero over many model judgments is admissible only when the bound supports it; otherwise state the floor as an allowed count k from the bound, or make the check deterministic."
         }
       ]
     },
     {
-      "extracted_sha256": "d41588f149d477b287d172983a1d12cc4aaa58942727638334c2e8a3fb3038af",
+      "extracted_sha256": "84e34051ba482ffd8dc5e91ba72643047fe3b7a72326c08a91b9996a7d8e629f",
       "extracted_utf8_bytes": 660,
-      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "git_blob_sha1": "3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "repository_revision": "BLOB:3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "rule_id": "uda.review.item-degradation",
       "selectors": [
         {
@@ -1953,16 +2065,16 @@
         },
         {
           "kind": "exact_text",
-          "text": "a unit is discarded, or the pipeline halted, because some items stay flagged."
+          "text": "a unit is discarded, or the pipeline halted, because some items stay flagged;"
         }
       ]
     },
     {
       "extracted_sha256": "702fa5d805d8d2efc05946ab787a4d34f5fb2b8ff8dcb57201d505f03143d715",
       "extracted_utf8_bytes": 769,
-      "git_blob_sha1": "c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "git_blob_sha1": "3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "path": "patterns/convergent-review-acceptance-gates.md",
-      "repository_revision": "BLOB:c456b58330e8d2ad2c7a28c9e7409558bb3ee634",
+      "repository_revision": "BLOB:3f859e562a6a70b2af2e182c2a7aaf582cdffcc8",
       "rule_id": "uda.review.repair-bound",
       "selectors": [
         {

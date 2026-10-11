@@ -175,7 +175,7 @@ class ReviewMergeSliceTests(unittest.TestCase):
         self.assertEqual(77, report["backlog_count"])
         self.assertEqual(7, len(report["removed_since_baseline"]))
         self.assertFalse(set(SOURCES).intersection(report["removed_since_baseline"]))
-        for source, expected in zip(SOURCES, (70, 58)):
+        for source, expected in zip(SOURCES, (98, 58)):  # review: 70 at slice 2 + 28 from the 2026-10-09 amendment
             entry = next(e for e in self.inventory["entries"] if e["id"] == source)
             self.assertEqual("STRUCTURED_ENFORCED", entry["disposition"])
             self.assertEqual(expected, len(entry["obligation_map"]))

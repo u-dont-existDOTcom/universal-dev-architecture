@@ -423,6 +423,8 @@ The table-driven fixture folders in tests/fixtures/review-merge-slice/ contain o
 
 Source: `patterns/convergent-review-acceptance-gates.md`. All clauses below are structured; no exceptions or remaining clauses.
 
+The owner-requested amendment of 2026-10-09 (rules 6 to 9) adds 28 operative clauses and rewords four mapped ones; it adds no records, obligations, exceptions or backlog. Rules 6 to 8, their failure clauses and the rule 6 transfer limit extend acceptance-floors; rule 9 and its failure clause extend cycle-escalation; the new bound and the amendment's scope clause extend declared-authority; the zero-floor clause extends false-failure. The six affected records have new revisions. The source clause manifest is re-pinned at 98 clauses (rules 54, bounds 12, failure and repair 9, requirement-accretion 2, transfer 11); the status, problem and relationship section bodies are re-pinned with unchanged clause sets. The amendment's provenance and incident sentences remain unmapped context.
+
 | Exact sentence or clause | Record / obligation |
 |---|---|
 | After a repair, send the reviewer only the earlier findings and the items the repair changed. | uda.review.change-scope / change-scope-at-boundary |
@@ -446,15 +448,33 @@ Source: `patterns/convergent-review-acceptance-gates.md`. All clauses below are 
 | Do not discard the unit, and do not halt the pipeline: one unit's leftover flags never stop units that do not depend on it. | uda.review.item-degradation / item-degradation-at-boundary |
 | A unit that consumes or checks the withheld items waits until they are reviewed, or runs without them and records the gap; it never treats them as accepted. | uda.review.item-degradation / item-degradation-at-boundary |
 | Keep the independent units moving while the question waits. | uda.review.item-degradation / item-degradation-at-boundary |
-| a unit is discarded, or the pipeline halted, because some items stay flagged. | uda.review.item-degradation / item-degradation-at-boundary |
+| a unit is discarded, or the pipeline halted, because some items stay flagged; | uda.review.item-degradation / item-degradation-at-boundary |
 | Accept a run on aggregate measures with floors stated in advance, not on every unit reaching zero findings. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
-| An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses when the rule 4 bound supports a floor of zero and a stated allowed count when it does not, counting only critical misses confirmed under rules 6 and 7. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
 | Where units are not interchangeable, because each customer, source or experiment must keep its own required items, add a per-unit or per-stratum minimum to the floors: a pooled measure lets strong units hide one that kept nothing. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
 | Freeze the reference before the gate runs, and never trade a hard floor against another measure. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
 | Report the failed units and the error counts beside the aggregate, each measure on its own line, so a passing aggregate hides neither. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
 | An aggregate can hide a bad unit, which is why rule 3 reports failed units and error counts beside it. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
 | A frozen reference is only as sound as its own provenance. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
 | Gate on aggregates with hard floors. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Confirm a blocking verdict before it stops work. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| When one model's verdict would trip a hard floor, stop a run or discard completed work, get a second, independent judgment of that verdict first. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Use a different model family where one is available, otherwise a fresh run under its own identity, or a deterministic check. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Count the violation only when the second judgment agrees, and record and report the rest as unconfirmed. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| When no second judgment can be had, the first verdict stands, so confirmation never hides a violation. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| The second judge rules only on what the first flagged; it adds no violations of its own. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Define every label a gate counts, once, for every role. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| A gate that counts a label, such as critical, blocking or high severity, needs one written definition of it. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Give that definition, in the same words, to every role that assigns the label and every role that judges against it. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| A label that one role assigns at its own discretion may be reported, never gated. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Read a review's status from what it names. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| A claimed status never overrides the review's own verdicts. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| A review that names no finding, no item left unassessed and no proposed repair has nothing to repair, whatever status it claims. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| One that claims it is incomplete counts as finished only when its coverage can be checked mechanically and is complete; otherwise it stays incomplete. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| one model's verdict can trip a hard floor, stop a run or discard work without a second, independent judgment; | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| a gate counts a label that no single written definition gives to every role that assigns or judges it; | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| a reviewer's claimed status can hold back work that its own verdicts pass; | uda.review.acceptance-floors / acceptance-floors-at-boundary |
+| Rule 6 assumes the second judge's errors are not the same as the first's; a judge from the same model family, given the same packet, is a weaker check than a different family or a deterministic test. | uda.review.acceptance-floors / acceptance-floors-at-boundary |
 | Suppose each item in a correct unit of n items draws a false flag independently with probability p. | uda.review.false-failure / false-failure-at-boundary |
 | The unit then passes a zero-finding gate with probability (1 - p)^n. | uda.review.false-failure / false-failure-at-boundary |
 | With p = 0.05 and n = 27 that is about 25%. | uda.review.false-failure / false-failure-at-boundary |
@@ -475,17 +495,23 @@ Source: `patterns/convergent-review-acceptance-gates.md`. All clauses below are 
 | Likewise, if all u independent known-correct units pass a floor, its exact lower bound is q_lower = alpha^(1/u), not 1. | uda.review.false-failure / false-failure-at-boundary |
 | Report the pilot counts and bounds; if the pilot is too small to rule out material rejection, enlarge it with a predeclared sample size or redesign before scale, rather than admitting the gate on a point estimate. | uda.review.false-failure / false-failure-at-boundary |
 | Apply the estimate to each hard floor too: a zero-critical-misses floor is a zero-findings gate over the m critical items alone, so it fails correct work with probability 1 - (1 - p)^m. | uda.review.false-failure / false-failure-at-boundary |
-| If the conservative bound would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after. | uda.review.false-failure / false-failure-at-boundary |
+| If the conservative bound would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 and 6 to 9 before the run, not after. | uda.review.false-failure / false-failure-at-boundary |
 | a gate needs zero findings from a model reviewer on every unit and no false-failure estimate was made; | uda.review.false-failure / false-failure-at-boundary |
 | The formulas assume false flags are independent at one constant rate p. | uda.review.false-failure / false-failure-at-boundary |
 | Real flags cluster, since one misreading can flag several items, and p differs by item type and by reviewer. | uda.review.false-failure / false-failure-at-boundary |
 | Treat the formulas as planning estimates, and prefer a pass rate measured on known-correct units with its confidence bound. | uda.review.false-failure / false-failure-at-boundary |
 | A reviewer that misses real defects needs a different reviewer or a deterministic check. | uda.review.false-failure / false-failure-at-boundary |
 | Estimate the false-failure rate before running at scale. | uda.review.false-failure / false-failure-at-boundary |
+| A floor of zero over many model judgments is admissible only when the bound supports it; otherwise state the floor as an allowed count k from the bound, or make the check deterministic. | uda.review.false-failure / false-failure-at-boundary |
 | Record the number of findings after every cycle, with the item IDs. | uda.review.cycle-escalation / cycle-escalation-at-boundary |
 | When the count stays flat or bounces across repairs, stop spending rounds and apply rule 2. | uda.review.cycle-escalation / cycle-escalation-at-boundary |
 | Put the question on the owner questions page (`patterns/owner-questions-page.md`) with the per-cycle counts, what each cycle changed, and the options (for example accept the partial result with its gaps, change the gate, or have a person review the flagged items). | uda.review.cycle-escalation / cycle-escalation-at-boundary |
 | Track findings per cycle and stop early when they do not fall. | uda.review.cycle-escalation / cycle-escalation-at-boundary |
+| A tripped gate keeps the work it already checked. | uda.review.cycle-escalation / cycle-escalation-at-boundary |
+| Design every gate stop so the run can continue under changed rules without redoing what already passed, and record each continuation with the stop it replaced. | uda.review.cycle-escalation / cycle-escalation-at-boundary |
+| Starting over is a cost to justify on the owner questions page, never the only way on. | uda.review.cycle-escalation / cycle-escalation-at-boundary |
+| Report the stop to the owner when it happens, with what restarts it. | uda.review.cycle-escalation / cycle-escalation-at-boundary |
+| the only way past a tripped gate discards work that already passed, or the stop is not reported when it happens. | uda.review.cycle-escalation / cycle-escalation-at-boundary |
 | The rules shape a gate that an agent or pipeline designs, or that a project leaves open. | uda.review.declared-authority / declared-authority-at-boundary |
 | They never lower a gate the owner or the project's authority has declared blocking. | uda.review.declared-authority / declared-authority-at-boundary |
 | For a declared zero-finding gate, run it as declared, put the false-failure estimate and the proposed aggregate gate on the owner questions page as a proposal, and keep running the declared gate until the owner or the project authority changes it (`patterns/owner-goal-followup-and-requirement-accretion.md`, **Declared gates are not accretion**). | uda.review.declared-authority / declared-authority-at-boundary |
@@ -494,7 +520,11 @@ Source: `patterns/convergent-review-acceptance-gates.md`. All clauses below are 
 | It adds no gate to any project and does not lower a gate that the owner or a project has declared. | uda.review.declared-authority / declared-authority-at-boundary |
 | Declared gates stay hard. | uda.review.declared-authority / declared-authority-at-boundary |
 | it covers only gates whose checker is a noisy reviewer. It adds no blocking gate and lowers no declared one. | uda.review.declared-authority / declared-authority-at-boundary |
-| Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; and put the counts on the owner questions page. | uda.review.failure-repair / failure-repair-at-boundary |
+| No new gates of this kind. | uda.review.declared-authority / declared-authority-at-boundary |
+| An agent never designs a gate that fails rules 6 to 9. | uda.review.declared-authority / declared-authority-at-boundary |
+| When it finds an existing one, including a declared one, it puts the redesign on the owner questions page as a proposal, as for a declared zero-finding gate. | uda.review.declared-authority / declared-authority-at-boundary |
+| it constrains how gates over model judgments are designed; it adds no gate and lowers no declared one. | uda.review.declared-authority / declared-authority-at-boundary |
+| Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; add the confirmation of rule 6; write the label's definition for every role (rule 7); read statuses from what reviews name (rule 8); make the stop resumable and reported (rule 9); and put the counts on the owner questions page. | uda.review.failure-repair / failure-repair-at-boundary |
 
 
 ### Agent-completable merge gates obligation map

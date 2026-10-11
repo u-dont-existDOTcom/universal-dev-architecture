@@ -70,49 +70,49 @@
       "clauses_sha256": "0296f83c29eb4a6e0aa59c0ad74785f72224a331282c461d1b92757531d1d6b1"
     },
     "patterns/convergent-review-acceptance-gates.md": {
-      "clause_count": 70,
-      "clauses_sha256": "cd6db6991cc9891be474ba3c1fd3bb3ab4d1bc0426e341925ed985fd4bcb86e2",
+      "clause_count": 98,
+      "clauses_sha256": "3cae39a3b3c16b85f4c13681377a68fa038c809ef09a665c4c44c3ecd72ad32f",
       "pre_section_sha256": "9fe60d56872542596f2a1f2ebb7b393edf56ad0f5ea351c95cf8e3d871c3adaa",
       "sections": {
         "status": {
           "clause_count": 1,
           "clauses_sha256": "99691207cdcb42ba76934779fd05b47ae0426353331fdfce550f571c979d6670",
-          "source_sha256": "b3a790aa896331444e0e38c0e98ab5ed9d0176ac78af8fdb5e2079d14a148ef9"
+          "source_sha256": "0455c040aec27be198e863f5aa97f26a25b18d1d98ce4e926b3b59b773bb7d17"
         },
         "problem": {
           "clause_count": 9,
           "clauses_sha256": "ee8e19e972aeac77549d5ca0e209a7ec01056d88f2db071d8c4b5321c44d9f1b",
-          "source_sha256": "947dc48385b2bfe4fed663beb0ad4af12cbcdd78a6672778c7e269942d330a0d"
+          "source_sha256": "52b38cf66406bc7b6008598bfeb4cda99340e3feedc90f5f95bc12ad28574135"
         },
         "rules": {
-          "clause_count": 35,
-          "clauses_sha256": "2eb1f9b325e102811c658c5a0b837b95130db015b0e62231479251636d86e1ca",
-          "source_sha256": "1860ee6be726911578427ae8dca226aa0864fba15914c76e7cdc8ae931a36e49"
+          "clause_count": 54,
+          "clauses_sha256": "d940ecde0699a3c5ebbf8e1351d776b42e9fa5a61a984f6ae8816d075160d43a",
+          "source_sha256": "37e25357fa82e7d35a59664367936d1bec0de7eb344e9af40aa68ab20a9433c7"
         },
         "bounds": {
-          "clause_count": 9,
-          "clauses_sha256": "069bf44d4581a7b44adab98c765c9def7cebf77e8f7d74331cace9b311678686",
-          "source_sha256": "484bd03865c5787421eac322254994fb02efd5e9557e188193f80ddf05b312f9"
+          "clause_count": 12,
+          "clauses_sha256": "0b9c2148e502426ead659e0951338bf57cd704d7710c13a5a1a604b951e6d571",
+          "source_sha256": "6e5eaf95dc75af74178fd0c7b863f86b6e940730c8ee65db6219f184cb6720b3"
         },
         "failure-condition-and-repair": {
-          "clause_count": 5,
-          "clauses_sha256": "70af7cd1692e7b0b0fa4faa9c937e9f6d04654cae15c6eb76bba48e6285f27ef",
-          "source_sha256": "f9b5278ca0015231851c0fbc3f3da351f4f703b129986c769bd1554e9653f04b"
+          "clause_count": 9,
+          "clauses_sha256": "55cd367cf54dcc07da1daa530d2970344066853bfb0b68e803996efff0388a22",
+          "source_sha256": "b5f756f98e3ce82eb05c27dca17bfdb323317bd7f4e6f9e47677b0d0d06af940"
         },
         "relationship-to-other-patterns": {
           "classification": "NON_OPERATIVE",
           "reason": "Cross-pattern references summarize the mapped review rules and identify their existing normative owners; they add no independent obligation.",
-          "source_sha256": "756809a5303a7d4b29d22d7049374f146f62c41e8dc7bdf8625bdb7461c3119d"
+          "source_sha256": "55d8cd3bf98c6e8f4442edac50b4f2d050f75f7e5840210726f0e34c08a48c1b"
         },
         "requirement-accretion-declaration": {
-          "clause_count": 1,
-          "clauses_sha256": "2b1979a568bf0415afa9c01d79679ab63f8dea074ad3297c10240a5f1665f248",
-          "source_sha256": "96c3d964f0cb553b44ffbf01cf4085980636cca1281f712001cf28f02bc80d0a"
+          "clause_count": 2,
+          "clauses_sha256": "c5218e41b31ee80ba826cdcbc48ac9b03d17747ecc5e254a0c6af45184883969",
+          "source_sha256": "f3c832f081732115007a445c5319a5a5b78e00fb0574b32ca5a314e344413444"
         },
         "transfer-rationale-and-limits": {
-          "clause_count": 10,
-          "clauses_sha256": "a0f9284464ef4e50e39f7bfff49fcca77e4868b92c82160da92475dd5f7344b5",
-          "source_sha256": "d2ef4273a4f94ea77d65dc6d3664daa37df4e71eca7c00f90faa9874e811a11f"
+          "clause_count": 11,
+          "clauses_sha256": "00eb150fae84479b9f7030cb3f937f2e5ae683b07e38c403dc4e75192252eae4",
+          "source_sha256": "20cfb3636d76480ea608630bcb379aa8a467e56207bc56ce4b341e1d0023969a"
         }
       }
     },
@@ -502,7 +502,7 @@
       },
       "backlog_count": 78,
       "baseline_shrinkage": 6,
-      "implemented": "70 review clauses / 8 behaviors; 58 merge clauses / 8 behaviors; 14 records; no exceptions/additions."
+      "implemented": "98 review clauses (was 70) / 8 behaviors; 58 merge clauses / 8 behaviors; 14 records; no exceptions/additions."
     },
     {
       "finding_id": "slice-2a-continuation-closure",

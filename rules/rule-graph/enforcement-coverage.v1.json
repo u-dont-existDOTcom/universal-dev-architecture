@@ -3055,7 +3055,7 @@
           "obligation_id": "item-degradation-at-boundary"
         },
         {
-          "sentence": "a unit is discarded, or the pipeline halted, because some items stay flagged.",
+          "sentence": "a unit is discarded, or the pipeline halted, because some items stay flagged;",
           "record": "uda.review.item-degradation",
           "obligation_id": "item-degradation-at-boundary"
         },
@@ -3065,7 +3065,7 @@
           "obligation_id": "acceptance-floors-at-boundary"
         },
         {
-          "sentence": "An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses.",
+          "sentence": "An example set is pooled recall against a frozen reference (the share of all reference items, across all units, that the output kept) at or above a stated level, plus zero critical misses when the rule 4 bound supports a floor of zero and a stated allowed count when it does not, counting only critical misses confirmed under rules 6 and 7.",
           "record": "uda.review.acceptance-floors",
           "obligation_id": "acceptance-floors-at-boundary"
         },
@@ -3096,6 +3096,96 @@
         },
         {
           "sentence": "Gate on aggregates with hard floors.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Confirm a blocking verdict before it stops work.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "When one model's verdict would trip a hard floor, stop a run or discard completed work, get a second, independent judgment of that verdict first.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Use a different model family where one is available, otherwise a fresh run under its own identity, or a deterministic check.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Count the violation only when the second judgment agrees, and record and report the rest as unconfirmed.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "When no second judgment can be had, the first verdict stands, so confirmation never hides a violation.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "The second judge rules only on what the first flagged; it adds no violations of its own.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Define every label a gate counts, once, for every role.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "A gate that counts a label, such as critical, blocking or high severity, needs one written definition of it.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Give that definition, in the same words, to every role that assigns the label and every role that judges against it.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "A label that one role assigns at its own discretion may be reported, never gated.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Read a review's status from what it names.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "A claimed status never overrides the review's own verdicts.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "A review that names no finding, no item left unassessed and no proposed repair has nothing to repair, whatever status it claims.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "One that claims it is incomplete counts as finished only when its coverage can be checked mechanically and is complete; otherwise it stays incomplete.",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "one model's verdict can trip a hard floor, stop a run or discard work without a second, independent judgment;",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "a gate counts a label that no single written definition gives to every role that assigns or judges it;",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "a reviewer's claimed status can hold back work that its own verdicts pass;",
+          "record": "uda.review.acceptance-floors",
+          "obligation_id": "acceptance-floors-at-boundary"
+        },
+        {
+          "sentence": "Rule 6 assumes the second judge's errors are not the same as the first's; a judge from the same model family, given the same packet, is a weaker check than a different family or a deterministic test.",
           "record": "uda.review.acceptance-floors",
           "obligation_id": "acceptance-floors-at-boundary"
         },
@@ -3175,7 +3265,7 @@
           "obligation_id": "false-failure-at-boundary"
         },
         {
-          "sentence": "If the conservative bound would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 before the run, not after.",
+          "sentence": "If the conservative bound would reject enough correct work to change the decision, redesign the gate with rules 1 to 3 and 6 to 9 before the run, not after.",
           "record": "uda.review.false-failure",
           "obligation_id": "false-failure-at-boundary"
         },
@@ -3230,6 +3320,31 @@
           "obligation_id": "cycle-escalation-at-boundary"
         },
         {
+          "sentence": "A tripped gate keeps the work it already checked.",
+          "record": "uda.review.cycle-escalation",
+          "obligation_id": "cycle-escalation-at-boundary"
+        },
+        {
+          "sentence": "Design every gate stop so the run can continue under changed rules without redoing what already passed, and record each continuation with the stop it replaced.",
+          "record": "uda.review.cycle-escalation",
+          "obligation_id": "cycle-escalation-at-boundary"
+        },
+        {
+          "sentence": "Starting over is a cost to justify on the owner questions page, never the only way on.",
+          "record": "uda.review.cycle-escalation",
+          "obligation_id": "cycle-escalation-at-boundary"
+        },
+        {
+          "sentence": "Report the stop to the owner when it happens, with what restarts it.",
+          "record": "uda.review.cycle-escalation",
+          "obligation_id": "cycle-escalation-at-boundary"
+        },
+        {
+          "sentence": "the only way past a tripped gate discards work that already passed, or the stop is not reported when it happens.",
+          "record": "uda.review.cycle-escalation",
+          "obligation_id": "cycle-escalation-at-boundary"
+        },
+        {
           "sentence": "The rules shape a gate that an agent or pipeline designs, or that a project leaves open.",
           "record": "uda.review.declared-authority",
           "obligation_id": "declared-authority-at-boundary"
@@ -3270,7 +3385,27 @@
           "obligation_id": "declared-authority-at-boundary"
         },
         {
-          "sentence": "Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; and put the counts on the owner questions page.",
+          "sentence": "No new gates of this kind.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "An agent never designs a gate that fails rules 6 to 9.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "When it finds an existing one, including a declared one, it puts the redesign on the owner questions page as a proposal, as for a declared zero-finding gate.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "it constrains how gates over model judgments are designed; it adds no gate and lowers no declared one.",
+          "record": "uda.review.declared-authority",
+          "obligation_id": "declared-authority-at-boundary"
+        },
+        {
+          "sentence": "Repair: make the estimate; switch to the change-only review of rule 1; fix a bound and a stall rule; move acceptance to the aggregate of rule 3 (as a proposal when the gate is declared); withhold items and record gaps as in rule 2; add the confirmation of rule 6; write the label's definition for every role (rule 7); read statuses from what reviews name (rule 8); make the stop resumable and reported (rule 9); and put the counts on the owner questions page.",
           "record": "uda.review.failure-repair",
           "obligation_id": "failure-repair-at-boundary"
         },
@@ -3296,6 +3431,11 @@
         },
         {
           "sentence": "Apply the binomial tail to each aggregate, per-unit and per-stratum floor using its own n, p and allowed misses k, or measure that floor's false-failure rate on independently known-correct work.",
+          "record": "uda.review.false-failure",
+          "obligation_id": "false-failure-at-boundary"
+        },
+        {
+          "sentence": "A floor of zero over many model judgments is admissible only when the bound supports it; otherwise state the floor as an allowed count k from the bound, or make the check deterministic.",
           "record": "uda.review.false-failure",
           "obligation_id": "false-failure-at-boundary"
         }
