@@ -81,17 +81,24 @@ export function afterLookup(previous: DirectoryAnswer, workerId: string, entries
   return { state: "known", workerId, chat, at: now };
 }
 
-export interface SupervisorLinkProps { url: string; label: string; placeholder: boolean; workerId?: string }
+export interface SupervisorLinkProps {
+  url: string; label: string; placeholder: boolean; workerId?: string;
+  /** The ChatGPT conversation of the task's latest supervisor question, when the relay recorded one. */
+  activityUrl?: string | null;
+}
+export const LATEST_CHAT_LABEL = "Open its latest supervisor chat";
 export type SupervisorChatView =
   | { kind: "link"; href: string; label: string }
   | { kind: "none" }
   | { kind: "checking" }
   | { kind: "unavailable" };
 
-/** What the button shows: the recorded chat when it names one specific chat, else the configured one once the
- * directory has answered for this worker. "No supervisor chat linked" only when that answer, or the lack of a worker
- * to look up, says so; while the directory is unanswered or unreadable, it says that instead. */
-export function supervisorChatView({ url, label, placeholder, workerId }: SupervisorLinkProps, answer: DirectoryAnswer): SupervisorChatView {
+/** What the button shows: the chat of the task's latest supervisor question (where the supervising actually happened),
+ * else the recorded chat when it names one specific chat, else the configured one once the directory has answered for
+ * this worker. "No supervisor chat linked" only when that answer, or the lack of a worker to look up, says so; while
+ * the directory is unanswered or unreadable, it says that instead. */
+export function supervisorChatView({ url, label, placeholder, workerId, activityUrl }: SupervisorLinkProps, answer: DirectoryAnswer): SupervisorChatView {
+  if (activityUrl && isSpecificChatAddress(activityUrl)) return { kind: "link", href: activityUrl, label: LATEST_CHAT_LABEL };
   if (!placeholder && isSpecificChatAddress(url)) return { kind: "link", href: url, label };
   if (!workerId) return { kind: "none" };
   if (answer.state === "checking" || answer.workerId !== workerId) return { kind: "checking" };
@@ -106,13 +113,14 @@ const NO_LINK_TEXT = {
 } as const;
 
 /**
- * The worker's supervisor chat: the route or link recorded for the worker when it names one specific chat, else the
- * specialist chat the owner configured for it (the same directory the supervision page uses), else a plain "No
- * supervisor chat linked" with a pointer to the supervision page. Never a placeholder address or a site's home page.
+ * The worker's supervisor chat: the conversation of its latest supervisor question, else the route or link recorded
+ * for the worker when it names one specific chat, else the specialist chat the owner configured for it (the same
+ * directory the supervision page uses), else a plain "No supervisor chat linked" with a pointer to the supervision
+ * page. Never a placeholder address or a site's home page.
  */
 export function SupervisorLink(props: SupervisorLinkProps) {
-  const { url, placeholder, workerId } = props;
-  const recorded = !placeholder && isSpecificChatAddress(url);
+  const { url, placeholder, workerId, activityUrl } = props;
+  const recorded = Boolean(activityUrl && isSpecificChatAddress(activityUrl)) || (!placeholder && isSpecificChatAddress(url));
   const [answer, setAnswer] = useState<DirectoryAnswer>({ state: "checking" });
   useEffect(() => {
     if (recorded || !workerId) return;

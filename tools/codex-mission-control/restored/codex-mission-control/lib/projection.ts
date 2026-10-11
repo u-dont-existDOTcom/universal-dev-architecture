@@ -1,4 +1,5 @@
 import { isSpecificChatAddress } from "./supervisor-chat-address";
+import { supervisorActivity, type SupervisorActivity } from "./supervisor-activity";
 import { correctionStatusLabel } from "./correction-lifecycle";
 import { driftConfig, DriftConfig } from "./drift-config";
 import type {
@@ -101,6 +102,8 @@ export interface WorkerState {
   supervisorChatUrl: string;
   supervisorChatLabel: string;
   supervisorChatIsPlaceholder: boolean;
+  /** What the task's supervisor chats have been asked and answered, newest first. */
+  supervisorActivity: SupervisorActivity;
   status: WorkerStatus;
   health: Health;
   workerToContractAlignment: WorkerAlignment;
@@ -372,6 +375,7 @@ function projectV2Worker(
     supervisorChatUrl: supervisorUrl,
     supervisorChatLabel: supervisorLabel,
     supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
+    supervisorActivity: supervisorActivity(events, now),
     status,
     health: comparison.overallTraffic,
     workerToContractAlignment: comparison.workerToContractAlignment,
@@ -771,6 +775,7 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
     supervisorChatUrl: supervisorUrl,
     supervisorChatLabel: legacySupervisorChat.label,
     supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
+    supervisorActivity: supervisorActivity(events, now),
     status: heartbeat?.status ?? "working",
     health: overall,
     workerToContractAlignment: workerAlignment,

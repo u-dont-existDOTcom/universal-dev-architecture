@@ -7,6 +7,8 @@ import type { StoredEvent } from "@/lib/schema";
 import { formatMessageTimestamp } from "@/lib/message-time";
 import { StatusDot } from "./StatusDot";
 import type { OperatorStatusProjection, OperatorSupervisorStatus } from "@/lib/operator-status-contract";
+import { isPendingSupervisorRequest, latestSupervisorConversation, supervisorRequests, type SupervisorRequestActivity } from "@/lib/supervisor-activity";
+import { SUPERVISOR_REQUEST_STATE, supervisorStatusLine } from "./SupervisorActivity";
 
 interface Snapshot {
   workers: WorkerState[];
@@ -68,6 +70,8 @@ interface RouteRow {
   worker: WorkerState;
   event: WorkerMessageEvent;
   packet: InternalRoutePacket;
+  /** Where the question stands now (sent, answered, expired…), from the same worker's ledger. */
+  request: SupervisorRequestActivity | null;
 }
 
 const emptyDirectory: ConfiguredSupervisorDirectory = {
@@ -77,6 +81,8 @@ const emptyDirectory: ConfiguredSupervisorDirectory = {
 };
 const internalRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n";
 const providerSessionRoutePrefixes = [
+  "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n",
+  "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n",
   "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n",
   "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n",
 ] as const;
@@ -124,13 +130,16 @@ export function SupervisionConsole() {
       .map((event) => ({ worker, event })));
   }, [snapshot]);
 
-  const routeRows = useMemo(() => {
-    return (snapshot?.workers ?? []).flatMap((worker) => worker.timeline
-      .filter(isWorkerMessageEvent)
-      .flatMap((event) => {
-        const packet = parseInternalRoutePacket(event.data.body);
-        return packet ? [{ worker, event, packet }] : [];
-      }))
+  const routeRows = useMemo<RouteRow[]>(() => {
+    return (snapshot?.workers ?? []).flatMap((worker) => {
+      const requests = new Map(supervisorRequests(worker.timeline).map((request) => [request.requestId, request]));
+      return worker.timeline
+        .filter(isWorkerMessageEvent)
+        .flatMap((event) => {
+          const packet = parseInternalRoutePacket(event.data.body);
+          return packet ? [{ worker, event, packet, request: requests.get(packet.requestId) ?? null }] : [];
+        });
+    })
       .sort((left, right) => right.event.occurredAt.localeCompare(left.event.occurredAt));
   }, [snapshot]);
 
@@ -190,7 +199,7 @@ export function SupervisionConsole() {
             || !row.event.data.stable_supervisor_id && row.event.data.immutable_provider_locator === entry.url));
         const latest = latestMessage(matchingRows);
         const verified = matchingRows.filter((row) => row.event.data.provenance_status === "VERIFIED").length;
-        const queued = routeRows.filter((row) => row.packet.destinationSupervisorId === entry.supervisorId).length;
+        const queued = routeRows.filter((row) => row.packet.destinationSupervisorId === entry.supervisorId && pendingRoute(row)).length;
         return <article key={entry.supervisorId} className="healthy-card">
           <div className="healthy-card-head">
             <div><StatusDot health={live?.reachable ? "GREEN" : live?.registered ? "YELLOW" : "UNKNOWN"} /><h3>{entry.label}</h3></div>
@@ -200,7 +209,7 @@ export function SupervisionConsole() {
           <div className="healthy-planes">
             <span>Verified messages <strong>{verified}</strong></span>
             <span>Total messages <strong>{matchingRows.length}</strong></span>
-            <span>Queued routes <strong>{queued}</strong></span>
+            <span>Questions in flight <strong>{queued}</strong></span>
             <span>Latest reasoning <strong>{reasoningAge(live)}</strong></span>
           </div>
           {latest ? <MessageSummary row={latest} /> : <p className="empty-channel">No verified source-bound reasoning message is currently recorded for this specialist.</p>}
@@ -215,15 +224,17 @@ export function SupervisionConsole() {
         const latest = latestMessage(rows);
         const configured = directory.entries.find((entry) => entry.scope === "SPECIALIST" && entry.workerId === worker.id) ?? null;
         const live = configured ? operatorStatus.supervisors.find((entry) => entry.supervisorId === configured.supervisorId) ?? null : null;
-        const link = latest?.event.data.immutable_provider_locator ?? configured?.url ?? realSupervisorLink(worker);
+        const latestChat = latestSupervisorConversation(worker.supervisorActivity);
+        const link = latestChat ?? latest?.event.data.immutable_provider_locator ?? configured?.url ?? realSupervisorLink(worker);
         const verified = rows.filter((row) => row.event.data.provenance_status === "VERIFIED").length;
-        const state = workflowState(worker, routeRows.some((row) => row.worker.id === worker.id));
+        const state = workflowState(worker, routeRows.some((row) => row.worker.id === worker.id && pendingRoute(row)));
         return <article key={worker.id} className="healthy-card">
           <div className="healthy-card-head">
             <div><StatusDot health={live?.reachable ? "GREEN" : link ? "YELLOW" : "UNKNOWN"} /><h3>{worker.name}</h3></div>
             <span>{state}</span>
           </div>
           <p>Current supervisor: {configured?.label ?? worker.executionSupervision.surface} · execution {worker.executionSupervision.codexExecutionState.replaceAll("_", " ").toLowerCase()}</p>
+          <p>Latest question: {supervisorStatusLine(worker.supervisorActivity)}</p>
           <div className="healthy-planes">
             <span>Verified messages <strong>{verified}</strong></span>
             <span>Total messages <strong>{rows.length}</strong></span>
@@ -232,7 +243,7 @@ export function SupervisionConsole() {
           </div>
           {latest ? <MessageSummary row={latest} /> : <p className="empty-channel">No verified source-bound specialist reasoning is recorded; summaries and saved titles do not count.</p>}
           <div className="detail-actions">
-            {link && <a href={link} target="_blank" rel="noreferrer">Open specialist chat →</a>}
+            {link && <a href={link} target="_blank" rel="noreferrer">{latestChat ? "Open its latest supervisor chat →" : "Open specialist chat →"}</a>}
             <Link href={`/worker/${worker.id}`}>Open worker evidence and transcript →</Link>
           </div>
         </article>;
@@ -247,7 +258,7 @@ export function SupervisionConsole() {
         : routeRows.slice(0, 20).map((row) => {
           const locator = directory.entries.find((entry) => entry.supervisorId === row.packet.destinationSupervisorId)?.bootstrapCapability.url ?? null;
           return <div className="gap-callout" key={row.event.eventId}>
-            <span className="field-label">{row.packet.providerDeliveryState.replaceAll("_", " ")}</span>
+            <span className="field-label">{row.request ? SUPERVISOR_REQUEST_STATE[row.request.state] : "State not recorded"}</span>
             <p><strong>{row.worker.name}</strong> · blocked/routed action {row.packet.actionBlockedOrRouted.replaceAll("_", " ")}</p>
             <p>{row.packet.factualPacket.exactFactualState}</p>
             <p><strong>Decision requested:</strong> {row.packet.factualPacket.decisionRequested}</p>
@@ -295,7 +306,11 @@ function workerLabel(workers: WorkerState[], workerId: string): string {
   return workers.find((worker) => worker.id === workerId)?.name ?? "a currently offline worker";
 }
 
-function workflowState(worker: WorkerState, hasPendingRoute: boolean): string {
+export function pendingRoute(row: Pick<RouteRow, "request">): boolean {
+  return row.request ? isPendingSupervisorRequest(row.request) : false;
+}
+
+export function workflowState(worker: WorkerState, hasPendingRoute: boolean): string {
   if (worker.status === "done") return "FINISHED";
   if (worker.correction.ownerActionType !== "NONE") return "WAITING FOR JOEL";
   if (hasPendingRoute || worker.executionSupervision.pendingReasoningReview) return "WAITING FOR SUPERVISOR";
@@ -325,7 +340,7 @@ function realSupervisorLink(worker: WorkerState | undefined): string | null {
   return worker.supervisorChatUrl.startsWith("https://") ? worker.supervisorChatUrl : null;
 }
 
-function parseInternalRoutePacket(body: string): InternalRoutePacket | null {
+export function parseInternalRoutePacket(body: string): InternalRoutePacket | null {
   const providerSessionPrefix = providerSessionRoutePrefixes.find((candidate) => body.startsWith(candidate));
   const providerSession = Boolean(providerSessionPrefix);
   const prefix = providerSessionPrefix ?? internalRoutePrefix;

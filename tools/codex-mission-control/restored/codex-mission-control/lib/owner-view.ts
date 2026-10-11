@@ -52,7 +52,7 @@ const OWNER_ALARMS: Record<string, { title: string; explain: (action: OwnerActio
     title: "A worker's step is overdue",
     explain: (action, now) => {
       const step = action.exact_text.replace(/^The non-owner next action is overdue:\s*/, "").replace(/[.\s]+$/, "");
-      const due = action.due_at ? ` (due ${ago(action.due_at, now)})` : "";
+      const due = action.due_at ? ` (due ${timeAgo(action.due_at, now)})` : "";
       return `The next step isn't yours: ${step}${due}. If the delay matters, ask its supervisor why.`;
     },
   },
@@ -83,7 +83,8 @@ export function ownerAttention(worker: WorkerState, now = new Date()): OwnerAtte
   return alarm ? { kind: "alarm", title: alarm.title, explanation: alarm.explain(action, now) } : { kind: "decision" };
 }
 
-function ago(value: string, now: Date): string {
+/** "5 minutes ago", "3 hours ago", "2 days ago"; a future time counts as now. */
+export function timeAgo(value: string, now: Date = new Date()): string {
   const time = new Date(value).getTime();
   if (!Number.isFinite(time)) return "at an unrecorded time";
   const minutes = Math.max(0, Math.round((now.getTime() - time) / 60_000));
@@ -97,7 +98,6 @@ export function workerDisposition(worker: WorkerState): string {
   const attention = ownerAttention(worker);
   if (attention?.kind === "decision") return "Waiting for your decision";
   if (attention?.kind === "alarm") return `Needs a look: ${attention.title.toLowerCase()}`;
-  if (worker.correction.ownerActionType !== "NONE") return "Waiting for your action";
   if (worker.executionSupervision.pendingReasoningReview) return "Waiting for review";
   if (worker.blocker || worker.channel.blockers.length || worker.executionSupervision.codexExecutionState === "PARKED") return "Blocked or parked";
   if (worker.connection.state !== "CONNECTED") return "Status needs checking · reporting offline";

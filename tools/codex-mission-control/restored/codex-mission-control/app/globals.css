@@ -743,3 +743,23 @@ code { font-family: var(--mono); color: #b9d5cc; font-size: .92em; }
 .owner-project li { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 3px; }
 .owner-project li > span, .owner-project li > small { color: var(--muted); font-size: 12px; }
 @media (max-width: 760px) { .owner-relationship-strip, .owner-project-grid { grid-template-columns: 1fr; } }
+/* Supervisor activity: the first screen's supervision line, and the worker page's list of supervisor questions. */
+.supervision-health { margin-top: 16px; padding: 10px 14px; border: 1px solid var(--line); font-size: 13px; }
+.supervision-health.healthy { color: var(--muted); }
+.supervision-health.down { border-color: rgba(240,186,86,.3); background: rgba(240,186,86,.08); color: var(--yellow); }
+.supervision-health.down p { margin: 6px 0 0; color: var(--text); }
+.supervision-health.down p.muted { color: var(--muted); font-size: 12px; }
+.supervisor-activity { margin: 22px 0; padding: 18px 20px; border: 1px solid var(--line); background: var(--panel); }
+.supervisor-activity h2 { margin: 0 0 6px; font-size: 17px; }
+.supervisor-activity > p { margin: 0 0 10px; }
+.supervisor-requests { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 12px; }
+.supervisor-request { border-left: 3px solid var(--line); padding: 4px 0 4px 14px; display: grid; gap: 6px; min-width: 0; }
+.supervisor-request.answered { border-left-color: var(--green); }
+.supervisor-request.sent, .supervisor-request.finished, .supervisor-request.queued { border-left-color: var(--cyan); }
+.supervisor-request.no_answer, .supervisor-request.expired_unsent, .supervisor-request.replaced { border-left-color: var(--yellow); }
+.supervisor-request-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.supervisor-request-head span { color: var(--muted); font-size: 12px; }
+.supervisor-request p { margin: 0; overflow-wrap: anywhere; }
+.supervisor-request-times { color: var(--muted); font-size: 12px; }
+.supervisor-request-answer { padding: 8px 10px; background: var(--panel-2); }
+.supervisor-request .supervisor-link { justify-self: start; }
