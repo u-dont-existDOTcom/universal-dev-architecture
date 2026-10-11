@@ -109,7 +109,7 @@ export function Dashboard() {
     <header className="topbar"><div className="brand-row"><div className="brand-mark">MC</div><div><p className="eyebrow">YOUR WORK, IN VIEW</p><h1>Mission Control</h1></div></div><button className="owner-retry" onClick={() => void load()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</button></header>
     <DashboardNotice failures={failures} hasSnapshot={Boolean(snapshot)} loading={loading} onRetry={() => void load()} />
     {streamError && <div role="status" className="error-banner">Live updates are reconnecting. Displayed information may be stale; use Refresh to check.</div>}
-    {!failures.Infrastructure && <SupervisionHealthLine status={operatorStatus} lastQuestionAt={lastSupervisorQuestionSentAt(workers.map(worker => worker.supervisorActivity))} />}
+    {!failures.Infrastructure && <SupervisionHealthLine status={operatorStatus} lastQuestionAt={supervisionHistory(snapshot, Boolean(failures.Tasks))} />}
     {!snapshot && loading && !partial && <div role="status" className="loading-panel">Loading your recorded work…</div>}
     {snapshot && <>
       <p className="owner-coverage">{workers.length} task{workers.length === 1 ? "" : "s"} in {knownProjects} project{knownProjects === 1 ? "" : "s"}, as reported to Mission Control; work that doesn't report to it isn't shown. Updated {relativeTime(snapshot.generatedAt)} ({new Date(snapshot.generatedAt).toLocaleString()}).{failures.Tasks && " Task data is last-known; current status needs checking."}</p>
@@ -127,6 +127,14 @@ export function Dashboard() {
 export function DashboardNotice({ failures, hasSnapshot, loading, onRetry }: { failures: Record<string, SnapshotFailure>; hasSnapshot: boolean; loading: boolean; onRetry: () => void }) {
   if (!Object.keys(failures).length) return null;
   return <section role="alert" className="error-banner"><strong>{hasSnapshot ? "Partial / last-known view" : "Dashboard data could not be loaded"}</strong>{Object.entries(failures).map(([name, failure]) => <p key={name}>{name}: {failure.message}</p>)}<button className="owner-retry" onClick={onRetry} disabled={loading}>{loading ? "Retrying…" : "Retry"}</button></section>;
+}
+
+/**
+ * When the last supervisor question went to ChatGPT, for the first screen's supervision line: only from a current task
+ * snapshot. Without one (task data failed to load, or kept from before) it is unknown, and the line says so.
+ */
+export function supervisionHistory(snapshot: { workers: Pick<WorkerState, "supervisorActivity">[] } | null, tasksFailed: boolean): string | null | undefined {
+  return snapshot && !tasksFailed ? lastSupervisorQuestionSentAt(snapshot.workers.map(worker => worker.supervisorActivity)) : undefined;
 }
 
 export function OwnerTaskCard({ worker }: { worker: WorkerState }) {

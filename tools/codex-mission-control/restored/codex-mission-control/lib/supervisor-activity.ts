@@ -4,11 +4,17 @@ import { isSpecificChatAddress } from "./supervisor-chat-address";
 /**
  * What a task's supervisor has been doing, from the ledger: each question Mission Control queued for a supervisor
  * chat, whether the relay sent it (and to which ChatGPT conversation), whether the supervisor finished, and the
- * answer that came back. Every request opens a fresh conversation, so "the supervisor chat" of a task is the
- * conversation of its latest request. Read-only: nothing here changes what Mission Control sends or accepts.
+ * answer that came back. Current questions (V5/V6) each open a fresh conversation, so "the supervisor chat" of a task
+ * is the conversation of its latest request. Read-only: nothing here changes what Mission Control sends or accepts.
+ *
+ * States: QUEUED (no send recorded yet), WAITING (no answer yet, for a route whose sending this view doesn't track),
+ * SENT and FINISHED (the relay started or finished the question in the request's own session), ANSWERED, NO_ANSWER
+ * (sent, then expired without an answer), EXPIRED (expired without an answer, with no send recorded or tracked),
+ * EXPIRED_UNSENT and WITHDRAWN (retired with Mission Control's proof that nothing was sent: on expiry, or withdrawn),
+ * REPLACED (an admitted replacement superseded it).
  */
 export const SUPERVISOR_REQUEST_STATES = [
-  "QUEUED", "SENT", "FINISHED", "ANSWERED", "NO_ANSWER", "EXPIRED_UNSENT", "WITHDRAWN", "REPLACED",
+  "QUEUED", "WAITING", "SENT", "FINISHED", "ANSWERED", "NO_ANSWER", "EXPIRED", "EXPIRED_UNSENT", "WITHDRAWN", "REPLACED",
 ] as const;
 export const SUPERVISOR_REQUEST_ORIGINS = [
   "ROUTINE_CHECK", "WORK_QUESTION", "OWNER_ANSWER", "AFTER_WORK", "SOURCE_REVIEW", "OTHER",
@@ -47,27 +53,42 @@ export interface SupervisorActivity {
 
 export const RECENT_REQUESTS = 5;
 const ROUTE_PREFIX = /^MISSION_CONTROL_INTERNAL_SUPERVIS(?:ORY_CYCLE_V[2-6]|OR_ROUTE_V1)\n/;
+const CYCLE_VERSION = /^MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V([2-6])\n/;
 const INTERNAL_ROUTE_PREFIX = "MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n";
-const RETIRED_UNSENT_SUMMARY = "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1";
-const RETIREMENT_PRODUCER = "verifier:fleet-supervisor-request-retirement";
 // The relay's provider-session and stage receipts: the only transport evidence that says a question was sent, finished
 // or ran in a given conversation.
-const TRANSPORT_SUMMARIES = new Set(["MISSION_CONTROL_PROVIDER_SESSION_V1", "MISSION_CONTROL_RELAY_STAGE_V1"]);
+const SESSION_SUMMARY = "MISSION_CONTROL_PROVIDER_SESSION_V1";
+const STAGE_SUMMARY = "MISSION_CONTROL_RELAY_STAGE_V1";
 const QUESTION_LIMIT = 400;
 const ANSWER_LIMIT = 600;
 
+/**
+ * The route versions whose relay transport Mission Control binds to one request's own provider session, with the
+ * session role, relay step and conversation address their validators require (V5: lib/request-bound-supervision.ts,
+ * V6: lib/in-band-request-binding.ts; repeated here because those modules are server-only, and a test keeps them
+ * equal). Older routes bind their sessions differently, so this view never shows them as sent: only as waiting,
+ * answered or expired.
+ */
+export const SUPERVISOR_TRANSPORT_BINDINGS: Readonly<Record<number, { sessionRole: string; step: string; conversation: RegExp }>> = {
+  5: { sessionRole: "REQUEST_BOUND_DECISION_SESSION", step: "REQUEST_BOUND_DECISION", conversation: /^https:\/\/chatgpt\.com\/c\/[A-Za-z0-9_-]+$/ },
+  6: { sessionRole: "IN_BAND_REQUEST_DECISION_SESSION", step: "IN_BAND_REQUEST_DECISION", conversation: /^https:\/\/chatgpt\.com\/c\/(?:WEB:)?[A-Za-z0-9_-]+$/ },
+};
+
 export const emptySupervisorActivity: SupervisorActivity = { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, lastSentAt: null, states: {} };
 
-interface Draft extends SupervisorRequestActivity { sequence: number; conversationSequence: number; conversationIsProvisional: boolean }
+interface Draft extends SupervisorRequestActivity { sequence: number; version: number; worker: string }
 
 /**
  * What Mission Control itself accepts, from its request admission and receipt policy: the cycle requests (V2-V6) it
  * admits (`admittedCycleRequests`: its request parser and replacement rules), the admitted ones an admitted replacement
- * superseded, and the relay collectors (the policy's request-bound relay producers) whose transport receipts count.
+ * superseded, the ones retired with its no-send proof (`retiredUnsentRequests`), and the relay collectors (the policy's
+ * request-bound relay producers) whose transport receipts count.
  */
 export interface SupervisorRequestAdmission {
   admitted: ReadonlySet<string>;
   replaced: ReadonlySet<string>;
+  /** Retired before anything was sent: by the fleet check because it expired, or withdrawn. */
+  retired: ReadonlyMap<string, "EXPIRED_UNSENT" | "WITHDRAWN">;
   trustedRelays: ReadonlySet<string>;
 }
 
@@ -86,9 +107,9 @@ export function supervisorActivity(events: readonly StoredEvent[], now: Date, ad
   };
 }
 
-/** Questions still in flight: queued, sent, or finished without a recorded answer, and not expired. */
+/** Questions still in flight: queued, waiting, sent, or finished without a recorded answer, and not expired. */
 export function isPendingSupervisorRequest(request: Pick<SupervisorRequestActivity, "state">): boolean {
-  return request.state === "QUEUED" || request.state === "SENT" || request.state === "FINISHED";
+  return request.state === "QUEUED" || request.state === "WAITING" || request.state === "SENT" || request.state === "FINISHED";
 }
 
 /** Every supervisor question in these events with its current state, newest first. */
@@ -114,78 +135,34 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
       state: "QUEUED",
       sentAt: null, finishedAt: null, answeredAt: null, answer: null, conversationUrl: null,
       sequence: event.sequence,
-      conversationSequence: -1,
-      conversationIsProvisional: false,
+      version: Number(CYCLE_VERSION.exec(data.body)?.[1] ?? 1),
+      worker: event.worker,
     });
   }
   if (!drafts.size) return [];
 
-  const withdrawn = new Set<string>();
-  const retiredExpired = new Set<string>();
-  const replaced = new Set<string>();
-  for (const requestId of admission.replaced) replaced.add(requestId);
   for (const event of events) {
     const data = event.data;
-    if (data.type === "github_decision_receipt_ingested") {
-      const draft = drafts.get(data.request_id);
-      if (!draft || draft.answeredAt) continue;
-      draft.answeredAt = data.ingested_at;
-      draft.answer = shorten(answerOf(data), ANSWER_LIMIT);
-      continue;
-    }
-    if (data.type !== "evidence_receipt_recorded" || !data.verified) continue;
-    const requestId = refValue(data.refs, "request");
-    const draft = requestId ? drafts.get(requestId) : undefined;
-    if (!draft) continue;
-    if (data.summary === RETIRED_UNSENT_SUMMARY) {
-      if (data.producer_id === RETIREMENT_PRODUCER && event.producerId === RETIREMENT_PRODUCER
-        && data.refs.includes("lifecycle_status:RETIRED_UNSENT")) {
-        // The fleet check retires an expired request on its own (reason REQUEST_EXPIRED); any other retirement is a
-        // deliberate withdrawal.
-        (data.refs.includes("retirement_reason:REQUEST_EXPIRED") ? retiredExpired : withdrawn).add(draft.requestId);
-      }
-      continue;
-    }
-    // Transport evidence counts only from the relay collectors the receipt policy names, for this question's supervisor
-    // and after it was queued; never from a worker's, supervisor's or other collector's claim.
-    if (!admission.trustedRelays.has(event.producerId) || event.producerKind !== "COLLECTOR"
-      || data.producer_role !== "COLLECTOR" || data.producer_id !== event.producerId || !TRANSPORT_SUMMARIES.has(data.summary)) continue;
-    if (draft.supervisorId && refValue(data.refs, "supervisor") !== draft.supervisorId) continue;
-    if (!(Date.parse(event.occurredAt) >= Date.parse(draft.queuedAt))) continue;
-    // Split-session cycles (V3/V4) first preload a binding session; its receipts are not the question being sent.
-    const session = refValue(data.refs, "provider_session");
-    if (refValue(data.refs, "session_role") === "MC_BINDING_PRELOAD_SESSION" || refValue(data.refs, "step") === "MCP_BINDING_PRELOAD"
-      || (session !== null && session === refValue(data.refs, "binding_provider_session"))) continue;
-    const generation = refValue(data.refs, "generation_state");
-    const lifecycle = refValue(data.refs, "lifecycle_status");
-    if (generation === "STARTED" && (!draft.sentAt || instant(event.occurredAt) < instant(draft.sentAt))) draft.sentAt = event.occurredAt;
-    if ((generation === "COMPLETE" || lifecycle === "COMPLETE") && (!draft.finishedAt || instant(event.occurredAt) > instant(draft.finishedAt))) {
-      draft.finishedAt = event.occurredAt;
-    }
-    const url = refValue(data.refs, "conversation_url");
-    if (url && isSpecificChatAddress(url)) {
-      // A provisional "WEB:" address is replaced by the real one once ChatGPT assigns it; prefer the real one.
-      const provisional = /\/c\/WEB:/.test(url);
-      const better = !draft.conversationUrl
-        || (draft.conversationIsProvisional && !provisional)
-        || (draft.conversationIsProvisional === provisional && event.sequence > draft.conversationSequence);
-      if (better) {
-        draft.conversationUrl = url;
-        draft.conversationSequence = event.sequence;
-        draft.conversationIsProvisional = provisional;
-      }
-    }
+    if (data.type !== "github_decision_receipt_ingested") continue;
+    const draft = drafts.get(data.request_id);
+    if (!draft || draft.answeredAt) continue;
+    draft.answeredAt = data.ingested_at;
+    draft.answer = shorten(answerOf(data), ANSWER_LIMIT);
   }
 
+  const transport = relayTransport(events, admission.trustedRelays);
   const nowMs = now.getTime();
   const all = [...drafts.values()].map((draft): SupervisorRequestActivity => {
+    // Sending is tracked only where Mission Control binds the relay's receipts to the request (V5/V6) and trusts a relay.
+    const tracked = Boolean(SUPERVISOR_TRANSPORT_BINDINGS[draft.version]) && admission.trustedRelays.size > 0;
+    if (tracked) applyBoundTransport(draft, transport);
     const expired = draft.expiresAt !== null && Date.parse(draft.expiresAt) <= nowMs;
     const state: SupervisorRequestState = draft.answeredAt ? "ANSWERED"
-      : replaced.has(draft.requestId) ? "REPLACED"
-        : retiredExpired.has(draft.requestId) ? "EXPIRED_UNSENT"
-          : withdrawn.has(draft.requestId) ? "WITHDRAWN"
-          : draft.sentAt || draft.finishedAt ? (expired ? "NO_ANSWER" : draft.finishedAt ? "FINISHED" : "SENT")
-            : expired ? "EXPIRED_UNSENT" : "QUEUED";
+      : admission.replaced.has(draft.requestId) ? "REPLACED"
+        : admission.retired.get(draft.requestId)
+          ?? (!tracked ? (expired ? "EXPIRED" : "WAITING")
+            : draft.sentAt || draft.finishedAt ? (expired ? "NO_ANSWER" : draft.finishedAt ? "FINISHED" : "SENT")
+              : expired ? "EXPIRED" : "QUEUED");
     return {
       requestId: draft.requestId, origin: draft.origin, supervisorId: draft.supervisorId, question: draft.question,
       queuedAt: draft.queuedAt, expiresAt: draft.expiresAt, state, sentAt: draft.sentAt, finishedAt: draft.finishedAt,
@@ -196,8 +173,113 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
   return all.sort((a, b) => (order.get(b.requestId) ?? 0) - (order.get(a.requestId) ?? 0));
 }
 
-/** The newest time any of these tasks' supervisor questions started going to ChatGPT. */
-export function lastSupervisorQuestionSentAt(activities: ReadonlyArray<SupervisorActivity | undefined | null>): string | null {
+interface BoundSession { conversations: Set<string>; starts: string[]; finishes: string[]; sequence: number }
+interface RelayReceipt { event: StoredEvent; summary: string; session: string | null; supervisor: string | null; ref: (key: string) => string | null }
+interface RelayTransport {
+  byRequest: Map<string, RelayReceipt[]>;
+  /** Per provider session: the one worker, request and supervisor its receipts name, the roles its session receipts name. */
+  sessions: Map<string, { owner: string; conflict: boolean; roles: Set<string | null> }>;
+}
+
+/**
+ * The relay's receipts that can count: provider-session and stage receipts from a collector the receipt policy trusts,
+ * never a worker's, supervisor's or other collector's claim.
+ */
+function relayTransport(events: readonly StoredEvent[], relays: ReadonlySet<string>): RelayTransport {
+  const byRequest = new Map<string, RelayReceipt[]>();
+  const sessions: RelayTransport["sessions"] = new Map();
+  for (const event of events) {
+    const data = event.data;
+    if (data.type !== "evidence_receipt_recorded" || data.verified !== true
+      || (data.summary !== SESSION_SUMMARY && data.summary !== STAGE_SUMMARY)
+      || event.producerKind !== "COLLECTOR" || !relays.has(event.producerId)
+      || data.producer_id !== event.producerId || data.producer_role !== "COLLECTOR") continue;
+    const ref = (key: string) => refValue(data.refs, key);
+    const request = ref("request");
+    const receipt: RelayReceipt = { event, summary: data.summary, session: ref("provider_session"), supervisor: ref("supervisor"), ref };
+    if (receipt.session) {
+      // A relay never reuses a provider session: one named for another worker, request or supervisor counts for none.
+      const owner = JSON.stringify([event.worker ?? null, request, receipt.supervisor]);
+      const use = sessions.get(receipt.session) ?? { owner, conflict: false, roles: new Set<string | null>() };
+      if (use.owner !== owner) use.conflict = true;
+      if (data.summary === SESSION_SUMMARY) use.roles.add(ref("session_role"));
+      sessions.set(receipt.session, use);
+    }
+    if (request) {
+      const list = byRequest.get(request) ?? [];
+      list.push(receipt);
+      byRequest.set(request, list);
+    }
+  }
+  return { byRequest, sessions };
+}
+
+/**
+ * Sent, finished and the conversation, from the receipts bound to this request's own provider session the way its
+ * route version's validators bind them: session receipts with the version's session role, first message and an exact
+ * ChatGPT conversation; stage receipts at the version's step for that session's first message, in that conversation.
+ */
+function applyBoundTransport(draft: Draft, transport: RelayTransport): void {
+  const binding = SUPERVISOR_TRANSPORT_BINDINGS[draft.version]!;
+  const owner = JSON.stringify([draft.worker, draft.requestId, draft.supervisorId]);
+  const receipts = (transport.byRequest.get(draft.requestId) ?? []).filter((receipt) => {
+    const use = receipt.session ? transport.sessions.get(receipt.session) : undefined;
+    return use !== undefined && !use.conflict && use.owner === owner && [...use.roles].every((role) => role === binding.sessionRole)
+      && instant(receipt.event.occurredAt) >= instant(draft.queuedAt);
+  });
+  const sessions = new Map<string, BoundSession>();
+  for (const receipt of receipts) {
+    const url = receipt.ref("conversation_url");
+    if (receipt.summary !== SESSION_SUMMARY || receipt.ref("message_ordinal") !== "1" || receipt.ref("url_binding_status") !== "EXACT"
+      || !url || !binding.conversation.test(url) || !isSpecificChatAddress(url)) continue;
+    const session = sessions.get(receipt.session!) ?? { conversations: new Set<string>(), starts: [], finishes: [], sequence: -1 };
+    session.conversations.add(url);
+    session.sequence = Math.max(session.sequence, receipt.event.sequence);
+    if (receipt.ref("lifecycle_status") === "COMPLETE") session.finishes.push(receipt.event.occurredAt);
+    sessions.set(receipt.session!, session);
+  }
+  for (const receipt of receipts) {
+    const session = receipt.summary === STAGE_SUMMARY ? sessions.get(receipt.session!) : undefined;
+    if (!session || receipt.ref("step") !== binding.step || receipt.ref("message_ordinal") !== "1" || receipt.ref("first_message") !== "true") continue;
+    const url = receipt.ref("conversation_url");
+    const generation = receipt.ref("generation_state");
+    // The send starts in one of the session's exact conversations (a provisional "WEB:" one counts); it completes in
+    // the session's conversation (its real address once assigned).
+    if (generation === "STARTED" && url !== null && session.conversations.has(url)) session.starts.push(receipt.event.occurredAt);
+    else if (generation === "COMPLETE" && url !== null && url === sessionConversation(session.conversations)) session.finishes.push(receipt.event.occurredAt);
+    else continue;
+    session.sequence = Math.max(session.sequence, receipt.event.sequence);
+  }
+  // One session per request is the rule; should there be more, show the one that was sent, else the latest.
+  let chosen: BoundSession | null = null;
+  for (const session of sessions.values()) {
+    const sent = session.starts.length > 0;
+    const chosenSent = chosen !== null && chosen.starts.length > 0;
+    if (!chosen || (sent && !chosenSent) || (sent === chosenSent && session.sequence > chosen.sequence)) chosen = session;
+  }
+  if (!chosen) return;
+  draft.sentAt = earliestInstant(chosen.starts);
+  draft.finishedAt = latestInstant(chosen.finishes);
+  draft.conversationUrl = sessionConversation(chosen.conversations);
+}
+
+/**
+ * The conversation a session ran in: its real address once ChatGPT assigned one, else its provisional "WEB:" one. A
+ * session naming two real or two provisional addresses changed identity, which Mission Control's validators reject, so
+ * it offers none.
+ */
+function sessionConversation(conversations: ReadonlySet<string>): string | null {
+  const real = [...conversations].filter((url) => !/\/c\/WEB:/.test(url));
+  const provisional = [...conversations].filter((url) => /\/c\/WEB:/.test(url));
+  return real.length > 1 || provisional.length > 1 ? null : real[0] ?? provisional[0] ?? null;
+}
+
+/**
+ * The newest time any of these tasks' supervisor questions started going to ChatGPT; undefined when a task's activity
+ * isn't known (a snapshot without it), since then nobody can say.
+ */
+export function lastSupervisorQuestionSentAt(activities: ReadonlyArray<SupervisorActivity | undefined | null>): string | null | undefined {
+  if (activities.some((activity) => !activity)) return undefined;
   return latestInstant(activities.map((activity) => activity?.lastSentAt ?? null));
 }
 
@@ -254,6 +336,14 @@ function latestInstant(values: ReadonlyArray<string | null | undefined>): string
     if (latest === null || instant(value) > instant(latest)) latest = value;
   }
   return latest;
+}
+function earliestInstant(values: ReadonlyArray<string | null | undefined>): string | null {
+  let earliest: string | null = null;
+  for (const value of values) {
+    if (typeof value !== "string" || !Number.isFinite(instant(value))) continue;
+    if (earliest === null || instant(value) < instant(earliest)) earliest = value;
+  }
+  return earliest;
 }
 
 function parsePacket(body: string): Record<string, unknown> | null {

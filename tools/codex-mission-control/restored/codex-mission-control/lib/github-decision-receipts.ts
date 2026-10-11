@@ -809,7 +809,22 @@ export function buildWorkCloudExecutionReceiptAndReturnRoute(
 
 export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionRequest[] {
   const completed = new Set(events.flatMap((e) => e.data.type === "github_decision_receipt_ingested" ? [e.data.request_id] : []));
-  const retiredUnsent = new Set(events.flatMap((event) => {
+  const retiredUnsent = retiredUnsentRequests(events);
+  const { admitted, superseded } = admittedCycleRequests(events);
+  return admitted.filter((request) => !completed.has(request.requestId)
+    && !retiredUnsent.has(request.requestId)
+    && !superseded.has(request.requestId));
+}
+
+/**
+ * The fleet requests retired before anything was sent: a verified retirement receipt from the retirement verifier
+ * carrying the full no-send proof (the provider send boundary not crossed, and no queue, admission or transport
+ * record). Keyed by request id; the value is the newest such receipt's `retirement_reason`, or null without one.
+ * The pending set and the owner's supervisor-activity view both read this.
+ */
+export function retiredUnsentRequests(events: StoredEvent[]): Map<string, string | null> {
+  const newest = new Map<string, { reason: string | null; sequence: number }>();
+  for (const event of events) {
     const data = event.data;
     if (data.type !== "evidence_receipt_recorded"
       || data.summary !== supervisoryRequestRetiredUnsentSummary
@@ -820,14 +835,13 @@ export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionR
       || !data.refs.includes("provider_send_boundary:NOT_CROSSED")
       || !data.refs.includes("submission_authority_queue_records:0")
       || !data.refs.includes("submission_authority_admission_records:0")
-      || !data.refs.includes("provider_transport_evidence_records:0")) return [];
+      || !data.refs.includes("provider_transport_evidence_records:0")) continue;
     const requestId = exactRefValue(data.refs, "request:");
-    return requestId && /^fleet-review:[a-f0-9]{32}$/.test(requestId) ? [requestId] : [];
-  }));
-  const { admitted, superseded } = admittedCycleRequests(events);
-  return admitted.filter((request) => !completed.has(request.requestId)
-    && !retiredUnsent.has(request.requestId)
-    && !superseded.has(request.requestId));
+    if (!requestId || !/^fleet-review:[a-f0-9]{32}$/.test(requestId)) continue;
+    const prior = newest.get(requestId);
+    if (!prior || event.sequence > prior.sequence) newest.set(requestId, { reason: exactRefValue(data.refs, "retirement_reason:"), sequence: event.sequence });
+  }
+  return new Map([...newest].map(([requestId, { reason }]) => [requestId, reason]));
 }
 
 /**

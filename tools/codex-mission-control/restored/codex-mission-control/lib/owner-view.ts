@@ -122,10 +122,9 @@ function fleetSupervisorValid(value: unknown) {
     && typeof at(watch, "cadenceMs") === "number"
     && ["nextTickAt", "lastTickAt"].every(key => at(watch, key) === null || date(at(watch, key))));
 }
-// The task cards and the worker page read the supervisor activity; a malformed one is not a usable refresh. A snapshot
-// from a build without it still renders (the views fall back to "not asked anything yet").
+// The task cards and the first screen read the supervisor activity; a missing or malformed one is not a usable refresh.
+// Missing means unknown, not "never asked", so a snapshot without it (another build's) keeps the last good one.
 function supervisorActivityValid(value: unknown): boolean {
-  if (value === undefined) return true;
   if (!record(value) || typeof value.total !== "number" || typeof value.answered !== "number") return false;
   if (!nullableString(value.lastAnsweredAt) || !nullableString(value.latestConversationUrl) || !nullableString(value.lastSentAt)) return false;
   if (!record(value.states) || !Object.values(value.states).every((state) => (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(state))) return false;

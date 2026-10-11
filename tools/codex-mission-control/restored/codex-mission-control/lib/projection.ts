@@ -1,6 +1,6 @@
 import { isSpecificChatAddress } from "./supervisor-chat-address";
 import { supervisorActivity, type SupervisorActivity, type SupervisorRequestAdmission } from "./supervisor-activity";
-import { admittedCycleRequests, parseGitHubReceiptPolicy } from "./github-decision-receipts";
+import { admittedCycleRequests, parseGitHubReceiptPolicy, retiredUnsentRequests } from "./github-decision-receipts";
 import { correctionStatusLabel } from "./correction-lifecycle";
 import { driftConfig, DriftConfig } from "./drift-config";
 import type {
@@ -262,7 +262,11 @@ function supervisorRequestAdmission(events: StoredEvent[]): SupervisorRequestAdm
   } catch {
     // An invalid receipt policy trusts no relay: questions still show, but not as sent.
   }
-  return { admitted: new Set(admitted.map((request) => request.requestId)), replaced: superseded, trustedRelays: new Set(trustedRelays) };
+  // Retired only with the full no-send proof Mission Control's own pending set requires; the fleet check retires an
+  // expired request on its own (reason REQUEST_EXPIRED), and any other retirement is a deliberate withdrawal.
+  const retired = new Map([...retiredUnsentRequests(events)].map(([requestId, reason]) =>
+    [requestId, reason === "REQUEST_EXPIRED" ? "EXPIRED_UNSENT" as const : "WITHDRAWN" as const]));
+  return { admitted: new Set(admitted.map((request) => request.requestId)), replaced: superseded, retired, trustedRelays: new Set(trustedRelays) };
 }
 
 export function projectWorkers(events: StoredEvent[], now = new Date(), config: DriftConfig = driftConfig): WorkerState[] {

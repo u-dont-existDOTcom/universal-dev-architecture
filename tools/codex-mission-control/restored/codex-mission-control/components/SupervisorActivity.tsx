@@ -1,5 +1,5 @@
 import type { OperatorStatusProjection } from "@/lib/operator-status-contract";
-import { emptySupervisorActivity, type SupervisorActivity, type SupervisorRequestActivity } from "@/lib/supervisor-activity";
+import type { SupervisorActivity, SupervisorRequestActivity } from "@/lib/supervisor-activity";
 import { timeAgo } from "@/lib/owner-view";
 
 export const SUPERVISOR_REQUEST_ORIGIN: Record<SupervisorRequestActivity["origin"], string> = {
@@ -13,10 +13,12 @@ export const SUPERVISOR_REQUEST_ORIGIN: Record<SupervisorRequestActivity["origin
 
 export const SUPERVISOR_REQUEST_STATE: Record<SupervisorRequestActivity["state"], string> = {
   QUEUED: "Waiting to be sent",
+  WAITING: "Waiting for an answer",
   SENT: "Sent; the supervisor is working on it",
   FINISHED: "The supervisor finished; its answer isn't recorded yet",
   ANSWERED: "Answered",
   NO_ANSWER: "Sent, but no answer came back before it expired",
+  EXPIRED: "Expired without an answer",
   EXPIRED_UNSENT: "Never sent; it expired",
   WITHDRAWN: "Withdrawn before it was sent",
   REPLACED: "Its answer couldn't be used, so it was asked again",
@@ -26,9 +28,13 @@ function clip(value: string, limit: number): string {
   return value.length <= limit ? value : `${value.slice(0, limit - 1).trimEnd()}…`;
 }
 
-/** One sentence for a task card: what its supervisor was last asked and where that stands. */
+/**
+ * One sentence for a task card: what its supervisor was last asked and where that stands. Without the task's activity
+ * (a snapshot that doesn't carry it) nothing is known, which is not the same as nothing asked.
+ */
 export function supervisorStatusLine(activity: SupervisorActivity | undefined | null, now = new Date()): string {
-  const latest = (activity ?? emptySupervisorActivity).requests[0];
+  if (!activity) return "Not available right now.";
+  const latest = activity.requests[0];
   if (!latest) return "Not asked anything yet.";
   const asked = `Asked ${timeAgo(latest.queuedAt, now)}`;
   switch (latest.state) {
@@ -36,6 +42,8 @@ export function supervisorStatusLine(activity: SupervisorActivity | undefined | 
     case "SENT": return `${asked}; sent ${timeAgo(latest.sentAt!, now)}, working on it.`;
     case "FINISHED": return `${asked}; finished ${timeAgo(latest.finishedAt!, now)}, answer not recorded yet.`;
     case "NO_ANSWER": return `Sent ${timeAgo(latest.sentAt ?? latest.queuedAt, now)}; no answer came back before it expired.`;
+    case "WAITING": return `${asked}; waiting for an answer.`;
+    case "EXPIRED": return `${asked}; it expired ${timeAgo(latest.expiresAt!, now)} without an answer.`;
     case "EXPIRED_UNSENT": return `${asked}; never sent, and it expired ${timeAgo(latest.expiresAt!, now)}.`;
     case "WITHDRAWN": return `${asked}; withdrawn before it was sent.`;
     case "REPLACED": return `${asked}; its answer couldn't be used, so it was asked again.`;
@@ -45,7 +53,15 @@ export function supervisorStatusLine(activity: SupervisorActivity | undefined | 
 
 /** The worker page's list: the latest questions its supervisor chats got, their state, the answer and the chat. */
 export function SupervisorActivityPanel({ activity, now = new Date() }: { activity: SupervisorActivity | undefined | null; now?: Date }) {
-  const current = activity ?? emptySupervisorActivity;
+  if (!activity) {
+    return (
+      <section className="supervisor-activity" aria-labelledby="supervisor-activity-title">
+        <h2 id="supervisor-activity-title">What its supervisor is doing</h2>
+        <p className="muted">Its supervisor questions aren&apos;t available right now.</p>
+      </section>
+    );
+  }
+  const current = activity;
   return (
     <section className="supervisor-activity" aria-labelledby="supervisor-activity-title">
       <h2 id="supervisor-activity-title">What its supervisor is doing</h2>
@@ -82,12 +98,14 @@ export function SupervisorActivityPanel({ activity, now = new Date() }: { activi
 /**
  * The first screen's line about supervision as a whole: whether the relay that sends questions to ChatGPT (and opens
  * the supervisor chats) is up, and when a supervisor question last went out. Without operator status it says nothing; the page's own
- * notice covers a failed read.
+ * notice covers a failed read. `lastQuestionAt` undefined means the questions aren't known right now (no current task
+ * data), so it makes no claim about them.
  */
-export function SupervisionHealthLine({ status, lastQuestionAt, now = new Date() }: { status: OperatorStatusProjection | null; lastQuestionAt: string | null; now?: Date }) {
+export function SupervisionHealthLine({ status, lastQuestionAt, now = new Date() }: { status: OperatorStatusProjection | null; lastQuestionAt: string | null | undefined; now?: Date }) {
   if (!status) return null;
   // The supervisor questions' own send time, not the relay's last send of any kind (provisioning, Work journals...).
-  const sent = lastQuestionAt ? `The last supervisor question went to ChatGPT ${timeAgo(lastQuestionAt, now)}.` : "No supervisor question has reached ChatGPT yet.";
+  const sent = lastQuestionAt === undefined ? "When a supervisor question last went to ChatGPT isn't known right now."
+    : lastQuestionAt ? `The last supervisor question went to ChatGPT ${timeAgo(lastQuestionAt, now)}.` : "No supervisor question has reached ChatGPT yet.";
   // Mission Control's routine checks always ask the Project Manager supervisor; without one they have no one to ask.
   const manager = status.supervisors.find((supervisor) => supervisor.scope === "PROJECT_MANAGER");
   const managerGap = !manager

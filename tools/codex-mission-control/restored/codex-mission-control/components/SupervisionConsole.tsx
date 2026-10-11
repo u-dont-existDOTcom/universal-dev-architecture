@@ -162,6 +162,8 @@ export function SupervisionConsole() {
   const projectManagerReachable = projectManagerStatus?.reachable === true;
   const verifiedProjectManagerMessages = projectManagerRows.filter((row) => row.event.data.provenance_status === "VERIFIED").length;
   const configuredSpecialists = directory.entries.filter((entry) => entry.scope === "SPECIALIST");
+  // A task whose snapshot doesn't carry its supervisor activity has unknown questions, not none.
+  const unknownActivity = snapshot.workers.filter((worker) => !worker.supervisorActivity).length;
 
   return <main className="shell detail-shell">
     <header className="topbar">
@@ -255,8 +257,9 @@ export function SupervisionConsole() {
     <section className="change-summary secondary-history" aria-label="Internal supervisor routing queue">
       <div className="summary-title"><span className="scan-icon">⇢</span><p className="eyebrow">INTERNAL SUPERVISOR ROUTES</p></div>
       <p>Pre-action gate requests appear here before a worker may form methodology, priority, spending, proposal, or consequential-tradeoff decisions. A queued item blocks that worker action and never asks the owner to relay it.</p>
+      {unknownActivity > 0 && <p className="empty-channel">The supervisor questions of {unknownActivity} task{unknownActivity === 1 ? "" : "s"} aren&apos;t available right now.</p>}
       {routeRows.length === 0
-        ? <p className="empty-channel">No pre-action supervisor route packets are recorded.</p>
+        ? (unknownActivity === 0 && <p className="empty-channel">No pre-action supervisor route packets are recorded.</p>)
         : routeRows.slice(0, 20).map((row) => {
           const locator = directory.entries.find((entry) => entry.supervisorId === row.packet.destinationSupervisorId)?.bootstrapCapability.url ?? null;
           return <div className="gap-callout" key={row.event.eventId}>
