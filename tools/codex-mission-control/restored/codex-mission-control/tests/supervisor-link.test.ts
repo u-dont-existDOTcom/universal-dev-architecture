@@ -61,7 +61,7 @@ test("the button says no chat is linked only after the directory answers; until 
   assert.match(text({ kind: "link", href: "https://chatgpt.com/c/configured", label: "Auth supervisor" }), /href="https:\/\/chatgpt\.com\/c\/configured"[^>]*>.*Auth supervisor/);
 });
 
-test("a supervisor-directory read that never answers, or answers with malformed entries, counts as failed", async () => {
+test("a supervisor-directory read that never answers, answers with malformed entries or reports an invalid list counts as failed", async () => {
   const realFetch = globalThis.fetch;
   try {
     forgetConfiguredChats();
@@ -71,9 +71,26 @@ test("a supervisor-directory read that never answers, or answers with malformed 
     assert.equal(await loadConfiguredChats(Date.now, 20), null);
     for (const entries of [[null], [{ scope: "SPECIALIST", workerId: "auth" }], "not a list"]) {
       forgetConfiguredChats();
-      globalThis.fetch = (async () => Response.json({ entries })) as typeof fetch;
+      globalThis.fetch = (async () => Response.json({ configurationState: "CONFIGURED", entries })) as typeof fetch;
       assert.equal(await loadConfiguredChats(), null, JSON.stringify(entries));
     }
+    forgetConfiguredChats();
+    globalThis.fetch = (async () => Response.json({ configurationState: "MISSING", entries: [], error: null })) as typeof fetch;
+    assert.deepEqual(await loadConfiguredChats(), [], "no configured chats is an answer");
+    let clock = 1_000;
+    const now = () => clock;
+    forgetConfiguredChats();
+    const good = [{ scope: "SPECIALIST", workerId: "auth", url: "https://chatgpt.com/c/configured", label: "Auth supervisor" }];
+    globalThis.fetch = (async () => Response.json({ configurationState: "CONFIGURED", entries: good })) as typeof fetch;
+    assert.deepEqual(await loadConfiguredChats(now), good);
+    clock += 61_000;
+    for (const body of [{ configurationState: "INVALID", entries: [], error: "Configured supervisor IDs must be unique." }, { entries: [] }]) {
+      globalThis.fetch = (async () => Response.json(body)) as typeof fetch;
+      assert.equal(await loadConfiguredChats(now), null, `${JSON.stringify(body)} is not an empty list`);
+    }
+    globalThis.fetch = (async () => { throw new Error("must not be read: the good answer is still cached"); }) as typeof fetch;
+    clock -= 30_000;
+    assert.deepEqual(await loadConfiguredChats(now), good, "an invalid answer never replaced the good one");
   } finally {
     globalThis.fetch = realFetch;
     forgetConfiguredChats();
@@ -86,7 +103,7 @@ test("a failed supervisor-directory read is retried, and a good answer is reused
   const answers = [
     () => new Response("unavailable", { status: 503 }),
     () => { throw new TypeError("network down"); },
-    () => Response.json({ entries: [{ scope: "SPECIALIST", workerId: "auth", url: "https://chatgpt.com/c/configured", label: "Auth supervisor" }] }),
+    () => Response.json({ configurationState: "CONFIGURED", entries: [{ scope: "SPECIALIST", workerId: "auth", url: "https://chatgpt.com/c/configured", label: "Auth supervisor" }] }),
   ];
   globalThis.fetch = (async () => answers[Math.min(calls++, answers.length - 1)]()) as typeof fetch;
   try {

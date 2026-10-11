@@ -9,10 +9,11 @@ export interface ConfiguredChat { scope: string; workerId: string | null; url: s
 const DIRECTORY_FRESH_MS = 60_000;
 const DIRECTORY_RETRY_MS = 15_000;
 const DIRECTORY_TIMEOUT_MS = 10_000;
+const ANSWERED_STATES = new Set(["CONFIGURED", "MISSING"]);
 
 // The owner's configured supervisor chats, shared by every button on the page: one request at a time, a successful
 // answer reused for a minute, and a failed one never remembered. A request that hasn't answered after ten seconds, an
-// error status and a malformed answer all count as failed. Each button looks again after a minute (15 seconds after a
+// error status, a malformed answer and a list the server reports as invalid all count as failed. Each button looks again after a minute (15 seconds after a
 // failure), so it recovers once the directory answers and shows a chat configured later.
 let directory: { entries: ConfiguredChat[]; at: number } | null = null;
 let pending: Promise<ConfiguredChat[] | null> | null = null;
@@ -24,7 +25,10 @@ export function loadConfiguredChats(now: () => number = Date.now, timeoutMs = DI
   const request: Promise<ConfiguredChat[] | null> = fetch("/api/supervisor-directory", { cache: "no-store", signal: abort.signal })
     .then((response) => (response.ok ? response.json() : null))
     .then((body) => {
-      if (!body || !Array.isArray(body.entries) || !body.entries.every(isConfiguredChat)) return null;
+      // Only a configured or a not-configured list is an answer. An invalid one comes back with no entries, which would
+      // read as "no chat": it is a failed read, and it never replaces a good answer.
+      if (!body || !ANSWERED_STATES.has(body.configurationState) || !Array.isArray(body.entries)
+        || !body.entries.every(isConfiguredChat)) return null;
       directory = { entries: body.entries as ConfiguredChat[], at: now() };
       return directory.entries;
     })
@@ -89,7 +93,7 @@ export function supervisorChatView({ url, label, placeholder, workerId }: Superv
 const NO_LINK_TEXT = {
   none: { text: "No supervisor chat linked", title: "No supervisor chat is recorded or configured for this worker yet" },
   checking: { text: "Checking for a supervisor chat…", title: "Looking up the supervisor chats configured on the supervision page" },
-  unavailable: { text: "Couldn't check for a supervisor chat; trying again", title: "The list of configured supervisor chats didn't answer; Mission Control tries again shortly" },
+  unavailable: { text: "Couldn't check for a supervisor chat; trying again", title: "Mission Control couldn't read its list of configured supervisor chats; it tries again shortly" },
 } as const;
 
 /**
