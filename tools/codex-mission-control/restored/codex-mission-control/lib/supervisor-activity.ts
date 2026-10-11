@@ -9,13 +9,15 @@ import { isSpecificChatAddress } from "./supervisor-chat-address";
  *
  * States: QUEUED (no send recorded yet), WAITING (no answer yet, for a route whose sending this view doesn't track),
  * SENT and FINISHED (the relay started or finished the question in the request's own session), DUPLICATE_SEND (sent
- * more than once, which Mission Control's validators reject, so no answer to it can be accepted), ANSWERED, NO_ANSWER
+ * more than once, which Mission Control's validators reject, so no answer to it can be accepted), ANSWERED,
+ * ANSWERED_DUPLICATE_SEND (answered, and also sent more than once: the violation stays visible), NO_ANSWER
  * (sent, then expired without an answer), EXPIRED (expired without an answer, with no send recorded or tracked),
  * EXPIRED_UNSENT and WITHDRAWN (retired with Mission Control's proof that nothing was sent: on expiry, or withdrawn),
  * REPLACED (an admitted replacement superseded it).
  */
 export const SUPERVISOR_REQUEST_STATES = [
-  "QUEUED", "WAITING", "SENT", "FINISHED", "DUPLICATE_SEND", "ANSWERED", "NO_ANSWER", "EXPIRED", "EXPIRED_UNSENT", "WITHDRAWN", "REPLACED",
+  "QUEUED", "WAITING", "SENT", "FINISHED", "DUPLICATE_SEND", "ANSWERED", "ANSWERED_DUPLICATE_SEND", "NO_ANSWER", "EXPIRED",
+  "EXPIRED_UNSENT", "WITHDRAWN", "REPLACED",
 ] as const;
 export const SUPERVISOR_REQUEST_ORIGINS = [
   "ROUTINE_CHECK", "WORK_QUESTION", "OWNER_ANSWER", "AFTER_WORK", "SOURCE_REVIEW", "OTHER",
@@ -85,6 +87,7 @@ interface Draft extends SupervisorRequestActivity { sequence: number; version: n
 /** The times each state is about: a request in that state always has them (and every time it has is a valid instant). */
 const STATE_TIMES: Partial<Record<SupervisorRequestState, ReadonlyArray<"expiresAt" | "sentAt" | "finishedAt" | "answeredAt">>> = {
   SENT: ["sentAt"], FINISHED: ["sentAt", "finishedAt"], DUPLICATE_SEND: ["sentAt"], ANSWERED: ["answeredAt"],
+  ANSWERED_DUPLICATE_SEND: ["answeredAt", "sentAt"],
   NO_ANSWER: ["sentAt", "expiresAt"], EXPIRED: ["expiresAt"], EXPIRED_UNSENT: ["expiresAt"],
 };
 
@@ -193,7 +196,8 @@ function projectRequests(unordered: readonly StoredEvent[], now: Date, admission
     // A retirement for expiry names the expiry; without one on the route it reads as a plain withdrawal.
     const retired = admission.retired.get(draft.requestId);
     const retiredState = retired === "EXPIRED_UNSENT" && draft.expiresAt === null ? "WITHDRAWN" : retired;
-    const state: SupervisorRequestState = draft.answeredAt ? "ANSWERED"
+    // An answer doesn't hide a duplicate send: both show.
+    const state: SupervisorRequestState = draft.answeredAt ? (draft.duplicateSend ? "ANSWERED_DUPLICATE_SEND" : "ANSWERED")
       : admission.replaced.has(draft.requestId) ? "REPLACED"
         : retiredState
           ?? (!tracked ? (expired ? "EXPIRED" : "WAITING")

@@ -3,7 +3,7 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { OwnerTaskCard, supervisionHistory } from "../components/Dashboard";
-import { admittedRouteRows, parseInternalRoutePacket, pendingRoute, supervisionReadModel, workflowState } from "../components/SupervisionConsole";
+import { admittedRouteRows, parseInternalRoutePacket, pendingRoute, SupervisionUnavailable, supervisionReadModel, workflowState } from "../components/SupervisionConsole";
 import { SupervisionHealthLine, SupervisorActivityPanel, supervisorStatusLine } from "../components/SupervisorActivity";
 import { LATEST_CHAT_LABEL, supervisorChatView } from "../components/SupervisorLink";
 import { snapshotFromEvents, snapshotFromStore, workerSnapshotFromEvents } from "../lib/dashboard-data";
@@ -370,6 +370,13 @@ test("a question sent in more than one session, or a V6 question started twice, 
     ...sent(id, "2026-10-10T09:02:00Z", second, { session: "ps-second" })]);
   assert.equal(late.requests[0].state, "NO_ANSWER");
   assert.equal(pendingRoute({ state: "DUPLICATE_SEND" }), true, "still pending for Mission Control until it expires or is replaced");
+  // An answer doesn't hide a duplicate send: both show.
+  const answered = activityOf([queued, ...sent(id, "2026-10-11T10:01:00Z", first), decision(id, "2026-10-11T10:30:00Z", { bounded_execution: { reasoning_summary: "On track." } }),
+    ...sent(id, "2026-10-11T10:40:00Z", second, { session: "ps-second" })]);
+  assert.equal(answered.requests[0].state, "ANSWERED_DUPLICATE_SEND");
+  assert.equal(supervisorStatusLine(answered, NOW), "Answered 1 hour ago: On track. It was also sent more than once.");
+  assert.equal(answered.answered, 1);
+  assert.equal(pendingRoute({ state: "ANSWERED_DUPLICATE_SEND" }), false);
 });
 
 test("an activity state without the times it is about is not accepted", () => {
@@ -613,6 +620,14 @@ test("a task snapshot whose owner action lacks what the first screen reads is no
     assert.equal(validTaskSnapshot(withAction({ due_at: "tomorrow" })), false);
     assert.equal(validTaskSnapshot(withAction({ due_at: "2026-10-12T12:00:00Z" })), true);
   } finally { store.close(); }
+});
+
+test("before any good read, the supervision page says it couldn't load and offers a retry", () => {
+  const html = renderToStaticMarkup(createElement(SupervisionUnavailable, { onRetry: () => undefined }));
+  assert.match(html, /role="alert"/);
+  assert.match(html, /The supervision page couldn(?:&#x27;|')t load\./);
+  assert.match(html, /<button[^>]*>Retry<\/button>/);
+  assert.doesNotMatch(html, /Loading/);
 });
 
 test("the supervision page refuses an answer whose timelines it can't read, keeping its last-known view", () => {

@@ -755,6 +755,7 @@ code { font-family: var(--mono); color: #b9d5cc; font-size: .92em; }
 .supervisor-requests { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 12px; }
 .supervisor-request { border-left: 3px solid var(--line); padding: 4px 0 4px 14px; display: grid; gap: 6px; min-width: 0; }
 .supervisor-request.answered { border-left-color: var(--green); }
+.supervisor-request.answered_duplicate_send { border-left-color: var(--yellow); }
 .supervisor-request.sent, .supervisor-request.finished, .supervisor-request.queued, .supervisor-request.waiting { border-left-color: var(--cyan); }
 .supervisor-request.no_answer, .supervisor-request.expired, .supervisor-request.expired_unsent, .supervisor-request.replaced, .supervisor-request.duplicate_send { border-left-color: var(--yellow); }
 .supervisor-request-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }

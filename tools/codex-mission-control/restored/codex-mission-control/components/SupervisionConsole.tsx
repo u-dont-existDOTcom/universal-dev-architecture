@@ -97,11 +97,23 @@ export function supervisionReadModel(snapshot: unknown, status: unknown): { snap
   return validSupervisionSnapshot(snapshot) && validOperatorSnapshot(status) ? { snapshot: snapshot as Snapshot, status: status as OperatorStatusProjection } : null;
 }
 
+/** Before the page has any good read: the read failed or its answer was refused, so say so and offer a retry. */
+export function SupervisionUnavailable({ onRetry }: { onRetry: () => void }) {
+  return <div role="alert" className="error-banner">
+    <strong>The supervision page couldn&apos;t load.</strong>
+    <p>Mission Control&apos;s answer was missing or couldn&apos;t be read, so nothing is shown rather than something wrong.</p>
+    <button className="owner-retry" onClick={onRetry}>Retry</button>
+  </div>;
+}
+
 export function SupervisionConsole() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [directory, setDirectory] = useState<ConfiguredSupervisorDirectory>(emptyDirectory);
   const [operatorStatus, setOperatorStatus] = useState<OperatorStatusProjection | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Whether the latest read of the read model failed (failed request or refused answer); before any good read, the
+  // page says so with a retry instead of loading forever.
+  const [readFailed, setReadFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -115,6 +127,7 @@ export function SupervisionConsole() {
       if (!model) throw new Error("supervision snapshot malformed");
       setSnapshot(model.snapshot);
       setOperatorStatus(model.status);
+      setReadFailed(false);
       if (directoryResponse.ok) {
         const configured = await directoryResponse.json() as ConfiguredSupervisorDirectory;
         setDirectory(configured);
@@ -124,6 +137,7 @@ export function SupervisionConsole() {
         setError("Mission Control could not load the configured supervisor-chat directory.");
       }
     } catch {
+      setReadFailed(true);
       setError("Mission Control could not load the supervision read model.");
     }
   }, []);
@@ -145,7 +159,9 @@ export function SupervisionConsole() {
   const routeRows = useMemo<RouteRow[]>(() => admittedRouteRows(snapshot?.workers ?? []), [snapshot]);
 
   if (!snapshot || !operatorStatus) {
-    return <main className="shell"><div className="loading-panel">Loading supervision channels…</div></main>;
+    return <main className="shell">{readFailed
+      ? <SupervisionUnavailable onRetry={() => void load()} />
+      : <div className="loading-panel">Loading supervision channels…</div>}</main>;
   }
 
   const projectManagerRows = messageRows.filter((row) => row.event.data.surface_role === "PROJECT_MANAGER");
