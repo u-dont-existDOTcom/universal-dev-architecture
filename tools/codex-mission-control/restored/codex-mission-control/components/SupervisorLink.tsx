@@ -9,12 +9,14 @@ export interface ConfiguredChat { scope: string; workerId: string | null; url: s
 const DIRECTORY_FRESH_MS = 60_000;
 const DIRECTORY_RETRY_MS = 15_000;
 const DIRECTORY_TIMEOUT_MS = 10_000;
+const DIRECTORY_MIN_GAP_MS = 1_000;
 const ANSWERED_STATES = new Set(["CONFIGURED", "MISSING"]);
 
 // The owner's configured supervisor chats, shared by every button on the page: one request at a time, a successful
 // answer reused for a minute, and a failed one never remembered. A request that hasn't answered after ten seconds, an
-// error status, a malformed answer and a list the server reports as invalid all count as failed. Each button looks again after a minute (15 seconds after a
-// failure), so it recovers once the directory answers and shows a chat configured later.
+// error status, a malformed answer and a list the server reports as invalid all count as failed. Each button looks
+// again when the shared answer expires (15 seconds after a failure), so it recovers once the directory answers and
+// shows a chat configured later.
 let directory: { entries: ConfiguredChat[]; at: number } | null = null;
 let pending: Promise<ConfiguredChat[] | null> | null = null;
 export function loadConfiguredChats(now: () => number = Date.now, timeoutMs = DIRECTORY_TIMEOUT_MS): Promise<ConfiguredChat[] | null> {
@@ -41,10 +43,13 @@ export function loadConfiguredChats(now: () => number = Date.now, timeoutMs = DI
   return request;
 }
 export function forgetConfiguredChats() { directory = null; pending = null; }
-/** When to look again: soon after a failed read, otherwise once the shared answer is old, so a chat the owner
- * configures later appears without reloading the page. */
-export function nextDirectoryLookupMs(entries: ConfiguredChat[] | null): number {
-  return entries === null ? DIRECTORY_RETRY_MS : DIRECTORY_FRESH_MS;
+/** When to look again: soon after a failed read; otherwise when the shared answer expires, not a full minute after
+ * this button's own read of it, so every button on the page refreshes together and a chat the owner configures later
+ * appears without reloading the page. */
+export function nextDirectoryLookupMs(entries: ConfiguredChat[] | null, now: () => number = Date.now): number {
+  if (entries === null) return DIRECTORY_RETRY_MS;
+  if (!directory || directory.entries !== entries) return DIRECTORY_FRESH_MS;
+  return Math.max(DIRECTORY_MIN_GAP_MS, directory.at + DIRECTORY_FRESH_MS - now());
 }
 
 function isConfiguredChat(value: unknown): value is ConfiguredChat {
@@ -55,21 +60,25 @@ function isConfiguredChat(value: unknown): value is ConfiguredChat {
 }
 
 /** What a button knows about its worker's configured chat: nothing yet, that the directory can't be read right now,
- * or the directory's answer (the worker's chat, or none). */
+ * or the directory's answer (the worker's chat, or none) and when it got it. */
 export type DirectoryAnswer =
   | { state: "checking" }
   | { state: "unavailable"; workerId: string }
-  | { state: "known"; workerId: string; chat: ConfiguredChat | null };
+  | { state: "known"; workerId: string; chat: ConfiguredChat | null; at: number };
+
+const LAST_ANSWER_KEPT_MS = 5 * 60_000;
 
 /** The answer after a lookup. A read directory gives the worker's own specialist chat, or none. A failed read keeps
- * the last answer for the same worker; without one, the directory is unavailable, which is not the same as no chat. */
-export function afterLookup(previous: DirectoryAnswer, workerId: string, entries: ConfiguredChat[] | null): DirectoryAnswer {
+ * the last answer for the same worker for up to five minutes; after that, or without one, the directory is
+ * unavailable, which is not the same as no chat. */
+export function afterLookup(previous: DirectoryAnswer, workerId: string, entries: ConfiguredChat[] | null, now: number = Date.now()): DirectoryAnswer {
   if (entries === null) {
-    return previous.state === "known" && previous.workerId === workerId ? previous : { state: "unavailable", workerId };
+    const recent = previous.state === "known" && previous.workerId === workerId && now - previous.at < LAST_ANSWER_KEPT_MS;
+    return recent ? previous : { state: "unavailable", workerId };
   }
   const chat = entries.find((candidate) => candidate.scope === "SPECIALIST" && candidate.workerId === workerId
     && isSpecificChatAddress(candidate.url)) ?? null;
-  return { state: "known", workerId, chat };
+  return { state: "known", workerId, chat, at: now };
 }
 
 export interface SupervisorLinkProps { url: string; label: string; placeholder: boolean; workerId?: string }

@@ -72,7 +72,7 @@ test("a worker with no recorded supervisor chat says so instead of linking the C
   assert.match(html, /href="\/supervision"/);
   assert.doesNotMatch(html, /href="https:\/\/chatgpt\.com\/"/);
   const props = { url: worker.supervisorChatUrl, label: worker.supervisorChatLabel, placeholder: worker.supervisorChatIsPlaceholder, workerId: worker.id };
-  assert.deepEqual(supervisorChatView(props, { state: "known", workerId: worker.id, chat: null }), { kind: "none" },
+  assert.deepEqual(supervisorChatView(props, { state: "known", workerId: worker.id, chat: null, at: Date.now() }), { kind: "none" },
     "once the directory answers with no chat for it, the button says none is linked");
 });
 

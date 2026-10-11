@@ -23,6 +23,36 @@ test("a button looks for a configured chat again: soon after a failure, otherwis
   assert.equal(nextDirectoryLookupMs([]), 60_000);
 });
 
+test("a button that read the shared answer late looks again when that answer expires, not a minute later", async () => {
+  const realFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    return Response.json({ configurationState: "CONFIGURED", entries: [{ scope: "SPECIALIST", workerId: "auth", url: `https://chatgpt.com/c/configured-${calls}`, label: "Auth supervisor" }] });
+  }) as typeof fetch;
+  try {
+    forgetConfiguredChats();
+    let clock = 1_000;
+    const now = () => clock;
+    const first = await loadConfiguredChats(now);
+    assert.equal(nextDirectoryLookupMs(first, now), 60_000);
+    clock += 59_000;
+    const late = await loadConfiguredChats(now);
+    assert.equal(calls, 1, "the late button reads the shared answer");
+    assert.equal(nextDirectoryLookupMs(late, now), 1_000, "and looks again when it expires");
+    clock += 1_000;
+    assert.equal(nextDirectoryLookupMs(late, now), 1_000, "never sooner than a second");
+    const fresh = await loadConfiguredChats(now);
+    assert.equal(calls, 2);
+    assert.equal(fresh?.[0].url, "https://chatgpt.com/c/configured-2");
+    assert.equal(nextDirectoryLookupMs(fresh, now), 60_000);
+    assert.equal(nextDirectoryLookupMs(late, now), 60_000, "an answer that is no longer the shared one waits a full minute");
+  } finally {
+    globalThis.fetch = realFetch;
+    forgetConfiguredChats();
+  }
+});
+
 test("a recorded ChatGPT home page is not offered as the supervisor chat", () => {
   const html = renderToStaticMarkup(createElement(SupervisorLink, { url: "https://chatgpt.com/", label: "Open supervisor chat", placeholder: false, workerId: "auth" }));
   assert.match(html, /Checking for a supervisor chat/, "it looks up the configured chats before saying there is none");
@@ -47,6 +77,9 @@ test("the button says no chat is linked only after the directory answers; until 
   answer = afterLookup(answer, "auth", [elsewhere, configured]);
   assert.deepEqual(supervisorChatView(props, answer), { kind: "link", href: "https://chatgpt.com/c/configured", label: "Auth supervisor" });
   assert.deepEqual(afterLookup(answer, "auth", null), answer, "a failed read keeps the last answer for the same worker");
+  const known = afterLookup({ state: "checking" }, "auth", [configured], 1_000);
+  assert.equal(afterLookup(known, "auth", null, 1_000 + 4 * 60_000), known, "for a few minutes");
+  assert.deepEqual(afterLookup(known, "auth", null, 1_000 + 5 * 60_000), { state: "unavailable", workerId: "auth" }, "not indefinitely");
   assert.deepEqual(supervisorChatView({ ...props, workerId: "billing" }, answer), { kind: "checking" }, "an answer for another worker is not used");
   assert.deepEqual(afterLookup(answer, "billing", null), { state: "unavailable", workerId: "billing" });
   assert.deepEqual(supervisorChatView({ ...props, url: "https://chatgpt.com/c/recorded", placeholder: false }, { state: "checking" }),
