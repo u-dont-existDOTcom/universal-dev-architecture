@@ -134,9 +134,12 @@ without changing its author. Reconciliation requires the exact current
 owner-outcome ID, epoch and digest, verifies the exact-text digest, and then
 records the answer as an `owner_message_recorded` direction, its existing durable
 worker outbox delivery, and the immutable GitHub comment provenance in one
-transaction. Duplicate immutable receipts are idempotent, including after the
-owner outcome advances; stale owner outcomes, changed or edited content,
-untrusted writers, and wrong repositories/issues fail closed.
+transaction. Reading a receipt that is already recorded again adds nothing, also
+after the owner outcome advances or after its comment was edited without
+changing the exact text; one whose exact text changed fails closed. A receipt
+read for the first time fails closed if its comment was ever edited, its owner
+outcome is stale, its writer is untrusted, or it sits in another repository or
+issue.
 
 This intentionally does **not** add a mutating tool to the unauthenticated public
 Mission Control MCP. GitHub authentication is the owner-authority boundary; the
