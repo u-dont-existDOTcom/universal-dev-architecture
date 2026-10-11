@@ -56,10 +56,10 @@ test("a button that read the shared answer late looks again when that answer exp
 test("a recorded ChatGPT home page is not offered as the supervisor chat", () => {
   const html = renderToStaticMarkup(createElement(SupervisorLink, { url: "https://chatgpt.com/", label: "Open supervisor chat", placeholder: false, workerId: "auth" }));
   assert.match(html, /Checking for a supervisor chat/, "it looks up the configured chats before saying there is none");
-  assert.doesNotMatch(html, /No supervisor chat linked/);
+  assert.doesNotMatch(html, /No supervisor chat yet/);
   assert.doesNotMatch(html, /href="https:\/\/chatgpt\.com\/"/);
   const withoutWorker = renderToStaticMarkup(createElement(SupervisorLink, { url: "https://chatgpt.com/", label: "Open supervisor chat", placeholder: false }));
-  assert.match(withoutWorker, /No supervisor chat linked/);
+  assert.match(withoutWorker, /No supervisor chat yet/);
   assert.match(withoutWorker, /href="\/supervision"/);
 });
 
@@ -89,7 +89,7 @@ test("the button says no chat is linked only after the directory answers; until 
   assert.match(text({ kind: "unavailable" }), /Couldn(?:'|&#x27;)t check for a supervisor chat; trying again/);
   for (const kind of ["checking", "unavailable", "none"] as const) {
     assert.match(text({ kind }), /href="\/supervision"/);
-    assert.equal(/No supervisor chat linked/.test(text({ kind })), kind === "none", kind);
+    assert.equal(/No supervisor chat yet/.test(text({ kind })), kind === "none", kind);
   }
   assert.match(text({ kind: "link", href: "https://chatgpt.com/c/configured", label: "Auth supervisor" }), /href="https:\/\/chatgpt\.com\/c\/configured"[^>]*>.*Auth supervisor/);
 });

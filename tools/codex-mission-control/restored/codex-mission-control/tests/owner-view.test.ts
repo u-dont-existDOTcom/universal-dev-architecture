@@ -103,13 +103,13 @@ for (const supervisor of [
       } }));
       if (supervisor.placeholder) {
         assert.match(html, /Checking for a supervisor chat/, "it looks up the configured chat before saying there is none");
-        assert.doesNotMatch(html, /No supervisor chat linked/);
+        assert.doesNotMatch(html, /No supervisor chat yet/);
         assert.match(html, /href="\/supervision"/);
         assert.doesNotMatch(html, /href="https:\/\/chatgpt\.com/);
       } else {
         assert.match(html, /href="https:\/\/chatgpt\.com\/c\/real-supervisor-chat"/);
         assert.match(html, /Open specialist supervisor/);
-        assert.doesNotMatch(html, /No supervisor chat linked/);
+        assert.doesNotMatch(html, /No supervisor chat yet/);
       }
     } finally { store.close(); }
   });

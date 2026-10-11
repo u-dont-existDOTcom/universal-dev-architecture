@@ -410,3 +410,19 @@ test("a task snapshot with a malformed supervisor activity is not accepted as a 
     }
   } finally { store.close(); }
 });
+
+test("a split-session cycle's binding preload is not the question being sent", () => {
+  const events = [
+    route("fleet-review:split", "2026-10-11T10:00:00Z", { version: 4 }),
+    transport("fleet-review:split", "2026-10-11T10:01:00Z", ["session_role:MC_BINDING_PRELOAD_SESSION", "generation_state:STARTED", "conversation_url:https://chatgpt.com/c/preload-a"]),
+    transport("fleet-review:split", "2026-10-11T10:02:00Z", ["step:MCP_BINDING_PRELOAD", "generation_state:COMPLETE", "conversation_url:https://chatgpt.com/c/preload-b"]),
+    transport("fleet-review:split", "2026-10-11T10:03:00Z", ["provider_session:binding-1", "binding_provider_session:binding-1", "lifecycle_status:COMPLETE", "conversation_url:https://chatgpt.com/c/preload-c"]),
+  ];
+  let [request] = activityOf(events).requests;
+  assert.equal(request.state, "QUEUED");
+  assert.equal(request.conversationUrl, null);
+  events.push(transport("fleet-review:split", "2026-10-11T10:05:00Z", ["provider_session:decision-1", "binding_provider_session:binding-1", "session_role:SUPERVISORY_DECISION_SESSION", "generation_state:STARTED", "conversation_url:https://chatgpt.com/c/decision-chat"]));
+  [request] = activityOf(events).requests;
+  assert.equal(request.state, "SENT");
+  assert.equal(request.conversationUrl, "https://chatgpt.com/c/decision-chat");
+});

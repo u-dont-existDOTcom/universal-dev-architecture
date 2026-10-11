@@ -149,6 +149,10 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
       || data.producer_role !== "COLLECTOR" || data.producer_id !== event.producerId || !TRANSPORT_SUMMARIES.has(data.summary)) continue;
     if (draft.supervisorId && refValue(data.refs, "supervisor") !== draft.supervisorId) continue;
     if (!(Date.parse(event.occurredAt) >= Date.parse(draft.queuedAt))) continue;
+    // Split-session cycles (V3/V4) first preload a binding session; its receipts are not the question being sent.
+    const session = refValue(data.refs, "provider_session");
+    if (refValue(data.refs, "session_role") === "MC_BINDING_PRELOAD_SESSION" || refValue(data.refs, "step") === "MCP_BINDING_PRELOAD"
+      || (session !== null && session === refValue(data.refs, "binding_provider_session"))) continue;
     const generation = refValue(data.refs, "generation_state");
     const lifecycle = refValue(data.refs, "lifecycle_status");
     if (generation === "STARTED" && (!draft.sentAt || event.occurredAt < draft.sentAt)) draft.sentAt = event.occurredAt;

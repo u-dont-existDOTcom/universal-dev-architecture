@@ -95,7 +95,7 @@ export type SupervisorChatView =
 
 /** What the button shows: the chat of the task's latest supervisor question (where the supervising actually happened),
  * else the recorded chat when it names one specific chat, else the configured one once the directory has answered for
- * this worker. "No supervisor chat linked" only when that answer, or the lack of a worker to look up, says so; while
+ * this worker. "No supervisor chat yet" only when that answer, or the lack of a worker to look up, says so; while
  * the directory is unanswered or unreadable, it says that instead. */
 export function supervisorChatView({ url, label, placeholder, workerId, activityUrl }: SupervisorLinkProps, answer: DirectoryAnswer): SupervisorChatView {
   if (activityUrl && isSpecificChatAddress(activityUrl)) return { kind: "link", href: activityUrl, label: LATEST_CHAT_LABEL };
@@ -107,7 +107,7 @@ export function supervisorChatView({ url, label, placeholder, workerId, activity
 }
 
 const NO_LINK_TEXT = {
-  none: { text: "No supervisor chat linked", title: "No supervisor chat is recorded or configured for this worker yet" },
+  none: { text: "No supervisor chat yet", title: "Mission Control opens a fresh supervisor chat whenever it asks this task's supervisor something; none has reached ChatGPT yet, and no standing chat is recorded or configured" },
   checking: { text: "Checking for a supervisor chat…", title: "Looking up the supervisor chats configured on the supervision page" },
   unavailable: { text: "Couldn't check for a supervisor chat; trying again", title: "Mission Control couldn't read its list of configured supervisor chats; it tries again shortly" },
 } as const;
@@ -115,7 +115,7 @@ const NO_LINK_TEXT = {
 /**
  * The worker's supervisor chat: the conversation of its latest supervisor question, else the route or link recorded
  * for the worker when it names one specific chat, else the specialist chat the owner configured for it (the same
- * directory the supervision page uses), else a plain "No supervisor chat linked" with a pointer to the supervision
+ * directory the supervision page uses), else a plain "No supervisor chat yet" with a pointer to the supervision
  * page. Never a placeholder address or a site's home page.
  */
 export function SupervisorLink(props: SupervisorLinkProps) {
