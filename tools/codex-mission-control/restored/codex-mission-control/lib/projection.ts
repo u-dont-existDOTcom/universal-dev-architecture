@@ -1,6 +1,6 @@
 import { isSpecificChatAddress } from "./supervisor-chat-address";
-import { supervisorActivity, type SupervisorActivity, type SupervisorRouteValidator } from "./supervisor-activity";
-import { parseCycleRequest } from "./github-decision-receipts";
+import { supervisorActivity, type SupervisorActivity, type SupervisorRequestAdmission } from "./supervisor-activity";
+import { admittedCycleRequests } from "./github-decision-receipts";
 import { correctionStatusLabel } from "./correction-lifecycle";
 import { driftConfig, DriftConfig } from "./drift-config";
 import type {
@@ -251,10 +251,11 @@ export interface WorkerState {
   timeline: StoredEvent[];
 }
 
-/** A supervisor question counts only if Mission Control's own request parser accepts it (V2-V6); V1 routes have no
- * cycle fields, so the structural checks in supervisor-activity decide those. */
-const routableSupervisorRequest: SupervisorRouteValidator = (body, worker) =>
-  body.startsWith("MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n") || parseCycleRequest(body, worker) !== null;
+/** Which supervisor questions Mission Control admits (its own request parser and replacement rules, V2-V6). */
+function supervisorRequestAdmission(events: StoredEvent[]): SupervisorRequestAdmission {
+  const { admitted, superseded } = admittedCycleRequests(events);
+  return { admitted: new Set(admitted.map((request) => request.requestId)), replaced: superseded };
+}
 
 export function projectWorkers(events: StoredEvent[], now = new Date(), config: DriftConfig = driftConfig): WorkerState[] {
   const projectableWorkers = new Set(events.flatMap((event) => {
@@ -381,7 +382,7 @@ function projectV2Worker(
     supervisorChatUrl: supervisorUrl,
     supervisorChatLabel: supervisorLabel,
     supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
-    supervisorActivity: supervisorActivity(events, now, routableSupervisorRequest),
+    supervisorActivity: supervisorActivity(events, now, supervisorRequestAdmission(events)),
     status,
     health: comparison.overallTraffic,
     workerToContractAlignment: comparison.workerToContractAlignment,
@@ -781,7 +782,7 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
     supervisorChatUrl: supervisorUrl,
     supervisorChatLabel: legacySupervisorChat.label,
     supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
-    supervisorActivity: supervisorActivity(events, now, routableSupervisorRequest),
+    supervisorActivity: supervisorActivity(events, now, supervisorRequestAdmission(events)),
     status: heartbeat?.status ?? "working",
     health: overall,
     workerToContractAlignment: workerAlignment,

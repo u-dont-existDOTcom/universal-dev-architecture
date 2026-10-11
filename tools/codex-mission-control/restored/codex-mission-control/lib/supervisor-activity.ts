@@ -35,27 +35,31 @@ export interface SupervisorActivity {
   lastAnsweredAt: string | null;
   /** The chat of the newest question that reached ChatGPT, among all of them, not only the ones listed. */
   latestConversationUrl: string | null;
+  /** The state of every question, by request id, so other views use the same admitted set. */
+  states: Record<string, SupervisorRequestState>;
 }
 
 export const RECENT_REQUESTS = 5;
 const ROUTE_PREFIX = /^MISSION_CONTROL_INTERNAL_SUPERVIS(?:ORY_CYCLE_V[2-6]|OR_ROUTE_V1)\n/;
+const INTERNAL_ROUTE_PREFIX = "MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n";
 const RETIRED_UNSENT_SUMMARY = "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1";
 const RETIREMENT_PRODUCER = "verifier:fleet-supervisor-request-retirement";
 const QUESTION_LIMIT = 400;
 const ANSWER_LIMIT = 600;
 
-export const emptySupervisorActivity: SupervisorActivity = { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null };
+export const emptySupervisorActivity: SupervisorActivity = { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, states: {} };
 
 interface Draft extends SupervisorRequestActivity { sequence: number; supersedes: string | null; conversationSequence: number; conversationIsProvisional: boolean }
 
 /**
- * Decides whether a route message is a request the relay would actually route. The projection passes Mission Control's
- * authoritative cycle-request parser; without one, only the structural checks below apply (client-side views).
+ * Which cycle requests (V2-V6) Mission Control admits, and which of those an admitted replacement superseded, from its
+ * own request parser and replacement rules (`admittedCycleRequests`). The projection always passes it; without it
+ * (tests and tools), only the structural checks below apply and a packet's own "supersedes" field marks a replacement.
  */
-export type SupervisorRouteValidator = (body: string, worker: string) => boolean;
+export interface SupervisorRequestAdmission { admitted: ReadonlySet<string>; replaced: ReadonlySet<string> }
 
-export function supervisorActivity(events: readonly StoredEvent[], now: Date = new Date(), validRoute?: SupervisorRouteValidator): SupervisorActivity {
-  const all = supervisorRequests(events, now, validRoute);
+export function supervisorActivity(events: readonly StoredEvent[], now: Date = new Date(), admission?: SupervisorRequestAdmission): SupervisorActivity {
+  const all = supervisorRequests(events, now, admission);
   if (!all.length) return emptySupervisorActivity;
   const answered = all.filter((request) => request.answeredAt);
   return {
@@ -64,6 +68,7 @@ export function supervisorActivity(events: readonly StoredEvent[], now: Date = n
     answered: answered.length,
     lastAnsweredAt: answered.map((request) => request.answeredAt!).sort().at(-1) ?? null,
     latestConversationUrl: all.find((request) => request.conversationUrl)?.conversationUrl ?? null,
+    states: Object.fromEntries(all.map((request) => [request.requestId, request.state])),
   };
 }
 
@@ -73,7 +78,7 @@ export function isPendingSupervisorRequest(request: Pick<SupervisorRequestActivi
 }
 
 /** Every supervisor question in these events with its current state, newest first. */
-export function supervisorRequests(unordered: readonly StoredEvent[], now: Date = new Date(), validRoute?: SupervisorRouteValidator): SupervisorRequestActivity[] {
+export function supervisorRequests(unordered: readonly StoredEvent[], now: Date = new Date(), admission?: SupervisorRequestAdmission): SupervisorRequestActivity[] {
   // Callers pass ledger order or a newest-first timeline; read oldest first either way.
   const events = [...unordered].sort((a, b) => a.sequence - b.sequence);
   const drafts = new Map<string, Draft>();
@@ -83,7 +88,7 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date 
     const packet = parsePacket(data.body);
     const requestId = text(packet?.requestId);
     if (!packet || !requestId || drafts.has(requestId) || !event.worker || !routeLooksValid(data.body, packet, event.worker)) continue;
-    if (validRoute && !validRoute(data.body, event.worker)) continue;
+    if (admission && !data.body.startsWith(INTERNAL_ROUTE_PREFIX) && !admission.admitted.has(requestId)) continue;
     const factual = record(packet.factualPacket);
     drafts.set(requestId, {
       requestId,
@@ -105,7 +110,8 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date 
   const withdrawn = new Set<string>();
   const retiredExpired = new Set<string>();
   const replaced = new Set<string>();
-  for (const draft of drafts.values()) if (draft.supersedes && drafts.has(draft.supersedes)) replaced.add(draft.supersedes);
+  if (admission) for (const requestId of admission.replaced) replaced.add(requestId);
+  else for (const draft of drafts.values()) if (draft.supersedes && drafts.has(draft.supersedes)) replaced.add(draft.supersedes);
   for (const event of events) {
     const data = event.data;
     if (data.type === "github_decision_receipt_ingested") {

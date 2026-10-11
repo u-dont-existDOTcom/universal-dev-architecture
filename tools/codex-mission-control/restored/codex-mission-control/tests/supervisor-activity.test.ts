@@ -193,7 +193,7 @@ test("the task card says what its supervisor was last asked, and links to that c
   try {
     seedIssue47Store(store);
     const worker = snapshotFromStore(store).workers.find((candidate) => candidate.id === "mission-control-live-slice")!;
-    assert.deepEqual(worker.supervisorActivity, { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null }, "every projected task carries its activity");
+    assert.deepEqual(worker.supervisorActivity, { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, states: {} }, "every projected task carries its activity");
     const recent = snapshotForTimeline(snapshotFromStore(store), "recent").workers.find((candidate) => candidate.id === worker.id)!;
     assert.deepEqual(recent.supervisorActivity, worker.supervisorActivity, "the dashboard's trimmed snapshot keeps it");
     const empty = renderToStaticMarkup(createElement(OwnerTaskCard, { worker }));
@@ -261,11 +261,12 @@ test("the supervision page reads current (V5/V6) questions and stops waiting onc
   assert.equal(packet?.requestId, "fleet-review:page");
   assert.equal(packet?.destinationSupervisorId, "mc-project-manager");
   assert.equal(parseInternalRoutePacket(body.replace("CYCLE_V6", "CYCLE_V5"))?.requestId, "fleet-review:page");
-  const [pending] = supervisorActivity([queued], NOW).requests;
-  assert.equal(pendingRoute({ request: pending }), true);
-  const [answered] = supervisorActivity([queued, decision("fleet-review:page", "2026-10-11T11:00:00Z")], NOW).requests;
-  assert.equal(pendingRoute({ request: answered }), false);
-  assert.equal(pendingRoute({ request: null }), false);
+  const pending = supervisorActivity([queued], NOW);
+  assert.equal(pending.states["fleet-review:page"], "QUEUED", "the projection hands the page every question's state");
+  assert.equal(pendingRoute({ state: pending.states["fleet-review:page"] }), true);
+  const answered = supervisorActivity([queued, decision("fleet-review:page", "2026-10-11T11:00:00Z")], NOW);
+  assert.equal(pendingRoute({ state: answered.states["fleet-review:page"] }), false);
+  assert.equal(pendingRoute({ state: "EXPIRED_UNSENT" }), false);
   const store = new EventStore(":memory:");
   try {
     seedIssue47Store(store);
@@ -315,7 +316,8 @@ test("a malformed or foreign route packet is not shown as a question", () => {
   assert.equal(supervisorActivity(bad, NOW).total, 0);
   const good = route("fleet-review:good", at);
   assert.equal(supervisorActivity([...bad, good], NOW).total, 1);
-  assert.equal(supervisorActivity([good], NOW, () => false).total, 0, "a validator can still refuse it");
+  assert.equal(supervisorActivity([good], NOW, { admitted: new Set(), replaced: new Set() }).total, 0, "a request Mission Control didn't admit is not shown");
+  assert.equal(supervisorActivity([good], NOW, { admitted: new Set(["fleet-review:good"]), replaced: new Set() }).total, 1);
 });
 
 test("the projection counts only requests Mission Control's own parser accepts", () => {
@@ -348,4 +350,25 @@ test("a request the fleet check retired because it expired reads as expired, not
     retirement("fleet-review:pulled", []),
   ], NOW).requests.map((request) => [request.requestId, request.state]));
   assert.deepEqual(states, { "fleet-review:pulled": "WITHDRAWN", "fleet-review:aged": "EXPIRED_UNSENT" });
+});
+
+test("a replacement counts only when Mission Control admits it", () => {
+  const first = route("fleet-review:first", "2026-10-11T09:00:00Z");
+  const second = route("fleet-review:second", "2026-10-11T09:30:00Z", { supersedes: "fleet-review:first" });
+  const admittedReplacement = supervisorActivity([first, second], NOW, { admitted: new Set(["fleet-review:first", "fleet-review:second"]), replaced: new Set(["fleet-review:first"]) });
+  assert.deepEqual(admittedReplacement.states, { "fleet-review:first": "REPLACED", "fleet-review:second": "QUEUED" });
+  const rejectedReplacement = supervisorActivity([first, second], NOW, { admitted: new Set(["fleet-review:first"]), replaced: new Set() });
+  assert.deepEqual(rejectedReplacement.states, { "fleet-review:first": "QUEUED" }, "a rejected replacement neither replaces nor shows");
+  const store = new EventStore(":memory:");
+  try {
+    seedIssue47Store(store);
+    const id = "mission-control-live-slice";
+    const base = store.workerEvents(id);
+    const offset = base.at(-1)!.sequence;
+    const ours = (event: StoredEvent): StoredEvent => ({ ...event, worker: id, sequence: offset + event.sequence,
+      data: { ...event.data, worker: id, body: (event.data as { body: string }).body.replaceAll(`"worker":"${WORKER}"`, `"worker":"${id}"`) } as StoredEvent["data"] });
+    // Without the supersession record and failure proof Mission Control requires of a replacement, it keeps the first.
+    const projected = projectWorker([...base, ours(first), ours(second)], NOW);
+    assert.deepEqual(projected.supervisorActivity.states, { "fleet-review:first": "QUEUED" });
+  } finally { store.close(); }
 });

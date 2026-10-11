@@ -824,6 +824,18 @@ export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionR
     const requestId = exactRefValue(data.refs, "request:");
     return requestId && /^fleet-review:[a-f0-9]{32}$/.test(requestId) ? [requestId] : [];
   }));
+  const { admitted, superseded } = admittedCycleRequests(events);
+  return admitted.filter((request) => !completed.has(request.requestId)
+    && !retiredUnsent.has(request.requestId)
+    && !superseded.has(request.requestId));
+}
+
+/**
+ * The supervisory cycle requests (V2-V6) Mission Control admits, in ledger order: each route packet its request parser
+ * accepts, except a replacement that doesn't validly supersede an admitted request; and the admitted requests such a
+ * replacement superseded. The pending set and the owner's supervisor-activity view both read this.
+ */
+export function admittedCycleRequests(events: StoredEvent[]): { admitted: PendingDecisionRequest[]; superseded: Set<string> } {
   const parsed = events.flatMap((event) => {
     if (event.data.type !== "worker_message_recorded"
       || (!event.data.body.startsWith(inBandRequestRoutePrefix)
@@ -844,9 +856,7 @@ export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionR
     }
     admitted.push(request);
   }
-  return admitted.filter((request) => !completed.has(request.requestId)
-    && !retiredUnsent.has(request.requestId)
-    && !superseded.has(request.requestId));
+  return { admitted, superseded };
 }
 
 function validRequestReplacement(events: StoredEvent[], prior: PendingDecisionRequest, replacement: PendingDecisionRequest) {
@@ -1773,8 +1783,7 @@ function stageReceiptFor(events: StoredEvent[], request: PendingDecisionRequest,
   return receipt;
 }
 
-/** The authoritative parser for supervisory cycle requests (V2-V6): null unless the relay would route it. */
-export function parseCycleRequest(body: string, worker: string): PendingDecisionRequest | null {
+function parseCycleRequest(body: string, worker: string): PendingDecisionRequest | null {
   try {
     const version = body.startsWith(inBandRequestRoutePrefix) ? 6 : body.startsWith(requestBoundRoutePrefix) ? 5 : body.startsWith(supervisoryCycleRoutePrefix) ? 4
       : body.startsWith(stagedSupervisoryCycleRoutePrefix) ? 3

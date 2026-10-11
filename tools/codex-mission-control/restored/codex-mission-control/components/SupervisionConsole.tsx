@@ -7,7 +7,7 @@ import type { StoredEvent } from "@/lib/schema";
 import { formatMessageTimestamp } from "@/lib/message-time";
 import { StatusDot } from "./StatusDot";
 import type { OperatorStatusProjection, OperatorSupervisorStatus } from "@/lib/operator-status-contract";
-import { isPendingSupervisorRequest, latestSupervisorConversation, supervisorRequests, type SupervisorRequestActivity } from "@/lib/supervisor-activity";
+import { isPendingSupervisorRequest, latestSupervisorConversation, type SupervisorRequestState } from "@/lib/supervisor-activity";
 import { SUPERVISOR_REQUEST_STATE, supervisorStatusLine } from "./SupervisorActivity";
 
 interface Snapshot {
@@ -70,8 +70,8 @@ interface RouteRow {
   worker: WorkerState;
   event: WorkerMessageEvent;
   packet: InternalRoutePacket;
-  /** Where the question stands now (sent, answered, expired…), from the same worker's ledger. */
-  request: SupervisorRequestActivity | null;
+  /** Where the question stands now (sent, answered, expired…), as Mission Control's projection admitted it. */
+  state: SupervisorRequestState;
 }
 
 const emptyDirectory: ConfiguredSupervisorDirectory = {
@@ -132,12 +132,14 @@ export function SupervisionConsole() {
 
   const routeRows = useMemo<RouteRow[]>(() => {
     return (snapshot?.workers ?? []).flatMap((worker) => {
-      const requests = new Map(supervisorRequests(worker.timeline).map((request) => [request.requestId, request]));
+      // Only questions the server projection admitted (its own request parser and replacement rules) are listed.
+      const states = worker.supervisorActivity?.states ?? {};
       return worker.timeline
         .filter(isWorkerMessageEvent)
         .flatMap((event) => {
           const packet = parseInternalRoutePacket(event.data.body);
-          return packet ? [{ worker, event, packet, request: requests.get(packet.requestId) ?? null }] : [];
+          const state = packet && Object.hasOwn(states, packet.requestId) ? states[packet.requestId] : null;
+          return packet && state ? [{ worker, event, packet, state }] : [];
         });
     })
       .sort((left, right) => right.event.occurredAt.localeCompare(left.event.occurredAt));
@@ -258,7 +260,7 @@ export function SupervisionConsole() {
         : routeRows.slice(0, 20).map((row) => {
           const locator = directory.entries.find((entry) => entry.supervisorId === row.packet.destinationSupervisorId)?.bootstrapCapability.url ?? null;
           return <div className="gap-callout" key={row.event.eventId}>
-            <span className="field-label">{row.request ? SUPERVISOR_REQUEST_STATE[row.request.state] : "State not recorded"}</span>
+            <span className="field-label">{SUPERVISOR_REQUEST_STATE[row.state]}</span>
             <p><strong>{row.worker.name}</strong> · blocked/routed action {row.packet.actionBlockedOrRouted.replaceAll("_", " ")}</p>
             <p>{row.packet.factualPacket.exactFactualState}</p>
             <p><strong>Decision requested:</strong> {row.packet.factualPacket.decisionRequested}</p>
@@ -306,8 +308,8 @@ function workerLabel(workers: WorkerState[], workerId: string): string {
   return workers.find((worker) => worker.id === workerId)?.name ?? "a currently offline worker";
 }
 
-export function pendingRoute(row: Pick<RouteRow, "request">): boolean {
-  return row.request ? isPendingSupervisorRequest(row.request) : false;
+export function pendingRoute(row: Pick<RouteRow, "state">): boolean {
+  return isPendingSupervisorRequest(row);
 }
 
 export function workflowState(worker: WorkerState, hasPendingRoute: boolean): string {
