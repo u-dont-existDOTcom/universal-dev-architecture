@@ -11,6 +11,8 @@ PATTERN = ROOT / "patterns" / "owner-questions-page.md"
 REQUIREMENT = ROOT / "docs" / "requirements" / "2026-09-30-owner-questions-page.owner-requirement.json"
 
 STATUS_COLOURS_REQUIREMENT = ROOT / "docs" / "requirements" / "2026-10-10-owner-page-status-colours.owner-requirement.json"
+OWNER_WORDS_REQUIREMENT = ROOT / "docs" / "requirements" / "2026-10-11-owner-words-before-questions.owner-requirement.json"
+OWNER_WORDS_FEEDBACK = ROOT / "feedback" / "2026-10-11-owner-question-asked-after-owner-direction.md"
 
 
 class OwnerQuestionsPageTests(unittest.TestCase):
@@ -41,6 +43,11 @@ class OwnerQuestionsPageTests(unittest.TestCase):
             "**Status at a glance.**",
             "a one-line legend under the header",
             "`> [!IMPORTANT]` for open questions",
+            "First read what the owner has said on the workstream since its last decision, not only his answers to numbered questions;",
+            "do it again whenever a question has waited across turns.",
+            "When his words already choose an option, or rule out all but one, the matter is decided:",
+            "name the other options in one line as an opt-out instead of asking.",
+            "A notice that something stopped says what restarts it; it becomes a question only when restarting needs a choice his words don't cover.",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, self.pattern)
@@ -96,8 +103,42 @@ class OwnerQuestionsPageTests(unittest.TestCase):
         docs = (ROOT / "docs" / "INDEX.md").read_text(encoding="utf-8")
         self.assertIn("`requirements/2026-10-10-owner-page-status-colours.owner-requirement.json`", docs)
 
+    def test_owner_words_requirement_quotes_the_owner(self) -> None:
+        data = json.loads(OWNER_WORDS_REQUIREMENT.read_text(encoding="utf-8"))
+        self.assertEqual(data["requirement_id"], "2026-10-11-owner-words-before-questions")
+        self.assertEqual(
+            data["owner_statement"],
+            "21a i already told you that before, i said swtich to the new quick method, why did you not listen? debug that and send error report to UDA lane",
+        )
+        self.assertEqual(data["origin"]["classification"], "OWNER_REQUIRED")
+        for surface in data["execution_surfaces"]:
+            if surface["disposition"] == "QUEUED":
+                with self.subTest(surface=surface["surface"]):
+                    self.assertTrue(surface.get("reason"))
+        self.assertNotIn("LIVE_VERIFIED", data["learning_state_at_merge"])
+        self.assertTrue(data["nonclaims"])
+        docs = (ROOT / "docs" / "INDEX.md").read_text(encoding="utf-8")
+        self.assertIn("`requirements/2026-10-11-owner-words-before-questions.owner-requirement.json`", docs)
+        index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
+        entry = next(line for line in index.splitlines() if "`patterns/owner-questions-page.md` —" in line)
+        self.assertIn("a choice they already made is acted on and recorded, not asked again", entry)
+        failure_map = (ROOT / "patterns" / "logic-failure-map.md").read_text(encoding="utf-8")
+        row = next(line for line in failure_map.splitlines() if line.startswith("| LF-1.5 |"))
+        self.assertIn("Read the owner's own words first", row)
+        self.assertIn("`patterns/owner-questions-page.md`", row)
+
+    def test_owner_words_failure_record_names_the_mechanism(self) -> None:
+        text = OWNER_WORDS_FEEDBACK.read_text(encoding="utf-8")
+        self.assertIn("> 21a i already told you that before, i said swtich to the new quick method", text)
+        self.assertIn("`EXACT_TEXT`", text)
+        self.assertIn("`CAPTURED_BRANCH_ONLY`", text)
+        for heading in ("## Mechanism", "## Affected controls", "## Repair proposed with this record", "## Status"):
+            with self.subTest(heading=heading):
+                self.assertIn(heading, text)
+        self.assertIn("5dfdc51802f0afb5742c4a10688ee5d24a105bc6b53b499f15a79d2f4818a37d", text)
+
     def test_no_private_chat_locators(self) -> None:
-        for path in (PATTERN, REQUIREMENT, STATUS_COLOURS_REQUIREMENT):
+        for path in (PATTERN, REQUIREMENT, STATUS_COLOURS_REQUIREMENT, OWNER_WORDS_REQUIREMENT, OWNER_WORDS_FEEDBACK):
             with self.subTest(path=path.name):
                 text = path.read_text(encoding="utf-8")
                 self.assertNotIn("claude.ai/chat", text)

@@ -1,0 +1,52 @@
+{
+  "requirement_id": "2026-10-11-owner-words-before-questions",
+  "date": "2026-10-11",
+  "source": "Owner message on 2026-10-11 to the Claude Code session running the InnerSignal journal import, answering an owner question that his earlier request had already settled, with the request to debug the failure and report it to this repository's maintainer lane.",
+  "owner_statement": "21a i already told you that before, i said swtich to the new quick method, why did you not listen? debug that and send error report to UDA lane",
+  "problem": "The owner asked for the journal import in hours, not weeks. When the slow import stopped, the agent asked him to choose between leaving it stopped for the new method and two ways of restarting it that each meant weeks. His request had already chosen, leaving it stopped needed no new authority, and the question then waited about 20 hours. Rule 5 of the owner questions page says to resolve what the agent can decide before asking, but it has no step that makes the agent read the owner's earlier words, so it did not fire on a direction given outside a numbered question.",
+  "required_behavior": [
+    "Before a question goes on the owner questions page, and again whenever one has waited across turns, the agent reads what the owner has said on the workstream since its last decision, not only his answers to numbered questions.",
+    "When those words already choose an option, or rule out all but one, the matter is decided: the agent acts on that option when it needs no new authority, records it under Decided in his words, and names the other options in one line as an opt-out instead of asking.",
+    "A notice that something stopped says what restarts it; it becomes a question only when restarting needs a choice the owner's words don't cover."
+  ],
+  "basis": [
+    "The owner's statement above.",
+    "feedback/2026-10-11-owner-question-asked-after-owner-direction.md: the timeline and the mechanism."
+  ],
+  "scope": "Rule 5 and the status note of patterns/owner-questions-page.md, the LF-1.5 quick check, the LESSON-INDEX.md entry, the docs/INDEX.md route, this record, the feedback record, and their tests.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "An owner who has already said what he wants is not asked to choose it again.",
+    "notes": "The owner asked for the failure to be debugged and reported. The rule text is the reporting agent's proposed repair, for this repository's maintainer lane to review."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/owner-questions-page.md rule 5, reached through LESSON-INDEX.md and docs/INDEX.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "patterns/logic-failure-map.md LF-1.5",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "The InnerSignal journal owner questions page",
+      "disposition": "PROJECTED",
+      "note": "Question 21 moved to Decided in the owner's words on 2026-10-11; the import stays stopped and its scheduled check is off."
+    },
+    {
+      "surface": "Other workstreams' owner questions pages",
+      "disposition": "QUEUED",
+      "reason": "Each workstream's own session applies the step when it next adds a question or carries one forward."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "No repository rule can force a session that never loaded UDA.",
+    "The step depends on the agent finding the owner's earlier words; a session that lost them in a context reset has to recover them from its handoff note or the conversation history first."
+  ]
+}
