@@ -1268,7 +1268,7 @@
     },
     {
       "rule_id": "uda.kernel.clock-cadence",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "AGENTS.md",
@@ -1296,6 +1296,10 @@
           {
             "kind": "exact_text",
             "text": "Never compare clocks or read mid-task."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Get the second reading and the elapsed time from one command that prints the finished first line, not from reasoning:"
           },
           {
             "kind": "exact_text",

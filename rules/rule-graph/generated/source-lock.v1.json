@@ -1,7 +1,7 @@
 {
-  "catalog_sha256": "c257e77ea63e73d5ee8ac392c977008b74d7f90dea42761c46313044155e024d",
+  "catalog_sha256": "1899c1721ff216cf76f01645edd84832a785ed010dc7e31a406dcb568f0ed1ad",
   "compiler_sha256": "7ea7e14d49c8e2d10a5c015119a71b4457392fb6090a30f4cb38c9777be10509",
-  "content_sha256": "d7d6eac587efe2a6d5741c1051691e273e4b521485e28e522c2c9020cc65abae",
+  "content_sha256": "71736f3044639851a9b18a300b428347f1db0a60d2c0a635e84ff7977f8c359d",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
@@ -20,9 +20,9 @@
     {
       "extracted_sha256": "9471cda27b154706269e66df58a38da8b29825a6a48fcadc6755dcdfe2bf9518",
       "extracted_utf8_bytes": 435,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.bootstrap.live-root",
       "selectors": [
         {
@@ -748,9 +748,9 @@
     {
       "extracted_sha256": "db6944960605fbfbd017db21633d603b4072f3cecc7bdd2c45e766a51ce4dd88",
       "extracted_utf8_bytes": 1657,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.final.timestamp",
       "selectors": [
         {
@@ -828,9 +828,9 @@
     {
       "extracted_sha256": "d66012b2e948550f38fa49cd6ee25119d041de45c59c7a563b5366818f8ecbc6",
       "extracted_utf8_bytes": 446,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.kernel.artifact-delivery",
       "selectors": [
         {
@@ -848,11 +848,11 @@
       ]
     },
     {
-      "extracted_sha256": "95837b72e7bd6a8188f5006473483b9416764d11c17c9b1063fe408aaa7a64d5",
-      "extracted_utf8_bytes": 566,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "extracted_sha256": "1f06fa79786546c967ea16556f7934601f2984209c54baeb16947c9292321d8b",
+      "extracted_utf8_bytes": 685,
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.kernel.clock-cadence",
       "selectors": [
         {
@@ -881,6 +881,10 @@
         },
         {
           "kind": "exact_text",
+          "text": "Get the second reading and the elapsed time from one command that prints the finished first line, not from reasoning:"
+        },
+        {
+          "kind": "exact_text",
           "text": "Don't reuse a prior-turn timestamp"
         },
         {
@@ -896,9 +900,9 @@
     {
       "extracted_sha256": "47f1ced3bbf1e4da4c7ffec3fe828e351f1a9c046dcd7dca2f2979e38f132dbc",
       "extracted_utf8_bytes": 534,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.kernel.continuation",
       "selectors": [
         {
@@ -930,9 +934,9 @@
     {
       "extracted_sha256": "7b2cb7df35e293e835288001493e688b629d21ad8a95311c347a4d3a02a30a0f",
       "extracted_utf8_bytes": 456,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.kernel.coordination",
       "selectors": [
         {
@@ -964,9 +968,9 @@
     {
       "extracted_sha256": "25266e68c32d1b7057e9b07804a03545219825bbda65106543a79cba078fdf64",
       "extracted_utf8_bytes": 1894,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.kernel.followup-derivation",
       "selectors": [
         {
@@ -1038,9 +1042,9 @@
     {
       "extracted_sha256": "56fccc19d7910335da60a6196bc405e3dbd7a1a41cd8d17ae49b8dcdab66f485",
       "extracted_utf8_bytes": 449,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.kernel.instruction-activation",
       "selectors": [
         {
@@ -1080,9 +1084,9 @@
     {
       "extracted_sha256": "ab786f8655affc9dd6d51642bc47837daf9eb5815981066388ef21b91d869dcb",
       "extracted_utf8_bytes": 246,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.kernel.instruction-maintenance",
       "selectors": [
         {
@@ -1106,9 +1110,9 @@
     {
       "extracted_sha256": "753329d321c4a6cebbff51fa2df7484f26329fae3bc4637f4dc0af53753728d5",
       "extracted_utf8_bytes": 595,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.kernel.operation-commitments",
       "selectors": [
         {
@@ -1132,9 +1136,9 @@
     {
       "extracted_sha256": "dbd317be69907d4d5f68fee2df3f71f43f3f26748728359319b7534c2d14adf0",
       "extracted_utf8_bytes": 244,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.kernel.operational-references",
       "selectors": [
         {
@@ -1150,9 +1154,9 @@
     {
       "extracted_sha256": "b11a78b2ee0175421093b69726f458ad3c48d4ccc719da5752c8f4c2f7dd37be",
       "extracted_utf8_bytes": 484,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.kernel.outbound-links",
       "selectors": [
         {
@@ -1176,9 +1180,9 @@
     {
       "extracted_sha256": "aacaabf49929ac46aef09335b7ccc0b85ad1c330bb8bd7fd9d22047588b26c17",
       "extracted_utf8_bytes": 175,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.kernel.output-budget",
       "selectors": [
         {
@@ -1194,9 +1198,9 @@
     {
       "extracted_sha256": "0df981c5d4ae203095c345a524221d3a32da293e8f44696b8cb9c0afb661449b",
       "extracted_utf8_bytes": 596,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.kernel.owner-input-continuation",
       "selectors": [
         {
@@ -1220,9 +1224,9 @@
     {
       "extracted_sha256": "99e230d931f0f787cabf3e8169037ecceb8678f963b65360beeb6f2a94fc55e4",
       "extracted_utf8_bytes": 916,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.kernel.owner-interaction",
       "selectors": [
         {
@@ -1270,9 +1274,9 @@
     {
       "extracted_sha256": "198cb89be5283eaa34aa074af77708da435eb8ae38cb6191ed2d94ccee4d1f8f",
       "extracted_utf8_bytes": 1008,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.kernel.target-recovery",
       "selectors": [
         {
@@ -1308,9 +1312,9 @@
     {
       "extracted_sha256": "804234c3fff80cfca37675a6899860e2626578cc1db5783f14b459c999680601",
       "extracted_utf8_bytes": 226,
-      "git_blob_sha1": "c27948c88cf7553f95241cbae7edab27f87689d2",
+      "git_blob_sha1": "dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "path": "AGENTS.md",
-      "repository_revision": "BLOB:c27948c88cf7553f95241cbae7edab27f87689d2",
+      "repository_revision": "BLOB:dbb77aaa12f492e14d261a757e845327bd00c8dd",
       "rule_id": "uda.kernel.work-permissions",
       "selectors": [
         {

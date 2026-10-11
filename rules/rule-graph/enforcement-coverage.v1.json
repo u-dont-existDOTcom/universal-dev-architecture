@@ -520,6 +520,11 @@
           "obligation_id": "final-elapsed-time"
         },
         {
+          "sentence": "Get the second reading and the elapsed time from one command that prints the finished first line, not from reasoning:",
+          "record": "uda.kernel.clock-cadence",
+          "obligation_id": "two-read-cadence"
+        },
+        {
           "sentence": "Don't reuse a prior-turn timestamp",
           "record": "uda.kernel.clock-cadence",
           "obligation_id": "two-read-cadence"
