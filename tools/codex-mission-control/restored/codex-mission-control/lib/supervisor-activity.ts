@@ -43,6 +43,11 @@ export interface SupervisorRequestActivity {
 export interface SupervisorActivity {
   /** Newest first, at most {@link RECENT_REQUESTS}. */
   requests: SupervisorRequestActivity[];
+  /**
+   * The older questions (not listed) that the latest chat, the last send and the last answer below come from, so those
+   * can be checked against the questions themselves; at most one each.
+   */
+  evidence: SupervisorRequestActivity[];
   total: number;
   answered: number;
   lastAnsweredAt: string | null;
@@ -80,7 +85,7 @@ export interface SupervisorTransportEvidence {
   duplicateSend: boolean;
 }
 
-export const emptySupervisorActivity: SupervisorActivity = { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, lastSentAt: null, states: {}, routeEvents: {} };
+export const emptySupervisorActivity: SupervisorActivity = { requests: [], evidence: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, lastSentAt: null, states: {}, routeEvents: {} };
 
 interface Draft extends SupervisorRequestActivity { sequence: number; version: number; worker: string; duplicateSend: boolean }
 
@@ -124,16 +129,37 @@ export interface SupervisorRequestAdmission {
 export function supervisorActivity(events: readonly StoredEvent[], now: Date, admission: SupervisorRequestAdmission): SupervisorActivity {
   const { requests: all, routeEvents: routeEventOf } = projectRequests(events, now, admission);
   if (!all.length) return emptySupervisorActivity;
-  const answered = all.filter((request) => request.answeredAt);
+  const listed = all.slice(0, RECENT_REQUESTS);
+  // `all` is newest first, so the first question with a chat is the newest one that reached a chat.
+  const { latestConversation, lastSent, lastAnswered } = aggregateSources(all);
+  const listedIds = new Set(listed.map((request) => request.requestId));
+  const evidence = [...new Map([latestConversation, lastSent, lastAnswered]
+    .filter((request): request is SupervisorRequestActivity => request !== null && !listedIds.has(request.requestId))
+    .map((request) => [request.requestId, request])).values()];
   return {
-    requests: all.slice(0, RECENT_REQUESTS),
+    requests: listed,
+    evidence,
     total: all.length,
-    answered: answered.length,
-    lastAnsweredAt: latestInstant(answered.map((request) => request.answeredAt)),
-    latestConversationUrl: all.find((request) => request.conversationUrl)?.conversationUrl ?? null,
-    lastSentAt: latestInstant(all.map((request) => request.sentAt)),
+    answered: all.filter((request) => request.answeredAt).length,
+    lastAnsweredAt: lastAnswered?.answeredAt ?? null,
+    latestConversationUrl: latestConversation?.conversationUrl ?? null,
+    lastSentAt: lastSent?.sentAt ?? null,
     states: Object.fromEntries(all.map((request) => [request.requestId, request.state])),
     routeEvents: Object.fromEntries(all.map((request) => [request.requestId, routeEventOf.get(request.requestId)!])),
+  };
+}
+
+/** Among questions in newest-first order: the newest that reached a chat, the latest send and the latest answer. */
+function aggregateSources(newestFirst: readonly SupervisorRequestActivity[]) {
+  const latestBy = (time: (request: SupervisorRequestActivity) => string | null) => newestFirst.reduce<SupervisorRequestActivity | null>((best, request) => {
+    const value = time(request);
+    if (value === null || !Number.isFinite(instant(value))) return best;
+    return best === null || instant(value) > instant(time(best)!) ? request : best;
+  }, null);
+  return {
+    latestConversation: newestFirst.find((request) => request.conversationUrl) ?? null,
+    lastSent: latestBy((request) => request.sentAt),
+    lastAnswered: latestBy((request) => request.answeredAt),
   };
 }
 
@@ -278,18 +304,35 @@ export function isSupervisorActivity(value: unknown): value is SupervisorActivit
     || activity.answered !== stateValues.filter((state) => state === "ANSWERED" || state === "ANSWERED_DUPLICATE_SEND").length) return false;
   const listed = activity.requests.map((item: unknown) => record(item)?.requestId);
   if (new Set(listed).size !== listed.length) return false;
-  return activity.requests.every((item: unknown) => {
-    const request = record(item);
-    return request !== null && typeof request.requestId === "string" && timeOrNull(request.queuedAt) && request.queuedAt !== null
-      && (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(request.state)
-      && (SUPERVISOR_REQUEST_ORIGINS as readonly unknown[]).includes(request.origin)
-      && ["supervisorId", "question", "answer"].every((key) => nullableString(request[key]))
-      && ["expiresAt", "sentAt", "finishedAt", "answeredAt"].every((key) => timeOrNull(request[key]))
-      && (STATE_TIMES[request.state as SupervisorRequestState] ?? []).every((key) => request[key] !== null)
-      && fieldsFitState(request)
-      && chatAddressOrNull(request.conversationUrl)
-      && typeof request.requestId === "string" && Object.hasOwn(states, request.requestId) && states[request.requestId] === request.state;
-  });
+  if (!Array.isArray(activity.evidence) || activity.evidence.length > 3) return false;
+  const evidenceIds = activity.evidence.map((item: unknown) => record(item)?.requestId);
+  if (new Set([...listed, ...evidenceIds]).size !== listed.length + evidenceIds.length) return false;
+  const pool = [...activity.requests, ...activity.evidence] as unknown[];
+  if (!pool.every((item) => requestFits(item, states))) return false;
+  // The latest chat, last send and last answer must be what these questions record, newest first by route event.
+  const newestFirst = (pool as SupervisorRequestActivity[]).slice().sort((a, b) => Number(routeEvents[b.requestId]) - Number(routeEvents[a.requestId]));
+  const sources = aggregateSources(newestFirst);
+  return (sources.latestConversation?.conversationUrl ?? null) === activity.latestConversationUrl
+    && sameInstant(sources.lastSent?.sentAt ?? null, activity.lastSentAt as string | null)
+    && sameInstant(sources.lastAnswered?.answeredAt ?? null, activity.lastAnsweredAt as string | null);
+}
+
+function sameInstant(a: string | null, b: string | null): boolean {
+  return a === null || b === null ? a === b : instant(a) === instant(b);
+}
+
+/** One question's entry: valid fields, the times its state is about and nothing it can't carry, as the state map has it. */
+function requestFits(item: unknown, states: Record<string, unknown>): boolean {
+  const request = record(item);
+  return request !== null && typeof request.requestId === "string" && timeOrNull(request.queuedAt) && request.queuedAt !== null
+    && (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(request.state)
+    && (SUPERVISOR_REQUEST_ORIGINS as readonly unknown[]).includes(request.origin)
+    && ["supervisorId", "question", "answer"].every((key) => nullableString(request[key]))
+    && ["expiresAt", "sentAt", "finishedAt", "answeredAt"].every((key) => timeOrNull(request[key]))
+    && (STATE_TIMES[request.state as SupervisorRequestState] ?? []).every((key) => request[key] !== null)
+    && fieldsFitState(request)
+    && chatAddressOrNull(request.conversationUrl)
+    && Object.hasOwn(states, request.requestId) && states[request.requestId] === request.state;
 }
 
 /**

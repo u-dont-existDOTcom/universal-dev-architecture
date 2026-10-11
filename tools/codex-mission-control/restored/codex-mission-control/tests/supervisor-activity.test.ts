@@ -390,8 +390,9 @@ test("an activity state without the times it is about is not accepted", () => {
     ["NO_ANSWER", "expiresAt"], ["NO_ANSWER_DUPLICATE_SEND", "sentAt"], ["NO_ANSWER_DUPLICATE_SEND", "expiresAt"], ["EXPIRED", "expiresAt"],
     ["EXPIRED_UNSENT", "expiresAt"]];
   // One question in a given state, with the state map and the totals agreeing.
-  const withRequest = (listed: Record<string, unknown>) => ({ ...good, requests: [listed], states: { [request.requestId]: listed.state },
-    answered: ["ANSWERED", "ANSWERED_DUPLICATE_SEND"].includes(String(listed.state)) ? 1 : 0 });
+  const withRequest = (listed: Record<string, unknown>) => ({ ...good, requests: [listed], evidence: [], states: { [request.requestId]: listed.state },
+    answered: ["ANSWERED", "ANSWERED_DUPLICATE_SEND"].includes(String(listed.state)) ? 1 : 0,
+    lastSentAt: listed.sentAt ?? null, lastAnsweredAt: listed.answeredAt ?? null, latestConversationUrl: listed.conversationUrl ?? null });
   const bare = { ...request, sentAt: null, finishedAt: null, answeredAt: null, answer: null, conversationUrl: null };
   // Each state with what it may carry: the times it is about, and nothing it can't have.
   const filledFor: Record<string, Record<string, unknown>> = {
@@ -427,6 +428,12 @@ test("an activity state without the times it is about is not accepted", () => {
   assert.equal(isSupervisorActivity({ ...good, answered: 1 }), false);
   assert.equal(isSupervisorActivity({ ...good, requests: [request, request], total: 2, states: { ...good.states, other: "QUEUED" }, routeEvents: { ...good.routeEvents, other: 1 } }), false, "the same question listed twice");
   assert.equal(isSupervisorActivity({ ...good, requests: [{ ...request, requestId: "elsewhere" }] }), false, "a listed question missing from the map");
+  // The latest chat, last send and last answer must be what the questions record.
+  const queuedOnly = activityOf([route("fleet-review:q", "2026-10-11T10:00:00Z")]);
+  assert.equal(isSupervisorActivity({ ...queuedOnly, latestConversationUrl: "https://chatgpt.com/c/unrelated" }), false, "a chat no question ran in");
+  assert.equal(isSupervisorActivity({ ...queuedOnly, lastSentAt: "2026-10-11T10:05:00Z" }), false, "a send no question records");
+  assert.equal(isSupervisorActivity({ ...queuedOnly, lastAnsweredAt: "2026-10-11T10:05:00Z" }), false, "an answer no question records");
+  assert.equal(isSupervisorActivity({ ...good, lastSentAt: "2026-10-11T10:06:00Z" }), false, "another send time than the question's");
 });
 
 test("older routes (V3, V4) are never shown as sent: only waiting, answered or expired", () => {
@@ -544,7 +551,7 @@ test("the task card says what its supervisor was last asked, and links to that c
   try {
     seedIssue47Store(store);
     const worker = snapshotFromStore(store).workers.find((candidate) => candidate.id === "mission-control-live-slice")!;
-    assert.deepEqual(worker.supervisorActivity, { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, lastSentAt: null, states: {}, routeEvents: {} }, "every projected task carries its activity");
+    assert.deepEqual(worker.supervisorActivity, { requests: [], evidence: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, lastSentAt: null, states: {}, routeEvents: {} }, "every projected task carries its activity");
     const recent = snapshotForTimeline(snapshotFromStore(store), "recent").workers.find((candidate) => candidate.id === worker.id)!;
     assert.deepEqual(recent.supervisorActivity, worker.supervisorActivity, "the dashboard's trimmed snapshot keeps it");
     const empty = renderToStaticMarkup(createElement(OwnerTaskCard, { worker }));
@@ -822,6 +829,9 @@ test("the button keeps the newest chat that was reached even when newer question
   assert.ok(activity.requests.every((request) => request.conversationUrl === null), "the five listed questions never reached a chat");
   assert.equal(activity.latestConversationUrl, "https://chatgpt.com/c/reached-chat");
   assert.equal(latestSupervisorConversation(activity), "https://chatgpt.com/c/reached-chat");
+  assert.deepEqual(activity.evidence.map((request) => request.requestId), ["fleet-review:reached"], "the older question the chat comes from goes with it");
+  const tampered = { ...activity, evidence: [{ ...activity.evidence[0], conversationUrl: "https://chatgpt.com/c/another-chat" }] };
+  assert.equal(isSupervisorActivity(tampered), false, "the chat must be the one that question records");
 });
 
 test("an operator status without well-formed supervisors is not accepted as a refresh", () => {
@@ -933,7 +943,9 @@ test("supervisor times with different UTC offsets compare as instants", () => {
   ]);
   assert.equal(offset.requests[0].sentAt, "2026-10-11T09:30:00Z", "the earliest start is the send");
   assert.equal(offset.requests[0].finishedAt, "2026-10-11T05:05:00-05:00", "the latest completion is the finish");
-  assert.equal(lastSupervisorQuestionSentAt([{ ...offset, lastSentAt: "2026-10-11T09:30:00Z" }, { ...offset, lastSentAt: "2026-10-11T05:00:00-05:00" }]), "2026-10-11T05:00:00-05:00");
+  const earlier = activityOf([route("fleet-review:early", "2026-10-11T09:00:00Z", { version: 5 }), ...sentV5("fleet-review:early", "2026-10-11T09:30:00Z", url)]);
+  const later = activityOf([route("fleet-review:later", "2026-10-11T04:00:00-05:00", { version: 5 }), ...sentV5("fleet-review:later", "2026-10-11T05:00:00-05:00", url)]);
+  assert.equal(lastSupervisorQuestionSentAt([earlier, later]), "2026-10-11T05:00:00-05:00");
   const answers = activityOf([
     route("fleet-review:x", "2026-10-11T08:00:00Z"), decision("fleet-review:x", "2026-10-11T14:30:00Z"),
     route("fleet-review:y", "2026-10-11T08:10:00Z"), decision("fleet-review:y", "2026-10-11T10:00:00-05:00"),
