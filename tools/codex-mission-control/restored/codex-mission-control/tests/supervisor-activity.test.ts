@@ -39,7 +39,11 @@ function admission(admitted: string[], replaced: string[] = []): SupervisorReque
   return { admitted: new Set(admitted), replaced: new Set(replaced), retired: new Map(), trustedRelays: RELAYS, conflictedSessions: new Set() };
 }
 function activityOf(events: StoredEvent[], replaced: string[] = [], retired: Retired = {}) {
-  return supervisorActivity(events, NOW, admitAll(events, replaced, retired));
+  const activity = supervisorActivity(events, NOW, admitAll(events, replaced, retired));
+  // The views and the dashboard's refresh check reject any activity that fails the shape check; Mission Control's own
+  // output must always pass it, or the dashboard would refuse its own data.
+  assert.equal(isSupervisorActivity(activity), true, JSON.stringify(activity).slice(0, 300));
+  return activity;
 }
 const NOW = new Date("2026-10-11T12:00:00Z");
 let sequence = 0;
@@ -170,22 +174,23 @@ test("a supervisor question moves from queued to sent, finished and answered, wi
 
 test("only the policy's relay collectors count as sent, for this supervisor after queueing, and only a ChatGPT conversation is offered", () => {
   const id = "fleet-review:2";
-  const events = [
-    route(id, "2026-10-11T10:00:00Z"),
-    ...sent(id, "2026-10-11T10:01:00Z", "https://chatgpt.com/c/claimed", { session: "s-worker", producer: { id: `worker:${WORKER}`, kind: "WORKER" } }),
-    ...sent(id, "2026-10-11T10:02:00Z", "https://chatgpt.com/c/unverified", { session: "s-unverified", extra: { verified: false } }),
-    ...sent(id, "2026-10-11T10:03:00Z", "https://example.org/c/elsewhere", { session: "s-elsewhere" }),
-    ...sent(id, "2026-10-11T10:04:00Z", "https://chatgpt.com/", { session: "s-home" }),
-    ...sent(id, "2026-10-11T10:05:00Z", "https://chatgpt.com/c/other-collector", { session: "s-other", producer: { id: "collector:somebody-else", kind: "COLLECTOR" } }),
-    receipt("MISSION_CONTROL_SOMETHING_ELSE_V1", id, "2026-10-11T10:06:00Z", ["generation_state:STARTED", "conversation_url:https://chatgpt.com/c/other-summary"], { session: "s-summary" }),
-    ...sent(id, "2026-10-11T09:59:00Z", "https://chatgpt.com/c/before-queued", { session: "s-early" }),
-    ...sent(id, "2026-10-11T10:07:00Z", "https://chatgpt.com/c/wrong-supervisor", { session: "s-supervisor", supervisor: "someone-else" }),
+  const queued = route(id, "2026-10-11T10:00:00Z");
+  const variants: Array<[string, StoredEvent[]]> = [
+    ["a worker's claim", sent(id, "2026-10-11T10:01:00Z", "https://chatgpt.com/c/claimed", { producer: { id: `worker:${WORKER}`, kind: "WORKER" } })],
+    ["an unverified receipt", sent(id, "2026-10-11T10:02:00Z", "https://chatgpt.com/c/unverified", { extra: { verified: false } })],
+    ["another site", sent(id, "2026-10-11T10:03:00Z", "https://example.org/c/elsewhere")],
+    ["the ChatGPT home page", sent(id, "2026-10-11T10:04:00Z", "https://chatgpt.com/")],
+    ["another collector", sent(id, "2026-10-11T10:05:00Z", "https://chatgpt.com/c/other-collector", { producer: { id: "collector:somebody-else", kind: "COLLECTOR" } })],
+    ["another summary", [receipt("MISSION_CONTROL_SOMETHING_ELSE_V1", id, "2026-10-11T10:06:00Z", ["generation_state:STARTED", "conversation_url:https://chatgpt.com/c/other-summary"])]],
+    ["before it was queued", sent(id, "2026-10-11T09:59:00Z", "https://chatgpt.com/c/before-queued")],
+    ["dated after now", sent(id, "2026-10-11T12:30:00Z", "https://chatgpt.com/c/from-the-future")],
+    ["another supervisor", sent(id, "2026-10-11T10:07:00Z", "https://chatgpt.com/c/wrong-supervisor", { supervisor: "someone-else" })],
   ];
-  const activity = activityOf(events);
-  assert.equal(activity.requests[0].state, "QUEUED");
-  assert.equal(activity.requests[0].conversationUrl, null);
-  assert.equal(latestSupervisorConversation(activity), null);
-  const reached = activityOf([...events, ...sent(id, "2026-10-11T10:08:00Z", "https://chatgpt.com/c/the-chat")]);
+  for (const [what, receipts] of variants) {
+    const activity = activityOf([queued, ...receipts]);
+    assert.deepEqual([activity.requests[0].state, activity.requests[0].conversationUrl, latestSupervisorConversation(activity)], ["QUEUED", null, null], what);
+  }
+  const reached = activityOf([queued, ...sent(id, "2026-10-11T10:08:00Z", "https://chatgpt.com/c/the-chat")]);
   assert.equal(reached.requests[0].state, "SENT", "the trusted relay's receipts for the question's own session do count");
   assert.equal(reached.requests[0].conversationUrl, "https://chatgpt.com/c/the-chat");
 });
@@ -243,6 +248,49 @@ test("relay receipts count only when bound to the question's own session, role, 
   assert.equal(v5state(session("fleet-review:v5", at(1), url), stage("fleet-review:v5", at(2), "STARTED", url)), "QUEUED", "V6's role and step don't bind a V5 question");
   assert.equal(v5state(session("fleet-review:v5", at(1), "https://chatgpt.com/c/WEB:provisional", "ACTIVE", bound),
     stage("fleet-review:v5", at(2), "STARTED", "https://chatgpt.com/c/WEB:provisional", bound)), "QUEUED");
+});
+
+test("a question sent in more than one session, or a V6 question started twice, is flagged, with no chat", () => {
+  const id = "fleet-review:twice";
+  const queued = route(id, "2026-10-11T10:00:00Z");
+  const first = "https://chatgpt.com/c/first-chat";
+  const second = "https://chatgpt.com/c/second-chat";
+  const twice = activityOf([queued, ...sent(id, "2026-10-11T10:01:00Z", first), ...sent(id, "2026-10-11T10:02:00Z", second, { session: "ps-second" })]);
+  assert.deepEqual([twice.requests[0].state, twice.requests[0].sentAt, twice.requests[0].conversationUrl], ["DUPLICATE_SEND", "2026-10-11T10:01:00Z", null]);
+  assert.equal(supervisorStatusLine(twice, NOW), "Asked 2 hours ago; sent more than once, so its answer can't be accepted.");
+  assert.equal(twice.latestConversationUrl, null, "no one chat is the question's");
+  assert.equal(twice.lastSentAt, "2026-10-11T10:01:00Z");
+  // A start in another session counts even when that session never bound, as it does for the validators.
+  assert.equal(activityOf([queued, ...sent(id, "2026-10-11T10:01:00Z", first),
+    stage(id, "2026-10-11T10:02:00Z", "STARTED", second, { session: "ps-unbound" })]).requests[0].state, "DUPLICATE_SEND");
+  assert.equal(activityOf([queued, ...sent(id, "2026-10-11T10:01:00Z", first), stage(id, "2026-10-11T10:03:00Z", "STARTED", first)]).requests[0].state,
+    "DUPLICATE_SEND", "a V6 question started twice in its session");
+  const v5 = { role: "REQUEST_BOUND_DECISION_SESSION", step: "REQUEST_BOUND_DECISION" };
+  const once = activityOf([route("fleet-review:v5-twice", "2026-10-11T10:00:00Z", { version: 5 }),
+    session("fleet-review:v5-twice", "2026-10-11T10:01:00Z", first, "ACTIVE", v5), stage("fleet-review:v5-twice", "2026-10-11T10:02:00Z", "STARTED", first, v5),
+    stage("fleet-review:v5-twice", "2026-10-11T10:03:00Z", "STARTED", first, v5)]);
+  assert.deepEqual([once.requests[0].state, once.requests[0].sentAt], ["SENT", "2026-10-11T10:02:00Z"], "a V5 question takes its first start");
+  const late = activityOf([route(id, "2026-10-10T09:00:00Z", { expiresAt: "2026-10-11T09:00:00Z" }), ...sent(id, "2026-10-10T09:01:00Z", first),
+    ...sent(id, "2026-10-10T09:02:00Z", second, { session: "ps-second" })]);
+  assert.equal(late.requests[0].state, "NO_ANSWER");
+  assert.equal(pendingRoute({ state: "DUPLICATE_SEND" }), true, "still pending for Mission Control until it expires or is replaced");
+});
+
+test("an activity state without the times it is about is not accepted", () => {
+  const good = activityOf([route("fleet-review:1", "2026-10-11T10:00:00Z"), ...sent("fleet-review:1", "2026-10-11T10:05:00Z", "https://chatgpt.com/c/real-123")]);
+  const request = good.requests[0];
+  const times = { sentAt: "2026-10-11T10:05:00Z", finishedAt: "2026-10-11T10:06:00Z", answeredAt: "2026-10-11T10:07:00Z", expiresAt: "2026-10-12T12:00:00Z" };
+  const required: Array<[string, keyof typeof times]> = [["SENT", "sentAt"], ["FINISHED", "sentAt"], ["FINISHED", "finishedAt"], ["DUPLICATE_SEND", "sentAt"],
+    ["ANSWERED", "answeredAt"], ["NO_ANSWER", "sentAt"], ["NO_ANSWER", "expiresAt"], ["EXPIRED", "expiresAt"], ["EXPIRED_UNSENT", "expiresAt"]];
+  for (const [state, time] of required) {
+    const filled = { ...request, ...times, state };
+    assert.equal(isSupervisorActivity({ ...good, requests: [filled] }), true, `${state} with its times`);
+    assert.equal(isSupervisorActivity({ ...good, requests: [{ ...filled, [time]: null }] }), false, `${state} without ${time}`);
+  }
+  assert.equal(isSupervisorActivity({ ...good, requests: [{ ...request, sentAt: "yesterday" }] }), false);
+  assert.equal(isSupervisorActivity({ ...good, requests: [{ ...request, queuedAt: "soon" }] }), false);
+  assert.equal(isSupervisorActivity({ ...good, lastSentAt: "never" }), false);
+  assert.equal(supervisorStatusLine({ ...good, requests: [{ ...request, sentAt: null }] }, NOW), "Not available right now.");
 });
 
 test("the view's V5 and V6 session bindings are Mission Control's own", () => {
@@ -478,9 +526,12 @@ test("a provider session the relay reused for another task counts for neither ta
     const ledger = store.allEvents();
     const [first, second] = projectWorkers(ledger, NOW).map((worker) => worker.id);
     const url = "https://chatgpt.com/c/shared-chat";
-    const one = movedTo(first, [route("fleet-review:one", "2026-10-11T10:00:00Z"), ...sent("fleet-review:one", "2026-10-11T10:05:00Z", url, { session: "ps-shared" })], ledger.at(-1)!.sequence);
-    const two = movedTo(second, [route("fleet-review:two", "2026-10-11T10:00:00Z"), ...sent("fleet-review:two", "2026-10-11T10:06:00Z", url, { session: "ps-shared" })], one.at(-1)!.sequence);
-    const own = movedTo(second, [route("fleet-review:own", "2026-10-11T10:10:00Z"), ...sent("fleet-review:own", "2026-10-11T10:11:00Z", "https://chatgpt.com/c/own-chat")], two.at(-1)!.sequence);
+    // The snapshot builders read the real clock, so these times are an hour ago and the questions expire in a day.
+    const at = (minutes: number) => new Date(Date.now() - 60 * 60_000 + minutes * 60_000).toISOString();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60_000).toISOString();
+    const one = movedTo(first, [route("fleet-review:one", at(0), { expiresAt }), ...sent("fleet-review:one", at(5), url, { session: "ps-shared" })], ledger.at(-1)!.sequence);
+    const two = movedTo(second, [route("fleet-review:two", at(0), { expiresAt }), ...sent("fleet-review:two", at(6), url, { session: "ps-shared" })], one.at(-1)!.sequence);
+    const own = movedTo(second, [route("fleet-review:own", at(10), { expiresAt }), ...sent("fleet-review:own", at(11), "https://chatgpt.com/c/own-chat")], two.at(-1)!.sequence);
     const events = [...ledger, ...one, ...two, ...own];
     const requests = new Map(snapshotFromEvents(events).workers.flatMap((worker) => worker.supervisorActivity.requests).map((request) => [request.requestId, request]));
     assert.deepEqual([requests.get("fleet-review:one")?.state, requests.get("fleet-review:one")?.conversationUrl], ["QUEUED", null]);
@@ -488,6 +539,7 @@ test("a provider session the relay reused for another task counts for neither ta
     assert.deepEqual([requests.get("fleet-review:own")?.state, requests.get("fleet-review:own")?.conversationUrl], ["SENT", "https://chatgpt.com/c/own-chat"]);
     const page = workerSnapshotFromEvents(events, first)!.worker.supervisorActivity.requests[0];
     assert.equal(page.state, "QUEUED", "the task's own page reads the whole ledger too");
+    assert.equal(validTaskSnapshot(snapshotFromEvents(events)), true, "the server's own snapshot passes the dashboard's check");
   } finally {
     if (saved === undefined) delete process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON; else process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = saved;
     store.close();
@@ -645,19 +697,21 @@ test("a task snapshot with a missing or malformed supervisor activity is not acc
 });
 
 test("supervisor times with different UTC offsets compare as instants", () => {
-  // 10:00-05:00 is 15:00Z, later than 14:30Z, though it sorts earlier as text.
+  // 05:00-05:00 is 10:00Z, later than 09:30Z, though it sorts earlier as text.
+  // A V5 question (the validator takes its earliest start, so two starts in one session are allowed there).
   const url = "https://chatgpt.com/c/offset-chat";
+  const bound = { role: "REQUEST_BOUND_DECISION_SESSION", step: "REQUEST_BOUND_DECISION" };
   const offset = activityOf([
-    route("fleet-review:offsets", "2026-10-11T09:00:00Z"),
-    session("fleet-review:offsets", "2026-10-11T09:01:00Z", url),
-    stage("fleet-review:offsets", "2026-10-11T14:30:00Z", "STARTED", url),
-    stage("fleet-review:offsets", "2026-10-11T10:00:00-05:00", "STARTED", url),
-    stage("fleet-review:offsets", "2026-10-11T14:40:00Z", "COMPLETE", url),
-    stage("fleet-review:offsets", "2026-10-11T10:05:00-05:00", "COMPLETE", url),
+    route("fleet-review:offsets", "2026-10-11T09:00:00Z", { version: 5 }),
+    session("fleet-review:offsets", "2026-10-11T09:01:00Z", url, "ACTIVE", bound),
+    stage("fleet-review:offsets", "2026-10-11T09:30:00Z", "STARTED", url, bound),
+    stage("fleet-review:offsets", "2026-10-11T05:00:00-05:00", "STARTED", url, bound),
+    stage("fleet-review:offsets", "2026-10-11T09:40:00Z", "COMPLETE", url, bound),
+    stage("fleet-review:offsets", "2026-10-11T05:05:00-05:00", "COMPLETE", url, bound),
   ]);
-  assert.equal(offset.requests[0].sentAt, "2026-10-11T14:30:00Z", "the earliest start is the send");
-  assert.equal(offset.requests[0].finishedAt, "2026-10-11T10:05:00-05:00", "the latest completion is the finish");
-  assert.equal(lastSupervisorQuestionSentAt([{ ...offset, lastSentAt: "2026-10-11T14:30:00Z" }, { ...offset, lastSentAt: "2026-10-11T10:00:00-05:00" }]), "2026-10-11T10:00:00-05:00");
+  assert.equal(offset.requests[0].sentAt, "2026-10-11T09:30:00Z", "the earliest start is the send");
+  assert.equal(offset.requests[0].finishedAt, "2026-10-11T05:05:00-05:00", "the latest completion is the finish");
+  assert.equal(lastSupervisorQuestionSentAt([{ ...offset, lastSentAt: "2026-10-11T09:30:00Z" }, { ...offset, lastSentAt: "2026-10-11T05:00:00-05:00" }]), "2026-10-11T05:00:00-05:00");
   const answers = activityOf([
     route("fleet-review:x", "2026-10-11T08:00:00Z"), decision("fleet-review:x", "2026-10-11T14:30:00Z"),
     route("fleet-review:y", "2026-10-11T08:10:00Z"), decision("fleet-review:y", "2026-10-11T10:00:00-05:00"),

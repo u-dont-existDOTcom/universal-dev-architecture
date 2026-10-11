@@ -8,13 +8,14 @@ import { isSpecificChatAddress } from "./supervisor-chat-address";
  * is the conversation of its latest request. Read-only: nothing here changes what Mission Control sends or accepts.
  *
  * States: QUEUED (no send recorded yet), WAITING (no answer yet, for a route whose sending this view doesn't track),
- * SENT and FINISHED (the relay started or finished the question in the request's own session), ANSWERED, NO_ANSWER
+ * SENT and FINISHED (the relay started or finished the question in the request's own session), DUPLICATE_SEND (sent
+ * more than once, which Mission Control's validators reject, so no answer to it can be accepted), ANSWERED, NO_ANSWER
  * (sent, then expired without an answer), EXPIRED (expired without an answer, with no send recorded or tracked),
  * EXPIRED_UNSENT and WITHDRAWN (retired with Mission Control's proof that nothing was sent: on expiry, or withdrawn),
  * REPLACED (an admitted replacement superseded it).
  */
 export const SUPERVISOR_REQUEST_STATES = [
-  "QUEUED", "WAITING", "SENT", "FINISHED", "ANSWERED", "NO_ANSWER", "EXPIRED", "EXPIRED_UNSENT", "WITHDRAWN", "REPLACED",
+  "QUEUED", "WAITING", "SENT", "FINISHED", "DUPLICATE_SEND", "ANSWERED", "NO_ANSWER", "EXPIRED", "EXPIRED_UNSENT", "WITHDRAWN", "REPLACED",
 ] as const;
 export const SUPERVISOR_REQUEST_ORIGINS = [
   "ROUTINE_CHECK", "WORK_QUESTION", "OWNER_ANSWER", "AFTER_WORK", "SOURCE_REVIEW", "OTHER",
@@ -76,7 +77,13 @@ export const SUPERVISOR_TRANSPORT_BINDINGS: Readonly<Record<number, { sessionRol
 
 export const emptySupervisorActivity: SupervisorActivity = { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, lastSentAt: null, states: {} };
 
-interface Draft extends SupervisorRequestActivity { sequence: number; version: number; worker: string }
+interface Draft extends SupervisorRequestActivity { sequence: number; version: number; worker: string; duplicateSend: boolean }
+
+/** The times each state is about: a request in that state always has them (and every time it has is a valid instant). */
+const STATE_TIMES: Partial<Record<SupervisorRequestState, ReadonlyArray<"expiresAt" | "sentAt" | "finishedAt" | "answeredAt">>> = {
+  SENT: ["sentAt"], FINISHED: ["sentAt", "finishedAt"], DUPLICATE_SEND: ["sentAt"], ANSWERED: ["answeredAt"],
+  NO_ANSWER: ["sentAt", "expiresAt"], EXPIRED: ["expiresAt"], EXPIRED_UNSENT: ["expiresAt"],
+};
 
 /**
  * What Mission Control itself accepts, from its request admission and receipt policy: the cycle requests (V2-V6) it
@@ -113,9 +120,13 @@ export function supervisorActivity(events: readonly StoredEvent[], now: Date, ad
   };
 }
 
-/** Questions still in flight: queued, waiting, sent, or finished without a recorded answer, and not expired. */
+/**
+ * Questions still in flight, as Mission Control's own pending set has them: queued, waiting, sent (once or more), or
+ * finished without a recorded answer, and not expired.
+ */
 export function isPendingSupervisorRequest(request: Pick<SupervisorRequestActivity, "state">): boolean {
-  return request.state === "QUEUED" || request.state === "WAITING" || request.state === "SENT" || request.state === "FINISHED";
+  return request.state === "QUEUED" || request.state === "WAITING" || request.state === "SENT" || request.state === "FINISHED"
+    || request.state === "DUPLICATE_SEND";
 }
 
 /** Every supervisor question in these events with its current state, newest first. */
@@ -143,6 +154,7 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
       sequence: event.sequence,
       version: Number(CYCLE_VERSION.exec(data.body)?.[1] ?? 1),
       worker: event.worker,
+      duplicateSend: false,
     });
   }
   if (!drafts.size) return [];
@@ -152,7 +164,7 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
     if (data.type !== "github_decision_receipt_ingested") continue;
     const draft = drafts.get(data.request_id);
     if (!draft || draft.answeredAt) continue;
-    draft.answeredAt = data.ingested_at;
+    draft.answeredAt = timestamp(data.ingested_at) ?? event.occurredAt;
     draft.answer = shorten(answerOf(data), ANSWER_LIMIT);
   }
 
@@ -161,14 +173,18 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
   const all = [...drafts.values()].map((draft): SupervisorRequestActivity => {
     // Sending is tracked only where Mission Control binds the relay's receipts to the request (V5/V6) and trusts a relay.
     const tracked = Boolean(SUPERVISOR_TRANSPORT_BINDINGS[draft.version]) && admission.trustedRelays.size > 0;
-    if (tracked) applyBoundTransport(draft, transport, admission.conflictedSessions);
+    if (tracked) applyBoundTransport(draft, transport, admission.conflictedSessions, now);
     const expired = draft.expiresAt !== null && Date.parse(draft.expiresAt) <= nowMs;
+    // A retirement for expiry names the expiry; without one on the route it reads as a plain withdrawal.
+    const retired = admission.retired.get(draft.requestId);
+    const retiredState = retired === "EXPIRED_UNSENT" && draft.expiresAt === null ? "WITHDRAWN" : retired;
     const state: SupervisorRequestState = draft.answeredAt ? "ANSWERED"
       : admission.replaced.has(draft.requestId) ? "REPLACED"
-        : admission.retired.get(draft.requestId)
+        : retiredState
           ?? (!tracked ? (expired ? "EXPIRED" : "WAITING")
-            : draft.sentAt || draft.finishedAt ? (expired ? "NO_ANSWER" : draft.finishedAt ? "FINISHED" : "SENT")
-              : expired ? "EXPIRED" : "QUEUED");
+            : draft.duplicateSend ? (expired ? "NO_ANSWER" : "DUPLICATE_SEND")
+              : draft.sentAt ? (expired ? "NO_ANSWER" : draft.finishedAt ? "FINISHED" : "SENT")
+                : expired ? "EXPIRED" : "QUEUED");
     return {
       requestId: draft.requestId, origin: draft.origin, supervisorId: draft.supervisorId, question: draft.question,
       queuedAt: draft.queuedAt, expiresAt: draft.expiresAt, state, sentAt: draft.sentAt, finishedAt: draft.finishedAt,
@@ -234,13 +250,15 @@ function relayTransport(events: readonly StoredEvent[], relays: ReadonlySet<stri
  * ChatGPT conversation; stage receipts at the version's step for that session's first message, in that conversation:
  * sent when it STARTED, finished when it then reached COMPLETE.
  */
-function applyBoundTransport(draft: Draft, transport: RelayTransport, conflicted: ReadonlySet<string>): void {
+function applyBoundTransport(draft: Draft, transport: RelayTransport, conflicted: ReadonlySet<string>, now: Date): void {
   const binding = SUPERVISOR_TRANSPORT_BINDINGS[draft.version]!;
   const owner = JSON.stringify([draft.worker, draft.requestId, draft.supervisorId]);
+  // Like the validators' window: evidence from when the question was queued up to now.
+  const inWindow = (receipt: RelayReceipt) => instant(receipt.event.occurredAt) >= instant(draft.queuedAt) && instant(receipt.event.occurredAt) <= now.getTime();
   const receipts = (transport.byRequest.get(draft.requestId) ?? []).filter((receipt) => {
     const use = receipt.session ? transport.sessions.get(receipt.session) : undefined;
     return use !== undefined && !use.conflict && !conflicted.has(receipt.session!) && use.owner === owner
-      && [...use.roles].every((role) => role === binding.sessionRole) && instant(receipt.event.occurredAt) >= instant(draft.queuedAt);
+      && [...use.roles].every((role) => role === binding.sessionRole) && inWindow(receipt);
   });
   const sessions = new Map<string, BoundSession>();
   for (const receipt of receipts) {
@@ -264,14 +282,22 @@ function applyBoundTransport(draft: Draft, transport: RelayTransport, conflicted
     else continue;
     session.sequence = Math.max(session.sequence, receipt.event.sequence);
   }
+  // Like the validators, a question is sent in exactly one provider session (and a V6 question started once): any
+  // trusted start for it in another session, bound or not, makes the send ambiguous. Then no one chat is the
+  // question's, no answer to it can be accepted, and the view says it was sent more than once.
+  const startReceipts = (transport.byRequest.get(draft.requestId) ?? []).filter((receipt) => receipt.summary === STAGE_SUMMARY
+    && receipt.event.worker === draft.worker && receipt.ref("generation_state") === "STARTED" && inWindow(receipt));
+  const sendSessions = new Set(startReceipts.map((receipt) => receipt.session));
   // The question ran in a session only once its first message started there (a session opened, or closed, without
-  // that is neither sent nor finished, and offers no chat); one session per request is the rule, so should more have
-  // started, show the latest. Like the validators, completion is the stage's own COMPLETE after that start, never a
-  // session's lifecycle alone.
-  let chosen: BoundSession | null = null;
-  for (const session of sessions.values()) {
-    if (session.starts.length > 0 && (!chosen || session.sequence > chosen.sequence)) chosen = session;
+  // that is neither sent nor finished, and offers no chat). Completion is the stage's own COMPLETE after that start,
+  // never a session's lifecycle alone.
+  const started = [...sessions.values()].filter((session) => session.starts.length > 0);
+  if (sendSessions.size > 1 || started.length > 1 || (draft.version === 6 && started.some((session) => session.starts.length > 1))) {
+    draft.duplicateSend = true;
+    draft.sentAt = earliestInstant(startReceipts.map((receipt) => receipt.event.occurredAt));
+    return;
   }
+  const chosen = started[0];
   if (!chosen) return;
   const sentAt = earliestInstant(chosen.starts)!;
   draft.sentAt = sentAt;
@@ -291,22 +317,25 @@ function sessionConversation(conversations: ReadonlySet<string>): string | null 
 }
 
 /**
- * Whether a value has the full shape of a task's supervisor activity, with every chat address naming one ChatGPT
- * conversation. Anything else (missing, malformed, another build's) is unknown, never an empty history: the dashboard
+ * Whether a value has the full shape of a task's supervisor activity: every time a valid instant, each state with the
+ * times it is about (a sent question its send time, an answered one its answer time...), and every chat address naming
+ * one ChatGPT conversation. Anything else (missing, malformed, another build's) is unknown, never an empty history: the dashboard
  * and the supervision page refuse such a refresh, and every view says it isn't available.
  */
 export function isSupervisorActivity(value: unknown): value is SupervisorActivity {
   const activity = record(value);
   if (!activity || typeof activity.total !== "number" || typeof activity.answered !== "number") return false;
-  if (!nullableString(activity.lastAnsweredAt) || !chatAddressOrNull(activity.latestConversationUrl) || !nullableString(activity.lastSentAt)) return false;
+  if (!timeOrNull(activity.lastAnsweredAt) || !chatAddressOrNull(activity.latestConversationUrl) || !timeOrNull(activity.lastSentAt)) return false;
   const states = record(activity.states);
   if (!states || !Object.values(states).every((state) => (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(state))) return false;
   return Array.isArray(activity.requests) && activity.requests.every((item: unknown) => {
     const request = record(item);
-    return request !== null && typeof request.requestId === "string" && typeof request.queuedAt === "string"
+    return request !== null && typeof request.requestId === "string" && timeOrNull(request.queuedAt) && request.queuedAt !== null
       && (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(request.state)
       && (SUPERVISOR_REQUEST_ORIGINS as readonly unknown[]).includes(request.origin)
-      && ["supervisorId", "question", "expiresAt", "sentAt", "finishedAt", "answeredAt", "answer"].every((key) => nullableString(request[key]))
+      && ["supervisorId", "question", "answer"].every((key) => nullableString(request[key]))
+      && ["expiresAt", "sentAt", "finishedAt", "answeredAt"].every((key) => timeOrNull(request[key]))
+      && (STATE_TIMES[request.state as SupervisorRequestState] ?? []).every((key) => request[key] !== null)
       && chatAddressOrNull(request.conversationUrl);
   });
 }
@@ -394,6 +423,9 @@ function parsePacket(body: string): Record<string, unknown> | null {
 }
 function nullableString(value: unknown): boolean {
   return value === null || typeof value === "string";
+}
+function timeOrNull(value: unknown): boolean {
+  return value === null || (typeof value === "string" && Number.isFinite(Date.parse(value)));
 }
 /** A chat address in the activity is one specific ChatGPT conversation, or none: never a home, settings or other page. */
 function chatAddressOrNull(value: unknown): boolean {
