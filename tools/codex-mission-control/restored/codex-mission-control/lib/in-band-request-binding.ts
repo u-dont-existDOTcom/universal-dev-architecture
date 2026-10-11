@@ -420,8 +420,19 @@ export function inBandTransportEvidence(
     const url = exactRef(event, "conversation_url");
     return Boolean(url && url !== conversationUrl && !(provisionalUrls.has(url) && !finalIsProvisional));
   })) return null;
-  // Every pre-send receipt must commit to this request's exact binding envelope for this session, and to one body.
-  const expected = inBandRequestBindingEnvelope(request, sessionId, policy);
+  // Every pre-send receipt must commit to this request's exact binding envelope for this session, and to one body. A
+  // relocated request was sent for its original decision channel, so its envelope is the one built for that channel,
+  // as the validator builds it; a relocation that doesn't match the request's route and the configured channel binds
+  // nothing.
+  const relocation = policy.decisionReceiptRelocations?.find((item) => item.requestId === request.requestId) ?? null;
+  if (relocation && (request.repository.toLowerCase() !== relocation.sourceRepository.toLowerCase()
+    || request.issueNumber !== relocation.sourceDecisionIssueNumber
+    || policy.repository.toLowerCase() !== relocation.destinationRepository.toLowerCase()
+    || policy.decisionIssueNumber !== relocation.destinationDecisionIssueNumber)) return null;
+  const bindingPolicy = relocation
+    ? { ...policy, repository: relocation.sourceRepository, decisionIssueNumber: relocation.sourceDecisionIssueNumber }
+    : policy;
+  const expected = inBandRequestBindingEnvelope(request, sessionId, bindingPolicy);
   const preSend = scoped.filter((event) => isTrustedEvidence(event, inBandPreSendSummary, relayIds));
   const bodies = new Set(preSend.map((event) => exactRef(event, "provider_body_sha256")));
   const promptSha256 = bodies.size === 1 ? [...bodies][0] : null;

@@ -329,6 +329,25 @@ test("relay receipts count only when bound as Mission Control's validators bind 
     stage("fleet-review:v5", at(2), "STARTED", url, V5), stage("fleet-review:v5", at(3), "COMPLETE", url, { ...V5, prompt: "e".repeat(64) })), "QUEUED", "one prompt on every stage");
 });
 
+test("a relocated V6 question's transport is checked against the decision channel it was sent for", () => {
+  const moved = "fleet-review:moved";
+  const stayed = "fleet-review:stayed";
+  // Both were sent while the decision channel was owner/receipts #1; the channel then moved, with a relocation for one.
+  const events = bound([route(moved, "2026-10-11T10:00:00Z"), ...sent(moved, "2026-10-11T10:05:00Z", "https://chatgpt.com/c/moved-chat"),
+    route(stayed, "2026-10-11T10:10:00Z"), ...sent(stayed, "2026-10-11T10:15:00Z", "https://chatgpt.com/c/stayed-chat")]);
+  const relocate = (requestId: string, source = { repository: "owner/receipts", issue: 1 }) => parseGitHubReceiptPolicy(JSON.stringify({
+    ...JSON.parse(receiptPolicy(true)), repository: "owner/private-receipts", decisionIssueNumber: 7,
+    decisionReceiptRelocations: [{ requestId, sourceRepository: source.repository, sourceDecisionIssueNumber: source.issue,
+      destinationRepository: "owner/private-receipts", destinationDecisionIssueNumber: 7, canonicalReceiptSha256: "a".repeat(64) }],
+  }))!;
+  const requests = admittedCycleRequests(byLedger(events)).admitted;
+  const transport = supervisorTransport(requests, events, NOW, supervisorRelayContext(events, relocate(moved)));
+  assert.equal(transport.get(moved)?.conversationUrl, "https://chatgpt.com/c/moved-chat", "checked against its original channel");
+  assert.equal(transport.get(stayed), undefined, "without a relocation, a question is checked against the configured channel");
+  const mismatched = supervisorTransport(requests, events, NOW, supervisorRelayContext(events, relocate(moved, { repository: "owner/elsewhere", issue: 3 })));
+  assert.equal(mismatched.get(moved), undefined, "a relocation that doesn't match the question's route binds nothing");
+});
+
 test("a question sent in more than one session, or a V6 question started twice, is flagged, with no chat", () => {
   const id = "fleet-review:twice";
   const queued = route(id, "2026-10-11T10:00:00Z");
