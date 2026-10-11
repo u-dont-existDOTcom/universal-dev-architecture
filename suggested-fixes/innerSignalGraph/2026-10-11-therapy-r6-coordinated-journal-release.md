@@ -3,8 +3,8 @@
 - For: `u-dont-existDOTcom/innerSignalGraph`
 - Filed: 2026-10-11, by the InnerSignal supervisor/release-continuation session
 - From: Owner-approved development PR [#152](https://github.com/u-dont-existDOTcom/innerSignalGraph/pull/152); precise deferred-release record [issue #154](https://github.com/u-dont-existDOTcom/innerSignalGraph/issues/154)
-- Owner request: **yes**, 2026-10-11: "yes unless taht would interefere with the innersignal worker, in which case just put it in its lane to release it with other stuff"
-- Existing task: journal pointer-pass [plan #151](https://github.com/u-dont-existDOTcom/innerSignalGraph/pull/151) and [implementation #153](https://github.com/u-dont-existDOTcom/innerSignalGraph/pull/153), both open when filed
+- Owner request: yes, 2026-10-11: "yes unless taht would interefere with the innersignal worker, in which case just put it in its lane to release it with other stuff"
+- Existing pull request: journal pointer-pass [plan #151](https://github.com/u-dont-existDOTcom/innerSignalGraph/pull/151) and [implementation #153](https://github.com/u-dont-existDOTcom/innerSignalGraph/pull/153), both open when filed
 - Supersedes: none. This is release coordination only; **do not recreate or reapprove the therapy changes already merged**.
 - Current disposition: DEFER LIVE RELEASE TO ACTIVE JOURNAL WORKER, triggered by that worker's next planned owner-approved coordinated release; do not interrupt its current execution.
 
