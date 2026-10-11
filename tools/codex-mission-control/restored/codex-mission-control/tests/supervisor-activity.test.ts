@@ -3,11 +3,12 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { OwnerTaskCard, supervisionHistory } from "../components/Dashboard";
-import { parseInternalRoutePacket, pendingRoute, supervisionReadModel, workflowState } from "../components/SupervisionConsole";
+import { admittedRouteRows, parseInternalRoutePacket, pendingRoute, supervisionReadModel, workflowState } from "../components/SupervisionConsole";
 import { SupervisionHealthLine, SupervisorActivityPanel, supervisorStatusLine } from "../components/SupervisorActivity";
 import { LATEST_CHAT_LABEL, supervisorChatView } from "../components/SupervisorLink";
 import { snapshotFromEvents, snapshotFromStore, workerSnapshotFromEvents } from "../lib/dashboard-data";
 import { admittedCycleRequests, parseGitHubReceiptPolicy, retiredUnsentRequests, type PendingDecisionRequest } from "../lib/github-decision-receipts";
+import { inBandRequestBindingEnvelope } from "../lib/in-band-request-binding";
 import type { OperatorStatusProjection } from "../lib/operator-status-contract";
 import type { StoredEvent } from "../lib/schema";
 import { seedIssue47Store } from "../lib/seed";
@@ -52,7 +53,8 @@ function admission(events: StoredEvent[], admitted: string[], replaced: string[]
   return { admitted: new Map(admitted.map((requestId) => [requestId, routes.get(requestId) ?? -1])), replaced: new Set(replaced),
     retired: new Map(), tracksTransport: true, transport: new Map() };
 }
-function activityOf(events: StoredEvent[], replaced: string[] = [], retired: Retired = {}) {
+function activityOf(unbound: StoredEvent[], replaced: string[] = [], retired: Retired = {}) {
+  const events = bound(unbound);
   const activity = supervisorActivity(events, NOW, admitAll(events, replaced, retired));
   // The views and the dashboard's refresh check reject any activity that fails the shape check; Mission Control's own
   // output must always pass it, or the dashboard would refuse its own data.
@@ -138,10 +140,31 @@ function stage(requestId: string, at: string, generation: "STARTED" | "COMPLETE"
 function modelSeen(requestId: string, at: string, options: ReceiptOptions & { role?: string } = {}) {
   return receipt(MODEL, requestId, at, [`session_role:${options.role ?? "IN_BAND_REQUEST_DECISION_SESSION"}`, ...CONTROLS], options);
 }
-/** The relay's pre-send receipt for a V6 question: the provider body it commits to send, before the send. */
-function preSend(requestId: string, at: string, options: ReceiptOptions & { body?: string } = {}) {
+/**
+ * The relay's pre-send receipt for a V6 question: the provider body it commits to send, for the request's exact binding
+ * envelope and session, before the send. `bound` fills in the envelope digest from the request's route event, as the
+ * relay computes it; `digest` sets another one.
+ */
+function preSend(requestId: string, at: string, options: ReceiptOptions & { body?: string; digest?: string } = {}) {
   return receipt(PRE_SEND, requestId, at, [`provider_body_sha256:${options.body ?? PROMPT}`, "semantic_authority:false",
-    `trusted_relay_producer:${(options.producer ?? relay).id}`, "submission_admission:admission-1"], options);
+    `trusted_relay_producer:${(options.producer ?? relay).id}`, "submission_admission:admission-1",
+    "binding_protocol:IN_BAND_REQUEST_BINDING_V1", "binding_schema:MISSION_CONTROL_IN_BAND_REQUEST_BINDING_V1",
+    `in_band_binding_sha256:${options.digest ?? AUTO_DIGEST}`, "decision_receipt_target:https://github.com/owner/receipts/issues/1"], options);
+}
+const AUTO_DIGEST = "auto";
+const refOf = (refs: readonly string[], key: string) => refs.find((ref) => ref.startsWith(`${key}:`))?.slice(key.length + 1);
+/** Each pre-send receipt's envelope digest, from its request's route event among these events and its own session. */
+function bound(events: StoredEvent[]): StoredEvent[] {
+  const requests = new Map(admittedCycleRequests(byLedger(events)).admitted.map((request) => [request.requestId, request]));
+  return events.map((event) => {
+    if (event.data.type !== "evidence_receipt_recorded" || event.data.summary !== PRE_SEND) return event;
+    const refs = event.data.refs;
+    const request = requests.get(refOf(refs, "request") ?? "");
+    const session = refOf(refs, "provider_session");
+    if (!request || !session || !refs.includes(`in_band_binding_sha256:${AUTO_DIGEST}`)) return event;
+    const digest = inBandRequestBindingEnvelope(request, session, TEST_POLICY).in_band_binding_sha256;
+    return { ...event, data: { ...event.data, refs: refs.map((ref) => ref === `in_band_binding_sha256:${AUTO_DIGEST}` ? `in_band_binding_sha256:${digest}` : ref) } };
+  });
 }
 /** Sent to ChatGPT: model controls seen, the body committed, the session's exact conversation, then its first message started. */
 function sent(requestId: string, at: string, url: string, options: ReceiptOptions = {}) {
@@ -279,6 +302,10 @@ test("relay receipts count only when bound as Mission Control's validators bind 
   assert.deepEqual(view(preSend(id, at(1)), session(id, at(1), url), start()), nothing, "no model observation");
   assert.deepEqual(view(modelSeen(id, at(1)), session(id, at(1), url), start()), nothing, "no pre-send body");
   assert.deepEqual(view(modelSeen(id, at(1)), preSend(id, at(1)), preSend(id, at(1), { body: "f".repeat(64) }), session(id, at(1), url), start()), nothing, "two bodies");
+  assert.deepEqual(view(modelSeen(id, at(1)), preSend(id, at(1), { digest: "0".repeat(64) }), session(id, at(1), url), start()), nothing, "another request's envelope");
+  assert.deepEqual(view(modelSeen(id, at(1)), preSend(id, at(1), { without: ["binding_protocol"] }), session(id, at(1), url), start()), nothing, "no binding protocol");
+  assert.deepEqual(view(modelSeen(id, at(1)), preSend(id, at(1), { without: ["decision_receipt_target"], refs: ["decision_receipt_target:https://github.com/elsewhere/x/issues/9"] }),
+    session(id, at(1), url), start()), nothing, "another receipt target");
   assert.deepEqual(view(preSend(id, at(1)), modelSeen(id, at(2)), session(id, at(1), url), stage(id, at(3), "STARTED", url)), nothing, "controls seen only after the body was committed");
   // A completion counts only in the session's conversation, after its start; a stage elsewhere unbinds the session.
   assert.deepEqual(view(...ready(), start(), stage(id, at(3), "COMPLETE", url)), { state: "FINISHED", chat: url });
@@ -458,7 +485,7 @@ test("the task card says what its supervisor was last asked, and links to that c
   try {
     seedIssue47Store(store);
     const worker = snapshotFromStore(store).workers.find((candidate) => candidate.id === "mission-control-live-slice")!;
-    assert.deepEqual(worker.supervisorActivity, { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, lastSentAt: null, states: {} }, "every projected task carries its activity");
+    assert.deepEqual(worker.supervisorActivity, { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, lastSentAt: null, states: {}, routeEvents: {} }, "every projected task carries its activity");
     const recent = snapshotForTimeline(snapshotFromStore(store), "recent").workers.find((candidate) => candidate.id === worker.id)!;
     assert.deepEqual(recent.supervisorActivity, worker.supervisorActivity, "the dashboard's trimmed snapshot keeps it");
     const empty = renderToStaticMarkup(createElement(OwnerTaskCard, { worker }));
@@ -576,7 +603,7 @@ test("a provider session the relay reused for another task counts for neither ta
     const one = movedTo(first, [route("fleet-review:one", at(0), { expiresAt }), ...sent("fleet-review:one", at(5), url, { session: "ps-shared" })], ledger.at(-1)!.sequence);
     const two = movedTo(second, [route("fleet-review:two", at(0), { expiresAt }), ...sent("fleet-review:two", at(6), url, { session: "ps-shared" })], one.at(-1)!.sequence);
     const own = movedTo(second, [route("fleet-review:own", at(10), { expiresAt }), ...sent("fleet-review:own", at(11), "https://chatgpt.com/c/own-chat")], two.at(-1)!.sequence);
-    const events = [...ledger, ...one, ...two, ...own];
+    const events = bound([...ledger, ...one, ...two, ...own]);
     const requests = new Map(snapshotFromEvents(events).workers.flatMap((worker) => worker.supervisorActivity.requests).map((request) => [request.requestId, request]));
     assert.deepEqual([requests.get("fleet-review:one")?.state, requests.get("fleet-review:one")?.conversationUrl], ["QUEUED", null]);
     assert.deepEqual([requests.get("fleet-review:two")?.state, requests.get("fleet-review:two")?.conversationUrl], ["QUEUED", null]);
@@ -609,8 +636,8 @@ test("relay receipts count only while the receipt policy enables the request-bou
   const saved = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
   try {
     seedIssue47Store(store);
-    const events = inSeededTask(store, [route("fleet-review:policy", "2026-10-11T10:00:00Z"),
-      ...sent("fleet-review:policy", "2026-10-11T10:05:00Z", "https://chatgpt.com/c/policy-chat")]);
+    const events = bound(inSeededTask(store, [route("fleet-review:policy", "2026-10-11T10:00:00Z"),
+      ...sent("fleet-review:policy", "2026-10-11T10:05:00Z", "https://chatgpt.com/c/policy-chat")]));
     const policy = receiptPolicy;
     process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = policy(true);
     let [request] = projectWorker(events, NOW).supervisorActivity.requests;
@@ -718,6 +745,10 @@ test("a question is the exact route event Mission Control admitted, not another 
       [["fleet-review:same", "The admitted question", "2026-10-11T09:30:00Z"]]);
     const unit = supervisorActivity([copy, admitted], NOW, { ...admission([copy, admitted], []), admitted: new Map([["fleet-review:same", admitted.sequence]]) });
     assert.equal(unit.requests[0].question, "The admitted question");
+    // The supervision page lists that exact event once, not the copy.
+    const rows = admittedRouteRows([projected]);
+    assert.deepEqual(rows.map((row) => [row.packet.factualPacket.decisionRequested, row.event.sequence]),
+      [["The admitted question", projected.supervisorActivity.routeEvents["fleet-review:same"]]]);
   } finally { store.close(); }
 });
 

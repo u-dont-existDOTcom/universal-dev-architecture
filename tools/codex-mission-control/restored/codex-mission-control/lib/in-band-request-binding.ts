@@ -385,7 +385,8 @@ export function assertInBandRequestExecution(
  * What the relay's own receipts show about one V6 question up to `at`, checked as `assertInBandRequestExecution` checks
  * them without the answer-specific parts (decision binding, central admission chain, GitHub comment, readbacks): sent
  * once its first message started, exactly once, in the request's own exact session (its provisional "WEB:" address
- * allowed), after the trusted pre-send receipt committed the provider body and after the session's model controls were
+ * allowed), after the trusted pre-send receipt committed the provider body (for this request's exact binding envelope
+ * and session) and after the session's model controls were
  * observed, with those controls, that body's prompt, one approved read-only source app and no semantic authority on
  * every stage; finished once that stage completed in the session's conversation. A send in more than one session, or a
  * second start, is a duplicate send (the validator rejects both); anything not bound this way is null.
@@ -419,10 +420,16 @@ export function inBandTransportEvidence(
     const url = exactRef(event, "conversation_url");
     return Boolean(url && url !== conversationUrl && !(provisionalUrls.has(url) && !finalIsProvisional));
   })) return null;
+  // Every pre-send receipt must commit to this request's exact binding envelope for this session, and to one body.
+  const expected = inBandRequestBindingEnvelope(request, sessionId, policy);
   const preSend = scoped.filter((event) => isTrustedEvidence(event, inBandPreSendSummary, relayIds));
   const bodies = new Set(preSend.map((event) => exactRef(event, "provider_body_sha256")));
   const promptSha256 = bodies.size === 1 ? [...bodies][0] : null;
-  if (!promptSha256 || !/^[a-f0-9]{64}$/.test(promptSha256) || preSend.some((event) => exactRef(event, "semantic_authority") !== "false"
+  if (!promptSha256 || !/^[a-f0-9]{64}$/.test(promptSha256) || preSend.some((event) => exactRef(event, "binding_protocol") !== inBandRequestProtocol
+    || exactRef(event, "binding_schema") !== expected.binding_schema
+    || exactRef(event, "in_band_binding_sha256") !== expected.in_band_binding_sha256
+    || exactRef(event, "decision_receipt_target") !== expected.decision_receipt_target.immutable_issue_url
+    || exactRef(event, "semantic_authority") !== "false"
     || exactRef(event, "trusted_relay_producer") !== event.producerId || Date.parse(event.occurredAt) >= Date.parse(request.expiresAt))) return null;
   const model = scoped.find((event) => isTrustedEvidence(event, modelSummary, relayIds)
     && exactRef(event, "session_role") === inBandRequestRole && controlEvidence(event) !== null);

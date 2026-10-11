@@ -141,20 +141,7 @@ export function SupervisionConsole() {
       .map((event) => ({ worker, event })));
   }, [snapshot]);
 
-  const routeRows = useMemo<RouteRow[]>(() => {
-    return (snapshot?.workers ?? []).flatMap((worker) => {
-      // Only questions the server projection admitted (its own request parser and replacement rules) are listed.
-      const states = isSupervisorActivity(worker.supervisorActivity) ? worker.supervisorActivity.states : {};
-      return worker.timeline
-        .filter(isWorkerMessageEvent)
-        .flatMap((event) => {
-          const packet = parseInternalRoutePacket(event.data.body);
-          const state = packet && Object.hasOwn(states, packet.requestId) ? states[packet.requestId] : null;
-          return packet && state ? [{ worker, event, packet, state }] : [];
-        });
-    })
-      .sort((left, right) => Date.parse(right.event.occurredAt) - Date.parse(left.event.occurredAt) || right.event.sequence - left.event.sequence);
-  }, [snapshot]);
+  const routeRows = useMemo<RouteRow[]>(() => admittedRouteRows(snapshot?.workers ?? []), [snapshot]);
 
   if (!snapshot || !operatorStatus) {
     return <main className="shell"><div className="loading-panel">Loading supervision channels…</div></main>;
@@ -320,6 +307,25 @@ function reasoningAge(status: OperatorSupervisorStatus | null): string {
 
 function workerLabel(workers: WorkerState[], workerId: string): string {
   return workers.find((worker) => worker.id === workerId)?.name ?? "a currently offline worker";
+}
+
+/**
+ * The route rows the page lists, newest first: only the exact route events the server projection admitted (its own
+ * request parser and replacement rules), with each one's state; never a rejected or replayed copy of a request id.
+ */
+export function admittedRouteRows(workers: WorkerState[]): RouteRow[] {
+  return workers.flatMap((worker) => {
+    const activity = isSupervisorActivity(worker.supervisorActivity) ? worker.supervisorActivity : null;
+    return worker.timeline
+      .filter(isWorkerMessageEvent)
+      .flatMap((event) => {
+        const packet = parseInternalRoutePacket(event.data.body);
+        const state = packet && activity && Object.hasOwn(activity.routeEvents, packet.requestId)
+          && activity.routeEvents[packet.requestId] === event.sequence ? activity.states[packet.requestId] : null;
+        return packet && state ? [{ worker, event, packet, state }] : [];
+      });
+  })
+    .sort((left, right) => Date.parse(right.event.occurredAt) - Date.parse(left.event.occurredAt) || right.event.sequence - left.event.sequence);
 }
 
 export function pendingRoute(row: Pick<RouteRow, "state">): boolean {

@@ -50,6 +50,8 @@ export interface SupervisorActivity {
   lastSentAt: string | null;
   /** The state of every question, by request id, so other views use the same admitted set. */
   states: Record<string, SupervisorRequestState>;
+  /** The sequence of every question's route event, by request id: the exact event shown, never another copy of its id. */
+  routeEvents: Record<string, number>;
 }
 
 export const RECENT_REQUESTS = 5;
@@ -76,7 +78,7 @@ export interface SupervisorTransportEvidence {
   duplicateSend: boolean;
 }
 
-export const emptySupervisorActivity: SupervisorActivity = { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, lastSentAt: null, states: {} };
+export const emptySupervisorActivity: SupervisorActivity = { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, lastSentAt: null, states: {}, routeEvents: {} };
 
 interface Draft extends SupervisorRequestActivity { sequence: number; version: number; worker: string; duplicateSend: boolean }
 
@@ -104,7 +106,7 @@ export interface SupervisorRequestAdmission {
 }
 
 export function supervisorActivity(events: readonly StoredEvent[], now: Date, admission: SupervisorRequestAdmission): SupervisorActivity {
-  const all = supervisorRequests(events, now, admission);
+  const { requests: all, routeEvents: routeEventOf } = projectRequests(events, now, admission);
   if (!all.length) return emptySupervisorActivity;
   const answered = all.filter((request) => request.answeredAt);
   return {
@@ -115,6 +117,7 @@ export function supervisorActivity(events: readonly StoredEvent[], now: Date, ad
     latestConversationUrl: all.find((request) => request.conversationUrl)?.conversationUrl ?? null,
     lastSentAt: latestInstant(all.map((request) => request.sentAt)),
     states: Object.fromEntries(all.map((request) => [request.requestId, request.state])),
+    routeEvents: Object.fromEntries(all.map((request) => [request.requestId, routeEventOf.get(request.requestId)!])),
   };
 }
 
@@ -128,7 +131,12 @@ export function isPendingSupervisorRequest(request: Pick<SupervisorRequestActivi
 }
 
 /** Every supervisor question in these events with its current state, newest first. */
-export function supervisorRequests(unordered: readonly StoredEvent[], now: Date, admission: SupervisorRequestAdmission): SupervisorRequestActivity[] {
+export function supervisorRequests(events: readonly StoredEvent[], now: Date, admission: SupervisorRequestAdmission): SupervisorRequestActivity[] {
+  return projectRequests(events, now, admission).requests;
+}
+
+/** The questions, newest first, and the sequence of the route event each one is. */
+function projectRequests(unordered: readonly StoredEvent[], now: Date, admission: SupervisorRequestAdmission): { requests: SupervisorRequestActivity[]; routeEvents: Map<string, number> } {
   // Callers pass ledger order or a newest-first timeline; read oldest first either way.
   const events = [...unordered].sort((a, b) => a.sequence - b.sequence);
   const drafts = new Map<string, Draft>();
@@ -156,7 +164,7 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
       duplicateSend: false,
     });
   }
-  if (!drafts.size) return [];
+  if (!drafts.size) return { requests: [], routeEvents: new Map() };
 
   for (const event of events) {
     const data = event.data;
@@ -199,7 +207,7 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
     };
   });
   const order = new Map([...drafts.values()].map((draft) => [draft.requestId, draft.sequence]));
-  return all.sort((a, b) => (order.get(b.requestId) ?? 0) - (order.get(a.requestId) ?? 0));
+  return { requests: all.sort((a, b) => (order.get(b.requestId) ?? 0) - (order.get(a.requestId) ?? 0)), routeEvents: order };
 }
 
 /**
@@ -239,6 +247,9 @@ export function isSupervisorActivity(value: unknown): value is SupervisorActivit
   if (!timeOrNull(activity.lastAnsweredAt) || !chatAddressOrNull(activity.latestConversationUrl) || !timeOrNull(activity.lastSentAt)) return false;
   const states = record(activity.states);
   if (!states || !Object.values(states).every((state) => (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(state))) return false;
+  const routeEvents = record(activity.routeEvents);
+  if (!routeEvents || Object.keys(routeEvents).length !== Object.keys(states).length
+    || !Object.keys(states).every((requestId) => Number.isSafeInteger(routeEvents[requestId]))) return false;
   return Array.isArray(activity.requests) && activity.requests.every((item: unknown) => {
     const request = record(item);
     return request !== null && typeof request.requestId === "string" && timeOrNull(request.queuedAt) && request.queuedAt !== null
