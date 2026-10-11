@@ -12,6 +12,7 @@ import type { StoredEvent } from "../lib/schema";
 import { seedIssue47Store } from "../lib/seed";
 import { snapshotForTimeline } from "../lib/snapshot-response";
 import { EventStore } from "../lib/store";
+import { projectWorker } from "../lib/projection";
 import { latestSupervisorConversation, supervisorActivity } from "../lib/supervisor-activity";
 import { validOperatorSnapshot } from "../lib/owner-view";
 
@@ -28,7 +29,7 @@ function stored(data: Record<string, unknown>, at: string, producer: { id: strin
   };
 }
 
-function route(requestId: string, at: string, options: { expiresAt?: string; question?: string; supersedes?: string; version?: number } = {}) {
+function route(requestId: string, at: string, options: { expiresAt?: string; question?: string; supersedes?: string; version?: number; worker?: string; patch?: Record<string, unknown> } = {}) {
   const version = options.version ?? 6;
   return stored({
     type: "worker_message_recorded", message_id: `message:${requestId}`, thread_id: `thread:fleet-supervision:${WORKER}`,
@@ -37,9 +38,15 @@ function route(requestId: string, at: string, options: { expiresAt?: string; que
       schemaVersion: version, packetKind: "PROVIDER_SESSION_SUPERVISORY_CYCLE", requestId, worker: WORKER, actionBlockedOrRouted: "ROUTE_INTERNAL_SUPERVISOR",
       destination: "PROJECT_MANAGER_CHAT", destinationSupervisorId: "mc-project-manager",
       providerDeliveryState: "QUEUED_FOR_PROVIDER_RELAY",
-      factualPacket: { taskId: "task-auth", exactFactualState: "{}", decisionRequested: options.question ?? "Review the current state." },
+      factualPacket: { taskId: "task-auth", exactFactualState: "{}", evidenceRefs: [], decisionRequested: options.question ?? "Review the current state." },
       queuedAt: at, expiresAt: options.expiresAt ?? "2026-10-12T12:00:00Z",
+      reasoningLane: "EXTRA_HIGH_DIRECT", nonce: `nonce:${requestId}`,
+      evidenceCapsule: { id: `capsule:${requestId}`, sha256: "b".repeat(64) },
+      ownerOutcome: { id: "outcome-auth", epoch: 1, sha256: "c".repeat(64) },
+      githubReceipt: { repository: "owner/receipts", issueNumber: 1, stageIssueNumber: 2 },
       ...(options.supersedes ? { supersedesRequestId: options.supersedes } : {}),
+      ...(options.worker ? { worker: options.worker } : {}),
+      ...options.patch,
     })}`,
   }, at);
 }
@@ -292,4 +299,53 @@ test("an operator status without well-formed supervisors is not accepted as a re
   assert.equal(validOperatorSnapshot({ ...good, supervisors: [{ ...manager, reachable: "yes" }] }), false);
   assert.equal(validOperatorSnapshot({ ...good, hosts: [{ ...good.hosts[0], reportFresh: undefined }] }), false);
   assert.equal(validOperatorSnapshot({ ...good, pacing: { ...good.pacing, lastProviderSendBoundaryAt: 5 } }), false);
+});
+
+test("a malformed or foreign route packet is not shown as a question", () => {
+  const at = "2026-10-11T10:00:00Z";
+  const bad = [
+    route("fleet-review:kind", at, { patch: { packetKind: "SOMETHING_ELSE" } }),
+    route("fleet-review:version", at, { patch: { schemaVersion: 5 } }),
+    route("fleet-review:delivery", at, { patch: { providerDeliveryState: "DELIVERED" } }),
+    route("fleet-review:worker", at, { worker: "billing" }),
+    route("fleet-review:destination", at, { patch: { destinationSupervisorId: "" } }),
+    route("fleet-review:expiry", at, { expiresAt: "2026-10-11T09:00:00Z" }),
+    route("fleet-review:task", at, { patch: { factualPacket: { decisionRequested: "x" } } }),
+  ];
+  assert.equal(supervisorActivity(bad, NOW).total, 0);
+  const good = route("fleet-review:good", at);
+  assert.equal(supervisorActivity([...bad, good], NOW).total, 1);
+  assert.equal(supervisorActivity([good], NOW, () => false).total, 0, "a validator can still refuse it");
+});
+
+test("the projection counts only requests Mission Control's own parser accepts", () => {
+  const store = new EventStore(":memory:");
+  try {
+    seedIssue47Store(store);
+    const id = "mission-control-live-slice";
+    const base = store.workerEvents(id);
+    const offset = base.at(-1)!.sequence;
+    const ours = (event: StoredEvent): StoredEvent => ({ ...event, worker: id, sequence: offset + event.sequence,
+      data: { ...event.data, worker: id, ...(event.data.type === "worker_message_recorded" ? { body: (event.data as { body: string }).body.replaceAll(`"worker":"${WORKER}"`, `"worker":"${id}"`) } : {}) } as StoredEvent["data"] });
+    const valid = ours(route("fleet-review:parsed", "2026-10-11T10:00:00Z"));
+    const unparsed = ours(route("fleet-review:no-nonce", "2026-10-11T10:30:00Z", { patch: { nonce: undefined } }));
+    const projected = projectWorker([...base, valid, unparsed], NOW);
+    assert.deepEqual(projected.supervisorActivity.requests.map((request) => request.requestId), ["fleet-review:parsed"]);
+  } finally { store.close(); }
+});
+
+test("a request the fleet check retired because it expired reads as expired, not withdrawn", () => {
+  const retirement = (requestId: string, refs: string[]) => stored({
+    type: "evidence_receipt_recorded", receipt_id: `retired:${requestId}`, producer_id: "verifier:fleet-supervisor-request-retirement",
+    producer_role: "VERIFIER", evidence_class: "ARTIFACT", independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: null,
+    summary: "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1", refs: [`request:${requestId}`, "lifecycle_status:RETIRED_UNSENT", ...refs],
+    verified: true, changed_path_manifest: null,
+  }, "2026-10-11T11:00:00Z", { id: "verifier:fleet-supervisor-request-retirement", kind: "VERIFIER" });
+  const states = Object.fromEntries(supervisorActivity([
+    route("fleet-review:aged", "2026-10-11T10:00:00Z"),
+    retirement("fleet-review:aged", ["retirement_reason:REQUEST_EXPIRED"]),
+    route("fleet-review:pulled", "2026-10-11T10:10:00Z"),
+    retirement("fleet-review:pulled", []),
+  ], NOW).requests.map((request) => [request.requestId, request.state]));
+  assert.deepEqual(states, { "fleet-review:pulled": "WITHDRAWN", "fleet-review:aged": "EXPIRED_UNSENT" });
 });

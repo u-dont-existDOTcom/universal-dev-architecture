@@ -1773,7 +1773,8 @@ function stageReceiptFor(events: StoredEvent[], request: PendingDecisionRequest,
   return receipt;
 }
 
-function parseCycleRequest(body: string, worker: string): PendingDecisionRequest | null {
+/** The authoritative parser for supervisory cycle requests (V2-V6): null unless the relay would route it. */
+export function parseCycleRequest(body: string, worker: string): PendingDecisionRequest | null {
   try {
     const version = body.startsWith(inBandRequestRoutePrefix) ? 6 : body.startsWith(requestBoundRoutePrefix) ? 5 : body.startsWith(supervisoryCycleRoutePrefix) ? 4
       : body.startsWith(stagedSupervisoryCycleRoutePrefix) ? 3

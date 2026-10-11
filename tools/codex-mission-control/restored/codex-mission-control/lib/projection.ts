@@ -1,5 +1,6 @@
 import { isSpecificChatAddress } from "./supervisor-chat-address";
-import { supervisorActivity, type SupervisorActivity } from "./supervisor-activity";
+import { supervisorActivity, type SupervisorActivity, type SupervisorRouteValidator } from "./supervisor-activity";
+import { parseCycleRequest } from "./github-decision-receipts";
 import { correctionStatusLabel } from "./correction-lifecycle";
 import { driftConfig, DriftConfig } from "./drift-config";
 import type {
@@ -250,6 +251,11 @@ export interface WorkerState {
   timeline: StoredEvent[];
 }
 
+/** A supervisor question counts only if Mission Control's own request parser accepts it (V2-V6); V1 routes have no
+ * cycle fields, so the structural checks in supervisor-activity decide those. */
+const routableSupervisorRequest: SupervisorRouteValidator = (body, worker) =>
+  body.startsWith("MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n") || parseCycleRequest(body, worker) !== null;
+
 export function projectWorkers(events: StoredEvent[], now = new Date(), config: DriftConfig = driftConfig): WorkerState[] {
   const projectableWorkers = new Set(events.flatMap((event) => {
     if (event.data.type === "task_contract_recorded" || event.data.type === "objective_created") return [event.worker];
@@ -375,7 +381,7 @@ function projectV2Worker(
     supervisorChatUrl: supervisorUrl,
     supervisorChatLabel: supervisorLabel,
     supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
-    supervisorActivity: supervisorActivity(events, now),
+    supervisorActivity: supervisorActivity(events, now, routableSupervisorRequest),
     status,
     health: comparison.overallTraffic,
     workerToContractAlignment: comparison.workerToContractAlignment,
@@ -775,7 +781,7 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
     supervisorChatUrl: supervisorUrl,
     supervisorChatLabel: legacySupervisorChat.label,
     supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
-    supervisorActivity: supervisorActivity(events, now),
+    supervisorActivity: supervisorActivity(events, now, routableSupervisorRequest),
     status: heartbeat?.status ?? "working",
     health: overall,
     workerToContractAlignment: workerAlignment,

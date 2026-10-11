@@ -48,8 +48,14 @@ export const emptySupervisorActivity: SupervisorActivity = { requests: [], total
 
 interface Draft extends SupervisorRequestActivity { sequence: number; supersedes: string | null; conversationSequence: number; conversationIsProvisional: boolean }
 
-export function supervisorActivity(events: readonly StoredEvent[], now: Date = new Date()): SupervisorActivity {
-  const all = supervisorRequests(events, now);
+/**
+ * Decides whether a route message is a request the relay would actually route. The projection passes Mission Control's
+ * authoritative cycle-request parser; without one, only the structural checks below apply (client-side views).
+ */
+export type SupervisorRouteValidator = (body: string, worker: string) => boolean;
+
+export function supervisorActivity(events: readonly StoredEvent[], now: Date = new Date(), validRoute?: SupervisorRouteValidator): SupervisorActivity {
+  const all = supervisorRequests(events, now, validRoute);
   if (!all.length) return emptySupervisorActivity;
   const answered = all.filter((request) => request.answeredAt);
   return {
@@ -67,7 +73,7 @@ export function isPendingSupervisorRequest(request: Pick<SupervisorRequestActivi
 }
 
 /** Every supervisor question in these events with its current state, newest first. */
-export function supervisorRequests(unordered: readonly StoredEvent[], now: Date = new Date()): SupervisorRequestActivity[] {
+export function supervisorRequests(unordered: readonly StoredEvent[], now: Date = new Date(), validRoute?: SupervisorRouteValidator): SupervisorRequestActivity[] {
   // Callers pass ledger order or a newest-first timeline; read oldest first either way.
   const events = [...unordered].sort((a, b) => a.sequence - b.sequence);
   const drafts = new Map<string, Draft>();
@@ -76,8 +82,9 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date 
     if (data.type !== "worker_message_recorded" || typeof data.body !== "string" || !ROUTE_PREFIX.test(data.body)) continue;
     const packet = parsePacket(data.body);
     const requestId = text(packet?.requestId);
-    if (!requestId || drafts.has(requestId)) continue;
-    const factual = record(packet?.factualPacket);
+    if (!packet || !requestId || drafts.has(requestId) || !event.worker || !routeLooksValid(data.body, packet, event.worker)) continue;
+    if (validRoute && !validRoute(data.body, event.worker)) continue;
+    const factual = record(packet.factualPacket);
     drafts.set(requestId, {
       requestId,
       origin: originOf(requestId),
@@ -96,6 +103,7 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date 
   if (!drafts.size) return [];
 
   const withdrawn = new Set<string>();
+  const retiredExpired = new Set<string>();
   const replaced = new Set<string>();
   for (const draft of drafts.values()) if (draft.supersedes && drafts.has(draft.supersedes)) replaced.add(draft.supersedes);
   for (const event of events) {
@@ -113,7 +121,11 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date 
     if (!draft) continue;
     if (data.summary === RETIRED_UNSENT_SUMMARY) {
       if (data.producer_id === RETIREMENT_PRODUCER && event.producerId === RETIREMENT_PRODUCER
-        && data.refs.includes("lifecycle_status:RETIRED_UNSENT")) withdrawn.add(draft.requestId);
+        && data.refs.includes("lifecycle_status:RETIRED_UNSENT")) {
+        // The fleet check retires an expired request on its own (reason REQUEST_EXPIRED); any other retirement is a
+        // deliberate withdrawal.
+        (data.refs.includes("retirement_reason:REQUEST_EXPIRED") ? retiredExpired : withdrawn).add(draft.requestId);
+      }
       continue;
     }
     // Transport evidence counts only from the relay's own collectors, never from a worker's or supervisor's claim.
@@ -144,7 +156,8 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date 
     const expired = draft.expiresAt !== null && Date.parse(draft.expiresAt) <= nowMs;
     const state: SupervisorRequestState = draft.answeredAt ? "ANSWERED"
       : replaced.has(draft.requestId) ? "REPLACED"
-        : withdrawn.has(draft.requestId) ? "WITHDRAWN"
+        : retiredExpired.has(draft.requestId) ? "EXPIRED_UNSENT"
+          : withdrawn.has(draft.requestId) ? "WITHDRAWN"
           : draft.sentAt || draft.finishedAt ? (expired ? "NO_ANSWER" : draft.finishedAt ? "FINISHED" : "SENT")
             : expired ? "EXPIRED_UNSENT" : "QUEUED";
     return {
@@ -176,6 +189,27 @@ function answerOf(data: Extract<StoredEvent["data"], { type: "github_decision_re
   if (summary) return summary;
   if (data.owner_action?.kind === "DECISION_REQUIRED") return `Asks you to decide: ${data.owner_action.question}`;
   return text(data.decision_block.exact_text);
+}
+
+/**
+ * Structural checks every route packet must pass to count as a question: the version its prefix names, its packet kind,
+ * a queued delivery state, this worker, a destination supervisor and a queue time (and, for provider-session cycles,
+ * an expiry after it).
+ */
+function routeLooksValid(body: string, packet: Record<string, unknown>, worker: string): boolean {
+  const version = /^MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V([2-6])\n/.exec(body)?.[1];
+  const kind = version ? (version === "2" ? "SAME_CHAT_SUPERVISORY_CYCLE" : "PROVIDER_SESSION_SUPERVISORY_CYCLE") : "FACTUAL_STATE_ONLY";
+  if (packet.schemaVersion !== (version ? Number(version) : 1) || packet.packetKind !== kind) return false;
+  if (packet.providerDeliveryState !== "QUEUED_FOR_PROVIDER_RELAY") return false;
+  if (packet.worker !== undefined && packet.worker !== worker) return false;
+  const destination = version && version !== "2" ? packet.destinationSupervisorId : packet.destinationChatId;
+  const queuedAt = timestamp(packet.queuedAt);
+  if (!text(destination) || !queuedAt) return false;
+  const factual = record(packet.factualPacket);
+  if (!factual || !text(factual.taskId) || typeof factual.decisionRequested !== "string") return false;
+  if (!version || version === "2") return true;
+  const expiresAt = timestamp(packet.expiresAt);
+  return Boolean(expiresAt && Date.parse(expiresAt) > Date.parse(queuedAt));
 }
 
 function parsePacket(body: string): Record<string, unknown> | null {
