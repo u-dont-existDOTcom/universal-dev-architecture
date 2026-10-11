@@ -1,6 +1,7 @@
 import { canonicalJson, sha256 } from "./canonical";
 import type { GitHubDecisionCandidate, GitHubReceiptPolicy, PendingDecisionRequest } from "./github-decision-receipts";
 import type { AppendEnvelope, CanonicalDecisionEnvelope, StoredEvent } from "./schema";
+import type { SupervisorTransportEvidence } from "./supervisor-activity";
 import { inBandRequestRoutePrefix } from "./in-band-request-binding";
 
 export const requestBoundRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n";
@@ -153,6 +154,58 @@ export function assertRequestBoundExecution(
   if (!access || access.data.type !== "evidence_receipt_recorded") fail("no server-observed request-bound MCP call");
   // Composer chips are telemetry only. They cannot replace either authenticated collector evidence.
   return access!.data.type === "evidence_receipt_recorded" ? access!.data.receipt_id : fail("invalid access receipt");
+}
+
+/**
+ * What the relay's own receipts show about one V5 question up to `at`, checked as `assertRequestBoundExecution` checks
+ * them without the answer-specific parts (decision binding, GitHub comment, MCP read): sent once its first message
+ * started in the request's own exact session, after the session's model controls were observed, with those controls
+ * and one prompt on every stage; finished once that stage then completed. A send in more than one session is a
+ * duplicate send (the validator rejects it); anything not bound this way is null.
+ */
+export function requestBoundTransportEvidence(
+  events: StoredEvent[], request: PendingDecisionRequest, policy: GitHubReceiptPolicy, at: string,
+): SupervisorTransportEvidence | null {
+  if (request.routeSchemaVersion !== 5 || !policy.requestBound?.enabled || !Number.isFinite(Date.parse(at))) return null;
+  const relayIds = policy.requestBound.relayProducerIds;
+  const sends = events.filter((event) => isTrustedEvidence(event, stageSummary, relayIds) && event.worker === request.worker
+    && exactRef(event, "request") === request.requestId && exactRef(event, "generation_state") === "STARTED"
+    && inWindow(event, request.queuedAt, at));
+  if (!sends.length) return null;
+  const sessionIds = new Set(sends.map((event) => exactRef(event, "provider_session")));
+  if (sessionIds.size !== 1) return duplicateSend(sends);
+  const sessionId = [...sessionIds][0];
+  if (!sessionId) return null;
+  const session = requestBoundSession(events, request, policy, sessionId, at, ["ACTIVE", "COMPLETE", "AMBIGUOUS"]);
+  const url = session && exactRef(session, "url_binding_status") === "EXACT" ? exactRef(session, "conversation_url") : null;
+  if (!url || !/^https:\/\/chatgpt\.com\/c\/[A-Za-z0-9_-]+$/.test(url)) return null;
+  const scoped = events.filter((event) => boundTo(event, request, sessionId) && inWindow(event, request.queuedAt, at));
+  const model = scoped.find((event) => isTrustedEvidence(event, modelSummary, relayIds)
+    && exactRef(event, "session_role") === requestBoundRole && controlEvidence(event) !== null);
+  const modelControls = model ? controlEvidence(model) : null;
+  if (!model || !modelControls) return null;
+  const stages = scoped.filter((event) => isTrustedEvidence(event, stageSummary, relayIds)
+    && exactRef(event, "step") === requestBoundStep && exactRef(event, "conversation_url") === url
+    && exactRef(event, "message_ordinal") === "1" && exactRef(event, "first_message") === "true"
+    && controlEvidence(event) !== null);
+  const start = stages.filter((event) => exactRef(event, "generation_state") === "STARTED").sort((a, b) => a.sequence - b.sequence)[0];
+  const promptHash = start ? exactRef(start, "prompt_sha256") : null;
+  if (!start || !promptHash || !/^[a-f0-9]{64}$/.test(promptHash) || Date.parse(model.occurredAt) > Date.parse(start.occurredAt)
+    || stages.some((event) => {
+      const controls = controlEvidence(event);
+      return !controls || controls.kind !== modelControls.kind || controls.modelLabel !== modelControls.modelLabel
+        || exactRef(event, "prompt_sha256") !== promptHash;
+    })) return null;
+  const complete = stages.filter((event) => exactRef(event, "generation_state") === "COMPLETE").sort((a, b) => a.sequence - b.sequence).at(-1);
+  return {
+    providerSessionId: sessionId, sentAt: start.occurredAt, conversationUrl: url, duplicateSend: false,
+    finishedAt: complete && Date.parse(complete.occurredAt) >= Date.parse(start.occurredAt) ? complete.occurredAt : null,
+  };
+}
+
+function duplicateSend(sends: StoredEvent[]): SupervisorTransportEvidence {
+  const first = [...sends].sort((a, b) => Date.parse(a.occurredAt) - Date.parse(b.occurredAt))[0]!;
+  return { providerSessionId: null, sentAt: first.occurredAt, finishedAt: null, conversationUrl: null, duplicateSend: true };
 }
 
 function controlEvidence(event: StoredEvent): { kind: "CURRENT" | "LEGACY"; modelLabel: string } | null {

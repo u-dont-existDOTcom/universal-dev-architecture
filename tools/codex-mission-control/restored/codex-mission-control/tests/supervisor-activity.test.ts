@@ -7,36 +7,50 @@ import { parseInternalRoutePacket, pendingRoute, supervisionReadModel, workflowS
 import { SupervisionHealthLine, SupervisorActivityPanel, supervisorStatusLine } from "../components/SupervisorActivity";
 import { LATEST_CHAT_LABEL, supervisorChatView } from "../components/SupervisorLink";
 import { snapshotFromEvents, snapshotFromStore, workerSnapshotFromEvents } from "../lib/dashboard-data";
-import { retiredUnsentRequests } from "../lib/github-decision-receipts";
-import { inBandRequestRole, inBandRequestStep } from "../lib/in-band-request-binding";
+import { admittedCycleRequests, parseGitHubReceiptPolicy, retiredUnsentRequests, type PendingDecisionRequest } from "../lib/github-decision-receipts";
 import type { OperatorStatusProjection } from "../lib/operator-status-contract";
-import { requestBoundRole, requestBoundStep } from "../lib/request-bound-supervision";
 import type { StoredEvent } from "../lib/schema";
 import { seedIssue47Store } from "../lib/seed";
 import { snapshotForTimeline } from "../lib/snapshot-response";
 import { EventStore } from "../lib/store";
-import { projectWorker, projectWorkers } from "../lib/projection";
+import { projectWorker, projectWorkers, supervisorRelayContext, supervisorTransport } from "../lib/projection";
 import {
-  conflictedRelaySessions, isSupervisorActivity, lastSupervisorQuestionSentAt, latestSupervisorConversation,
-  SUPERVISOR_TRANSPORT_BINDINGS, supervisorActivity, type SupervisorRequestAdmission,
+  isSupervisorActivity, lastSupervisorQuestionSentAt, latestSupervisorConversation, supervisorActivity, type SupervisorRequestAdmission,
 } from "../lib/supervisor-activity";
 import { validOperatorSnapshot, validTaskSnapshot } from "../lib/owner-view";
 
 const WORKER = "auth";
-const RELAYS: ReadonlySet<string> = new Set(["collector:relay-primary"]);
 type Retired = Record<string, "EXPIRED_UNSENT" | "WITHDRAWN">;
-/** Admits every question in these events (as Mission Control's parser does for well-formed packets) and trusts the relay. */
-function admitAll(events: StoredEvent[], replaced: string[] = [], retired: Retired = {}): SupervisorRequestAdmission {
-  const admitted = events.flatMap((event) => {
-    if (event.data.type !== "worker_message_recorded") return [];
+const byLedger = (events: StoredEvent[]) => [...events].sort((a, b) => a.sequence - b.sequence);
+/** Each request id's first route event in these events. */
+function firstRoutes(events: StoredEvent[]): Map<string, number> {
+  const routes = new Map<string, number>();
+  for (const event of byLedger(events)) {
+    if (event.data.type !== "worker_message_recorded") continue;
     const body = (event.data as { body: string }).body;
-    try { return [String(JSON.parse(body.slice(body.indexOf("\n") + 1)).requestId)]; } catch { return []; }
-  });
-  return { admitted: new Set(admitted), replaced: new Set(replaced), retired: new Map(Object.entries(retired)), trustedRelays: RELAYS,
-    conflictedSessions: conflictedRelaySessions(events, RELAYS) };
+    try {
+      const requestId = String(JSON.parse(body.slice(body.indexOf("\n") + 1)).requestId);
+      if (!routes.has(requestId)) routes.set(requestId, event.sequence);
+    } catch { /* not a route */ }
+  }
+  return routes;
 }
-function admission(admitted: string[], replaced: string[] = []): SupervisorRequestAdmission {
-  return { admitted: new Set(admitted), replaced: new Set(replaced), retired: new Map(), trustedRelays: RELAYS, conflictedSessions: new Set() };
+/**
+ * Admits each question's first route event (Mission Control's parser admits these well-formed packets; the projection
+ * tests check the parser itself) and, with the request-bound protocol enabled, the transport evidence Mission Control's
+ * own validators accept, exactly as the projection works it out.
+ */
+function admitAll(events: StoredEvent[], replaced: string[] = [], retired: Retired = {}): SupervisorRequestAdmission {
+  const parsed = new Map<string, PendingDecisionRequest>();
+  for (const request of admittedCycleRequests(byLedger(events)).admitted) if (!parsed.has(request.requestId)) parsed.set(request.requestId, request);
+  return { admitted: firstRoutes(events), replaced: new Set(replaced), retired: new Map(Object.entries(retired)), tracksTransport: true,
+    transport: supervisorTransport(parsed.values(), events, NOW, supervisorRelayContext(events, TEST_POLICY)) };
+}
+/** Admits only the given questions (by their first route event), with no transport. */
+function admission(events: StoredEvent[], admitted: string[], replaced: string[] = []): SupervisorRequestAdmission {
+  const routes = firstRoutes(events);
+  return { admitted: new Map(admitted.map((requestId) => [requestId, routes.get(requestId) ?? -1])), replaced: new Set(replaced),
+    retired: new Map(), tracksTransport: true, transport: new Map() };
 }
 function activityOf(events: StoredEvent[], replaced: string[] = [], retired: Retired = {}) {
   const activity = supervisorActivity(events, NOW, admitAll(events, replaced, retired));
@@ -82,6 +96,14 @@ function route(requestId: string, at: string, options: { expiresAt?: string; que
 const relay = { id: "collector:relay-primary", kind: "COLLECTOR" };
 const SESSION = "MISSION_CONTROL_PROVIDER_SESSION_V1";
 const STAGE = "MISSION_CONTROL_RELAY_STAGE_V1";
+const MODEL = "MISSION_CONTROL_PROVIDER_SESSION_MODEL_UI_V1";
+const PRE_SEND = "MISSION_CONTROL_IN_BAND_REQUEST_BINDING_PRE_SEND_V1";
+const PROMPT = "d".repeat(64);
+/** The fixed model and thinking controls the relay observes in the ChatGPT window and repeats on every stage. */
+const CONTROLS = ["model_selection_policy:TOP_VISIBLE_SELECTABLE_MODEL", "model_selector_index:0", "thinking_control_label:Thinking effort",
+  "thinking_visible_label:Extra High", "thinking_ordinal:4 of 5", "account_plan_label:Pro", "account_plan_role:PROVENANCE_METADATA_ONLY",
+  "account_plan_is_reasoning_mode:false", "backend_model_identity_claimed:false", "assistant_content_observed:false", "model_ui_label:GPT-6 Sol"];
+const V5 = { role: "REQUEST_BOUND_DECISION_SESSION", step: "REQUEST_BOUND_DECISION" };
 interface ReceiptOptions {
   session?: string; supervisor?: string; worker?: string; producer?: { id: string; kind: string };
   extra?: Record<string, unknown>; without?: string[]; refs?: string[];
@@ -103,14 +125,31 @@ function session(requestId: string, at: string, url: string, lifecycle = "ACTIVE
   return receipt(SESSION, requestId, at, [`session_role:${options.role ?? "IN_BAND_REQUEST_DECISION_SESSION"}`, "message_ordinal:1",
     `conversation_url:${url}`, "url_binding_status:EXACT", `lifecycle_status:${lifecycle}`], options);
 }
-/** The relay's stage receipt: that session's first message started or completed, at the in-band step. */
-function stage(requestId: string, at: string, generation: "STARTED" | "COMPLETE", url: string, options: ReceiptOptions & { step?: string } = {}) {
+/**
+ * The relay's stage receipt: that session's first message started or completed at the in-band step, with the prompt it
+ * sent, the observed controls, the read-only source app and no semantic authority.
+ */
+function stage(requestId: string, at: string, generation: "STARTED" | "COMPLETE", url: string, options: ReceiptOptions & { step?: string; prompt?: string; app?: string } = {}) {
   return receipt(STAGE, requestId, at, [`step:${options.step ?? "IN_BAND_REQUEST_DECISION"}`, "message_ordinal:1", "first_message:true",
-    `conversation_url:${url}`, `generation_state:${generation}`], options);
+    `conversation_url:${url}`, `generation_state:${generation}`, `prompt_sha256:${options.prompt ?? PROMPT}`, ...CONTROLS,
+    `selected_app:${options.app ?? "GitHub"}`, "semantic_authority:false"], options);
 }
-/** Sent to ChatGPT: the session's exact conversation, then the start of its first message there. */
+/** The relay's observation of the session's model controls, before anything is sent. */
+function modelSeen(requestId: string, at: string, options: ReceiptOptions & { role?: string } = {}) {
+  return receipt(MODEL, requestId, at, [`session_role:${options.role ?? "IN_BAND_REQUEST_DECISION_SESSION"}`, ...CONTROLS], options);
+}
+/** The relay's pre-send receipt for a V6 question: the provider body it commits to send, before the send. */
+function preSend(requestId: string, at: string, options: ReceiptOptions & { body?: string } = {}) {
+  return receipt(PRE_SEND, requestId, at, [`provider_body_sha256:${options.body ?? PROMPT}`, "semantic_authority:false",
+    `trusted_relay_producer:${(options.producer ?? relay).id}`, "submission_admission:admission-1"], options);
+}
+/** Sent to ChatGPT: model controls seen, the body committed, the session's exact conversation, then its first message started. */
 function sent(requestId: string, at: string, url: string, options: ReceiptOptions = {}) {
-  return [session(requestId, at, url, "ACTIVE", options), stage(requestId, at, "STARTED", url, options)];
+  return [modelSeen(requestId, at, options), preSend(requestId, at, options), session(requestId, at, url, "ACTIVE", options), stage(requestId, at, "STARTED", url, options)];
+}
+/** The same for a V5 (request-bound) question: its own session role and step, and no pre-send receipt. */
+function sentV5(requestId: string, at: string, url: string) {
+  return [modelSeen(requestId, at, V5), session(requestId, at, url, "ACTIVE", V5), stage(requestId, at, "STARTED", url, V5)];
 }
 
 function decision(requestId: string, at: string, extra: Record<string, unknown> = {}) {
@@ -134,6 +173,7 @@ function inSeededTask(store: EventStore, events: StoredEvent[]): StoredEvent[] {
 }
 const receiptPolicy = (enabled: boolean) => JSON.stringify({ repository: "owner/receipts", decisionIssueNumber: 1, capabilityIssueNumber: 2, stageIssueNumber: 3,
   authorizedWriterLogins: ["owner"], capabilityChallenges: [], requestBound: { enabled, relayProducerIds: ["collector:relay-primary"] } });
+const TEST_POLICY = parseGitHubReceiptPolicy(receiptPolicy(true))!;
 
 test("a supervisor question moves from queued to sent, finished and answered, with the chat where it ran", () => {
   const events = [route("fleet-review:1", "2026-10-11T10:00:00Z", { question: "Is the auth task on track?" })];
@@ -145,7 +185,8 @@ test("a supervisor question moves from queued to sent, finished and answered, wi
   assert.equal(activity.requests[0].supervisorId, "mc-project-manager");
   assert.match(supervisorStatusLine(activity, NOW), /^Asked 2 hours ago; waiting to be sent\.$/);
 
-  events.push(session("fleet-review:1", "2026-10-11T10:04:00Z", "https://chatgpt.com/c/WEB:provisional"),
+  events.push(modelSeen("fleet-review:1", "2026-10-11T10:03:00Z"), preSend("fleet-review:1", "2026-10-11T10:03:30Z"),
+    session("fleet-review:1", "2026-10-11T10:04:00Z", "https://chatgpt.com/c/WEB:provisional"),
     stage("fleet-review:1", "2026-10-11T10:05:00Z", "STARTED", "https://chatgpt.com/c/WEB:provisional"));
   activity = activityOf(events);
   assert.equal(activity.requests[0].state, "SENT");
@@ -155,9 +196,7 @@ test("a supervisor question moves from queued to sent, finished and answered, wi
   events.push(session("fleet-review:1", "2026-10-11T10:20:00Z", "https://chatgpt.com/c/real-123", "COMPLETE"));
   activity = activityOf(events);
   assert.equal(activity.requests[0].state, "SENT", "the session's own lifecycle is not the question's completion");
-  assert.equal(latestSupervisorConversation(activity), "https://chatgpt.com/c/real-123", "the real address wins over the provisional one");
-  events.push(session("fleet-review:1", "2026-10-11T10:21:00Z", "https://chatgpt.com/c/WEB:provisional"));
-  assert.equal(latestSupervisorConversation(activityOf(events)), "https://chatgpt.com/c/real-123", "and stays ahead of a later provisional one");
+  assert.equal(latestSupervisorConversation(activity), "https://chatgpt.com/c/real-123", "the real address replaces the provisional one");
   events.push(stage("fleet-review:1", "2026-10-11T10:22:00Z", "COMPLETE", "https://chatgpt.com/c/real-123"));
   activity = activityOf(events);
   assert.equal(activity.requests[0].state, "FINISHED");
@@ -195,7 +234,7 @@ test("only the policy's relay collectors count as sent, for this supervisor afte
   assert.equal(reached.requests[0].conversationUrl, "https://chatgpt.com/c/the-chat");
 });
 
-test("relay receipts count only when bound to the question's own session, role, step and first message", () => {
+test("relay receipts count only when bound as Mission Control's validators bind them: session, role, step, prompt and controls", () => {
   const id = "fleet-review:bound";
   const url = "https://chatgpt.com/c/bound-chat";
   const at = (minute: number) => `2026-10-11T10:0${minute}:00Z`;
@@ -205,49 +244,62 @@ test("relay receipts count only when bound to the question's own session, role, 
     return { state: request.state, chat: request.conversationUrl };
   };
   const nothing = { state: "QUEUED", chat: null };
+  const sentHere = { state: "SENT", chat: url };
+  // Before the send: the model controls seen, the body committed, the session's exact conversation.
+  const ready = (sessionOptions: ReceiptOptions & { role?: string } = {}) => [modelSeen(id, at(1)), preSend(id, at(1)), session(id, at(1), url, "ACTIVE", sessionOptions)];
+  const start = (options: ReceiptOptions & { step?: string; prompt?: string; app?: string } = {}) => stage(id, at(2), "STARTED", url, options);
+  assert.deepEqual(view(...ready(), start()), sentHere);
   // A trusted receipt with only the request, the supervisor and a completion binds to no session.
   assert.deepEqual(view(
     receipt(SESSION, id, at(1), ["lifecycle_status:COMPLETE", `conversation_url:${url}`], { without: ["provider_session"] }),
     receipt(STAGE, id, at(1), ["generation_state:COMPLETE", `conversation_url:${url}`], { without: ["provider_session"] }),
   ), nothing);
-  // A session receipt needs the in-band session role, the first message and an exact conversation.
-  assert.deepEqual(view(session(id, at(1), url, "COMPLETE", { role: "REQUEST_BOUND_DECISION_SESSION" })), nothing);
-  assert.deepEqual(view(session(id, at(1), url, "COMPLETE", { without: ["message_ordinal"], refs: ["message_ordinal:2"] })), nothing);
-  assert.deepEqual(view(session(id, at(1), url, "COMPLETE", { without: ["url_binding_status"], refs: ["url_binding_status:PENDING_PROVIDER_ASSIGNMENT"] })), nothing);
-  assert.deepEqual(view(session(id, at(1), url, "COMPLETE", { refs: ["request:fleet-review:other"] })), nothing, "a receipt naming two requests names none");
-  // A stage needs the in-band step, the session's first message, its session and one of its conversations.
-  const opened = session(id, at(1), url);
-  const waiting = nothing;
-  assert.deepEqual(view(opened), waiting, "a chat opened for the question isn't offered until the question is sent in it");
-  assert.deepEqual(view(session(id, at(1), url, "COMPLETE")), nothing, "a session closed before its first message started is neither sent nor finished");
-  assert.deepEqual(view(opened, stage(id, at(3), "COMPLETE", url)), nothing, "a completion without its start is not a finish");
-  assert.deepEqual(view(opened, stage(id, at(2), "STARTED", url, { step: "MCP_BINDING_PRELOAD" })), waiting);
-  assert.deepEqual(view(opened, stage(id, at(2), "STARTED", url, { without: ["first_message"] })), waiting);
-  assert.deepEqual(view(opened, stage(id, at(2), "STARTED", url, { without: ["message_ordinal"], refs: ["message_ordinal:2"] })), waiting);
-  assert.deepEqual(view(opened, stage(id, at(2), "STARTED", "https://chatgpt.com/c/another-chat")), waiting);
-  assert.deepEqual(view(opened, stage(id, at(2), "STARTED", url, { session: "ps-another" })), waiting);
-  assert.deepEqual(view(opened, stage(id, at(2), "STARTED", url)), { state: "SENT", chat: url });
-  // A completion counts only in the conversation the session ended with.
-  assert.deepEqual(view(opened, stage(id, at(2), "STARTED", url), stage(id, at(3), "COMPLETE", "https://chatgpt.com/c/another-chat")), { state: "SENT", chat: url });
-  assert.deepEqual(view(opened, stage(id, at(2), "STARTED", url), stage(id, at(3), "COMPLETE", url)), { state: "FINISHED", chat: url });
-  // A session also named for another request, worker or role counts for none of them.
-  assert.deepEqual(view(opened, stage(id, at(2), "STARTED", url), stage("fleet-review:other", at(3), "STARTED", url, { session: `ps-${id}` })), nothing);
-  assert.deepEqual(view(opened, stage(id, at(2), "STARTED", url, { worker: "billing" })), nothing);
-  assert.deepEqual(view(opened, stage(id, at(2), "STARTED", url), session(id, at(3), url, "ACTIVE", { role: "MC_BINDING_PRELOAD_SESSION" })), nothing);
-  // A session naming a second real address changed identity: it was sent, but no chat is offered for it.
-  assert.deepEqual(view(opened, stage(id, at(2), "STARTED", url), session(id, at(3), "https://chatgpt.com/c/second-real")), { state: "SENT", chat: null });
-  // Should a question ever run in two sessions, the one it was sent in is shown.
-  assert.deepEqual(view(opened, stage(id, at(2), "STARTED", url), session(id, at(4), "https://chatgpt.com/c/later-unsent", "ACTIVE", { session: "ps-retry" })),
-    { state: "SENT", chat: url });
+  // The session needs the in-band role, the first message and an exact conversation; a receipt naming two requests names none.
+  assert.deepEqual(view(...ready({ role: "REQUEST_BOUND_DECISION_SESSION" }), start()), nothing);
+  assert.deepEqual(view(...ready({ without: ["message_ordinal"], refs: ["message_ordinal:2"] }), start()), nothing);
+  assert.deepEqual(view(...ready({ without: ["url_binding_status"], refs: ["url_binding_status:PENDING_PROVIDER_ASSIGNMENT"] }), start()), nothing);
+  assert.deepEqual(view(...ready({ refs: ["request:fleet-review:other"] }), start()), nothing);
+  // Nothing is sent until the first message starts; a session closed without that, or a completion alone, is neither sent nor finished.
+  assert.deepEqual(view(...ready()), nothing, "a chat opened for the question isn't offered until the question is sent in it");
+  assert.deepEqual(view(modelSeen(id, at(1)), preSend(id, at(1)), session(id, at(1), url, "COMPLETE")), nothing);
+  assert.deepEqual(view(...ready(), stage(id, at(3), "COMPLETE", url)), nothing);
+  // The stage needs the in-band step, the first message, the session's conversation and the session itself.
+  assert.deepEqual(view(...ready(), start({ step: "MCP_BINDING_PRELOAD" })), nothing);
+  assert.deepEqual(view(...ready(), start({ without: ["first_message"] })), nothing);
+  assert.deepEqual(view(...ready(), start({ without: ["message_ordinal"], refs: ["message_ordinal:2"] })), nothing);
+  assert.deepEqual(view(...ready(), stage(id, at(2), "STARTED", "https://chatgpt.com/c/another-chat")), nothing);
+  assert.deepEqual(view(...ready(), start({ session: "ps-another" })), nothing);
+  // It must send the committed body with the observed controls, through a read-only source app and without semantic authority.
+  assert.deepEqual(view(...ready(), start({ prompt: "e".repeat(64) })), nothing, "a prompt other than the committed body");
+  assert.deepEqual(view(...ready(), start({ without: ["prompt_sha256"] })), nothing);
+  assert.deepEqual(view(...ready(), start({ without: ["model_ui_label"], refs: ["model_ui_label:Another model"] })), nothing, "other controls than observed");
+  assert.deepEqual(view(...ready(), start({ without: ["thinking_visible_label"] })), nothing, "no control evidence");
+  assert.deepEqual(view(...ready(), start({ app: "Mission Control" })), nothing);
+  assert.deepEqual(view(...ready(), start({ without: ["semantic_authority"] })), nothing);
+  assert.deepEqual(view(preSend(id, at(1)), session(id, at(1), url), start()), nothing, "no model observation");
+  assert.deepEqual(view(modelSeen(id, at(1)), session(id, at(1), url), start()), nothing, "no pre-send body");
+  assert.deepEqual(view(modelSeen(id, at(1)), preSend(id, at(1)), preSend(id, at(1), { body: "f".repeat(64) }), session(id, at(1), url), start()), nothing, "two bodies");
+  assert.deepEqual(view(preSend(id, at(1)), modelSeen(id, at(2)), session(id, at(1), url), stage(id, at(3), "STARTED", url)), nothing, "controls seen only after the body was committed");
+  // A completion counts only in the session's conversation, after its start; a stage elsewhere unbinds the session.
+  assert.deepEqual(view(...ready(), start(), stage(id, at(3), "COMPLETE", url)), { state: "FINISHED", chat: url });
+  assert.deepEqual(view(...ready(), start(), stage(id, at(3), "COMPLETE", "https://chatgpt.com/c/another-chat")), nothing);
+  // A session also named for another request, task or role, or whose address changed, counts for none.
+  assert.deepEqual(view(...ready(), start(), stage("fleet-review:other", at(3), "STARTED", url, { session: `ps-${id}` })), nothing);
+  assert.deepEqual(view(...ready(), start({ worker: "billing" })), nothing);
+  assert.deepEqual(view(...ready(), start(), session(id, at(3), url, "ACTIVE", { role: "MC_BINDING_PRELOAD_SESSION" })), nothing);
+  assert.deepEqual(view(...ready(), start(), session(id, at(3), "https://chatgpt.com/c/second-real")), nothing);
+  // A second session opened but never sent in doesn't change which chat the question ran in.
+  assert.deepEqual(view(...ready(), start(), session(id, at(4), "https://chatgpt.com/c/later-unsent", "ACTIVE", { session: "ps-retry" })), sentHere);
 
   // A V5 (request-bound) question binds with its own role and step, and never to a provisional conversation.
   const v5 = route("fleet-review:v5", at(0), { version: 5 });
   const v5state = (...receipts: StoredEvent[]) => activityOf([v5, ...receipts]).requests[0].state;
-  const bound = { role: "REQUEST_BOUND_DECISION_SESSION", step: "REQUEST_BOUND_DECISION" };
-  assert.equal(v5state(session("fleet-review:v5", at(1), url, "ACTIVE", bound), stage("fleet-review:v5", at(2), "STARTED", url, bound)), "SENT");
-  assert.equal(v5state(session("fleet-review:v5", at(1), url), stage("fleet-review:v5", at(2), "STARTED", url)), "QUEUED", "V6's role and step don't bind a V5 question");
-  assert.equal(v5state(session("fleet-review:v5", at(1), "https://chatgpt.com/c/WEB:provisional", "ACTIVE", bound),
-    stage("fleet-review:v5", at(2), "STARTED", "https://chatgpt.com/c/WEB:provisional", bound)), "QUEUED");
+  assert.equal(v5state(...sentV5("fleet-review:v5", at(1), url)), "SENT");
+  assert.equal(v5state(modelSeen("fleet-review:v5", at(1)), session("fleet-review:v5", at(1), url), stage("fleet-review:v5", at(2), "STARTED", url)),
+    "QUEUED", "V6's role and step don't bind a V5 question");
+  assert.equal(v5state(...sentV5("fleet-review:v5", at(1), "https://chatgpt.com/c/WEB:provisional")), "QUEUED");
+  assert.equal(v5state(modelSeen("fleet-review:v5", at(1), V5), session("fleet-review:v5", at(1), url, "ACTIVE", V5),
+    stage("fleet-review:v5", at(2), "STARTED", url, V5), stage("fleet-review:v5", at(3), "COMPLETE", url, { ...V5, prompt: "e".repeat(64) })), "QUEUED", "one prompt on every stage");
 });
 
 test("a question sent in more than one session, or a V6 question started twice, is flagged, with no chat", () => {
@@ -265,10 +317,8 @@ test("a question sent in more than one session, or a V6 question started twice, 
     stage(id, "2026-10-11T10:02:00Z", "STARTED", second, { session: "ps-unbound" })]).requests[0].state, "DUPLICATE_SEND");
   assert.equal(activityOf([queued, ...sent(id, "2026-10-11T10:01:00Z", first), stage(id, "2026-10-11T10:03:00Z", "STARTED", first)]).requests[0].state,
     "DUPLICATE_SEND", "a V6 question started twice in its session");
-  const v5 = { role: "REQUEST_BOUND_DECISION_SESSION", step: "REQUEST_BOUND_DECISION" };
-  const once = activityOf([route("fleet-review:v5-twice", "2026-10-11T10:00:00Z", { version: 5 }),
-    session("fleet-review:v5-twice", "2026-10-11T10:01:00Z", first, "ACTIVE", v5), stage("fleet-review:v5-twice", "2026-10-11T10:02:00Z", "STARTED", first, v5),
-    stage("fleet-review:v5-twice", "2026-10-11T10:03:00Z", "STARTED", first, v5)]);
+  const once = activityOf([route("fleet-review:v5-twice", "2026-10-11T10:00:00Z", { version: 5 }), ...sentV5("fleet-review:v5-twice", "2026-10-11T10:02:00Z", first),
+    stage("fleet-review:v5-twice", "2026-10-11T10:03:00Z", "STARTED", first, V5)]);
   assert.deepEqual([once.requests[0].state, once.requests[0].sentAt], ["SENT", "2026-10-11T10:02:00Z"], "a V5 question takes its first start");
   const late = activityOf([route(id, "2026-10-10T09:00:00Z", { expiresAt: "2026-10-11T09:00:00Z" }), ...sent(id, "2026-10-10T09:01:00Z", first),
     ...sent(id, "2026-10-10T09:02:00Z", second, { session: "ps-second" })]);
@@ -291,12 +341,6 @@ test("an activity state without the times it is about is not accepted", () => {
   assert.equal(isSupervisorActivity({ ...good, requests: [{ ...request, queuedAt: "soon" }] }), false);
   assert.equal(isSupervisorActivity({ ...good, lastSentAt: "never" }), false);
   assert.equal(supervisorStatusLine({ ...good, requests: [{ ...request, sentAt: null }] }, NOW), "Not available right now.");
-});
-
-test("the view's V5 and V6 session bindings are Mission Control's own", () => {
-  assert.deepEqual([SUPERVISOR_TRANSPORT_BINDINGS[5].sessionRole, SUPERVISOR_TRANSPORT_BINDINGS[5].step], [requestBoundRole, requestBoundStep]);
-  assert.deepEqual([SUPERVISOR_TRANSPORT_BINDINGS[6].sessionRole, SUPERVISOR_TRANSPORT_BINDINGS[6].step], [inBandRequestRole, inBandRequestStep]);
-  assert.deepEqual(Object.keys(SUPERVISOR_TRANSPORT_BINDINGS), ["5", "6"]);
 });
 
 test("older routes (V3, V4) are never shown as sent: only waiting, answered or expired", () => {
@@ -647,8 +691,8 @@ test("a malformed or foreign route packet is not shown as a question", () => {
   assert.equal(activityOf(bad).total, 0);
   const good = route("fleet-review:good", at);
   assert.equal(activityOf([...bad, good]).total, 1);
-  assert.equal(supervisorActivity([good], NOW, admission([])).total, 0, "a request Mission Control didn't admit is not shown");
-  assert.equal(supervisorActivity([good], NOW, admission(["fleet-review:good"])).total, 1);
+  assert.equal(supervisorActivity([good], NOW, admission([good], [])).total, 0, "a request Mission Control didn't admit is not shown");
+  assert.equal(supervisorActivity([good], NOW, admission([good], ["fleet-review:good"])).total, 1);
 });
 
 test("the projection counts only requests Mission Control's own parser accepts", () => {
@@ -662,12 +706,27 @@ test("the projection counts only requests Mission Control's own parser accepts",
   } finally { store.close(); }
 });
 
+test("a question is the exact route event Mission Control admitted, not another copy of its id", () => {
+  const store = new EventStore(":memory:");
+  try {
+    seedIssue47Store(store);
+    // An earlier copy that passes the shape checks but not Mission Control's parser (no nonce), then the admitted packet.
+    const copy = route("fleet-review:same", "2026-10-11T09:00:00Z", { question: "An earlier copy", patch: { nonce: undefined } });
+    const admitted = route("fleet-review:same", "2026-10-11T09:30:00Z", { question: "The admitted question" });
+    const projected = projectWorker(inSeededTask(store, [copy, admitted]), NOW);
+    assert.deepEqual(projected.supervisorActivity.requests.map((request) => [request.requestId, request.question, request.queuedAt]),
+      [["fleet-review:same", "The admitted question", "2026-10-11T09:30:00Z"]]);
+    const unit = supervisorActivity([copy, admitted], NOW, { ...admission([copy, admitted], []), admitted: new Map([["fleet-review:same", admitted.sequence]]) });
+    assert.equal(unit.requests[0].question, "The admitted question");
+  } finally { store.close(); }
+});
+
 test("a replacement counts only when Mission Control admits it", () => {
   const first = route("fleet-review:first", "2026-10-11T09:00:00Z");
   const second = route("fleet-review:second", "2026-10-11T09:30:00Z", { supersedes: "fleet-review:first" });
-  const admittedReplacement = supervisorActivity([first, second], NOW, admission(["fleet-review:first", "fleet-review:second"], ["fleet-review:first"]));
+  const admittedReplacement = supervisorActivity([first, second], NOW, admission([first, second], ["fleet-review:first", "fleet-review:second"], ["fleet-review:first"]));
   assert.deepEqual(admittedReplacement.states, { "fleet-review:first": "REPLACED", "fleet-review:second": "QUEUED" });
-  const rejectedReplacement = supervisorActivity([first, second], NOW, admission(["fleet-review:first"]));
+  const rejectedReplacement = supervisorActivity([first, second], NOW, admission([first, second], ["fleet-review:first"]));
   assert.deepEqual(rejectedReplacement.states, { "fleet-review:first": "QUEUED" }, "a rejected replacement neither replaces nor shows");
   const store = new EventStore(":memory:");
   try {
@@ -700,9 +759,10 @@ test("supervisor times with different UTC offsets compare as instants", () => {
   // 05:00-05:00 is 10:00Z, later than 09:30Z, though it sorts earlier as text.
   // A V5 question (the validator takes its earliest start, so two starts in one session are allowed there).
   const url = "https://chatgpt.com/c/offset-chat";
-  const bound = { role: "REQUEST_BOUND_DECISION_SESSION", step: "REQUEST_BOUND_DECISION" };
+  const bound = V5;
   const offset = activityOf([
     route("fleet-review:offsets", "2026-10-11T09:00:00Z", { version: 5 }),
+    modelSeen("fleet-review:offsets", "2026-10-11T09:01:00Z", bound),
     session("fleet-review:offsets", "2026-10-11T09:01:00Z", url, "ACTIVE", bound),
     stage("fleet-review:offsets", "2026-10-11T09:30:00Z", "STARTED", url, bound),
     stage("fleet-review:offsets", "2026-10-11T05:00:00-05:00", "STARTED", url, bound),

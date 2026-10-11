@@ -6,6 +6,7 @@ import type {
   PendingDecisionRequest,
 } from "./github-decision-receipts";
 import type { CanonicalDecisionEnvelope, StoredEvent } from "./schema";
+import type { SupervisorTransportEvidence } from "./supervisor-activity";
 
 export const inBandRequestRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n";
 export const inBandRequestProtocol = "IN_BAND_REQUEST_BINDING_V1";
@@ -379,6 +380,92 @@ export function assertInBandRequestExecution(
   };
 }
 
+
+/**
+ * What the relay's own receipts show about one V6 question up to `at`, checked as `assertInBandRequestExecution` checks
+ * them without the answer-specific parts (decision binding, central admission chain, GitHub comment, readbacks): sent
+ * once its first message started, exactly once, in the request's own exact session (its provisional "WEB:" address
+ * allowed), after the trusted pre-send receipt committed the provider body and after the session's model controls were
+ * observed, with those controls, that body's prompt, one approved read-only source app and no semantic authority on
+ * every stage; finished once that stage completed in the session's conversation. A send in more than one session, or a
+ * second start, is a duplicate send (the validator rejects both); anything not bound this way is null.
+ */
+export function inBandTransportEvidence(
+  events: StoredEvent[], request: PendingDecisionRequest, policy: GitHubReceiptPolicy, at: string,
+): SupervisorTransportEvidence | null {
+  if (request.routeSchemaVersion !== 6 || !policy.requestBound?.enabled || !Number.isFinite(Date.parse(at))) return null;
+  const relayIds = policy.requestBound.relayProducerIds;
+  const sends = events.filter((event) => isTrustedEvidence(event, stageSummary, relayIds) && event.worker === request.worker
+    && exactRef(event, "request") === request.requestId && exactRef(event, "generation_state") === "STARTED"
+    && inWindow(event, request.queuedAt, at));
+  if (!sends.length) return null;
+  const sessionIds = new Set(sends.map((event) => exactRef(event, "provider_session")));
+  if (sessionIds.size !== 1) return duplicateSend(sends);
+  const sessionId = [...sessionIds][0];
+  if (!sessionId) return null;
+  const scoped = events.filter((event) => boundTo(event, request, sessionId) && inWindow(event, request.queuedAt, at));
+  const sessionRecords = scoped.filter((event) => isTrustedEvidence(event, sessionSummary, relayIds));
+  if (sessionRecords.some((event) => exactRef(event, "session_role") !== inBandRequestRole)) return null;
+  const exactSessions = sessionRecords.filter((event) => exactRef(event, "message_ordinal") === "1"
+    && exactRef(event, "url_binding_status") === "EXACT"
+    && /^https:\/\/chatgpt\.com\/c\/(?:WEB:)?[A-Za-z0-9_-]+$/.test(exactRef(event, "conversation_url") ?? ""));
+  const exactSession = [...exactSessions].sort((a, b) => a.sequence - b.sequence).at(-1);
+  const conversationUrl = exactSession ? exactRef(exactSession, "conversation_url") : null;
+  if (!conversationUrl) return null;
+  const provisionalUrls = new Set(exactSessions.map((event) => exactRef(event, "conversation_url"))
+    .filter((url): url is string => Boolean(url && /^https:\/\/chatgpt\.com\/c\/WEB:[A-Za-z0-9_-]+$/.test(url))));
+  const finalIsProvisional = /^https:\/\/chatgpt\.com\/c\/WEB:[A-Za-z0-9_-]+$/.test(conversationUrl);
+  if ((!finalIsProvisional && provisionalUrls.size > 1) || exactSessions.some((event) => {
+    const url = exactRef(event, "conversation_url");
+    return Boolean(url && url !== conversationUrl && !(provisionalUrls.has(url) && !finalIsProvisional));
+  })) return null;
+  const preSend = scoped.filter((event) => isTrustedEvidence(event, inBandPreSendSummary, relayIds));
+  const bodies = new Set(preSend.map((event) => exactRef(event, "provider_body_sha256")));
+  const promptSha256 = bodies.size === 1 ? [...bodies][0] : null;
+  if (!promptSha256 || !/^[a-f0-9]{64}$/.test(promptSha256) || preSend.some((event) => exactRef(event, "semantic_authority") !== "false"
+    || exactRef(event, "trusted_relay_producer") !== event.producerId || Date.parse(event.occurredAt) >= Date.parse(request.expiresAt))) return null;
+  const model = scoped.find((event) => isTrustedEvidence(event, modelSummary, relayIds)
+    && exactRef(event, "session_role") === inBandRequestRole && controlEvidence(event) !== null);
+  const modelControls = model ? controlEvidence(model) : null;
+  if (!model || !modelControls) return null;
+  const readers = new Set(["GitHub", "Remote Desktop Commander"]);
+  const stageCandidates = scoped.filter((event) => isTrustedEvidence(event, stageSummary, relayIds)
+    && exactRef(event, "step") === inBandRequestStep
+    && exactRef(event, "message_ordinal") === "1" && exactRef(event, "first_message") === "true"
+    && readers.has(exactRef(event, "selected_app") ?? "") && exactRef(event, "semantic_authority") === "false"
+    && controlEvidence(event) !== null);
+  const allowedStageUrls = new Set([conversationUrl, ...provisionalUrls]);
+  if (new Set(stageCandidates.map((event) => exactRef(event, "selected_app"))).size > 1
+    || stageCandidates.some((event) => !allowedStageUrls.has(exactRef(event, "conversation_url") ?? ""))) return null;
+  const starts = stageCandidates.filter((event) => exactRef(event, "generation_state") === "STARTED");
+  const completes = stageCandidates.filter((event) => exactRef(event, "generation_state") === "COMPLETE"
+    && exactRef(event, "conversation_url") === conversationUrl);
+  if (starts.length > 1) return duplicateSend(sends);
+  const start = starts[0];
+  if (!start) return null;
+  const pre = preSend.filter((event) => Date.parse(event.occurredAt) <= Date.parse(start.occurredAt))
+    .sort((a, b) => Date.parse(a.occurredAt) - Date.parse(b.occurredAt)).at(-1);
+  if (!pre || Date.parse(model.occurredAt) > Date.parse(pre.occurredAt)
+    || [...starts, ...completes].some((event) => {
+      const controls = controlEvidence(event);
+      return !controls || controls.kind !== modelControls.kind || controls.modelLabel !== modelControls.modelLabel
+        || exactRef(event, "prompt_sha256") !== promptSha256
+        || (event.data.type === "evidence_receipt_recorded" && event.data.refs.includes("selected_app:Mission Control"));
+    })
+    || scoped.some((event) => event.data.type === "evidence_receipt_recorded"
+      && (event.data.summary === "MISSION_CONTROL_PROVIDER_SESSION_MCP_READ_V1"
+        || event.data.refs.some((ref) => ref.startsWith("tool:get_supervisory_request_binding"))))) return null;
+  const complete = completes.sort((a, b) => a.sequence - b.sequence).at(-1);
+  return {
+    providerSessionId: sessionId, sentAt: start.occurredAt, conversationUrl, duplicateSend: false,
+    finishedAt: complete && Date.parse(complete.occurredAt) >= Date.parse(start.occurredAt) ? complete.occurredAt : null,
+  };
+}
+
+function duplicateSend(sends: StoredEvent[]): SupervisorTransportEvidence {
+  const first = [...sends].sort((a, b) => Date.parse(a.occurredAt) - Date.parse(b.occurredAt))[0]!;
+  return { providerSessionId: null, sentAt: first.occurredAt, finishedAt: null, conversationUrl: null, duplicateSend: true };
+}
 
 function controlEvidence(event: StoredEvent): { kind: "CURRENT" | "LEGACY"; modelLabel: string } | null {
   if (hasRefs(event, currentControlRefs)) {

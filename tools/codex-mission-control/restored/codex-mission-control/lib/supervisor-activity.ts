@@ -56,24 +56,25 @@ export const RECENT_REQUESTS = 5;
 const ROUTE_PREFIX = /^MISSION_CONTROL_INTERNAL_SUPERVIS(?:ORY_CYCLE_V[2-6]|OR_ROUTE_V1)\n/;
 const CYCLE_VERSION = /^MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V([2-6])\n/;
 const INTERNAL_ROUTE_PREFIX = "MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n";
-// The relay's provider-session and stage receipts: the only transport evidence that says a question was sent, finished
-// or ran in a given conversation.
+// The relay's provider-session and stage receipts, read here only to find provider sessions it reused.
 const SESSION_SUMMARY = "MISSION_CONTROL_PROVIDER_SESSION_V1";
 const STAGE_SUMMARY = "MISSION_CONTROL_RELAY_STAGE_V1";
 const QUESTION_LIMIT = 400;
 const ANSWER_LIMIT = 600;
 
 /**
- * The route versions whose relay transport Mission Control binds to one request's own provider session, with the
- * session role, relay step and conversation address their validators require (V5: lib/request-bound-supervision.ts,
- * V6: lib/in-band-request-binding.ts; repeated here because those modules are server-only, and a test keeps them
- * equal). Older routes bind their sessions differently, so this view never shows them as sent: only as waiting,
- * answered or expired.
+ * What the relay's own receipts show about one V5 or V6 question, as the server works it out with Mission Control's
+ * request-bound and in-band validators' own rules (`requestBoundTransportEvidence`, `inBandTransportEvidence`): when it
+ * was sent and finished in its own session, and that session's conversation; or that it was sent in more than one
+ * session (or, for V6, started twice), which the validators reject.
  */
-export const SUPERVISOR_TRANSPORT_BINDINGS: Readonly<Record<number, { sessionRole: string; step: string; conversation: RegExp }>> = {
-  5: { sessionRole: "REQUEST_BOUND_DECISION_SESSION", step: "REQUEST_BOUND_DECISION", conversation: /^https:\/\/chatgpt\.com\/c\/[A-Za-z0-9_-]+$/ },
-  6: { sessionRole: "IN_BAND_REQUEST_DECISION_SESSION", step: "IN_BAND_REQUEST_DECISION", conversation: /^https:\/\/chatgpt\.com\/c\/(?:WEB:)?[A-Za-z0-9_-]+$/ },
-};
+export interface SupervisorTransportEvidence {
+  providerSessionId: string | null;
+  sentAt: string;
+  finishedAt: string | null;
+  conversationUrl: string | null;
+  duplicateSend: boolean;
+}
 
 export const emptySupervisorActivity: SupervisorActivity = { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, lastSentAt: null, states: {} };
 
@@ -86,23 +87,20 @@ const STATE_TIMES: Partial<Record<SupervisorRequestState, ReadonlyArray<"expires
 };
 
 /**
- * What Mission Control itself accepts, from its request admission and receipt policy: the cycle requests (V2-V6) it
- * admits (`admittedCycleRequests`: its request parser and replacement rules), the admitted ones an admitted replacement
- * superseded, the ones retired with its no-send proof (`retiredUnsentRequests`), the relay collectors (the policy's
- * request-bound relay producers) whose transport receipts count, and the provider sessions those receipts name for more
- * than one owner anywhere in the ledger.
+ * What Mission Control itself accepts, worked out on the server: the cycle requests (V2-V6) it admits
+ * (`admittedCycleRequests`: its request parser and replacement rules), each by the exact route event admitted; the
+ * admitted ones an admitted replacement superseded; the ones retired with its no-send proof (`retiredUnsentRequests`);
+ * whether sending is tracked at all (the receipt policy's request-bound protocol is enabled); and, per V5/V6 question,
+ * the transport evidence its validators' rules accept.
  */
 export interface SupervisorRequestAdmission {
-  admitted: ReadonlySet<string>;
+  /** Request id -> the sequence of the route event Mission Control admitted for it. */
+  admitted: ReadonlyMap<string, number>;
   replaced: ReadonlySet<string>;
   /** Retired before anything was sent: by the fleet check because it expired, or withdrawn. */
   retired: ReadonlyMap<string, "EXPIRED_UNSENT" | "WITHDRAWN">;
-  trustedRelays: ReadonlySet<string>;
-  /**
-   * From the whole ledger (`conflictedRelaySessions`), not one task's events: a session reused for another task,
-   * request or supervisor shows in neither.
-   */
-  conflictedSessions: ReadonlySet<string>;
+  tracksTransport: boolean;
+  transport: ReadonlyMap<string, SupervisorTransportEvidence>;
 }
 
 export function supervisorActivity(events: readonly StoredEvent[], now: Date, admission: SupervisorRequestAdmission): SupervisorActivity {
@@ -140,7 +138,8 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
     const packet = parsePacket(data.body);
     const requestId = text(packet?.requestId);
     if (!packet || !requestId || drafts.has(requestId) || !event.worker || !routeLooksValid(data.body, packet, event.worker)) continue;
-    if (!data.body.startsWith(INTERNAL_ROUTE_PREFIX) && !admission.admitted.has(requestId)) continue;
+    // A cycle question counts only as the exact route event Mission Control admitted, never an earlier or replayed copy.
+    if (!data.body.startsWith(INTERNAL_ROUTE_PREFIX) && admission.admitted.get(requestId) !== event.sequence) continue;
     const factual = record(packet.factualPacket);
     drafts.set(requestId, {
       requestId,
@@ -168,12 +167,20 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
     draft.answer = shorten(answerOf(data), ANSWER_LIMIT);
   }
 
-  const transport = relayTransport(events, admission.trustedRelays);
   const nowMs = now.getTime();
   const all = [...drafts.values()].map((draft): SupervisorRequestActivity => {
-    // Sending is tracked only where Mission Control binds the relay's receipts to the request (V5/V6) and trusts a relay.
-    const tracked = Boolean(SUPERVISOR_TRANSPORT_BINDINGS[draft.version]) && admission.trustedRelays.size > 0;
-    if (tracked) applyBoundTransport(draft, transport, admission.conflictedSessions, now);
+    // Sending is tracked only where Mission Control's validators bind the relay's receipts to the request (V5/V6) and
+    // the receipt policy enables them.
+    const tracked = (draft.version === 5 || draft.version === 6) && admission.tracksTransport;
+    const evidence = tracked ? admission.transport.get(draft.requestId) : undefined;
+    const sentAt = evidence ? timestamp(evidence.sentAt) : null;
+    if (evidence && sentAt && instant(sentAt) <= nowMs) {
+      draft.sentAt = sentAt;
+      draft.duplicateSend = evidence.duplicateSend;
+      const finishedAt = evidence.duplicateSend ? null : timestamp(evidence.finishedAt);
+      draft.finishedAt = finishedAt && instant(finishedAt) >= instant(sentAt) ? finishedAt : null;
+      draft.conversationUrl = !evidence.duplicateSend && isSpecificChatAddress(evidence.conversationUrl) ? evidence.conversationUrl : null;
+    }
     const expired = draft.expiresAt !== null && Date.parse(draft.expiresAt) <= nowMs;
     // A retirement for expiry names the expiry; without one on the route it reads as a plain withdrawal.
     const retired = admission.retired.get(draft.requestId);
@@ -195,125 +202,29 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
   return all.sort((a, b) => (order.get(b.requestId) ?? 0) - (order.get(a.requestId) ?? 0));
 }
 
-interface BoundSession { conversations: Set<string>; starts: string[]; completions: string[]; sequence: number }
-interface RelayReceipt { event: StoredEvent; summary: string; session: string | null; supervisor: string | null; ref: (key: string) => string | null }
-interface RelayTransport {
-  byRequest: Map<string, RelayReceipt[]>;
-  /** Per provider session: the one worker, request and supervisor its receipts name, the roles its session receipts name. */
-  sessions: Map<string, { owner: string; conflict: boolean; roles: Set<string | null> }>;
-}
-
 /**
- * The provider sessions the trusted relay's receipts name for more than one worker, request or supervisor, or with more
- * than one session role. Mission Control's validators never accept a reused session, so give this the whole ledger.
+ * The provider sessions the trusted relay's provider-session and stage receipts name for more than one worker, request
+ * or supervisor, or with more than one session role (never a worker's, supervisor's or other collector's claim). A
+ * relay never reuses a session and Mission Control's validators never accept a reused one, so give this the whole
+ * ledger: such a session counts for no question.
  */
 export function conflictedRelaySessions(events: readonly StoredEvent[], relays: ReadonlySet<string>): Set<string> {
-  return new Set([...relayTransport(events, relays).sessions].flatMap(([session, use]) => use.conflict || use.roles.size > 1 ? [session] : []));
-}
-
-/**
- * The relay's receipts that can count: provider-session and stage receipts from a collector the receipt policy trusts,
- * never a worker's, supervisor's or other collector's claim.
- */
-function relayTransport(events: readonly StoredEvent[], relays: ReadonlySet<string>): RelayTransport {
-  const byRequest = new Map<string, RelayReceipt[]>();
-  const sessions: RelayTransport["sessions"] = new Map();
+  const sessions = new Map<string, { owner: string; conflict: boolean; roles: Set<string | null> }>();
   for (const event of events) {
     const data = event.data;
     if (data.type !== "evidence_receipt_recorded" || data.verified !== true
       || (data.summary !== SESSION_SUMMARY && data.summary !== STAGE_SUMMARY)
       || event.producerKind !== "COLLECTOR" || !relays.has(event.producerId)
       || data.producer_id !== event.producerId || data.producer_role !== "COLLECTOR") continue;
-    const ref = (key: string) => refValue(data.refs, key);
-    const request = ref("request");
-    const receipt: RelayReceipt = { event, summary: data.summary, session: ref("provider_session"), supervisor: ref("supervisor"), ref };
-    if (receipt.session) {
-      // A relay never reuses a provider session: one named for another worker, request or supervisor counts for none.
-      const owner = JSON.stringify([event.worker ?? null, request, receipt.supervisor]);
-      const use = sessions.get(receipt.session) ?? { owner, conflict: false, roles: new Set<string | null>() };
-      if (use.owner !== owner) use.conflict = true;
-      if (data.summary === SESSION_SUMMARY) use.roles.add(ref("session_role"));
-      sessions.set(receipt.session, use);
-    }
-    if (request) {
-      const list = byRequest.get(request) ?? [];
-      list.push(receipt);
-      byRequest.set(request, list);
-    }
+    const session = refValue(data.refs, "provider_session");
+    if (!session) continue;
+    const owner = JSON.stringify([event.worker ?? null, refValue(data.refs, "request"), refValue(data.refs, "supervisor")]);
+    const use = sessions.get(session) ?? { owner, conflict: false, roles: new Set<string | null>() };
+    if (use.owner !== owner) use.conflict = true;
+    if (data.summary === SESSION_SUMMARY) use.roles.add(refValue(data.refs, "session_role"));
+    sessions.set(session, use);
   }
-  return { byRequest, sessions };
-}
-
-/**
- * Sent, finished and the conversation, from the receipts bound to this request's own provider session the way its
- * route version's validators bind them: session receipts with the version's session role, first message and an exact
- * ChatGPT conversation; stage receipts at the version's step for that session's first message, in that conversation:
- * sent when it STARTED, finished when it then reached COMPLETE.
- */
-function applyBoundTransport(draft: Draft, transport: RelayTransport, conflicted: ReadonlySet<string>, now: Date): void {
-  const binding = SUPERVISOR_TRANSPORT_BINDINGS[draft.version]!;
-  const owner = JSON.stringify([draft.worker, draft.requestId, draft.supervisorId]);
-  // Like the validators' window: evidence from when the question was queued up to now.
-  const inWindow = (receipt: RelayReceipt) => instant(receipt.event.occurredAt) >= instant(draft.queuedAt) && instant(receipt.event.occurredAt) <= now.getTime();
-  const receipts = (transport.byRequest.get(draft.requestId) ?? []).filter((receipt) => {
-    const use = receipt.session ? transport.sessions.get(receipt.session) : undefined;
-    return use !== undefined && !use.conflict && !conflicted.has(receipt.session!) && use.owner === owner
-      && [...use.roles].every((role) => role === binding.sessionRole) && inWindow(receipt);
-  });
-  const sessions = new Map<string, BoundSession>();
-  for (const receipt of receipts) {
-    const url = receipt.ref("conversation_url");
-    if (receipt.summary !== SESSION_SUMMARY || receipt.ref("message_ordinal") !== "1" || receipt.ref("url_binding_status") !== "EXACT"
-      || !url || !binding.conversation.test(url) || !isSpecificChatAddress(url)) continue;
-    const session = sessions.get(receipt.session!) ?? { conversations: new Set<string>(), starts: [], completions: [], sequence: -1 };
-    session.conversations.add(url);
-    session.sequence = Math.max(session.sequence, receipt.event.sequence);
-    sessions.set(receipt.session!, session);
-  }
-  for (const receipt of receipts) {
-    const session = receipt.summary === STAGE_SUMMARY ? sessions.get(receipt.session!) : undefined;
-    if (!session || receipt.ref("step") !== binding.step || receipt.ref("message_ordinal") !== "1" || receipt.ref("first_message") !== "true") continue;
-    const url = receipt.ref("conversation_url");
-    const generation = receipt.ref("generation_state");
-    // The send starts in one of the session's exact conversations (a provisional "WEB:" one counts); it completes in
-    // the session's conversation (its real address once assigned).
-    if (generation === "STARTED" && url !== null && session.conversations.has(url)) session.starts.push(receipt.event.occurredAt);
-    else if (generation === "COMPLETE" && url !== null && url === sessionConversation(session.conversations)) session.completions.push(receipt.event.occurredAt);
-    else continue;
-    session.sequence = Math.max(session.sequence, receipt.event.sequence);
-  }
-  // Like the validators, a question is sent in exactly one provider session (and a V6 question started once): any
-  // trusted start for it in another session, bound or not, makes the send ambiguous. Then no one chat is the
-  // question's, no answer to it can be accepted, and the view says it was sent more than once.
-  const startReceipts = (transport.byRequest.get(draft.requestId) ?? []).filter((receipt) => receipt.summary === STAGE_SUMMARY
-    && receipt.event.worker === draft.worker && receipt.ref("generation_state") === "STARTED" && inWindow(receipt));
-  const sendSessions = new Set(startReceipts.map((receipt) => receipt.session));
-  // The question ran in a session only once its first message started there (a session opened, or closed, without
-  // that is neither sent nor finished, and offers no chat). Completion is the stage's own COMPLETE after that start,
-  // never a session's lifecycle alone.
-  const started = [...sessions.values()].filter((session) => session.starts.length > 0);
-  if (sendSessions.size > 1 || started.length > 1 || (draft.version === 6 && started.some((session) => session.starts.length > 1))) {
-    draft.duplicateSend = true;
-    draft.sentAt = earliestInstant(startReceipts.map((receipt) => receipt.event.occurredAt));
-    return;
-  }
-  const chosen = started[0];
-  if (!chosen) return;
-  const sentAt = earliestInstant(chosen.starts)!;
-  draft.sentAt = sentAt;
-  draft.finishedAt = latestInstant(chosen.completions.filter((at) => instant(at) >= instant(sentAt)));
-  draft.conversationUrl = sessionConversation(chosen.conversations);
-}
-
-/**
- * The conversation a session ran in: its real address once ChatGPT assigned one, else its provisional "WEB:" one. A
- * session naming two real or two provisional addresses changed identity, which Mission Control's validators reject, so
- * it offers none.
- */
-function sessionConversation(conversations: ReadonlySet<string>): string | null {
-  const real = [...conversations].filter((url) => !/\/c\/WEB:/.test(url));
-  const provisional = [...conversations].filter((url) => /\/c\/WEB:/.test(url));
-  return real.length > 1 || provisional.length > 1 ? null : real[0] ?? provisional[0] ?? null;
+  return new Set([...sessions].flatMap(([session, use]) => use.conflict || use.roles.size > 1 ? [session] : []));
 }
 
 /**
@@ -404,14 +315,6 @@ function latestInstant(values: ReadonlyArray<string | null | undefined>): string
     if (latest === null || instant(value) > instant(latest)) latest = value;
   }
   return latest;
-}
-function earliestInstant(values: ReadonlyArray<string | null | undefined>): string | null {
-  let earliest: string | null = null;
-  for (const value of values) {
-    if (typeof value !== "string" || !Number.isFinite(instant(value))) continue;
-    if (earliest === null || instant(value) < instant(earliest)) earliest = value;
-  }
-  return earliest;
 }
 
 function parsePacket(body: string): Record<string, unknown> | null {

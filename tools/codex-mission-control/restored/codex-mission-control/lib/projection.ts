@@ -1,6 +1,12 @@
 import { isSpecificChatAddress } from "./supervisor-chat-address";
-import { conflictedRelaySessions, supervisorActivity, type SupervisorActivity, type SupervisorRequestAdmission } from "./supervisor-activity";
-import { admittedCycleRequests, parseGitHubReceiptPolicy, retiredUnsentRequests } from "./github-decision-receipts";
+import {
+  conflictedRelaySessions, supervisorActivity, type SupervisorActivity, type SupervisorRequestAdmission, type SupervisorTransportEvidence,
+} from "./supervisor-activity";
+import {
+  admittedCycleRequests, parseGitHubReceiptPolicy, retiredUnsentRequests, type GitHubReceiptPolicy, type PendingDecisionRequest,
+} from "./github-decision-receipts";
+import { inBandTransportEvidence } from "./in-band-request-binding";
+import { requestBoundTransportEvidence } from "./request-bound-supervision";
 import { correctionStatusLabel } from "./correction-lifecycle";
 import { driftConfig, DriftConfig } from "./drift-config";
 import type {
@@ -251,35 +257,62 @@ export interface WorkerState {
   timeline: StoredEvent[];
 }
 
-/** The relay evidence every task's supervisor view shares: the trusted relay collectors, and the sessions they reused. */
-export interface SupervisorRelayContext { trustedRelays: ReadonlySet<string>; conflictedSessions: ReadonlySet<string> }
+/**
+ * The relay evidence every task's supervisor view shares: the receipt policy while its request-bound protocol is enabled
+ * (otherwise none, and sending isn't tracked), and the provider sessions its relays reused anywhere in the ledger.
+ */
+export interface SupervisorRelayContext { policy: GitHubReceiptPolicy | null; conflictedSessions: ReadonlySet<string> }
 
 /** Give it the whole ledger: a provider session reused for another task must count for neither. */
-function supervisorRelayContext(events: StoredEvent[]): SupervisorRelayContext {
-  let trustedRelays: string[] = [];
+export function supervisorRelayContext(events: StoredEvent[], policy: GitHubReceiptPolicy | null = enabledReceiptPolicy()): SupervisorRelayContext {
+  const relays = new Set(policy?.requestBound?.relayProducerIds ?? []);
+  return { policy, conflictedSessions: conflictedRelaySessions(events, relays) };
+}
+
+/** Like the routing code: the policy counts only while its request-bound protocol is enabled; an invalid one counts as none. */
+function enabledReceiptPolicy(): GitHubReceiptPolicy | null {
   try {
-    const requestBound = parseGitHubReceiptPolicy()?.requestBound;
-    // Like the routing code, trust the relay producers only while the request-bound protocol is enabled.
-    trustedRelays = requestBound?.enabled === true ? requestBound.relayProducerIds : [];
+    const policy = parseGitHubReceiptPolicy();
+    return policy?.requestBound?.enabled === true ? policy : null;
   } catch {
-    // An invalid receipt policy trusts no relay: questions still show, but not as sent.
+    return null;
   }
-  const relays = new Set(trustedRelays);
-  return { trustedRelays: relays, conflictedSessions: conflictedRelaySessions(events, relays) };
+}
+
+/**
+ * Per admitted V5/V6 question, the transport evidence its validator's own rules accept (up to `now`), unless its
+ * provider session was reused for something else anywhere in the ledger.
+ */
+export function supervisorTransport(requests: Iterable<PendingDecisionRequest>, events: StoredEvent[], now: Date, relay: SupervisorRelayContext): Map<string, SupervisorTransportEvidence> {
+  const transport = new Map<string, SupervisorTransportEvidence>();
+  if (!relay.policy) return transport;
+  const at = now.toISOString();
+  for (const request of requests) {
+    const evidence = request.routeSchemaVersion === 6 ? inBandTransportEvidence(events, request, relay.policy, at)
+      : request.routeSchemaVersion === 5 ? requestBoundTransportEvidence(events, request, relay.policy, at) : null;
+    if (evidence && !(evidence.providerSessionId && relay.conflictedSessions.has(evidence.providerSessionId))) transport.set(request.requestId, evidence);
+  }
+  return transport;
 }
 
 /**
  * Which supervisor questions and relay receipts Mission Control itself accepts (see SupervisorRequestAdmission), for
  * one task's events; the relay context comes from the whole ledger when the caller has it.
  */
-function supervisorRequestAdmission(events: StoredEvent[], relay: SupervisorRelayContext = supervisorRelayContext(events)): SupervisorRequestAdmission {
+export function supervisorRequestAdmission(events: StoredEvent[], now: Date, relay: SupervisorRelayContext = supervisorRelayContext(events)): SupervisorRequestAdmission {
   const { admitted, superseded } = admittedCycleRequests(events);
+  // The first admitted route event of each request is the question; a later copy of the same request id isn't another.
+  const first = new Map<string, PendingDecisionRequest>();
+  for (const request of admitted) if (!first.has(request.requestId) && request.sourceEventSequence !== undefined) first.set(request.requestId, request);
   // Retired only with the full no-send proof Mission Control's own pending set requires; the fleet check retires an
   // expired request on its own (reason REQUEST_EXPIRED), and any other retirement is a deliberate withdrawal.
   const retired = new Map([...retiredUnsentRequests(events)].map(([requestId, reason]) =>
     [requestId, reason === "REQUEST_EXPIRED" ? "EXPIRED_UNSENT" as const : "WITHDRAWN" as const]));
-  return { admitted: new Set(admitted.map((request) => request.requestId)), replaced: superseded, retired,
-    trustedRelays: relay.trustedRelays, conflictedSessions: relay.conflictedSessions };
+  return {
+    admitted: new Map([...first].map(([requestId, request]) => [requestId, request.sourceEventSequence!])),
+    replaced: superseded, retired, tracksTransport: relay.policy !== null,
+    transport: supervisorTransport(first.values(), events, now, relay),
+  };
 }
 
 export function projectWorkers(events: StoredEvent[], now = new Date(), config: DriftConfig = driftConfig): WorkerState[] {
@@ -410,7 +443,7 @@ function projectV2Worker(
     supervisorChatUrl: supervisorUrl,
     supervisorChatLabel: supervisorLabel,
     supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
-    supervisorActivity: supervisorActivity(events, now, supervisorRequestAdmission(events, relay)),
+    supervisorActivity: supervisorActivity(events, now, supervisorRequestAdmission(events, now, relay)),
     status,
     health: comparison.overallTraffic,
     workerToContractAlignment: comparison.workerToContractAlignment,
@@ -810,7 +843,7 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
     supervisorChatUrl: supervisorUrl,
     supervisorChatLabel: legacySupervisorChat.label,
     supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
-    supervisorActivity: supervisorActivity(events, now, supervisorRequestAdmission(events, relay)),
+    supervisorActivity: supervisorActivity(events, now, supervisorRequestAdmission(events, now, relay)),
     status: heartbeat?.status ?? "working",
     health: overall,
     workerToContractAlignment: workerAlignment,
