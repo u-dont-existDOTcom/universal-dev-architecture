@@ -10,7 +10,8 @@ const DIRECTORY_FRESH_MS = 60_000;
 const DIRECTORY_RETRY_MS = 15_000;
 
 // The owner's configured supervisor chats, shared by every button on the page: one request at a time, a successful
-// answer reused for a minute, and a failed one never remembered, so the buttons recover once the directory answers.
+// answer reused for a minute, and a failed one never remembered. Each button looks again after a minute (15 seconds
+// after a failure), so it recovers once the directory answers and shows a chat configured later.
 let directory: { entries: ConfiguredChat[]; at: number } | null = null;
 let pending: Promise<ConfiguredChat[] | null> | null = null;
 export function loadConfiguredChats(now: () => number = Date.now): Promise<ConfiguredChat[] | null> {
@@ -27,6 +28,11 @@ export function loadConfiguredChats(now: () => number = Date.now): Promise<Confi
   return pending;
 }
 export function forgetConfiguredChats() { directory = null; pending = null; }
+/** When to look again: soon after a failed read, otherwise once the shared answer is old, so a chat the owner
+ * configures later appears without reloading the page. */
+export function nextDirectoryLookupMs(entries: ConfiguredChat[] | null): number {
+  return entries === null ? DIRECTORY_RETRY_MS : DIRECTORY_FRESH_MS;
+}
 
 /**
  * The worker's supervisor chat: the route or link recorded for the worker when it names one specific chat, else the
@@ -42,9 +48,11 @@ export function SupervisorLink({ url, label, placeholder, workerId }: { url: str
     let retry: ReturnType<typeof setTimeout> | undefined;
     const look = () => void loadConfiguredChats().then((entries) => {
       if (!current) return;
-      if (entries === null) { retry = setTimeout(look, DIRECTORY_RETRY_MS); return; }
-      setConfigured(entries.find((candidate) => candidate.scope === "SPECIALIST" && candidate.workerId === workerId
-        && isSpecificChatAddress(candidate.url)) ?? null);
+      if (entries !== null) {
+        setConfigured(entries.find((candidate) => candidate.scope === "SPECIALIST" && candidate.workerId === workerId
+          && isSpecificChatAddress(candidate.url)) ?? null);
+      }
+      retry = setTimeout(look, nextDirectoryLookupMs(entries));
     });
     look();
     return () => { current = false; if (retry) clearTimeout(retry); };

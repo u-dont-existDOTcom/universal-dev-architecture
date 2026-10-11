@@ -2,16 +2,25 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { forgetConfiguredChats, loadConfiguredChats, SupervisorLink } from "../components/SupervisorLink";
+import { forgetConfiguredChats, loadConfiguredChats, nextDirectoryLookupMs, SupervisorLink } from "../components/SupervisorLink";
 import { isSpecificChatAddress } from "../lib/supervisor-chat-address";
 
-test("only an address that names one chat counts as a supervisor chat", () => {
+test("only an address that names one ChatGPT conversation counts as a supervisor chat", () => {
   for (const url of ["https://chatgpt.com/", "https://chatgpt.com", "https://chatgpt.com//", "", "http://chatgpt.com/c/abc",
-    "https://chatgpt.com/c/replace-auth-supervisor", "not a url"]) {
+    "https://chatgpt.com/c/replace-auth-supervisor", "not a url", "https://chatgpt.com/settings", "https://chatgpt.com/auth/login",
+    "https://chatgpt.com/c/", "https://chatgpt.com/c/abc/extra", "https://example.org/c/abc", "https://user:pw@chatgpt.com/c/abc",
+    "https://chatgpt.com.example.org/c/abc"]) {
     assert.equal(isSpecificChatAddress(url), false, url);
   }
-  assert.equal(isSpecificChatAddress("https://chatgpt.com/c/real-supervisor-chat"), true);
-  assert.equal(isSpecificChatAddress("https://chatgpt.com/g/g-p-project/c/abc"), true);
+  for (const url of ["https://chatgpt.com/c/real-supervisor-chat", "https://chatgpt.com/c/WEB:abc-123", "https://chatgpt.com/c/abc/",
+    "https://chatgpt.com/g/g-p-68b0-mission-control/c/abc", "https://chat.openai.com/c/abc"]) {
+    assert.equal(isSpecificChatAddress(url), true, url);
+  }
+});
+
+test("a button looks for a configured chat again: soon after a failure, otherwise once a minute", () => {
+  assert.equal(nextDirectoryLookupMs(null), 15_000);
+  assert.equal(nextDirectoryLookupMs([]), 60_000);
 });
 
 test("a recorded ChatGPT home page is not offered as the supervisor chat", () => {

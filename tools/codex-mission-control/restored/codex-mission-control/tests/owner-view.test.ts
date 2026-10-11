@@ -4,13 +4,50 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DashboardNotice, OwnerTaskCard, ProjectWatchSummary } from "../components/Dashboard";
 import { FleetQueue, QueueDependencies } from "../components/WorkerChannel";
-import { readDashboardData, validTaskSnapshot, validOperatorSnapshot, snapshotFailure, orderedOpenQueue, resolvePrerequisites, workerDisposition } from "../lib/owner-view";
+import { readDashboardData, validTaskSnapshot, validOperatorSnapshot, snapshotFailure, orderedOpenQueue, ownerAttention, resolvePrerequisites, workerDisposition } from "../lib/owner-view";
 import type { WorkQueueItemProjection } from "../lib/worker-channel";
 import { snapshotFromStore } from "../lib/dashboard-data";
 import { EventStore } from "../lib/store";
 import { seedIssue47Store } from "../lib/seed";
 const valid = (value: unknown) => Boolean(value && typeof value === "object" && "workers" in value);
 const queueItem = (patch: Partial<WorkQueueItemProjection> = {}): WorkQueueItemProjection => ({ worker: "worker-a", projectId: "project-a", taskId: "task-a", directionId: "direction-a", queueRevisionId: "queue-a", revision: 1, itemId: "item-a", title: "Review the candidate", detail: "Recorded work detail", status: "BLOCKED", priority: "P1", ordinal: 0, dependsOn: [], createdAt: "2026-09-17T00:00:00Z", updatedAt: "2026-09-17T00:00:00Z", ...patch });
+
+function liveSliceWorker() {
+  const store = new EventStore(":memory:");
+  try {
+    seedIssue47Store(store);
+    return snapshotFromStore(store).workers.find(worker => worker.id === "mission-control-live-slice")!;
+  } finally { store.close(); }
+}
+
+function withOwnerAction(worker: ReturnType<typeof liveSliceWorker>, patch: Record<string, unknown>) {
+  const ownerAction = { ...worker.correction.ownerAction, status: "OPEN", ...patch } as typeof worker.correction.ownerAction;
+  return { ...worker, correction: { ...worker.correction, ownerActionType: ownerAction.kind, ownerActionText: ownerAction.exact_text, ownerAction } };
+}
+
+test("the first screen separates real owner decisions from alarms Mission Control raised itself", () => {
+  const base = liveSliceWorker();
+  const now = new Date("2026-10-11T01:00:00Z");
+  const missing = withOwnerAction(base, { kind: "MANUAL_INTERVENTION_REQUIRED", reason_code: "OWNER.ACTION_TELEMETRY_MISSING",
+    exact_text: "Owner-action telemetry is missing; repair observability before assuming no action is required." });
+  const missingAttention = ownerAttention(missing, now);
+  assert.equal(missingAttention?.kind, "alarm");
+  assert.match(missingAttention?.kind === "alarm" ? missingAttention.title : "", /Not reporting whether it needs you/);
+  assert.match(workerDisposition(missing), /^Needs a look: not reporting/);
+  const overdue = withOwnerAction(base, { kind: "MANUAL_INTERVENTION_REQUIRED", reason_code: "OWNER.NONE_NEXT_ACTION_OVERDUE",
+    exact_text: "The non-owner next action is overdue: Execute the v8b gate and record exact artifacts.", due_at: "2026-10-04T01:00:00Z" });
+  const overdueAttention = ownerAttention(overdue, now);
+  assert.equal(overdueAttention?.kind, "alarm");
+  assert.equal(overdueAttention?.kind === "alarm" ? overdueAttention.explanation : "",
+    "The next step isn't yours: Execute the v8b gate and record exact artifacts (due 7 days ago). If the delay matters, ask its supervisor why.");
+  const decision = withOwnerAction(base, { kind: "MANUAL_INTERVENTION_REQUIRED", reason_code: "SUPERVISOR.CREDENTIAL_ROTATION",
+    exact_text: "Rotate the relay credential on the primary host." });
+  assert.deepEqual(ownerAttention(decision, now), { kind: "decision" });
+  assert.equal(workerDisposition(decision), "Waiting for your decision");
+  assert.equal(ownerAttention(withOwnerAction(base, { kind: "MANUAL_INTERVENTION_REQUIRED", reason_code: "OWNER.ACTION_TELEMETRY_MISSING", status: "COMPLETED" }), now), null);
+  const none = { ...base, correction: { ...base.correction, ownerActionType: "NONE" as const } };
+  assert.equal(ownerAttention(none, now), null);
+});
 
 for (const supervisor of [
   { state: "recorded", url: "https://chatgpt.com/c/real-supervisor-chat", placeholder: false },

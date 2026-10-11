@@ -694,6 +694,8 @@ code { font-family: var(--mono); color: #b9d5cc; font-size: .92em; }
 .owner-shell .error-banner p { margin: 8px 0; }
 .owner-decision { border-left: 3px solid var(--yellow); padding: 16px 20px; margin: 12px 0; background: var(--panel); }
 .owner-decision > p { margin: 8px 0 0; }
+.owner-alarm { border-left: 3px solid var(--muted); padding: 16px 20px; margin: 12px 0; background: var(--panel); }
+.owner-alarm > p { margin: 8px 0 10px; }
 .owner-next-list { list-style-position: inside; padding: 0; border-top: 1px solid var(--line); }
 .owner-next-list li { padding: 14px 0; border-bottom: 1px solid var(--line); line-height: 1.6; }
 .owner-next-list span { margin-left: 16px; color: var(--yellow); font-size: 13px; }

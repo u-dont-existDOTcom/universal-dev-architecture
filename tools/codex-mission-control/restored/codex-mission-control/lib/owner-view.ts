@@ -1,4 +1,5 @@
 import type { WorkerState } from "./projection";
+import type { OwnerActionObligation } from "./schema";
 import type { WorkQueueItemProjection } from "./worker-channel";
 
 export type SnapshotFailure = { kind: "session" | "network" | "server"; message: string };
@@ -34,7 +35,61 @@ export function resolvePrerequisites(item: WorkQueueItemProjection, queue: WorkQ
     return { id, item: matches.length === 1 ? matches[0] : null, reason: matches.length > 1 ? "Ambiguous reference" : "Unresolved reference" };
   });
 }
+// Alarms Mission Control raises by itself when it can't tell whether the owner is needed (effectiveOwnerAction and
+// the legacy projection in lib/projection.ts). They keep the projection's fail-closed MANUAL_INTERVENTION_REQUIRED
+// state, but the owner view shows them as alarms in plain words, not as decisions: there is nothing to choose, only
+// something to look into, usually by asking the task's supervisor.
+const OWNER_ALARMS: Record<string, { title: string; explain: (action: OwnerActionObligation, now: Date) => string }> = {
+  "OWNER.ACTION_TELEMETRY_MISSING": {
+    title: "Not reporting whether it needs you",
+    explain: () => "Its worker hasn't reported its next step or whether anything waits on you, so Mission Control can't tell. If this task should be moving, ask its supervisor for a status.",
+  },
+  "OWNER.ACTION_TELEMETRY_LEGACY": {
+    title: "Recorded in an older format",
+    explain: () => "This task was recorded before Mission Control tracked what waits on you, so it can't tell. If it matters, ask its supervisor for a status.",
+  },
+  "OWNER.NONE_NEXT_ACTION_OVERDUE": {
+    title: "A worker's step is overdue",
+    explain: (action, now) => {
+      const step = action.exact_text.replace(/^The non-owner next action is overdue:\s*/, "").replace(/[.\s]+$/, "");
+      const due = action.due_at ? ` (due ${ago(action.due_at, now)})` : "";
+      return `The next step isn't yours: ${step}${due}. If the delay matters, ask its supervisor why.`;
+    },
+  },
+  "OWNER.NONE_NEXT_ACTOR_NOT_CURRENT": {
+    title: "Nobody is on the next step",
+    explain: () => "The worker named for the next step is missing, no longer assigned or not reporting. Ask its supervisor to reassign it.",
+  },
+  "OWNER.ACTIVE_DIRECTIVE_CONFLICT": {
+    title: "Conflicting instructions",
+    explain: () => "Two active instructions to this worker conflict, so its correction waits until one is withdrawn. Ask its supervisor to settle it.",
+  },
+};
+
+export type OwnerAttention = { kind: "decision" } | { kind: "alarm"; title: string; explanation: string } | null;
+
+/** What a task asks of the owner: a real decision or action, an alarm Mission Control raised itself, or nothing. */
+export function ownerAttention(worker: WorkerState, now = new Date()): OwnerAttention {
+  const action = worker.correction.ownerAction;
+  if (worker.correction.ownerActionType === "NONE" || !action || action.status !== "OPEN") return null;
+  const alarm = OWNER_ALARMS[action.reason_code];
+  return alarm ? { kind: "alarm", title: alarm.title, explanation: alarm.explain(action, now) } : { kind: "decision" };
+}
+
+function ago(value: string, now: Date): string {
+  const time = new Date(value).getTime();
+  if (!Number.isFinite(time)) return "at an unrecorded time";
+  const minutes = Math.max(0, Math.round((now.getTime() - time) / 60_000));
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  return `${Math.floor(hours / 24)} days ago`;
+}
+
 export function workerDisposition(worker: WorkerState): string {
+  const attention = ownerAttention(worker);
+  if (attention?.kind === "decision") return "Waiting for your decision";
+  if (attention?.kind === "alarm") return `Needs a look: ${attention.title.toLowerCase()}`;
   if (worker.correction.ownerActionType !== "NONE") return "Waiting for your action";
   if (worker.executionSupervision.pendingReasoningReview) return "Waiting for review";
   if (worker.blocker || worker.channel.blockers.length || worker.executionSupervision.codexExecutionState === "PARKED") return "Blocked or parked";
