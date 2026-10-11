@@ -8,7 +8,7 @@ import { formatMessageTimestamp } from "@/lib/message-time";
 import { StatusDot } from "./StatusDot";
 import type { OperatorStatusProjection, OperatorSupervisorStatus } from "@/lib/operator-status-contract";
 import { isPendingSupervisorRequest, isSupervisorActivity, latestSupervisorConversation, type SupervisorRequestState } from "@/lib/supervisor-activity";
-import { validOperatorSnapshot, validTaskSnapshot } from "@/lib/owner-view";
+import { validOperatorSnapshot, validSupervisionSnapshot } from "@/lib/owner-view";
 import { SUPERVISOR_REQUEST_STATE, supervisorStatusLine } from "./SupervisorActivity";
 
 interface Snapshot {
@@ -89,11 +89,12 @@ const providerSessionRoutePrefixes = [
 ] as const;
 
 /**
- * The page's read model from the task and operator answers, or null when either fails the dashboard's own checks; the
- * page then keeps its last-known view (a malformed or another build's answer never reaches the views).
+ * The page's read model from the task and operator answers, or null when either fails the dashboard's own checks or
+ * the page's own (every task's timeline and supervisor address); the page then keeps its last-known view, so a
+ * malformed or another build's answer never reaches the views.
  */
 export function supervisionReadModel(snapshot: unknown, status: unknown): { snapshot: Snapshot; status: OperatorStatusProjection } | null {
-  return validTaskSnapshot(snapshot) && validOperatorSnapshot(status) ? { snapshot: snapshot as Snapshot, status: status as OperatorStatusProjection } : null;
+  return validSupervisionSnapshot(snapshot) && validOperatorSnapshot(status) ? { snapshot: snapshot as Snapshot, status: status as OperatorStatusProjection } : null;
 }
 
 export function SupervisionConsole() {

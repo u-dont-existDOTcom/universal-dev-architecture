@@ -596,6 +596,49 @@ test("a malformed activity is unknown everywhere, and the supervision page keeps
   } finally { store.close(); }
 });
 
+test("a task snapshot whose owner action lacks what the first screen reads is not accepted", () => {
+  const store = new EventStore(":memory:");
+  try {
+    seedIssue47Store(store);
+    const snapshot = snapshotFromStore(store);
+    assert.equal(validTaskSnapshot(snapshot), true, "the server's own snapshot passes");
+    const withAction = (patch: Record<string, unknown>, drop: string[] = []) => ({ ...snapshot, workers: snapshot.workers.map((worker, index) => {
+      if (index !== 0) return worker;
+      const action = { ...worker.correction.ownerAction, ...patch } as Record<string, unknown>;
+      for (const key of drop) delete action[key];
+      return { ...worker, correction: { ...worker.correction, ownerAction: action } };
+    }) });
+    for (const key of ["status", "reason_code", "exact_text"]) assert.equal(validTaskSnapshot(withAction({}, [key])), false, `without ${key}`);
+    assert.equal(validTaskSnapshot(withAction({ status: "MAYBE" })), false);
+    assert.equal(validTaskSnapshot(withAction({ due_at: "tomorrow" })), false);
+    assert.equal(validTaskSnapshot(withAction({ due_at: "2026-10-12T12:00:00Z" })), true);
+  } finally { store.close(); }
+});
+
+test("the supervision page refuses an answer whose timelines it can't read, keeping its last-known view", () => {
+  const store = new EventStore(":memory:");
+  try {
+    seedIssue47Store(store);
+    const snapshot = snapshotFromStore(store);
+    const status = operatorStatus({});
+    assert.ok(supervisionReadModel(snapshot, status), "the server's own full snapshot passes");
+    const firstWorker = (patch: (worker: Record<string, unknown>) => Record<string, unknown>) => ({ ...snapshot, workers: snapshot.workers.map((worker, index) =>
+      index === 0 ? patch(worker as unknown as Record<string, unknown>) : worker) });
+    const timeline = snapshot.workers[0].timeline;
+    const message = timeline.find((event) => event.data.type === "worker_message_recorded") ?? timeline[0];
+    const bad = [
+      firstWorker((worker) => { const copy = { ...worker }; delete copy.timeline; return copy; }),
+      firstWorker((worker) => ({ ...worker, timeline: "x" })),
+      firstWorker((worker) => ({ ...worker, timeline: [{ ...timeline[0], eventId: 5 }] })),
+      firstWorker((worker) => ({ ...worker, timeline: [{ ...timeline[0], data: null }] })),
+      firstWorker((worker) => ({ ...worker, timeline: [{ ...message, data: { ...message.data, type: "worker_message_recorded", body: 7 } }] })),
+      firstWorker((worker) => ({ ...worker, timeline: [{ ...timeline[0], data: { type: "reasoning_message_recorded", surface_role: "SUPERVISOR", message_id: "m", body_sha256: "a".repeat(64) } }] })),
+      firstWorker((worker) => ({ ...worker, supervisorChatUrl: null })),
+    ];
+    for (const [index, answer] of bad.entries()) assert.equal(supervisionReadModel(answer, status), null, `case ${index}`);
+  } finally { store.close(); }
+});
+
 test("the last supervisor question time comes from the questions themselves, across tasks", () => {
   const first = activityOf([route("fleet-review:a", "2026-10-11T08:00:00Z"), ...sent("fleet-review:a", "2026-10-11T08:05:00Z", "https://chatgpt.com/c/a-chat")]);
   const second = activityOf([route("fleet-review:b", "2026-10-11T09:00:00Z"), ...sent("fleet-review:b", "2026-10-11T09:10:00Z", "https://chatgpt.com/c/b-chat"),

@@ -128,10 +128,42 @@ function supervisorActivityValid(value: unknown): boolean {
   return isSupervisorActivity(value);
 }
 
+// The fields the first screen's classifier (ownerAttention) and its alarm explanations read from the owner action.
+const OWNER_ACTION_STATUSES = ["NOT_REQUIRED", "OPEN", "COMPLETED", "SUPERSEDED"];
+function ownerActionValid(action: unknown): boolean {
+  if (!strings(action, ["kind", "exact_text", "reason_code"]) || !OWNER_ACTION_STATUSES.includes(String(at(action, "status")))) return false;
+  const due = at(action, "due_at");
+  return due === undefined || due === null || date(due);
+}
+
+// What the supervision page reads from each event of a task's timeline: an id, a sequence and a time; a worker
+// message's body; a reasoning message's role, provenance, ids and optional times, body and locator.
+function timelineEventValid(event: unknown): boolean {
+  if (!record(event) || typeof event.eventId !== "string" || typeof event.sequence !== "number" || !date(event.occurredAt)) return false;
+  const data = event.data;
+  if (!record(data) || typeof data.type !== "string") return false;
+  if (data.type === "worker_message_recorded") return typeof data.body === "string";
+  if (data.type !== "reasoning_message_recorded") return true;
+  return strings(data, ["surface_role", "provenance_status", "message_id", "body_sha256"])
+    && ["immutable_provider_locator", "sent_at_source", "received_at_mission_control", "exact_visible_body", "stable_supervisor_id"]
+      .every((key) => data[key] === undefined || data[key] === null || typeof data[key] === "string");
+}
+
+/**
+ * The supervision page's answer from /api/workers: the dashboard's checks, plus every task's timeline and supervisor
+ * address, which the page reads and the dashboard doesn't. Anything else keeps the page's last-known view.
+ */
+export function validSupervisionSnapshot(value: unknown): boolean {
+  return validTaskSnapshot(value) && record(value) && Array.isArray(value.workers)
+    && value.workers.every((worker) => typeof at(worker, "supervisorChatUrl") === "string"
+      && Array.isArray(at(worker, "timeline")) && (at(worker, "timeline") as unknown[]).every(timelineEventValid));
+}
+
 function workerValid(value: unknown) {
   if (!strings(value, ["id", "name", "status", "objective.goal", "currentStep", "connection.state", "operatorState.traffic", "operatorState.label", "operatorState.reason", "workerToContractAlignment", "contractToOwnerAlignment", "overallTraffic", "channel.freshness", "correction.ownerActionType", "correction.ownerActionText", "correction.statusLabel", "correction.nextReviewTrigger", "correction.ownerAction.kind", "progress.outcomeAdvancement", "progress.strategyEfficacy", "progress.latestEvidence", "progress.previousEvidence", "progress.bestEvidence", "progress.baselineEvidence", "progress.targetEvidence", "progress.requiredIntervention", "executionSupervision.surface", "executionSupervision.proEscalationState", "executionSupervision.codexExecutionState"])) return false;
   if (!["channel.queue", "channel.blockers", "channel.proposals"].every(path => Array.isArray(at(value, path))) || !stringArray(at(value, "nextSteps")) || !date(at(value, "lastCheckpointAt"))) return false;
   if (!supervisorActivityValid(at(value, "supervisorActivity"))) return false;
+  if (!ownerActionValid(at(value, "correction.ownerAction"))) return false;
   for (const path of ["primaryProblemSummary", "blocker", "correction.directive", "channel.latestDirectionBody", "executionSupervision.activeDirectiveId"]) { const part = at(value, path); if (part !== null && typeof part !== "string") return false; }
   if (at(value, "correction.ownerAction.kind") === "DECISION_REQUIRED") {
     const action = at(value, "correction.ownerAction");
