@@ -142,7 +142,7 @@ export function SupervisionConsole() {
           return packet && state ? [{ worker, event, packet, state }] : [];
         });
     })
-      .sort((left, right) => right.event.occurredAt.localeCompare(left.event.occurredAt));
+      .sort((left, right) => Date.parse(right.event.occurredAt) - Date.parse(left.event.occurredAt) || right.event.sequence - left.event.sequence);
   }, [snapshot]);
 
   if (!snapshot || !operatorStatus) {

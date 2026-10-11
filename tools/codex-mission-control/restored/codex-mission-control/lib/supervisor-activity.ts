@@ -79,9 +79,9 @@ export function supervisorActivity(events: readonly StoredEvent[], now: Date, ad
     requests: all.slice(0, RECENT_REQUESTS),
     total: all.length,
     answered: answered.length,
-    lastAnsweredAt: answered.map((request) => request.answeredAt!).sort().at(-1) ?? null,
+    lastAnsweredAt: latestInstant(answered.map((request) => request.answeredAt)),
     latestConversationUrl: all.find((request) => request.conversationUrl)?.conversationUrl ?? null,
-    lastSentAt: all.map((request) => request.sentAt).filter((sentAt): sentAt is string => sentAt !== null).sort().at(-1) ?? null,
+    lastSentAt: latestInstant(all.map((request) => request.sentAt)),
     states: Object.fromEntries(all.map((request) => [request.requestId, request.state])),
   };
 }
@@ -158,8 +158,8 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
       || (session !== null && session === refValue(data.refs, "binding_provider_session"))) continue;
     const generation = refValue(data.refs, "generation_state");
     const lifecycle = refValue(data.refs, "lifecycle_status");
-    if (generation === "STARTED" && (!draft.sentAt || event.occurredAt < draft.sentAt)) draft.sentAt = event.occurredAt;
-    if ((generation === "COMPLETE" || lifecycle === "COMPLETE") && (!draft.finishedAt || event.occurredAt > draft.finishedAt)) {
+    if (generation === "STARTED" && (!draft.sentAt || instant(event.occurredAt) < instant(draft.sentAt))) draft.sentAt = event.occurredAt;
+    if ((generation === "COMPLETE" || lifecycle === "COMPLETE") && (!draft.finishedAt || instant(event.occurredAt) > instant(draft.finishedAt))) {
       draft.finishedAt = event.occurredAt;
     }
     const url = refValue(data.refs, "conversation_url");
@@ -198,8 +198,7 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
 
 /** The newest time any of these tasks' supervisor questions started going to ChatGPT. */
 export function lastSupervisorQuestionSentAt(activities: ReadonlyArray<SupervisorActivity | undefined | null>): string | null {
-  return activities.map((activity) => activity?.lastSentAt ?? null)
-    .filter((sentAt): sentAt is string => typeof sentAt === "string").sort().at(-1) ?? null;
+  return latestInstant(activities.map((activity) => activity?.lastSentAt ?? null));
 }
 
 /** The conversation to open for "what is the supervisor doing": the newest request that reached a chat. */
@@ -242,6 +241,19 @@ function routeLooksValid(body: string, packet: Record<string, unknown>, worker: 
   if (!version || version === "2") return true;
   const expiresAt = timestamp(packet.expiresAt);
   return Boolean(expiresAt && Date.parse(expiresAt) > Date.parse(queuedAt));
+}
+
+/** Timestamps may carry different UTC offsets; compare them as instants, never as text. */
+function instant(value: string): number {
+  return Date.parse(value);
+}
+function latestInstant(values: ReadonlyArray<string | null | undefined>): string | null {
+  let latest: string | null = null;
+  for (const value of values) {
+    if (typeof value !== "string" || !Number.isFinite(instant(value))) continue;
+    if (latest === null || instant(value) > instant(latest)) latest = value;
+  }
+  return latest;
 }
 
 function parsePacket(body: string): Record<string, unknown> | null {

@@ -469,3 +469,22 @@ test("a split-session cycle's binding preload is not the question being sent", (
   assert.equal(request.state, "SENT");
   assert.equal(request.conversationUrl, "https://chatgpt.com/c/decision-chat");
 });
+
+test("supervisor times with different UTC offsets compare as instants", () => {
+  // 10:00-05:00 is 15:00Z, later than 14:30Z, though it sorts earlier as text.
+  const offset = activityOf([
+    route("fleet-review:offsets", "2026-10-11T09:00:00Z"),
+    transport("fleet-review:offsets", "2026-10-11T14:30:00Z", ["generation_state:STARTED"]),
+    transport("fleet-review:offsets", "2026-10-11T10:00:00-05:00", ["generation_state:STARTED"]),
+    transport("fleet-review:offsets", "2026-10-11T14:40:00Z", ["generation_state:COMPLETE"]),
+    transport("fleet-review:offsets", "2026-10-11T10:05:00-05:00", ["generation_state:COMPLETE"]),
+  ]);
+  assert.equal(offset.requests[0].sentAt, "2026-10-11T14:30:00Z", "the earliest start is the send");
+  assert.equal(offset.requests[0].finishedAt, "2026-10-11T10:05:00-05:00", "the latest completion is the finish");
+  assert.equal(lastSupervisorQuestionSentAt([{ ...offset, lastSentAt: "2026-10-11T14:30:00Z" }, { ...offset, lastSentAt: "2026-10-11T10:00:00-05:00" }]), "2026-10-11T10:00:00-05:00");
+  const answers = activityOf([
+    route("fleet-review:x", "2026-10-11T08:00:00Z"), decision("fleet-review:x", "2026-10-11T14:30:00Z"),
+    route("fleet-review:y", "2026-10-11T08:10:00Z"), decision("fleet-review:y", "2026-10-11T10:00:00-05:00"),
+  ]);
+  assert.equal(answers.lastAnsweredAt, "2026-10-11T10:00:00-05:00");
+});
