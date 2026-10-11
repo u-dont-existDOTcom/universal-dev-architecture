@@ -6,7 +6,7 @@ import type { WorkerState } from "@/lib/projection";
 import { StatusDot } from "./StatusDot";
 import { SupervisorLink } from "./SupervisorLink";
 import { SupervisionHealthLine, supervisorStatusLine } from "./SupervisorActivity";
-import { latestSupervisorConversation } from "@/lib/supervisor-activity";
+import { lastSupervisorQuestionSentAt, latestSupervisorConversation } from "@/lib/supervisor-activity";
 import { FleetQueue } from "./WorkerChannel";
 import type { WorkQueueItemProjection } from "@/lib/worker-channel";
 import { ownerMutationHeaders } from "@/lib/browser-auth";
@@ -109,7 +109,7 @@ export function Dashboard() {
     <header className="topbar"><div className="brand-row"><div className="brand-mark">MC</div><div><p className="eyebrow">YOUR WORK, IN VIEW</p><h1>Mission Control</h1></div></div><button className="owner-retry" onClick={() => void load()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</button></header>
     <DashboardNotice failures={failures} hasSnapshot={Boolean(snapshot)} loading={loading} onRetry={() => void load()} />
     {streamError && <div role="status" className="error-banner">Live updates are reconnecting. Displayed information may be stale; use Refresh to check.</div>}
-    {!failures.Infrastructure && <SupervisionHealthLine status={operatorStatus} />}
+    {!failures.Infrastructure && <SupervisionHealthLine status={operatorStatus} lastQuestionAt={lastSupervisorQuestionSentAt(workers.map(worker => worker.supervisorActivity))} />}
     {!snapshot && loading && !partial && <div role="status" className="loading-panel">Loading your recorded work…</div>}
     {snapshot && <>
       <p className="owner-coverage">{workers.length} task{workers.length === 1 ? "" : "s"} in {knownProjects} project{knownProjects === 1 ? "" : "s"}, as reported to Mission Control; work that doesn't report to it isn't shown. Updated {relativeTime(snapshot.generatedAt)} ({new Date(snapshot.generatedAt).toLocaleString()}).{failures.Tasks && " Task data is last-known; current status needs checking."}</p>

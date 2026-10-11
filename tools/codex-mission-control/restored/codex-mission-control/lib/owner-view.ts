@@ -127,7 +127,7 @@ function fleetSupervisorValid(value: unknown) {
 function supervisorActivityValid(value: unknown): boolean {
   if (value === undefined) return true;
   if (!record(value) || typeof value.total !== "number" || typeof value.answered !== "number") return false;
-  if (!nullableString(value.lastAnsweredAt) || !nullableString(value.latestConversationUrl)) return false;
+  if (!nullableString(value.lastAnsweredAt) || !nullableString(value.latestConversationUrl) || !nullableString(value.lastSentAt)) return false;
   if (!record(value.states) || !Object.values(value.states).every((state) => (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(state))) return false;
   return Array.isArray(value.requests) && value.requests.every((request) => record(request)
     && strings(request, ["requestId", "queuedAt"])

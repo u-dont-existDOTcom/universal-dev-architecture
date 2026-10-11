@@ -81,13 +81,13 @@ export function SupervisorActivityPanel({ activity, now = new Date() }: { activi
 
 /**
  * The first screen's line about supervision as a whole: whether the relay that sends questions to ChatGPT (and opens
- * the supervisor chats) is up, and when it last sent one. Without operator status it says nothing; the page's own
+ * the supervisor chats) is up, and when a supervisor question last went out. Without operator status it says nothing; the page's own
  * notice covers a failed read.
  */
-export function SupervisionHealthLine({ status, now = new Date() }: { status: OperatorStatusProjection | null; now?: Date }) {
+export function SupervisionHealthLine({ status, lastQuestionAt, now = new Date() }: { status: OperatorStatusProjection | null; lastQuestionAt: string | null; now?: Date }) {
   if (!status) return null;
-  const lastSend = status.pacing.lastProviderSendBoundaryAt;
-  const sent = lastSend ? `The last question went to ChatGPT ${timeAgo(lastSend, now)}.` : "Nothing has been sent to ChatGPT yet.";
+  // The supervisor questions' own send time, not the relay's last send of any kind (provisioning, Work journals...).
+  const sent = lastQuestionAt ? `The last supervisor question went to ChatGPT ${timeAgo(lastQuestionAt, now)}.` : "No supervisor question has reached ChatGPT yet.";
   // Mission Control's routine checks always ask the Project Manager supervisor; without one they have no one to ask.
   const manager = status.supervisors.find((supervisor) => supervisor.scope === "PROJECT_MANAGER");
   const managerGap = !manager

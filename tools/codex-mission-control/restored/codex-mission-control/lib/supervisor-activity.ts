@@ -39,6 +39,8 @@ export interface SupervisorActivity {
   lastAnsweredAt: string | null;
   /** The chat of the newest question that reached ChatGPT, among all of them, not only the ones listed. */
   latestConversationUrl: string | null;
+  /** When the relay last started sending one of these questions to ChatGPT, among all of them. */
+  lastSentAt: string | null;
   /** The state of every question, by request id, so other views use the same admitted set. */
   states: Record<string, SupervisorRequestState>;
 }
@@ -54,7 +56,7 @@ const TRANSPORT_SUMMARIES = new Set(["MISSION_CONTROL_PROVIDER_SESSION_V1", "MIS
 const QUESTION_LIMIT = 400;
 const ANSWER_LIMIT = 600;
 
-export const emptySupervisorActivity: SupervisorActivity = { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, states: {} };
+export const emptySupervisorActivity: SupervisorActivity = { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, lastSentAt: null, states: {} };
 
 interface Draft extends SupervisorRequestActivity { sequence: number; conversationSequence: number; conversationIsProvisional: boolean }
 
@@ -79,6 +81,7 @@ export function supervisorActivity(events: readonly StoredEvent[], now: Date, ad
     answered: answered.length,
     lastAnsweredAt: answered.map((request) => request.answeredAt!).sort().at(-1) ?? null,
     latestConversationUrl: all.find((request) => request.conversationUrl)?.conversationUrl ?? null,
+    lastSentAt: all.map((request) => request.sentAt).filter((sentAt): sentAt is string => sentAt !== null).sort().at(-1) ?? null,
     states: Object.fromEntries(all.map((request) => [request.requestId, request.state])),
   };
 }
@@ -191,6 +194,12 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
   });
   const order = new Map([...drafts.values()].map((draft) => [draft.requestId, draft.sequence]));
   return all.sort((a, b) => (order.get(b.requestId) ?? 0) - (order.get(a.requestId) ?? 0));
+}
+
+/** The newest time any of these tasks' supervisor questions started going to ChatGPT. */
+export function lastSupervisorQuestionSentAt(activities: ReadonlyArray<SupervisorActivity | undefined | null>): string | null {
+  return activities.map((activity) => activity?.lastSentAt ?? null)
+    .filter((sentAt): sentAt is string => typeof sentAt === "string").sort().at(-1) ?? null;
 }
 
 /** The conversation to open for "what is the supervisor doing": the newest request that reached a chat. */

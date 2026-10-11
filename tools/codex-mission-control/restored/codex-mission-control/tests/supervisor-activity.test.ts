@@ -13,7 +13,7 @@ import { seedIssue47Store } from "../lib/seed";
 import { snapshotForTimeline } from "../lib/snapshot-response";
 import { EventStore } from "../lib/store";
 import { projectWorker } from "../lib/projection";
-import { latestSupervisorConversation, supervisorActivity, type SupervisorRequestAdmission } from "../lib/supervisor-activity";
+import { lastSupervisorQuestionSentAt, latestSupervisorConversation, supervisorActivity, type SupervisorRequestAdmission } from "../lib/supervisor-activity";
 import { validOperatorSnapshot, validTaskSnapshot } from "../lib/owner-view";
 
 const WORKER = "auth";
@@ -214,7 +214,7 @@ test("the task card says what its supervisor was last asked, and links to that c
   try {
     seedIssue47Store(store);
     const worker = snapshotFromStore(store).workers.find((candidate) => candidate.id === "mission-control-live-slice")!;
-    assert.deepEqual(worker.supervisorActivity, { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, states: {} }, "every projected task carries its activity");
+    assert.deepEqual(worker.supervisorActivity, { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null, lastSentAt: null, states: {} }, "every projected task carries its activity");
     const recent = snapshotForTimeline(snapshotFromStore(store), "recent").workers.find((candidate) => candidate.id === worker.id)!;
     assert.deepEqual(recent.supervisorActivity, worker.supervisorActivity, "the dashboard's trimmed snapshot keeps it");
     const empty = renderToStaticMarkup(createElement(OwnerTaskCard, { worker }));
@@ -243,36 +243,79 @@ function operatorStatus(patch: Partial<OperatorStatusProjection>): OperatorStatu
 const manager = { supervisorId: "mc-project-manager", registrationState: "ACTIVE" as const, scope: "PROJECT_MANAGER" as const, registered: true,
   reachable: true, sourceBound: true, latestRouteState: "NONE", latestReasoningAt: null, verifiedReasoningMessages: 0 };
 
-test("the first screen says whether supervision is running and when the last question went out", () => {
-  assert.equal(renderToStaticMarkup(createElement(SupervisionHealthLine, { status: null, now: NOW })), "");
-  const running = renderToStaticMarkup(createElement(SupervisionHealthLine, { status: operatorStatus({}), now: NOW }));
-  assert.match(running, /Supervisor chats can be reached: the relay to ChatGPT is up and the Project Manager supervisor has been reached\. The last question went to ChatGPT 1 hour ago\./);
-  const unproven = renderToStaticMarkup(createElement(SupervisionHealthLine, { status: operatorStatus({ supervisors: [{ ...manager, reachable: false }] }), now: NOW }));
+test("the first screen says whether supervision can run and when the last supervisor question went out", () => {
+  const LAST = "2026-10-11T11:00:00Z";
+  assert.equal(renderToStaticMarkup(createElement(SupervisionHealthLine, { status: null, lastQuestionAt: LAST, now: NOW })), "");
+  const running = renderToStaticMarkup(createElement(SupervisionHealthLine, { status: operatorStatus({}), lastQuestionAt: LAST, now: NOW }));
+  assert.match(running, /Supervisor chats can be reached: the relay to ChatGPT is up and the Project Manager supervisor has been reached\. The last supervisor question went to ChatGPT 1 hour ago\./);
+  const otherSends = renderToStaticMarkup(createElement(SupervisionHealthLine, { status: operatorStatus({}), lastQuestionAt: null, now: NOW }));
+  assert.match(otherSends, /No supervisor question has reached ChatGPT yet\./, "the relay's other sends (provisioning, Work journals) are not supervisor questions");
+  const unproven = renderToStaticMarkup(createElement(SupervisionHealthLine, { status: operatorStatus({ supervisors: [{ ...manager, reachable: false }] }), lastQuestionAt: LAST, now: NOW }));
   assert.match(unproven, /role="alert"/);
   assert.match(unproven, /The Project Manager supervisor isn(?:&#x27;|')t proven reachable yet/);
   assert.doesNotMatch(unproven, /can be reached/);
-  const down = renderToStaticMarkup(createElement(SupervisionHealthLine, { now: NOW, status: operatorStatus({
+  const down = renderToStaticMarkup(createElement(SupervisionHealthLine, { now: NOW, lastQuestionAt: "2026-10-08T12:00:00Z", status: operatorStatus({
     overallState: "DEGRADED", providerRelayState: "UNAVAILABLE",
-    pacing: { ...operatorStatus({}).pacing, lastProviderSendBoundaryAt: "2026-10-08T12:00:00Z" },
     hosts: [{ label: "relay-a", role: "PRIMARY", active: true, reportFresh: false, relayWorkerState: "UNAVAILABLE", browserState: "UNAVAILABLE", authorityBindingState: "UNAVAILABLE", ownedTargetCount: 0, observedAt: "2026-10-08T12:00:00Z", detail: "" }],
   }) }));
   assert.match(down, /role="alert"/);
   assert.match(down, /Supervisor chats can(?:&#x27;|')t be reached right now/);
-  assert.match(down, /is unavailable, so questions wait until it(?:&#x27;|')s back\. The last question went to ChatGPT 3 days ago\./);
+  assert.match(down, /is unavailable, so questions wait until it(?:&#x27;|')s back\. The last supervisor question went to ChatGPT 3 days ago\./);
   assert.match(down, /relay-a: relay unavailable, browser unavailable, no fresh report/);
-  const never = renderToStaticMarkup(createElement(SupervisionHealthLine, { now: NOW, status: operatorStatus({ providerRelayState: "DEGRADED", pacing: { ...operatorStatus({}).pacing, lastProviderSendBoundaryAt: null } }) }));
-  assert.match(never, /is degraded[^<]*Nothing has been sent to ChatGPT yet\./);
+  const never = renderToStaticMarkup(createElement(SupervisionHealthLine, { now: NOW, lastQuestionAt: null, status: operatorStatus({ providerRelayState: "DEGRADED" }) }));
+  assert.match(never, /is degraded[^<]*No supervisor question has reached ChatGPT yet\./);
   assert.match(never, /no relay host has reported/);
   assert.doesNotMatch(never, /Project Manager/, "no manager warning while a manager is set up");
-  const noManager = renderToStaticMarkup(createElement(SupervisionHealthLine, { now: NOW, status: operatorStatus({ supervisors: [] }) }));
+  const noManager = renderToStaticMarkup(createElement(SupervisionHealthLine, { now: NOW, lastQuestionAt: LAST, status: operatorStatus({ supervisors: [] }) }));
   assert.match(noManager, /Routine supervisor checks can(?:&#x27;|')t run\./);
   assert.match(noManager, /No Project Manager supervisor chat is set up/);
   assert.doesNotMatch(noManager, /can be reached/);
-  const provisioning = renderToStaticMarkup(createElement(SupervisionHealthLine, { now: NOW, status: operatorStatus({ supervisors: [{ ...manager, registrationState: "PROVISIONING" }] }) }));
+  const provisioning = renderToStaticMarkup(createElement(SupervisionHealthLine, { now: NOW, lastQuestionAt: LAST, status: operatorStatus({ supervisors: [{ ...manager, registrationState: "PROVISIONING" }] }) }));
   assert.match(provisioning, /hasn(?:&#x27;|')t been created yet/);
-  const downWithoutManager = renderToStaticMarkup(createElement(SupervisionHealthLine, { now: NOW, status: operatorStatus({ providerRelayState: "UNAVAILABLE", supervisors: [] }) }));
+  const downWithoutManager = renderToStaticMarkup(createElement(SupervisionHealthLine, { now: NOW, lastQuestionAt: LAST, status: operatorStatus({ providerRelayState: "UNAVAILABLE", supervisors: [] }) }));
   assert.match(downWithoutManager, /can(?:&#x27;|')t be reached right now/);
   assert.match(downWithoutManager, /No Project Manager supervisor chat is set up/);
+});
+
+test("the last supervisor question time comes from the questions themselves, across tasks", () => {
+  const first = activityOf([route("fleet-review:a", "2026-10-11T08:00:00Z"), transport("fleet-review:a", "2026-10-11T08:05:00Z", ["generation_state:STARTED"])]);
+  const second = activityOf([route("fleet-review:b", "2026-10-11T09:00:00Z"), transport("fleet-review:b", "2026-10-11T09:10:00Z", ["generation_state:STARTED"]),
+    route("fleet-review:c", "2026-10-11T10:00:00Z")]);
+  assert.equal(first.lastSentAt, "2026-10-11T08:05:00Z");
+  assert.equal(second.lastSentAt, "2026-10-11T09:10:00Z", "an unsent newer question doesn't count");
+  assert.equal(lastSupervisorQuestionSentAt([first, undefined, second, activityOf([])]), "2026-10-11T09:10:00Z");
+  assert.equal(lastSupervisorQuestionSentAt([]), null);
+});
+
+test("relay receipts count only while the receipt policy enables the request-bound protocol", () => {
+  const store = new EventStore(":memory:");
+  const saved = process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON;
+  try {
+    seedIssue47Store(store);
+    const id = "mission-control-live-slice";
+    const base = store.workerEvents(id);
+    const offset = base.at(-1)!.sequence;
+    const ours = (event: StoredEvent): StoredEvent => ({ ...event, worker: id, sequence: offset + event.sequence,
+      data: { ...event.data, worker: id, ...(event.data.type === "worker_message_recorded" ? { body: (event.data as { body: string }).body.replaceAll(`"worker":"${WORKER}"`, `"worker":"${id}"`) } : {}) } as StoredEvent["data"] });
+    const events = [...base, ours(route("fleet-review:policy", "2026-10-11T10:00:00Z")),
+      ours(transport("fleet-review:policy", "2026-10-11T10:05:00Z", ["generation_state:STARTED", "conversation_url:https://chatgpt.com/c/policy-chat"]))];
+    const policy = (enabled: boolean) => JSON.stringify({ repository: "owner/receipts", decisionIssueNumber: 1, capabilityIssueNumber: 2, stageIssueNumber: 3,
+      authorizedWriterLogins: ["owner"], capabilityChallenges: [], requestBound: { enabled, relayProducerIds: ["collector:relay-primary"] } });
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = policy(true);
+    let [request] = projectWorker(events, NOW).supervisorActivity.requests;
+    assert.equal(request.state, "SENT");
+    assert.equal(request.conversationUrl, "https://chatgpt.com/c/policy-chat");
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = policy(false);
+    [request] = projectWorker(events, NOW).supervisorActivity.requests;
+    assert.equal(request.state, "QUEUED", "a disabled protocol trusts no relay");
+    assert.equal(request.conversationUrl, null);
+    process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = "{not json";
+    [request] = projectWorker(events, NOW).supervisorActivity.requests;
+    assert.equal(request.state, "QUEUED", "an invalid policy trusts no relay");
+  } finally {
+    if (saved === undefined) delete process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON; else process.env.MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON = saved;
+    store.close();
+  }
 });
 
 test("the supervision page reads current (V5/V6) questions and stops waiting once they are answered or expired", () => {
@@ -405,7 +448,7 @@ test("a task snapshot with a malformed supervisor activity is not accepted as a 
     assert.equal(validTaskSnapshot(withActivity(good)), true);
     assert.equal(validTaskSnapshot(withActivity(undefined)), true, "a snapshot from a build without it still renders");
     for (const bad of [{}, null, { ...good, requests: "x" }, { ...good, states: { a: "LOST" } }, { ...good, requests: [{ ...good.requests[0], state: "LOST" }] },
-      { ...good, requests: [{ ...good.requests[0], conversationUrl: 5 }] }, { ...good, total: "1" }]) {
+      { ...good, requests: [{ ...good.requests[0], conversationUrl: 5 }] }, { ...good, total: "1" }, { ...good, lastSentAt: 5 }]) {
       assert.equal(validTaskSnapshot(withActivity(bad)), false, JSON.stringify(bad).slice(0, 80));
     }
   } finally { store.close(); }

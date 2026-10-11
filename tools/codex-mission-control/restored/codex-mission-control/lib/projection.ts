@@ -256,7 +256,9 @@ function supervisorRequestAdmission(events: StoredEvent[]): SupervisorRequestAdm
   const { admitted, superseded } = admittedCycleRequests(events);
   let trustedRelays: string[] = [];
   try {
-    trustedRelays = parseGitHubReceiptPolicy()?.requestBound?.relayProducerIds ?? [];
+    const requestBound = parseGitHubReceiptPolicy()?.requestBound;
+    // Like the routing code, trust the relay producers only while the request-bound protocol is enabled.
+    trustedRelays = requestBound?.enabled === true ? requestBound.relayProducerIds : [];
   } catch {
     // An invalid receipt policy trusts no relay: questions still show, but not as sent.
   }
