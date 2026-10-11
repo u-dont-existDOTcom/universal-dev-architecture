@@ -94,6 +94,12 @@
       "owner_quote": "that's weird the owner question page wasn't stored on github? fix that in UDA rules then, anything that should be continuable between accounts needs to really be stored on github clearly and there should be the continuation handoff always stored in the claude-acceptance-transfer folder in my home folder, isn't that in UDA rules?",
       "date": "2026-10-10",
       "source": "docs/requirements/2026-10-10-cross-account-continuity.owner-requirement.json"
+    },
+    {
+      "id": "patterns/written-rule-checker-coverage.md",
+      "owner_quote": "you mention that boring and quietly were in the tells list, but never checked? why is that? can we debug that? any time something is not executing as intended it should be debugged. make sure to send that to UDA worker it should be in UDA.",
+      "date": "2026-10-11",
+      "source": "docs/requirements/2026-10-11-written-rule-checker-coverage.owner-requirement.json"
     }
   ]
 }

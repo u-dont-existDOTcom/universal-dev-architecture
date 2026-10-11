@@ -39,11 +39,11 @@ The systemic gap fits existing logic-map entries: LF-2.1 for unloaded/stale guid
 
 ## Current counts
 
-Inventory entries: 99
+Inventory entries: 100
 
-Indexed patterns: 85
+Indexed patterns: 86
 
-Migration backlog: 78
+Migration backlog: 79
 
 Task-time records: 75, sourced from 13 files, with 2 mechanical and 83 semantic obligations. Corrected slice 2a adds 28 records and extends three continuity records; its 31 records carry 32 semantic behaviors and 281 mapped clause rows.
 
@@ -52,12 +52,12 @@ Task-time records: 75, sourced from 13 files, with 2 mechanical and 83 semantic 
 | STRUCTURED_ENFORCED | 9 |
 | STRUCTURED_PARTIAL | 9 |
 | WORKFLOW_ONLY | 10 |
-| LEGACY_UNSTRUCTURED | 69 |
+| LEGACY_UNSTRUCTURED | 70 |
 | NOT_ACTIVE | 2 |
 
 Six root sections, the two review/merge patterns and exclusive active-task locks are STRUCTURED_ENFORCED. Context-compaction resilience and terminal admission are STRUCTURED_PARTIAL with exact operative remainders, alongside the six earlier partial sources. Slice 2b also makes the owner-outcome invariant STRUCTURED_PARTIAL with exact server and Work-budget remainders. The parent owner outcome remains OPEN for operating-system slice 2c and later priorities.
 
-The immutable baseline pins 84 identities. Corrected backlog falls from 78 before slice 2a to 77: only the task-lock pattern is a complete promotion. Seven baseline identities are removed. The owner-required cross-account continuity pattern adds one exact authorized legacy identity; the baseline pin is unchanged. P1 is 15, P2 is 48 and P3 is 15. The two review/merge identities never belonged to the baseline. The owner explicitly required correcting overstated dispositions; the requirement records that authority and pins partial clause maps without authorizing new baseline identities.
+The immutable baseline pins 84 identities. Corrected backlog falls from 78 before slice 2a to 77: only the task-lock pattern is a complete promotion. Seven baseline identities are removed. The owner-required cross-account continuity and written-rule checker coverage patterns each add one exact authorized legacy identity; the baseline pin is unchanged. P1 is 15, P2 is 49 and P3 is 15. The two review/merge identities never belonged to the baseline. The owner explicitly required correcting overstated dispositions; the requirement records that authority and pins partial clause maps without authorizing new baseline identities.
 
 ## Kernel slice 1 obligation map
 
@@ -309,6 +309,7 @@ Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_
 | `patterns/whole-argument-reconstruction.md` | P2 | CONDITIONAL |
 | `patterns/worker-github-publication-and-recovery.md` | P2 | CONDITIONAL |
 | `patterns/worker-self-remediation-before-owner-interruption.md` | P2 | CONDITIONAL |
+| `patterns/written-rule-checker-coverage.md` | P2 | CONDITIONAL |
 | `patterns/chat-led-reasoning-codex-execution-separation.md` | P3 | SPECIALIST |
 | `patterns/chatgpt-developer-mcp-chat-lifecycle.md` | P3 | SPECIALIST |
 | `patterns/chatgpt-work-cloud-dispatch.md` | P3 | SPECIALIST |
@@ -1212,3 +1213,7 @@ The following table is the inventory's complete obligation_map, including litera
 ## Cross-account continuity integration
 
 `patterns/cross-account-continuity.md` is LEGACY_UNSTRUCTURED with an index trigger and P2 conditional migration priority. Its tests preserve the four rules, owner quotation, privacy exclusions and routes; they do not prove live Git persistence, handoff updates or account continuity. The exact addition is recorded separately from the unchanged baseline identities. No task-time records, source locks or generated contracts change.
+
+## Written-rule checker coverage integration
+
+`patterns/written-rule-checker-coverage.md` is LEGACY_UNSTRUCTURED with an index trigger and P2 conditional migration priority. Its tests preserve the six rules, the owner quotation, the example-deployment boundary, the evidence limits and routes; they do not prove that any project keeps a registry, that a registry test runs, or that a checker fires on its examples. The exact addition is recorded separately from the unchanged baseline identities. No task-time records, source locks or generated contracts change.

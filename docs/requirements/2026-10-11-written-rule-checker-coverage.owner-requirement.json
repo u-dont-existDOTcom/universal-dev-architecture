@@ -1,0 +1,55 @@
+{
+  "requirement_id": "2026-10-11-written-rule-checker-coverage",
+  "date": "2026-10-11",
+  "source": "Owner message in a Claude chat on 2026-10-11, after the assistant said that two AI-sounding words were on a writing workstream's tells list but had not been checked by its linter.",
+  "owner_statement": "you mention that boring and quietly were in the tells list, but never checked? why is that? can we debug that? any time something is not executing as intended it should be debugged. make sure to send that to UDA worker it should be in UDA.",
+  "problem": "A written rule list and the checker meant to enforce it were maintained separately, with nothing tying them together. Items were added to the written list without checks; some checks could never match real input (curly apostrophes, a two-sentence pattern tested one sentence at a time, case-sensitive matching); and a flagged item was kept for a reason the rule didn't allow. The gap showed only when the owner noticed listed words reaching the output.",
+  "recurring_finding": {
+    "class": "A control written in prose and assumed active without mechanical evidence that its check exists and fires.",
+    "prior_fixes": [
+      "The article repository's 2026-10-10 fix added the two words the owner noticed to the linter, one at a time, without auditing the rest of the list."
+    ],
+    "redesign": "A registry ties each written item to its check and an example; a test runs every example through the checker and checks that each quoted rule is still where the registry says. Owner-noticed failures are debugged at the mechanism, with an audit of every sibling item that shares the cause."
+  },
+  "required_behavior": [
+    "Treat a written rule that names a mechanical check as inactive until a check implements it and a test shows it firing on an example.",
+    "Keep a registry of every written item: where it is written, whether it is mechanical, the check that implements it, and an example; judgment-only items are listed with the reason.",
+    "Test the registry: each mechanical example must trigger its named check, and each quoted rule must still be in the file the registry names.",
+    "Add an item, its registry entry, and its check and example in the same change.",
+    "When something does not run as intended, debug the mechanism, audit every sibling item that shares the cause, fix the cause, add the test that would have caught it, and record the finding on the logic-failure map.",
+    "Keep a flagged item only for a reason the rule itself gives."
+  ],
+  "authority": "OWNER_REQUIRED. This adds a coverage method for written rules that name mechanical checks. It does not turn judgment rules into mechanical ones, and it adds no gate where no written mechanical rules exist.",
+  "scope": "Any project under the universal architecture that keeps written rules alongside a checker meant to enforce them: linters, validators, audits, pre-commit and pre-push checks.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "notes": "The owner asked for the failure to be debugged and for the lesson to be kept in this repository. The pattern's wording is the assistant's; the reference implementation is the article repository's fix of the same day."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/written-rule-checker-coverage.md, its LESSON-INDEX entry, the docs index route, and the LF-7.1 row of patterns/logic-failure-map.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "tests/test_written_rule_checker_coverage.py",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "The owner's article repository: tools/humanization/tells_registry.json, its registry test, and the linter fixes",
+      "disposition": "QUEUED",
+      "reason": "Lands through that repository's own pull request, which waits for the owner's merge."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED",
+    "TESTED_TEXT_ONLY"
+  ],
+  "nonclaims": [
+    "This repository's tests check the pattern text and routes; they do not prove that any project keeps its registry current.",
+    "The audit counts (131 written tells, 82 mechanical, 51 checked, 31 missed) are the article repository's measurement of 2026-10-11, not re-measured here.",
+    "Nothing here is LIVE_VERIFIED."
+  ]
+}
