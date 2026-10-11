@@ -4,7 +4,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DashboardNotice, OwnerTaskCard, ProjectWatchSummary } from "../components/Dashboard";
 import { FleetQueue, QueueDependencies } from "../components/WorkerChannel";
-import { readDashboardData, validTaskSnapshot, validOperatorSnapshot, snapshotFailure, orderedOpenQueue, ownerAttention, resolvePrerequisites, workerDisposition } from "../lib/owner-view";
+import { readDashboardData, validTaskSnapshot, validOperatorSnapshot, snapshotFailure, orderedOpenQueue, ownerActionReasonCodesForTheOwner, ownerAlarmReasonCodes, ownerAttention, resolvePrerequisites, workerDisposition } from "../lib/owner-view";
+import { readFileSync } from "node:fs";
 import type { WorkQueueItemProjection } from "../lib/worker-channel";
 import { snapshotFromStore } from "../lib/dashboard-data";
 import { EventStore } from "../lib/store";
@@ -47,6 +48,22 @@ test("the first screen separates real owner decisions from alarms Mission Contro
   assert.equal(ownerAttention(withOwnerAction(base, { kind: "MANUAL_INTERVENTION_REQUIRED", reason_code: "OWNER.ACTION_TELEMETRY_MISSING", status: "COMPLETED" }), now), null);
   const none = { ...base, correction: { ...base.correction, ownerActionType: "NONE" as const } };
   assert.equal(ownerAttention(none, now), null);
+});
+
+test("every owner action the projection makes up itself is classified as an alarm or as the owner's", () => {
+  const source = readFileSync(new URL("../lib/projection.ts", import.meta.url), "utf8");
+  const made = [...source.matchAll(/reason_code: "(OWNER\.[A-Z_]+)"/g)].map(match => match[1]);
+  assert.ok(made.length >= 7, "the projection still makes up owner actions");
+  for (const code of made) {
+    assert.ok(ownerAlarmReasonCodes.includes(code) || ownerActionReasonCodesForTheOwner.includes(code),
+      `${code} needs a place on the first screen: an alarm with plain words, or the owner's own action`);
+  }
+  const blocked = withOwnerAction(liveSliceWorker(), { kind: "MANUAL_INTERVENTION_REQUIRED", reason_code: "OWNER.CORRECTION_BLOCKED_BY_OWNER",
+    exact_text: "Correction is blocked on owner intervention: approve the data deletion." });
+  assert.deepEqual(ownerAttention(blocked), { kind: "decision" });
+  const undelivered = withOwnerAction(liveSliceWorker(), { kind: "MANUAL_INTERVENTION_REQUIRED", reason_code: "OWNER.DIRECTIVE_DELIVERY_FAILED_NO_RETRY",
+    exact_text: "Directive delivery failed and no working automated retry owns the next transition." });
+  assert.equal(ownerAttention(undelivered)?.kind, "alarm");
 });
 
 for (const supervisor of [

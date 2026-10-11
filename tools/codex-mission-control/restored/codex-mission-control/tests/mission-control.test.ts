@@ -72,6 +72,19 @@ test("a worker with no recorded supervisor chat says so instead of linking the C
   assert.doesNotMatch(html, /href="https:\/\/chatgpt\.com\/"/);
 });
 
+test("a supervisor chat link set later is used when the recorded route has no real chat", () => {
+  const events = cloneEvents(workerEvents("auth"));
+  assert.equal(demoWorker("auth").supervisorChatIsPlaceholder, true, "the demo route has a placeholder address");
+  pushV2(events, "source:auth:supervisor-link", {
+    type: "supervisor_chat_link_set", worker: "auth", supervisor_chat_url: "https://chatgpt.com/c/linked-later",
+    supervisor_chat_label: "Open auth supervisor", reason: "The owner linked the supervisor chat",
+  } as MissionControlEventV2, "2026-08-30T20:04:00.000Z");
+  const worker = projectWorker(events, new Date("2026-08-30T20:05:00.000Z"));
+  assert.equal(worker.supervisorChatUrl, "https://chatgpt.com/c/linked-later");
+  assert.equal(worker.supervisorChatLabel, "Open auth supervisor");
+  assert.equal(worker.supervisorChatIsPlaceholder, false);
+});
+
 test("a recorded real supervisor chat stays a link, and a demo address is not offered as one", () => {
   const events = cloneEvents(workerEvents("auth"));
   replaceLatest(events, "supervision_route_recorded", (data) => ({ ...data, supervisor_chat_url: "https://chatgpt.com/c/real-supervisor-chat" }));

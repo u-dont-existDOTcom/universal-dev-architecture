@@ -334,10 +334,16 @@ function projectV2Worker(
     ?? progressWhy(progress, comparison.outcomeAdvancement)
     ?? (comparison.contractToOwnerAlignment !== "MATCH" ? comparison.currentGap : null)
     ?? terminalWhy(comparison);
-  // No recorded route or link means no supervisor chat is linked yet: leave it empty (shown as "No supervisor chat
-  // linked") instead of pointing the owner at the ChatGPT home page.
-  const supervisorUrl = route?.supervisor_chat_url ?? latestSupervisorLink(events)?.supervisor_chat_url ?? "";
-  const supervisorLabel = route?.supervisor_chat_label ?? latestSupervisorLink(events)?.supervisor_chat_label ?? "Open supervisor chat";
+  // The recorded route's chat, else a supervisor chat link set for the worker: an address that can't open a specific
+  // chat (a placeholder or a home page) never hides a valid one. With no valid address, nothing is linked ("No
+  // supervisor chat linked") instead of pointing the owner at the ChatGPT home page.
+  const supervisorLink = latestSupervisorLink(events);
+  const supervisorChat = chooseSupervisorChat([
+    route && { url: route.supervisor_chat_url, label: route.supervisor_chat_label },
+    supervisorLink && { url: supervisorLink.supervisor_chat_url, label: supervisorLink.supervisor_chat_label },
+  ]);
+  const supervisorUrl = supervisorChat.url;
+  const supervisorLabel = supervisorChat.label;
   const lastCheckpoint = checkpointEvent(events) ?? events.at(-1)!;
   const channel = projectWorkerChannel(events);
 
@@ -734,7 +740,11 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
     pendingReasoningReview: true,
     unresolvedOwnerObligation: true,
   };
-  const supervisorUrl = link?.supervisor_chat_url ?? objective.supervisor_chat_url;
+  const legacySupervisorChat = chooseSupervisorChat([
+    link && { url: link.supervisor_chat_url, label: link.supervisor_chat_label },
+    { url: objective.supervisor_chat_url, label: objective.supervisor_chat_label },
+  ]);
+  const supervisorUrl = legacySupervisorChat.url;
   const channel = projectWorkerChannel(events);
   return {
     id: objective.worker,
@@ -759,7 +769,7 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
       legacy: true,
     },
     supervisorChatUrl: supervisorUrl,
-    supervisorChatLabel: link?.supervisor_chat_label ?? objective.supervisor_chat_label,
+    supervisorChatLabel: legacySupervisorChat.label,
     supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
     status: heartbeat?.status ?? "working",
     health: overall,
@@ -1022,6 +1032,13 @@ export function projectWorkerConnection(events: StoredEvent[], now = new Date())
 function latest<T extends MissionControlEventV2["type"]>(events: StoredEvent[], type: T): Extract<MissionControlEventV2, { type: T }> | undefined {
   const data = [...events].reverse().find((event) => event.data.type === type)?.data;
   return data?.type === type ? data as Extract<MissionControlEventV2, { type: T }> : undefined;
+}
+
+/** The first candidate that opens a specific chat; otherwise the first recorded one (shown as not linked), or none. */
+function chooseSupervisorChat(candidates: Array<{ url: string; label?: string | null } | undefined | null | false>) {
+  const recorded = candidates.filter((candidate): candidate is { url: string; label?: string | null } => Boolean(candidate && candidate.url));
+  const chosen = recorded.find((candidate) => isSpecificChatAddress(candidate.url)) ?? recorded[0];
+  return { url: chosen?.url ?? "", label: chosen?.label || "Open supervisor chat" };
 }
 
 function latestSupervisorLink(events: StoredEvent[]) {

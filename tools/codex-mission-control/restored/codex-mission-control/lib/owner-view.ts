@@ -64,7 +64,14 @@ const OWNER_ALARMS: Record<string, { title: string; explain: (action: OwnerActio
     title: "Conflicting instructions",
     explain: () => "Two active instructions to this worker conflict, so its correction waits until one is withdrawn. Ask its supervisor to settle it.",
   },
+  "OWNER.DIRECTIVE_DELIVERY_FAILED_NO_RETRY": {
+    title: "An instruction didn't get through",
+    explain: () => "Mission Control couldn't deliver an instruction to this task's worker, and nothing is set to try again. Ask its supervisor to resend it or change course.",
+  },
 };
+// Reason codes the projection makes up itself that really are the owner's to act on: they stay decisions.
+export const ownerActionReasonCodesForTheOwner = ["OWNER.CORRECTION_BLOCKED_BY_OWNER"];
+export const ownerAlarmReasonCodes = Object.keys(OWNER_ALARMS);
 
 export type OwnerAttention = { kind: "decision" } | { kind: "alarm"; title: string; explanation: string } | null;
 
