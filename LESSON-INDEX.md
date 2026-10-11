@@ -94,6 +94,8 @@ Use this file as the entry point for cross-project lesson retrieval. This is a r
 
 85. `patterns/cross-account-continuity.md` — owner rule: when work may continue from another of the owner's accounts, keep everything a successor needs in GitHub at a path the bootstrap or checkpoint names (the checkpoint, open obligations, the owner's decisions, and the owner questions page as `OWNER-QUESTIONS.md`), with owner-private state in a private repository; treat artifacts, chats, memory and scratch files as views, never the only copy; and keep one handoff note per line of work in the owner's local handoff folder, updated every turn with a one-line resume instruction.
 
+86. `patterns/specialist-research-continuity-and-result-utility.md` — When a user continues a specialist research task with 'continue' or related follow-up, retain the previously requested active connector/protocol and unresolved completion gates until explicit exit; keep numerical clinical effects interpretable with scale ranges, per-arm denominators and comparator differences, and put low-value screened leads in the appendix rather than the main answer.
+
 ## Kernel cross-reference
 
 - `AGENTS.md` → **Workflow** — When closing a substantive pass or switching methods, verify that every explicit commitment was executed or explicitly superseded; adjacent analysis or planning does not close it.
