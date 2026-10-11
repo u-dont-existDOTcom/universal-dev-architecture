@@ -1,5 +1,5 @@
 import type { OperatorStatusProjection } from "@/lib/operator-status-contract";
-import type { SupervisorActivity, SupervisorRequestActivity } from "@/lib/supervisor-activity";
+import { isSupervisorActivity, type SupervisorRequestActivity } from "@/lib/supervisor-activity";
 import { timeAgo } from "@/lib/owner-view";
 
 export const SUPERVISOR_REQUEST_ORIGIN: Record<SupervisorRequestActivity["origin"], string> = {
@@ -30,10 +30,10 @@ function clip(value: string, limit: number): string {
 
 /**
  * One sentence for a task card: what its supervisor was last asked and where that stands. Without the task's activity
- * (a snapshot that doesn't carry it) nothing is known, which is not the same as nothing asked.
+ * (missing or malformed) nothing is known, which is not the same as nothing asked.
  */
-export function supervisorStatusLine(activity: SupervisorActivity | undefined | null, now = new Date()): string {
-  if (!activity) return "Not available right now.";
+export function supervisorStatusLine(activity: unknown, now = new Date()): string {
+  if (!isSupervisorActivity(activity)) return "Not available right now.";
   const latest = activity.requests[0];
   if (!latest) return "Not asked anything yet.";
   const asked = `Asked ${timeAgo(latest.queuedAt, now)}`;
@@ -52,8 +52,8 @@ export function supervisorStatusLine(activity: SupervisorActivity | undefined | 
 }
 
 /** The worker page's list: the latest questions its supervisor chats got, their state, the answer and the chat. */
-export function SupervisorActivityPanel({ activity, now = new Date() }: { activity: SupervisorActivity | undefined | null; now?: Date }) {
-  if (!activity) {
+export function SupervisorActivityPanel({ activity, now = new Date() }: { activity: unknown; now?: Date }) {
+  if (!isSupervisorActivity(activity)) {
     return (
       <section className="supervisor-activity" aria-labelledby="supervisor-activity-title">
         <h2 id="supervisor-activity-title">What its supervisor is doing</h2>

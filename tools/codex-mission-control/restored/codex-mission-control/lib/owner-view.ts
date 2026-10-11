@@ -1,7 +1,7 @@
 import type { WorkerState } from "./projection";
 import type { OwnerActionObligation } from "./schema";
 import type { WorkQueueItemProjection } from "./worker-channel";
-import { SUPERVISOR_REQUEST_ORIGINS, SUPERVISOR_REQUEST_STATES } from "./supervisor-activity";
+import { isSupervisorActivity } from "./supervisor-activity";
 
 export type SnapshotFailure = { kind: "session" | "network" | "server"; message: string };
 export class SnapshotError extends Error {
@@ -125,16 +125,8 @@ function fleetSupervisorValid(value: unknown) {
 // The task cards and the first screen read the supervisor activity; a missing or malformed one is not a usable refresh.
 // Missing means unknown, not "never asked", so a snapshot without it (another build's) keeps the last good one.
 function supervisorActivityValid(value: unknown): boolean {
-  if (!record(value) || typeof value.total !== "number" || typeof value.answered !== "number") return false;
-  if (!nullableString(value.lastAnsweredAt) || !nullableString(value.latestConversationUrl) || !nullableString(value.lastSentAt)) return false;
-  if (!record(value.states) || !Object.values(value.states).every((state) => (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(state))) return false;
-  return Array.isArray(value.requests) && value.requests.every((request) => record(request)
-    && strings(request, ["requestId", "queuedAt"])
-    && (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(request.state)
-    && (SUPERVISOR_REQUEST_ORIGINS as readonly unknown[]).includes(request.origin)
-    && ["supervisorId", "question", "expiresAt", "sentAt", "finishedAt", "answeredAt", "answer", "conversationUrl"].every((key) => nullableString(request[key])));
+  return isSupervisorActivity(value);
 }
-function nullableString(value: unknown): boolean { return value === null || typeof value === "string"; }
 
 function workerValid(value: unknown) {
   if (!strings(value, ["id", "name", "status", "objective.goal", "currentStep", "connection.state", "operatorState.traffic", "operatorState.label", "operatorState.reason", "workerToContractAlignment", "contractToOwnerAlignment", "overallTraffic", "channel.freshness", "correction.ownerActionType", "correction.ownerActionText", "correction.statusLabel", "correction.nextReviewTrigger", "correction.ownerAction.kind", "progress.outcomeAdvancement", "progress.strategyEfficacy", "progress.latestEvidence", "progress.previousEvidence", "progress.bestEvidence", "progress.baselineEvidence", "progress.targetEvidence", "progress.requiredIntervention", "executionSupervision.surface", "executionSupervision.proEscalationState", "executionSupervision.codexExecutionState"])) return false;

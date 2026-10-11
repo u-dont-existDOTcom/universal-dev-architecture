@@ -7,7 +7,8 @@ import type { StoredEvent } from "@/lib/schema";
 import { formatMessageTimestamp } from "@/lib/message-time";
 import { StatusDot } from "./StatusDot";
 import type { OperatorStatusProjection, OperatorSupervisorStatus } from "@/lib/operator-status-contract";
-import { isPendingSupervisorRequest, latestSupervisorConversation, type SupervisorRequestState } from "@/lib/supervisor-activity";
+import { isPendingSupervisorRequest, isSupervisorActivity, latestSupervisorConversation, type SupervisorRequestState } from "@/lib/supervisor-activity";
+import { validOperatorSnapshot, validTaskSnapshot } from "@/lib/owner-view";
 import { SUPERVISOR_REQUEST_STATE, supervisorStatusLine } from "./SupervisorActivity";
 
 interface Snapshot {
@@ -87,6 +88,14 @@ const providerSessionRoutePrefixes = [
   "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n",
 ] as const;
 
+/**
+ * The page's read model from the task and operator answers, or null when either fails the dashboard's own checks; the
+ * page then keeps its last-known view (a malformed or another build's answer never reaches the views).
+ */
+export function supervisionReadModel(snapshot: unknown, status: unknown): { snapshot: Snapshot; status: OperatorStatusProjection } | null {
+  return validTaskSnapshot(snapshot) && validOperatorSnapshot(status) ? { snapshot: snapshot as Snapshot, status: status as OperatorStatusProjection } : null;
+}
+
 export function SupervisionConsole() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [directory, setDirectory] = useState<ConfiguredSupervisorDirectory>(emptyDirectory);
@@ -101,8 +110,10 @@ export function SupervisionConsole() {
         fetch("/api/operator-status", { cache: "no-store" }),
       ]);
       if (!snapshotResponse.ok || !operatorResponse.ok) throw new Error("supervision snapshot failed");
-      setSnapshot(await snapshotResponse.json());
-      setOperatorStatus(await operatorResponse.json());
+      const model = supervisionReadModel(await snapshotResponse.json(), await operatorResponse.json());
+      if (!model) throw new Error("supervision snapshot malformed");
+      setSnapshot(model.snapshot);
+      setOperatorStatus(model.status);
       if (directoryResponse.ok) {
         const configured = await directoryResponse.json() as ConfiguredSupervisorDirectory;
         setDirectory(configured);
@@ -133,7 +144,7 @@ export function SupervisionConsole() {
   const routeRows = useMemo<RouteRow[]>(() => {
     return (snapshot?.workers ?? []).flatMap((worker) => {
       // Only questions the server projection admitted (its own request parser and replacement rules) are listed.
-      const states = worker.supervisorActivity?.states ?? {};
+      const states = isSupervisorActivity(worker.supervisorActivity) ? worker.supervisorActivity.states : {};
       return worker.timeline
         .filter(isWorkerMessageEvent)
         .flatMap((event) => {
@@ -163,7 +174,7 @@ export function SupervisionConsole() {
   const verifiedProjectManagerMessages = projectManagerRows.filter((row) => row.event.data.provenance_status === "VERIFIED").length;
   const configuredSpecialists = directory.entries.filter((entry) => entry.scope === "SPECIALIST");
   // A task whose snapshot doesn't carry its supervisor activity has unknown questions, not none.
-  const unknownActivity = snapshot.workers.filter((worker) => !worker.supervisorActivity).length;
+  const unknownActivity = snapshot.workers.filter((worker) => !isSupervisorActivity(worker.supervisorActivity)).length;
 
   return <main className="shell detail-shell">
     <header className="topbar">

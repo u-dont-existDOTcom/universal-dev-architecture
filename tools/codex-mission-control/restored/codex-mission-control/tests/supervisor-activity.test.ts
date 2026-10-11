@@ -3,7 +3,7 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { OwnerTaskCard, supervisionHistory } from "../components/Dashboard";
-import { parseInternalRoutePacket, pendingRoute, workflowState } from "../components/SupervisionConsole";
+import { parseInternalRoutePacket, pendingRoute, supervisionReadModel, workflowState } from "../components/SupervisionConsole";
 import { SupervisionHealthLine, SupervisorActivityPanel, supervisorStatusLine } from "../components/SupervisorActivity";
 import { LATEST_CHAT_LABEL, supervisorChatView } from "../components/SupervisorLink";
 import { snapshotFromStore } from "../lib/dashboard-data";
@@ -144,13 +144,14 @@ test("a supervisor question moves from queued to sent, finished and answered, wi
 
   events.push(session("fleet-review:1", "2026-10-11T10:20:00Z", "https://chatgpt.com/c/real-123", "COMPLETE"));
   activity = activityOf(events);
-  assert.equal(activity.requests[0].state, "FINISHED");
-  assert.equal(activity.requests[0].finishedAt, "2026-10-11T10:20:00Z");
+  assert.equal(activity.requests[0].state, "SENT", "the session's own lifecycle is not the question's completion");
   assert.equal(latestSupervisorConversation(activity), "https://chatgpt.com/c/real-123", "the real address wins over the provisional one");
   events.push(session("fleet-review:1", "2026-10-11T10:21:00Z", "https://chatgpt.com/c/WEB:provisional"));
   assert.equal(latestSupervisorConversation(activityOf(events)), "https://chatgpt.com/c/real-123", "and stays ahead of a later provisional one");
   events.push(stage("fleet-review:1", "2026-10-11T10:22:00Z", "COMPLETE", "https://chatgpt.com/c/real-123"));
-  assert.equal(activityOf(events).requests[0].finishedAt, "2026-10-11T10:22:00Z");
+  activity = activityOf(events);
+  assert.equal(activity.requests[0].state, "FINISHED");
+  assert.equal(activity.requests[0].finishedAt, "2026-10-11T10:22:00Z");
 
   events.push(decision("fleet-review:1", "2026-10-11T10:30:00Z", { bounded_execution: { reasoning_summary: "The task is on track; run the migration tests next." } }));
   activity = activityOf(events);
@@ -205,8 +206,10 @@ test("relay receipts count only when bound to the question's own session, role, 
   assert.deepEqual(view(session(id, at(1), url, "COMPLETE", { refs: ["request:fleet-review:other"] })), nothing, "a receipt naming two requests names none");
   // A stage needs the in-band step, the session's first message, its session and one of its conversations.
   const opened = session(id, at(1), url);
-  const waiting = { state: "QUEUED", chat: url };
-  assert.deepEqual(view(opened), waiting, "an opened chat shows before anything is sent in it");
+  const waiting = nothing;
+  assert.deepEqual(view(opened), waiting, "a chat opened for the question isn't offered until the question is sent in it");
+  assert.deepEqual(view(session(id, at(1), url, "COMPLETE")), nothing, "a session closed before its first message started is neither sent nor finished");
+  assert.deepEqual(view(opened, stage(id, at(3), "COMPLETE", url)), nothing, "a completion without its start is not a finish");
   assert.deepEqual(view(opened, stage(id, at(2), "STARTED", url, { step: "MCP_BINDING_PRELOAD" })), waiting);
   assert.deepEqual(view(opened, stage(id, at(2), "STARTED", url, { without: ["first_message"] })), waiting);
   assert.deepEqual(view(opened, stage(id, at(2), "STARTED", url, { without: ["message_ordinal"], refs: ["message_ordinal:2"] })), waiting);
@@ -428,6 +431,25 @@ test("the first screen states the question history only from current task data",
   assert.equal(supervisionHistory({ workers: [] }, false), null, "current data with no tasks: nothing has gone out");
   assert.equal(supervisionHistory(snapshot, true), undefined, "task data that failed to refresh is last-known, not current");
   assert.equal(supervisionHistory(null, true), undefined, "no task data at all");
+});
+
+test("a malformed activity is unknown everywhere, and the supervision page keeps its last-known view", () => {
+  for (const bad of [{}, { requests: "x" }, { ...activityOf([]), states: null }, null, undefined]) {
+    assert.equal(supervisorStatusLine(bad, NOW), "Not available right now.");
+    assert.equal(latestSupervisorConversation(bad), null);
+    assert.equal(lastSupervisorQuestionSentAt([activityOf([]), bad]), undefined);
+    assert.match(renderToStaticMarkup(createElement(SupervisorActivityPanel, { activity: bad, now: NOW })), /aren(?:&#x27;|')t available right now/);
+  }
+  const store = new EventStore(":memory:");
+  try {
+    seedIssue47Store(store);
+    const snapshot = snapshotFromStore(store);
+    const status = operatorStatus({});
+    assert.ok(supervisionReadModel(snapshot, status), "the server's own answers pass");
+    const skewed = { ...snapshot, workers: snapshot.workers.map((worker) => ({ ...worker, supervisorActivity: {} })) };
+    assert.equal(supervisionReadModel(skewed, status), null, "a malformed activity never reaches the page");
+    assert.equal(supervisionReadModel(snapshot, { ...status, supervisors: "x" }), null);
+  } finally { store.close(); }
 });
 
 test("the last supervisor question time comes from the questions themselves, across tasks", () => {

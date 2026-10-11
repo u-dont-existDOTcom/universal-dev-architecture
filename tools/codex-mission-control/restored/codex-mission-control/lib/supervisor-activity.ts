@@ -173,7 +173,7 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date,
   return all.sort((a, b) => (order.get(b.requestId) ?? 0) - (order.get(a.requestId) ?? 0));
 }
 
-interface BoundSession { conversations: Set<string>; starts: string[]; finishes: string[]; sequence: number }
+interface BoundSession { conversations: Set<string>; starts: string[]; completions: string[]; sequence: number }
 interface RelayReceipt { event: StoredEvent; summary: string; session: string | null; supervisor: string | null; ref: (key: string) => string | null }
 interface RelayTransport {
   byRequest: Map<string, RelayReceipt[]>;
@@ -217,7 +217,8 @@ function relayTransport(events: readonly StoredEvent[], relays: ReadonlySet<stri
 /**
  * Sent, finished and the conversation, from the receipts bound to this request's own provider session the way its
  * route version's validators bind them: session receipts with the version's session role, first message and an exact
- * ChatGPT conversation; stage receipts at the version's step for that session's first message, in that conversation.
+ * ChatGPT conversation; stage receipts at the version's step for that session's first message, in that conversation:
+ * sent when it STARTED, finished when it then reached COMPLETE.
  */
 function applyBoundTransport(draft: Draft, transport: RelayTransport): void {
   const binding = SUPERVISOR_TRANSPORT_BINDINGS[draft.version]!;
@@ -232,10 +233,9 @@ function applyBoundTransport(draft: Draft, transport: RelayTransport): void {
     const url = receipt.ref("conversation_url");
     if (receipt.summary !== SESSION_SUMMARY || receipt.ref("message_ordinal") !== "1" || receipt.ref("url_binding_status") !== "EXACT"
       || !url || !binding.conversation.test(url) || !isSpecificChatAddress(url)) continue;
-    const session = sessions.get(receipt.session!) ?? { conversations: new Set<string>(), starts: [], finishes: [], sequence: -1 };
+    const session = sessions.get(receipt.session!) ?? { conversations: new Set<string>(), starts: [], completions: [], sequence: -1 };
     session.conversations.add(url);
     session.sequence = Math.max(session.sequence, receipt.event.sequence);
-    if (receipt.ref("lifecycle_status") === "COMPLETE") session.finishes.push(receipt.event.occurredAt);
     sessions.set(receipt.session!, session);
   }
   for (const receipt of receipts) {
@@ -246,20 +246,22 @@ function applyBoundTransport(draft: Draft, transport: RelayTransport): void {
     // The send starts in one of the session's exact conversations (a provisional "WEB:" one counts); it completes in
     // the session's conversation (its real address once assigned).
     if (generation === "STARTED" && url !== null && session.conversations.has(url)) session.starts.push(receipt.event.occurredAt);
-    else if (generation === "COMPLETE" && url !== null && url === sessionConversation(session.conversations)) session.finishes.push(receipt.event.occurredAt);
+    else if (generation === "COMPLETE" && url !== null && url === sessionConversation(session.conversations)) session.completions.push(receipt.event.occurredAt);
     else continue;
     session.sequence = Math.max(session.sequence, receipt.event.sequence);
   }
-  // One session per request is the rule; should there be more, show the one that was sent, else the latest.
+  // The question ran in a session only once its first message started there (a session opened, or closed, without
+  // that is neither sent nor finished, and offers no chat); one session per request is the rule, so should more have
+  // started, show the latest. Like the validators, completion is the stage's own COMPLETE after that start, never a
+  // session's lifecycle alone.
   let chosen: BoundSession | null = null;
   for (const session of sessions.values()) {
-    const sent = session.starts.length > 0;
-    const chosenSent = chosen !== null && chosen.starts.length > 0;
-    if (!chosen || (sent && !chosenSent) || (sent === chosenSent && session.sequence > chosen.sequence)) chosen = session;
+    if (session.starts.length > 0 && (!chosen || session.sequence > chosen.sequence)) chosen = session;
   }
   if (!chosen) return;
-  draft.sentAt = earliestInstant(chosen.starts);
-  draft.finishedAt = latestInstant(chosen.finishes);
+  const sentAt = earliestInstant(chosen.starts)!;
+  draft.sentAt = sentAt;
+  draft.finishedAt = latestInstant(chosen.completions.filter((at) => instant(at) >= instant(sentAt)));
   draft.conversationUrl = sessionConversation(chosen.conversations);
 }
 
@@ -275,17 +277,39 @@ function sessionConversation(conversations: ReadonlySet<string>): string | null 
 }
 
 /**
- * The newest time any of these tasks' supervisor questions started going to ChatGPT; undefined when a task's activity
- * isn't known (a snapshot without it), since then nobody can say.
+ * Whether a value has the full shape of a task's supervisor activity. Anything else (missing, malformed, another
+ * build's) is unknown, never an empty history: the dashboard refuses such a refresh, and every view says it isn't
+ * available.
  */
-export function lastSupervisorQuestionSentAt(activities: ReadonlyArray<SupervisorActivity | undefined | null>): string | null | undefined {
-  if (activities.some((activity) => !activity)) return undefined;
-  return latestInstant(activities.map((activity) => activity?.lastSentAt ?? null));
+export function isSupervisorActivity(value: unknown): value is SupervisorActivity {
+  const activity = record(value);
+  if (!activity || typeof activity.total !== "number" || typeof activity.answered !== "number") return false;
+  if (!nullableString(activity.lastAnsweredAt) || !nullableString(activity.latestConversationUrl) || !nullableString(activity.lastSentAt)) return false;
+  const states = record(activity.states);
+  if (!states || !Object.values(states).every((state) => (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(state))) return false;
+  return Array.isArray(activity.requests) && activity.requests.every((item: unknown) => {
+    const request = record(item);
+    return request !== null && typeof request.requestId === "string" && typeof request.queuedAt === "string"
+      && (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(request.state)
+      && (SUPERVISOR_REQUEST_ORIGINS as readonly unknown[]).includes(request.origin)
+      && ["supervisorId", "question", "expiresAt", "sentAt", "finishedAt", "answeredAt", "answer", "conversationUrl"].every((key) => nullableString(request[key]));
+  });
+}
+
+/**
+ * The newest time any of these tasks' supervisor questions started going to ChatGPT; undefined when a task's activity
+ * isn't known (missing or malformed), since then nobody can say.
+ */
+export function lastSupervisorQuestionSentAt(activities: ReadonlyArray<unknown>): string | null | undefined {
+  const known = activities.filter(isSupervisorActivity);
+  if (known.length !== activities.length) return undefined;
+  return latestInstant(known.map((activity) => activity.lastSentAt));
 }
 
 /** The conversation to open for "what is the supervisor doing": the newest request that reached a chat. */
-export function latestSupervisorConversation(activity: SupervisorActivity | undefined | null): string | null {
-  return activity?.latestConversationUrl ?? activity?.requests.find((request) => request.conversationUrl)?.conversationUrl ?? null;
+export function latestSupervisorConversation(activity: unknown): string | null {
+  if (!isSupervisorActivity(activity)) return null;
+  return activity.latestConversationUrl ?? activity.requests.find((request) => request.conversationUrl)?.conversationUrl ?? null;
 }
 
 function originOf(requestId: string): SupervisorRequestOrigin {
@@ -352,6 +376,9 @@ function parsePacket(body: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+function nullableString(value: unknown): boolean {
+  return value === null || typeof value === "string";
 }
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null;
