@@ -392,11 +392,31 @@ test("an activity state without the times it is about is not accepted", () => {
   // One question in a given state, with the state map and the totals agreeing.
   const withRequest = (listed: Record<string, unknown>) => ({ ...good, requests: [listed], states: { [request.requestId]: listed.state },
     answered: ["ANSWERED", "ANSWERED_DUPLICATE_SEND"].includes(String(listed.state)) ? 1 : 0 });
+  const bare = { ...request, sentAt: null, finishedAt: null, answeredAt: null, answer: null, conversationUrl: null };
+  // Each state with what it may carry: the times it is about, and nothing it can't have.
+  const filledFor: Record<string, Record<string, unknown>> = {
+    SENT: { sentAt: times.sentAt }, FINISHED: { sentAt: times.sentAt, finishedAt: times.finishedAt }, DUPLICATE_SEND: { sentAt: times.sentAt },
+    ANSWERED: { answeredAt: times.answeredAt }, ANSWERED_DUPLICATE_SEND: { answeredAt: times.answeredAt, sentAt: times.sentAt },
+    NO_ANSWER: { sentAt: times.sentAt }, NO_ANSWER_DUPLICATE_SEND: { sentAt: times.sentAt }, EXPIRED: {}, EXPIRED_UNSENT: {},
+  };
   for (const [state, time] of required) {
-    const filled = { ...request, ...times, state };
+    const filled = { ...bare, ...filledFor[state], expiresAt: times.expiresAt, state };
     assert.equal(isSupervisorActivity(withRequest(filled)), true, `${state} with its times`);
     assert.equal(isSupervisorActivity(withRequest({ ...filled, [time]: null })), false, `${state} without ${time}`);
   }
+  // Nor anything its state can't have: a chat or send for a question not yet sent, a finish or chat for a duplicate
+  // send, an answer for an unanswered question, a finish or chat without a send.
+  const chat = "https://chatgpt.com/c/real-123";
+  for (const [what, listed] of Object.entries({
+    "a waiting question with a chat": { ...bare, state: "QUEUED", conversationUrl: chat },
+    "a waiting question with a send time": { ...bare, state: "QUEUED", sentAt: times.sentAt },
+    "an untracked question with a finish": { ...bare, state: "WAITING", finishedAt: times.finishedAt },
+    "a sent question already finished": { ...bare, state: "SENT", sentAt: times.sentAt, finishedAt: times.finishedAt },
+    "a duplicate send with a chat": { ...bare, state: "DUPLICATE_SEND", sentAt: times.sentAt, conversationUrl: chat },
+    "an unanswered question with an answer": { ...bare, state: "SENT", sentAt: times.sentAt, answer: "On track." },
+    "a withdrawn question with a chat": { ...bare, state: "WITHDRAWN", conversationUrl: chat },
+    "an answer with a chat but no send": { ...bare, state: "ANSWERED", answeredAt: times.answeredAt, conversationUrl: chat },
+  })) assert.equal(isSupervisorActivity(withRequest(listed)), false, what);
   assert.equal(isSupervisorActivity({ ...good, requests: [{ ...request, sentAt: "yesterday" }] }), false);
   assert.equal(isSupervisorActivity({ ...good, requests: [{ ...request, queuedAt: "soon" }] }), false);
   assert.equal(isSupervisorActivity({ ...good, lastSentAt: "never" }), false);
@@ -641,6 +661,20 @@ test("before any good read, the supervision page says it couldn't load and offer
   assert.match(html, /The supervision page couldn(?:&#x27;|')t load\./);
   assert.match(html, /<button[^>]*>Retry<\/button>/);
   assert.doesNotMatch(html, /Loading/);
+});
+
+test("a task snapshot whose owner-action summary differs from the action is not accepted", () => {
+  const store = new EventStore(":memory:");
+  try {
+    seedIssue47Store(store);
+    const snapshot = snapshotFromStore(store);
+    const withCorrection = (patch: Record<string, unknown>) => ({ ...snapshot, workers: snapshot.workers.map((worker, index) =>
+      index === 0 ? { ...worker, correction: { ...worker.correction, ...patch } } : worker) });
+    const action = snapshot.workers[0].correction.ownerAction;
+    assert.equal(validTaskSnapshot(withCorrection({})), true);
+    assert.equal(validTaskSnapshot(withCorrection({ ownerActionType: action.kind === "NONE" ? "DECISION_REQUIRED" : "NONE" })), false, "another type than the action's");
+    assert.equal(validTaskSnapshot(withCorrection({ ownerActionText: `${action.exact_text} (edited)` })), false, "other words than the action's");
+  } finally { store.close(); }
 });
 
 test("the supervision page refuses an answer whose timelines it can't read, keeping its last-known view", () => {

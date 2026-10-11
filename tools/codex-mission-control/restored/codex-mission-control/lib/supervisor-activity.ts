@@ -84,6 +84,19 @@ export const emptySupervisorActivity: SupervisorActivity = { requests: [], total
 
 interface Draft extends SupervisorRequestActivity { sequence: number; version: number; worker: string; duplicateSend: boolean }
 
+/**
+ * What a request in each state may carry beyond the times it must (STATE_TIMES): a send time, a finish time and a chat
+ * only once it was sent (no finish or chat for a duplicate send), an answer only when answered. Anything else is not
+ * a state Mission Control produces.
+ */
+const STATE_ALLOWS: Record<SupervisorRequestState, { sent?: true; finished?: true; chat?: true; answered?: true }> = {
+  QUEUED: {}, WAITING: {}, EXPIRED: {}, EXPIRED_UNSENT: {}, WITHDRAWN: {},
+  SENT: { sent: true, chat: true }, FINISHED: { sent: true, finished: true, chat: true }, NO_ANSWER: { sent: true, finished: true, chat: true },
+  DUPLICATE_SEND: { sent: true }, NO_ANSWER_DUPLICATE_SEND: { sent: true },
+  ANSWERED: { sent: true, finished: true, chat: true, answered: true }, ANSWERED_DUPLICATE_SEND: { sent: true, answered: true },
+  REPLACED: { sent: true, finished: true, chat: true },
+};
+
 /** The times each state is about: a request in that state always has them (and every time it has is a valid instant). */
 const STATE_TIMES: Partial<Record<SupervisorRequestState, ReadonlyArray<"expiresAt" | "sentAt" | "finishedAt" | "answeredAt">>> = {
   SENT: ["sentAt"], FINISHED: ["sentAt", "finishedAt"], DUPLICATE_SEND: ["sentAt"], ANSWERED: ["answeredAt"],
@@ -196,6 +209,10 @@ function projectRequests(unordered: readonly StoredEvent[], now: Date, admission
     // A retirement for expiry names the expiry; without one on the route it reads as a plain withdrawal.
     const retired = admission.retired.get(draft.requestId);
     const retiredState = retired === "EXPIRED_UNSENT" && draft.expiresAt === null ? "WITHDRAWN" : retired;
+    if (retiredState && !draft.answeredAt && !admission.replaced.has(draft.requestId)) {
+      // Retired with the proof that nothing was sent: no send, finish or chat goes with it.
+      draft.sentAt = null; draft.finishedAt = null; draft.conversationUrl = null; draft.duplicateSend = false;
+    }
     // An answer doesn't hide a duplicate send: both show.
     const state: SupervisorRequestState = draft.answeredAt ? (draft.duplicateSend ? "ANSWERED_DUPLICATE_SEND" : "ANSWERED")
       : admission.replaced.has(draft.requestId) ? "REPLACED"
@@ -269,6 +286,7 @@ export function isSupervisorActivity(value: unknown): value is SupervisorActivit
       && ["supervisorId", "question", "answer"].every((key) => nullableString(request[key]))
       && ["expiresAt", "sentAt", "finishedAt", "answeredAt"].every((key) => timeOrNull(request[key]))
       && (STATE_TIMES[request.state as SupervisorRequestState] ?? []).every((key) => request[key] !== null)
+      && fieldsFitState(request)
       && chatAddressOrNull(request.conversationUrl)
       && typeof request.requestId === "string" && Object.hasOwn(states, request.requestId) && states[request.requestId] === request.state;
   });
@@ -346,6 +364,14 @@ function parsePacket(body: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+/** A request's send time, finish time, chat and answer are ones its state can have, and a finish or chat comes with a send. */
+function fieldsFitState(request: Record<string, unknown>): boolean {
+  const allows = STATE_ALLOWS[request.state as SupervisorRequestState];
+  return Boolean(allows)
+    && (allows.sent || request.sentAt === null) && (allows.finished || request.finishedAt === null)
+    && (allows.chat || request.conversationUrl === null) && (allows.answered || (request.answeredAt === null && request.answer === null))
+    && (request.finishedAt === null || request.sentAt !== null) && (request.conversationUrl === null || request.sentAt !== null);
 }
 function nullableString(value: unknown): boolean {
   return value === null || typeof value === "string";

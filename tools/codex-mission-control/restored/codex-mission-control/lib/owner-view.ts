@@ -172,6 +172,9 @@ function workerValid(value: unknown) {
   if (!["channel.queue", "channel.blockers", "channel.proposals"].every(path => Array.isArray(at(value, path))) || !stringArray(at(value, "nextSteps")) || !date(at(value, "lastCheckpointAt"))) return false;
   if (!supervisorActivityValid(at(value, "supervisorActivity"))) return false;
   if (!ownerActionValid(at(value, "correction.ownerAction"))) return false;
+  // The card's summary of the owner action is the action itself, as the projection sets it.
+  if (at(value, "correction.ownerActionType") !== at(value, "correction.ownerAction.kind")
+    || at(value, "correction.ownerActionText") !== at(value, "correction.ownerAction.exact_text")) return false;
   if (!supervisorLinkValid(value)) return false;
   for (const path of ["primaryProblemSummary", "blocker", "correction.directive", "channel.latestDirectionBody", "executionSupervision.activeDirectiveId"]) { const part = at(value, path); if (part !== null && typeof part !== "string") return false; }
   if (at(value, "correction.ownerAction.kind") === "DECISION_REQUIRED") {
