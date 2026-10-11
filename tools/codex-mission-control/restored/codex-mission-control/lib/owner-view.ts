@@ -146,6 +146,14 @@ export function validOperatorSnapshot(value: unknown): boolean {
   if (!strings(value, ["overallState", "providerRelayState", "authority.state", "authority.writer", "authority.ledgerIntegrity", "pacing.rateLimitState"])) return false;
   if (!["HEALTHY", "DEGRADED", "UNAVAILABLE"].includes(String(at(value, "overallState")))) return false;
   if (!["configuredMinimumIntervalMs", "minimumObservedIntervalMs", "violationsBelowConfiguredMinimum", "cooldownRemainingMs"].every(key => at(value, `pacing.${key}`) === null || typeof at(value, `pacing.${key}`) === "number")) return false;
-  const intervals = at(value, "pacing.recentIntervalsMs"); const hosts = at(value, "hosts");
-  return Array.isArray(intervals) && intervals.every(item => typeof item === "number") && Array.isArray(hosts) && hosts.every(host => strings(host, ["role", "label", "relayWorkerState", "browserState", "authorityBindingState"]) && typeof at(host, "ownedTargetCount") === "number");
+  const lastSend = at(value, "pacing.lastProviderSendBoundaryAt");
+  if (lastSend !== null && typeof lastSend !== "string") return false;
+  const intervals = at(value, "pacing.recentIntervalsMs"); const hosts = at(value, "hosts"); const supervisors = at(value, "supervisors");
+  return Array.isArray(intervals) && intervals.every(item => typeof item === "number")
+    && Array.isArray(hosts) && hosts.every(host => strings(host, ["role", "label", "relayWorkerState", "browserState", "authorityBindingState"])
+      && typeof at(host, "ownedTargetCount") === "number" && typeof at(host, "reportFresh") === "boolean"
+      && (at(host, "observedAt") === null || typeof at(host, "observedAt") === "string"))
+    // The first screen's supervision line reads the supervisors; a response without them is not a usable refresh.
+    && Array.isArray(supervisors) && supervisors.every(supervisor => strings(supervisor, ["supervisorId", "scope", "registrationState", "latestRouteState"])
+      && typeof at(supervisor, "registered") === "boolean" && typeof at(supervisor, "reachable") === "boolean");
 }

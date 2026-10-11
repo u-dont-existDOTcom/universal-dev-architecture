@@ -95,8 +95,14 @@ export function SupervisionHealthLine({ status, now = new Date() }: { status: Op
     : manager.registrationState !== "ACTIVE"
       ? "The Project Manager supervisor chat hasn't been created yet, so Mission Control's routine checks have no one to ask."
       : null;
+  if (status.providerRelayState === "HEALTHY" && !managerGap && manager!.reachable) {
+    return <p className="supervision-health healthy" role="status">Supervisor chats can be reached: the relay to ChatGPT is up and the Project Manager supervisor has been reached. {sent}</p>;
+  }
   if (status.providerRelayState === "HEALTHY" && !managerGap) {
-    return <p className="supervision-health healthy" role="status">Supervisor chats can be reached: the relay to ChatGPT is up. {sent}</p>;
+    return <div className="supervision-health down" role="alert">
+      <strong>The Project Manager supervisor isn't proven reachable yet.</strong>
+      <p>The relay to ChatGPT is up, but nothing shows a question reaching the Project Manager supervisor chat yet. {sent}</p>
+    </div>;
   }
   if (status.providerRelayState === "HEALTHY") {
     return <div className="supervision-health down" role="alert">

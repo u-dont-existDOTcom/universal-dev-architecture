@@ -33,6 +33,8 @@ export interface SupervisorActivity {
   total: number;
   answered: number;
   lastAnsweredAt: string | null;
+  /** The chat of the newest question that reached ChatGPT, among all of them, not only the ones listed. */
+  latestConversationUrl: string | null;
 }
 
 export const RECENT_REQUESTS = 5;
@@ -42,7 +44,7 @@ const RETIREMENT_PRODUCER = "verifier:fleet-supervisor-request-retirement";
 const QUESTION_LIMIT = 400;
 const ANSWER_LIMIT = 600;
 
-export const emptySupervisorActivity: SupervisorActivity = { requests: [], total: 0, answered: 0, lastAnsweredAt: null };
+export const emptySupervisorActivity: SupervisorActivity = { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null };
 
 interface Draft extends SupervisorRequestActivity { sequence: number; supersedes: string | null; conversationSequence: number; conversationIsProvisional: boolean }
 
@@ -55,6 +57,7 @@ export function supervisorActivity(events: readonly StoredEvent[], now: Date = n
     total: all.length,
     answered: answered.length,
     lastAnsweredAt: answered.map((request) => request.answeredAt!).sort().at(-1) ?? null,
+    latestConversationUrl: all.find((request) => request.conversationUrl)?.conversationUrl ?? null,
   };
 }
 
@@ -156,7 +159,7 @@ export function supervisorRequests(unordered: readonly StoredEvent[], now: Date 
 
 /** The conversation to open for "what is the supervisor doing": the newest request that reached a chat. */
 export function latestSupervisorConversation(activity: SupervisorActivity | undefined | null): string | null {
-  return activity?.requests.find((request) => request.conversationUrl)?.conversationUrl ?? null;
+  return activity?.latestConversationUrl ?? activity?.requests.find((request) => request.conversationUrl)?.conversationUrl ?? null;
 }
 
 function originOf(requestId: string): SupervisorRequestOrigin {

@@ -13,6 +13,7 @@ import { seedIssue47Store } from "../lib/seed";
 import { snapshotForTimeline } from "../lib/snapshot-response";
 import { EventStore } from "../lib/store";
 import { latestSupervisorConversation, supervisorActivity } from "../lib/supervisor-activity";
+import { validOperatorSnapshot } from "../lib/owner-view";
 
 const WORKER = "auth";
 const NOW = new Date("2026-10-11T12:00:00Z");
@@ -185,7 +186,7 @@ test("the task card says what its supervisor was last asked, and links to that c
   try {
     seedIssue47Store(store);
     const worker = snapshotFromStore(store).workers.find((candidate) => candidate.id === "mission-control-live-slice")!;
-    assert.deepEqual(worker.supervisorActivity, { requests: [], total: 0, answered: 0, lastAnsweredAt: null }, "every projected task carries its activity");
+    assert.deepEqual(worker.supervisorActivity, { requests: [], total: 0, answered: 0, lastAnsweredAt: null, latestConversationUrl: null }, "every projected task carries its activity");
     const recent = snapshotForTimeline(snapshotFromStore(store), "recent").workers.find((candidate) => candidate.id === worker.id)!;
     assert.deepEqual(recent.supervisorActivity, worker.supervisorActivity, "the dashboard's trimmed snapshot keeps it");
     const empty = renderToStaticMarkup(createElement(OwnerTaskCard, { worker }));
@@ -217,7 +218,11 @@ const manager = { supervisorId: "mc-project-manager", registrationState: "ACTIVE
 test("the first screen says whether supervision is running and when the last question went out", () => {
   assert.equal(renderToStaticMarkup(createElement(SupervisionHealthLine, { status: null, now: NOW })), "");
   const running = renderToStaticMarkup(createElement(SupervisionHealthLine, { status: operatorStatus({}), now: NOW }));
-  assert.match(running, /Supervisor chats can be reached: the relay to ChatGPT is up\. The last question went to ChatGPT 1 hour ago\./);
+  assert.match(running, /Supervisor chats can be reached: the relay to ChatGPT is up and the Project Manager supervisor has been reached\. The last question went to ChatGPT 1 hour ago\./);
+  const unproven = renderToStaticMarkup(createElement(SupervisionHealthLine, { status: operatorStatus({ supervisors: [{ ...manager, reachable: false }] }), now: NOW }));
+  assert.match(unproven, /role="alert"/);
+  assert.match(unproven, /The Project Manager supervisor isn(?:&#x27;|')t proven reachable yet/);
+  assert.doesNotMatch(unproven, /can be reached/);
   const down = renderToStaticMarkup(createElement(SupervisionHealthLine, { now: NOW, status: operatorStatus({
     overallState: "DEGRADED", providerRelayState: "UNAVAILABLE",
     pacing: { ...operatorStatus({}).pacing, lastProviderSendBoundaryAt: "2026-10-08T12:00:00Z" },
@@ -263,4 +268,28 @@ test("the supervision page reads current (V5/V6) questions and stops waiting onc
     assert.equal(workflowState(idle, true), "WAITING FOR SUPERVISOR");
     assert.notEqual(workflowState(idle, false), "WAITING FOR SUPERVISOR");
   } finally { store.close(); }
+});
+
+test("the button keeps the newest chat that was reached even when newer questions never got one", () => {
+  const events = [
+    route("fleet-review:reached", "2026-10-11T01:00:00Z"),
+    transport("fleet-review:reached", "2026-10-11T01:05:00Z", ["generation_state:STARTED", "conversation_url:https://chatgpt.com/c/reached-chat"]),
+    ...[1, 2, 3, 4, 5].map((n) => route(`fleet-review:unsent-${n}`, `2026-10-11T0${n + 1}:00:00Z`)),
+  ];
+  const activity = supervisorActivity(events, NOW);
+  assert.equal(activity.requests.length, 5);
+  assert.ok(activity.requests.every((request) => request.conversationUrl === null), "the five listed questions never reached a chat");
+  assert.equal(activity.latestConversationUrl, "https://chatgpt.com/c/reached-chat");
+  assert.equal(latestSupervisorConversation(activity), "https://chatgpt.com/c/reached-chat");
+});
+
+test("an operator status without well-formed supervisors is not accepted as a refresh", () => {
+  const good = operatorStatus({ hosts: [{ label: "relay-a", role: "PRIMARY", active: true, reportFresh: true, relayWorkerState: "HEALTHY", browserState: "HEALTHY", authorityBindingState: "BOUND", ownedTargetCount: 1, observedAt: "2026-10-11T11:00:00Z", detail: "" }] });
+  assert.equal(validOperatorSnapshot(good), true);
+  const { supervisors: _dropped, ...withoutSupervisors } = good;
+  assert.equal(validOperatorSnapshot(withoutSupervisors), false);
+  assert.equal(validOperatorSnapshot({ ...good, supervisors: [{ supervisorId: "mc-project-manager" }] }), false);
+  assert.equal(validOperatorSnapshot({ ...good, supervisors: [{ ...manager, reachable: "yes" }] }), false);
+  assert.equal(validOperatorSnapshot({ ...good, hosts: [{ ...good.hosts[0], reportFresh: undefined }] }), false);
+  assert.equal(validOperatorSnapshot({ ...good, pacing: { ...good.pacing, lastProviderSendBoundaryAt: 5 } }), false);
 });
