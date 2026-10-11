@@ -9,6 +9,7 @@ import { StatusDot } from "./StatusDot";
 import type { OperatorStatusProjection, OperatorSupervisorStatus } from "@/lib/operator-status-contract";
 import { isPendingSupervisorRequest, isSupervisorActivity, latestSupervisorConversation, type SupervisorRequestState } from "@/lib/supervisor-activity";
 import { validOperatorSnapshot, validSupervisionSnapshot } from "@/lib/owner-view";
+import { isSpecificChatAddress } from "@/lib/supervisor-chat-address";
 import { SUPERVISOR_REQUEST_STATE, supervisorStatusLine } from "./SupervisorActivity";
 
 interface Snapshot {
@@ -376,7 +377,7 @@ function messageTime(row: MessageRow): string {
 
 function realSupervisorLink(worker: WorkerState | undefined): string | null {
   if (!worker || worker.supervisorChatIsPlaceholder) return null;
-  return worker.supervisorChatUrl.startsWith("https://") ? worker.supervisorChatUrl : null;
+  return isSpecificChatAddress(worker.supervisorChatUrl) ? worker.supervisorChatUrl : null;
 }
 
 export function parseInternalRoutePacket(body: string): InternalRoutePacket | null {

@@ -2,6 +2,7 @@ import type { WorkerState } from "./projection";
 import type { OwnerActionObligation } from "./schema";
 import type { WorkQueueItemProjection } from "./worker-channel";
 import { isSupervisorActivity } from "./supervisor-activity";
+import { isSpecificChatAddress } from "./supervisor-chat-address";
 
 export type SnapshotFailure = { kind: "session" | "network" | "server"; message: string };
 export class SnapshotError extends Error {
@@ -130,6 +131,13 @@ function supervisorActivityValid(value: unknown): boolean {
 
 // The fields the first screen's classifier (ownerAttention) and its alarm explanations read from the owner action.
 const OWNER_ACTION_STATUSES = ["NOT_REQUIRED", "OPEN", "COMPLETED", "SUPERSEDED"];
+// A task's recorded supervisor address and its flag, as the projection sets them: the flag says whether the address
+// fails to name one ChatGPT conversation, so a home page, settings page or demo address is never offered as a chat.
+function supervisorLinkValid(worker: unknown): boolean {
+  const url = at(worker, "supervisorChatUrl");
+  const placeholder = at(worker, "supervisorChatIsPlaceholder");
+  return typeof url === "string" && typeof placeholder === "boolean" && placeholder === !isSpecificChatAddress(url);
+}
 function ownerActionValid(action: unknown): boolean {
   if (!strings(action, ["kind", "exact_text", "reason_code"]) || !OWNER_ACTION_STATUSES.includes(String(at(action, "status")))) return false;
   const due = at(action, "due_at");
@@ -150,13 +158,13 @@ function timelineEventValid(event: unknown): boolean {
 }
 
 /**
- * The supervision page's answer from /api/workers: the dashboard's checks, plus every task's timeline and supervisor
- * address, which the page reads and the dashboard doesn't. Anything else keeps the page's last-known view.
+ * The supervision page's answer from /api/workers: the dashboard's checks (including every task's supervisor address
+ * and its flag), plus every task's timeline, which the page reads and the dashboard doesn't. Anything else keeps the
+ * page's last-known view.
  */
 export function validSupervisionSnapshot(value: unknown): boolean {
   return validTaskSnapshot(value) && record(value) && Array.isArray(value.workers)
-    && value.workers.every((worker) => typeof at(worker, "supervisorChatUrl") === "string"
-      && Array.isArray(at(worker, "timeline")) && (at(worker, "timeline") as unknown[]).every(timelineEventValid));
+    && value.workers.every((worker) => Array.isArray(at(worker, "timeline")) && (at(worker, "timeline") as unknown[]).every(timelineEventValid));
 }
 
 function workerValid(value: unknown) {
@@ -164,6 +172,7 @@ function workerValid(value: unknown) {
   if (!["channel.queue", "channel.blockers", "channel.proposals"].every(path => Array.isArray(at(value, path))) || !stringArray(at(value, "nextSteps")) || !date(at(value, "lastCheckpointAt"))) return false;
   if (!supervisorActivityValid(at(value, "supervisorActivity"))) return false;
   if (!ownerActionValid(at(value, "correction.ownerAction"))) return false;
+  if (!supervisorLinkValid(value)) return false;
   for (const path of ["primaryProblemSummary", "blocker", "correction.directive", "channel.latestDirectionBody", "executionSupervision.activeDirectiveId"]) { const part = at(value, path); if (part !== null && typeof part !== "string") return false; }
   if (at(value, "correction.ownerAction.kind") === "DECISION_REQUIRED") {
     const action = at(value, "correction.ownerAction");

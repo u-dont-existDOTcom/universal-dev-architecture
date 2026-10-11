@@ -649,7 +649,14 @@ test("the supervision page refuses an answer whose timelines it can't read, keep
       firstWorker((worker) => ({ ...worker, timeline: [{ ...message, data: { ...message.data, type: "worker_message_recorded", body: 7 } }] })),
       firstWorker((worker) => ({ ...worker, timeline: [{ ...timeline[0], data: { type: "reasoning_message_recorded", surface_role: "SUPERVISOR", message_id: "m", body_sha256: "a".repeat(64) } }] })),
       firstWorker((worker) => ({ ...worker, supervisorChatUrl: null })),
+      firstWorker((worker) => ({ ...worker, supervisorChatUrl: "https://chatgpt.com/", supervisorChatIsPlaceholder: false })),
+      firstWorker((worker) => { const copy: Record<string, unknown> = { ...worker, supervisorChatUrl: "https://chatgpt.com/" }; delete copy.supervisorChatIsPlaceholder; return copy; }),
+      firstWorker((worker) => ({ ...worker, supervisorChatUrl: "https://chatgpt.com/c/real-123", supervisorChatIsPlaceholder: true })),
     ];
+    assert.ok(supervisionReadModel(firstWorker((worker) => ({ ...worker, supervisorChatUrl: "https://chatgpt.com/c/real-123", supervisorChatIsPlaceholder: false })), status),
+      "a real conversation address, flagged as one, passes");
+    assert.ok(supervisionReadModel(firstWorker((worker) => ({ ...worker, supervisorChatUrl: "", supervisorChatIsPlaceholder: true })), status),
+      "an unlinked task, flagged as such, passes");
     for (const [index, answer] of bad.entries()) assert.equal(supervisionReadModel(answer, status), null, `case ${index}`);
   } finally { store.close(); }
 });
