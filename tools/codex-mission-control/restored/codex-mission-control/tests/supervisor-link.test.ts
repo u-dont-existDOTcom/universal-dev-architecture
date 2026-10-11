@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { forgetConfiguredChats, loadConfiguredChats, nextDirectoryLookupMs, SupervisorLink } from "../components/SupervisorLink";
+import { afterLookup, forgetConfiguredChats, loadConfiguredChats, nextDirectoryLookupMs, SupervisorLink, SupervisorLinkView, supervisorChatView, type ConfiguredChat, type DirectoryAnswer } from "../components/SupervisorLink";
 import { isSpecificChatAddress } from "../lib/supervisor-chat-address";
 
 test("only an address that names one ChatGPT conversation counts as a supervisor chat", () => {
@@ -25,8 +25,59 @@ test("a button looks for a configured chat again: soon after a failure, otherwis
 
 test("a recorded ChatGPT home page is not offered as the supervisor chat", () => {
   const html = renderToStaticMarkup(createElement(SupervisorLink, { url: "https://chatgpt.com/", label: "Open supervisor chat", placeholder: false, workerId: "auth" }));
-  assert.match(html, /No supervisor chat linked/);
+  assert.match(html, /Checking for a supervisor chat/, "it looks up the configured chats before saying there is none");
+  assert.doesNotMatch(html, /No supervisor chat linked/);
   assert.doesNotMatch(html, /href="https:\/\/chatgpt\.com\/"/);
+  const withoutWorker = renderToStaticMarkup(createElement(SupervisorLink, { url: "https://chatgpt.com/", label: "Open supervisor chat", placeholder: false }));
+  assert.match(withoutWorker, /No supervisor chat linked/);
+  assert.match(withoutWorker, /href="\/supervision"/);
+});
+
+test("the button says no chat is linked only after the directory answers; until then it says it is checking or can't check", () => {
+  const props = { url: "", label: "Open supervisor chat", placeholder: true, workerId: "auth" };
+  const configured: ConfiguredChat = { scope: "SPECIALIST", workerId: "auth", url: "https://chatgpt.com/c/configured", label: "Auth supervisor" };
+  const elsewhere: ConfiguredChat = { scope: "SPECIALIST", workerId: "billing", url: "https://chatgpt.com/c/billing", label: "Billing supervisor" };
+  const homePage: ConfiguredChat = { scope: "SPECIALIST", workerId: "auth", url: "https://chatgpt.com/", label: "Home page" };
+  let answer: DirectoryAnswer = { state: "checking" };
+  assert.deepEqual(supervisorChatView(props, answer), { kind: "checking" });
+  answer = afterLookup(answer, "auth", null);
+  assert.deepEqual(supervisorChatView(props, answer), { kind: "unavailable" }, "a failed or timed-out read is not 'no chat'");
+  answer = afterLookup(answer, "auth", [elsewhere, homePage]);
+  assert.deepEqual(supervisorChatView(props, answer), { kind: "none" }, "only another worker's chat and a home page are configured");
+  answer = afterLookup(answer, "auth", [elsewhere, configured]);
+  assert.deepEqual(supervisorChatView(props, answer), { kind: "link", href: "https://chatgpt.com/c/configured", label: "Auth supervisor" });
+  assert.deepEqual(afterLookup(answer, "auth", null), answer, "a failed read keeps the last answer for the same worker");
+  assert.deepEqual(supervisorChatView({ ...props, workerId: "billing" }, answer), { kind: "checking" }, "an answer for another worker is not used");
+  assert.deepEqual(afterLookup(answer, "billing", null), { state: "unavailable", workerId: "billing" });
+  assert.deepEqual(supervisorChatView({ ...props, url: "https://chatgpt.com/c/recorded", placeholder: false }, { state: "checking" }),
+    { kind: "link", href: "https://chatgpt.com/c/recorded", label: "Open supervisor chat" }, "a recorded chat needs no lookup");
+  const text = (view: ReturnType<typeof supervisorChatView>) => renderToStaticMarkup(createElement(SupervisorLinkView, { view }));
+  assert.match(text({ kind: "checking" }), /Checking for a supervisor chat/);
+  assert.match(text({ kind: "unavailable" }), /Couldn(?:'|&#x27;)t check for a supervisor chat; trying again/);
+  for (const kind of ["checking", "unavailable", "none"] as const) {
+    assert.match(text({ kind }), /href="\/supervision"/);
+    assert.equal(/No supervisor chat linked/.test(text({ kind })), kind === "none", kind);
+  }
+  assert.match(text({ kind: "link", href: "https://chatgpt.com/c/configured", label: "Auth supervisor" }), /href="https:\/\/chatgpt\.com\/c\/configured"[^>]*>.*Auth supervisor/);
+});
+
+test("a supervisor-directory read that never answers, or answers with malformed entries, counts as failed", async () => {
+  const realFetch = globalThis.fetch;
+  try {
+    forgetConfiguredChats();
+    globalThis.fetch = ((_input: unknown, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "AbortError")));
+    })) as typeof fetch;
+    assert.equal(await loadConfiguredChats(Date.now, 20), null);
+    for (const entries of [[null], [{ scope: "SPECIALIST", workerId: "auth" }], "not a list"]) {
+      forgetConfiguredChats();
+      globalThis.fetch = (async () => Response.json({ entries })) as typeof fetch;
+      assert.equal(await loadConfiguredChats(), null, JSON.stringify(entries));
+    }
+  } finally {
+    globalThis.fetch = realFetch;
+    forgetConfiguredChats();
+  }
 });
 
 test("a failed supervisor-directory read is retried, and a good answer is reused for a while", async () => {

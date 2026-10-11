@@ -8,6 +8,7 @@ import { DatabaseSync } from "node:sqlite";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AttentionCard, HealthyCard, MissionCard } from "../components/Dashboard";
+import { supervisorChatView } from "../components/SupervisorLink";
 import { sha256 } from "../lib/canonical";
 import { correctionStatusLabel, CorrectionInvariantError, validateCorrectionTransition } from "../lib/correction-lifecycle";
 import { authenticatedEventTypes, producerKinds, producerMayEmit } from "../lib/ingestion-auth";
@@ -67,9 +68,12 @@ test("a worker with no recorded supervisor chat says so instead of linking the C
   assert.equal(worker.supervisorChatUrl, "");
   assert.equal(worker.supervisorChatIsPlaceholder, true);
   const html = renderToStaticMarkup(createElement(HealthyCard, { worker }));
-  assert.match(html, /No supervisor chat linked/);
+  assert.match(html, /Checking for a supervisor chat/);
   assert.match(html, /href="\/supervision"/);
   assert.doesNotMatch(html, /href="https:\/\/chatgpt\.com\/"/);
+  const props = { url: worker.supervisorChatUrl, label: worker.supervisorChatLabel, placeholder: worker.supervisorChatIsPlaceholder, workerId: worker.id };
+  assert.deepEqual(supervisorChatView(props, { state: "known", workerId: worker.id, chat: null }), { kind: "none" },
+    "once the directory answers with no chat for it, the button says none is linked");
 });
 
 test("a supervisor chat link set later is used when the recorded route has no real chat", () => {
@@ -94,7 +98,8 @@ test("a recorded real supervisor chat stays a link, and a demo address is not of
   const demo = demoWorker("auth");
   assert.equal(demo.supervisorChatIsPlaceholder, true);
   const demoHtml = renderToStaticMarkup(createElement(HealthyCard, { worker: demo }));
-  assert.match(demoHtml, /No supervisor chat linked/);
+  assert.match(demoHtml, /Checking for a supervisor chat/);
+  assert.doesNotMatch(demoHtml, /href="https:\/\/chatgpt\.com/);
   assert.doesNotMatch(demoHtml, /replace-auth-supervisor/);
 });
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { DashboardNotice, OwnerTaskCard, ProjectWatchSummary } from "../components/Dashboard";
+import { DashboardNotice, ownerActionForCard, OwnerTaskCard, ProjectWatchSummary } from "../components/Dashboard";
 import { FleetQueue, QueueDependencies } from "../components/WorkerChannel";
 import { readDashboardData, validTaskSnapshot, validOperatorSnapshot, snapshotFailure, orderedOpenQueue, ownerActionReasonCodesForTheOwner, ownerAlarmReasonCodes, ownerAttention, resolvePrerequisites, workerDisposition } from "../lib/owner-view";
 import { readFileSync } from "node:fs";
@@ -50,6 +50,26 @@ test("the first screen separates real owner decisions from alarms Mission Contro
   assert.equal(ownerAttention(none, now), null);
 });
 
+test("a task card's Your action shows the owner's own action, and says an alarm has nothing to decide", () => {
+  const base = liveSliceWorker();
+  const now = new Date("2026-10-11T01:00:00Z");
+  const telemetry = "Owner-action telemetry is missing; repair observability before assuming no action is required.";
+  const missing = withOwnerAction(base, { kind: "MANUAL_INTERVENTION_REQUIRED", reason_code: "OWNER.ACTION_TELEMETRY_MISSING", exact_text: telemetry });
+  assert.match(ownerActionForCard(missing, now), /^Nothing to decide\. Its worker hasn't reported its next step/);
+  const card = renderToStaticMarkup(createElement(OwnerTaskCard, { worker: missing }));
+  assert.match(card, /<dt>Your action<\/dt><dd>Nothing to decide\./);
+  assert.doesNotMatch(card, /Owner-action telemetry is missing/, "the alarm's internal text is not presented as the owner's action");
+  const overdue = withOwnerAction(base, { kind: "MANUAL_INTERVENTION_REQUIRED", reason_code: "OWNER.NONE_NEXT_ACTION_OVERDUE",
+    exact_text: "The non-owner next action is overdue: Execute the v8b gate.", due_at: "2026-10-10T01:00:00Z" });
+  assert.equal(ownerActionForCard(overdue, now), "Nothing to decide. The next step isn't yours: Execute the v8b gate (due 24 hours ago). If the delay matters, ask its supervisor why.");
+  const decision = withOwnerAction(base, { kind: "DECISION_REQUIRED", reason_code: "SUPERVISOR.SCOPE_CHOICE", exact_text: "Choose whether the import keeps old rows." });
+  assert.equal(ownerActionForCard(decision, now), "Choose whether the import keeps old rows.");
+  assert.match(renderToStaticMarkup(createElement(OwnerTaskCard, { worker: decision })), /<dt>Your action<\/dt><dd>Choose whether the import keeps old rows\.<\/dd>/);
+  assert.equal(ownerActionForCard(withOwnerAction(base, { kind: "DECISION_REQUIRED", reason_code: "SUPERVISOR.SCOPE_CHOICE", exact_text: "" }), now), "Action details not recorded");
+  assert.equal(ownerActionForCard(withOwnerAction(base, { kind: "MANUAL_INTERVENTION_REQUIRED", reason_code: "OWNER.ACTION_TELEMETRY_MISSING", status: "COMPLETED" }), now), "None recorded");
+  assert.equal(ownerActionForCard({ ...base, correction: { ...base.correction, ownerActionType: "NONE" as const } }, now), "None recorded");
+});
+
 test("every owner action the projection makes up itself is classified as an alarm or as the owner's", () => {
   const source = readFileSync(new URL("../lib/projection.ts", import.meta.url), "utf8");
   const made = [...source.matchAll(/reason_code: "(OWNER\.[A-Z_]+)"/g)].map(match => match[1]);
@@ -82,7 +102,8 @@ for (const supervisor of [
         supervisorChatIsPlaceholder: supervisor.placeholder,
       } }));
       if (supervisor.placeholder) {
-        assert.match(html, /No supervisor chat linked/);
+        assert.match(html, /Checking for a supervisor chat/, "it looks up the configured chat before saying there is none");
+        assert.doesNotMatch(html, /No supervisor chat linked/);
         assert.match(html, /href="\/supervision"/);
         assert.doesNotMatch(html, /href="https:\/\/chatgpt\.com/);
       } else {

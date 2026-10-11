@@ -127,9 +127,18 @@ export function DashboardNotice({ failures, hasSnapshot, loading, onRetry }: { f
 }
 
 export function OwnerTaskCard({ worker }: { worker: WorkerState }) {
-  return <article className="owner-task"><div className="owner-task-heading"><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link><span>{workerDisposition(worker)}</span></div><dl className="owner-four"><div><dt>Goal</dt><dd>{worker.objective.goal || "Not recorded"}</dd></div><div><dt>Where we are</dt><dd>{worker.currentStep || "Status needs checking"}</dd><dd className="muted">Latest recorded evidence: {worker.progress.latestEvidence || "Not recorded"}</dd></div><div><dt>Next needed</dt><dd>{worker.correction.directive || worker.nextSteps.join("; ") || worker.progress.requiredIntervention || "Not recorded"}</dd></div><div><dt>Your action</dt><dd>{worker.correction.ownerActionType === "NONE" || worker.correction.ownerAction.status !== "OPEN" ? "None recorded" : worker.correction.ownerActionText || "Action details not recorded"}</dd></div></dl><p className="owner-task-freshness">Checkpoint {relativeTime(worker.lastCheckpointAt)} · {worker.connection.state.replaceAll("_", " ").toLowerCase()}</p>
+  return <article className="owner-task"><div className="owner-task-heading"><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link><span>{workerDisposition(worker)}</span></div><dl className="owner-four"><div><dt>Goal</dt><dd>{worker.objective.goal || "Not recorded"}</dd></div><div><dt>Where we are</dt><dd>{worker.currentStep || "Status needs checking"}</dd><dd className="muted">Latest recorded evidence: {worker.progress.latestEvidence || "Not recorded"}</dd></div><div><dt>Next needed</dt><dd>{worker.correction.directive || worker.nextSteps.join("; ") || worker.progress.requiredIntervention || "Not recorded"}</dd></div><div><dt>Your action</dt><dd>{ownerActionForCard(worker)}</dd></div></dl><p className="owner-task-freshness">Checkpoint {relativeTime(worker.lastCheckpointAt)} · {worker.connection.state.replaceAll("_", " ").toLowerCase()}</p>
     <SupervisorLink url={worker.supervisorChatUrl} label={worker.supervisorChatLabel} placeholder={worker.supervisorChatIsPlaceholder} workerId={worker.id} />
     <Link className="owner-evidence" href={`/worker/${worker.id}`}>Open task and evidence →</Link></article>;
+}
+
+/** The card's "Your action": the owner's own decision or action in its recorded words; for an alarm Mission Control
+ * raised itself, that there is nothing to decide and what to look into; otherwise none. */
+export function ownerActionForCard(worker: WorkerState, now = new Date()): string {
+  const attention = ownerAttention(worker, now);
+  if (attention?.kind === "decision") return worker.correction.ownerActionText || "Action details not recorded";
+  if (attention?.kind === "alarm") return `Nothing to decide. ${attention.explanation}`;
+  return "None recorded";
 }
 
 export function ProjectWatchSummary({ supervisor, queue }: { supervisor: Snapshot["fleetSupervisor"]; queue: WorkQueueItemProjection[] }) {
