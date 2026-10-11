@@ -296,14 +296,17 @@ export function isSupervisorActivity(value: unknown): value is SupervisorActivit
   if (!states || !Object.values(states).every((state) => (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(state))) return false;
   const routeEvents = record(activity.routeEvents);
   if (!routeEvents || Object.keys(routeEvents).length !== Object.keys(states).length
-    || !Object.keys(states).every((requestId) => Number.isSafeInteger(routeEvents[requestId]))) return false;
+    || !Object.keys(states).every((requestId) => Number.isSafeInteger(routeEvents[requestId]))
+    || new Set(Object.values(routeEvents)).size !== Object.keys(routeEvents).length) return false;
   if (!Array.isArray(activity.requests) || activity.requests.length > RECENT_REQUESTS) return false;
   // The listed questions, the state of every question and the totals all describe one set: they must agree.
   const stateValues = Object.values(states);
   if (activity.total !== stateValues.length
     || activity.answered !== stateValues.filter((state) => state === "ANSWERED" || state === "ANSWERED_DUPLICATE_SEND").length) return false;
   const listed = activity.requests.map((item: unknown) => record(item)?.requestId);
-  if (new Set(listed).size !== listed.length) return false;
+  // The listed questions are exactly the newest ones (by route event), newest first: never a subset or another order.
+  const newestIds = Object.keys(states).sort((a, b) => Number(routeEvents[b]) - Number(routeEvents[a])).slice(0, RECENT_REQUESTS);
+  if (listed.length !== newestIds.length || listed.some((requestId, index) => requestId !== newestIds[index])) return false;
   if (!Array.isArray(activity.evidence) || activity.evidence.length > 3) return false;
   const evidenceIds = activity.evidence.map((item: unknown) => record(item)?.requestId);
   if (new Set([...listed, ...evidenceIds]).size !== listed.length + evidenceIds.length) return false;
@@ -326,7 +329,7 @@ function requestFits(item: unknown, states: Record<string, unknown>): boolean {
   const request = record(item);
   return request !== null && typeof request.requestId === "string" && timeOrNull(request.queuedAt) && request.queuedAt !== null
     && (SUPERVISOR_REQUEST_STATES as readonly unknown[]).includes(request.state)
-    && (SUPERVISOR_REQUEST_ORIGINS as readonly unknown[]).includes(request.origin)
+    && request.origin === originOf(request.requestId)
     && ["supervisorId", "question", "answer"].every((key) => nullableString(request[key]))
     && ["expiresAt", "sentAt", "finishedAt", "answeredAt"].every((key) => timeOrNull(request[key]))
     && (STATE_TIMES[request.state as SupervisorRequestState] ?? []).every((key) => request[key] !== null)

@@ -428,6 +428,14 @@ test("an activity state without the times it is about is not accepted", () => {
   assert.equal(isSupervisorActivity({ ...good, answered: 1 }), false);
   assert.equal(isSupervisorActivity({ ...good, requests: [request, request], total: 2, states: { ...good.states, other: "QUEUED" }, routeEvents: { ...good.routeEvents, other: 1 } }), false, "the same question listed twice");
   assert.equal(isSupervisorActivity({ ...good, requests: [{ ...request, requestId: "elsewhere" }] }), false, "a listed question missing from the map");
+  // The listed questions are exactly the newest five, newest first.
+  const six = activityOf([1, 2, 3, 4, 5, 6].map((n) => route(`fleet-review:n${n}`, `2026-10-11T0${n}:00:00Z`)));
+  assert.deepEqual(six.requests.map((listed) => listed.requestId), ["fleet-review:n6", "fleet-review:n5", "fleet-review:n4", "fleet-review:n3", "fleet-review:n2"]);
+  assert.equal(isSupervisorActivity({ ...six, requests: [] }), false, "none listed though there are questions");
+  assert.equal(isSupervisorActivity({ ...six, requests: six.requests.slice(1) }), false, "the newest left out");
+  assert.equal(isSupervisorActivity({ ...six, requests: [...six.requests].reverse() }), false, "oldest first");
+  assert.equal(isSupervisorActivity({ ...six, routeEvents: { ...six.routeEvents, "fleet-review:n1": six.routeEvents["fleet-review:n2"] } }), false, "two questions on one route event");
+  assert.equal(isSupervisorActivity({ ...six, requests: [{ ...six.requests[0], origin: "OWNER_ANSWER" }, ...six.requests.slice(1)] }), false, "an origin its request id doesn't name");
   // The latest chat, last send and last answer must be what the questions record.
   const queuedOnly = activityOf([route("fleet-review:q", "2026-10-11T10:00:00Z")]);
   assert.equal(isSupervisorActivity({ ...queuedOnly, latestConversationUrl: "https://chatgpt.com/c/unrelated" }), false, "a chat no question ran in");
