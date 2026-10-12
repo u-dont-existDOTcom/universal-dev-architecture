@@ -19,6 +19,23 @@ from scripts import uda_enforcement_coverage as coverage
 from scripts import uda_rule_graph_task_time as tt
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+# Kernel selectors added after slice 2a; stripped so slice 2a history stays fixed.
+LATER_KERNEL_SELECTORS = {
+    "uda.kernel.clock-cadence": {
+        "Get the second reading and the elapsed time from one command that prints the finished first line, not from reasoning:",
+    },
+}
+
+
+def without_later_kernel_selectors(catalog):
+    catalog = copy.deepcopy(catalog)
+    for record in catalog["records"]:
+        later = LATER_KERNEL_SELECTORS.get(record["rule_id"])
+        if later:
+            record["source"]["selectors"] = [s for s in record["source"]["selectors"] if s.get("text") not in later]
+    return catalog
 FIXTURES = ROOT / "tests/fixtures/continuation-closure-slice"
 SOURCES = ("patterns/terminal-response-admission-and-autonomous-continuation.md",
            "patterns/context-compaction-resilience.md",
@@ -353,12 +370,13 @@ class ContinuationClosureSliceTests(unittest.TestCase):
         measured = re.search(r'Work (\d+)/(\d+) bytes', finding['implemented'])
         self.assertIsNotNone(measured)
         # Later slice guards may grow Work without rewriting slice 2a history.
-        slice_2a = {**self.catalog, 'records': [r for r in self.catalog['records']
+        slice_2a_catalog = without_later_kernel_selectors(self.catalog)
+        slice_2a = {**slice_2a_catalog, 'records': [r for r in slice_2a_catalog['records']
                     if not r['rule_id'].startswith('uda.owner-outcome.')]}
         historical = tt.compile_contract(slice_2a, self.profile, tt.read_json(ROOT / coverage.WORK_TASK), 'graph')
         self.assertEqual(len(historical['rendered_contract'].encode('utf-8')), int(measured[1]))
         current = next(f for f in reversed(requirement['related_findings']) if f['finding_id'].startswith('slice-'))
-        measured_current = re.search(r'-> (\d+)/(\d+) bytes', current['implemented'])
+        measured_current = re.search(r'-> (\d+)/(\d+|unmeasured) bytes', current['implemented'])
         self.assertIsNotNone(measured_current)
         projection = tt.read_json(ROOT / coverage.WORK_CONTRACT)
         self.assertEqual(len(projection['rendered_contract'].encode('utf-8')), int(measured_current[1]))
@@ -385,15 +403,21 @@ class ContinuationClosureSliceTests(unittest.TestCase):
         with self.assertRaises(tt.RuleGraphError) as caught:
             tt.validate(baseline_catalog, self.profile)
         self.assertEqual('TRIGGER_FACTS_NOT_REFRESHED', caught.exception.code)
-        slice_2a = {**self.catalog, 'records': [r for r in self.catalog['records']
+        slice_2a_catalog = without_later_kernel_selectors(self.catalog)
+        slice_2a = {**slice_2a_catalog, 'records': [r for r in slice_2a_catalog['records']
                     if not r['rule_id'].startswith('uda.owner-outcome.')]}
         historical = tt.compile_contract(slice_2a, self.profile, tt.read_json(ROOT / coverage.WORK_TASK), 'graph')
         self.assertEqual(len(historical['rendered_contract'].encode('utf-8')),
                          int(measured[2].replace(',', '')))
         current = re.search(r'representative Work: [\d,]+/[\d,]+ becomes ([\d,]+)/([\d,]+)', summary)
         self.assertIsNotNone(current)
+        # The slice 2b figure is history once a later finding re-measures Work; the newest finding is current.
+        latest = next(f for f in reversed(tt.read_json(ROOT / coverage.REQUIREMENT)['related_findings'])
+                      if f['finding_id'].startswith('slice-'))
+        moved = re.search(r'Work (\d+)/\d+ -> (\d+)/(?:\d+|unmeasured) bytes', latest['implemented'])
+        self.assertIsNotNone(moved)
         projection = tt.read_json(ROOT / coverage.WORK_CONTRACT)
-        self.assertEqual(len(projection['rendered_contract'].encode('utf-8')), int(current[1].replace(',', '')))
+        self.assertEqual(len(projection['rendered_contract'].encode('utf-8')), int(moved[2]))
 
     def test_event_fact_changes_block_until_recompiled_even_if_initially_excluded(self):
         for folder, r, catalog, task, _ in self.cases():

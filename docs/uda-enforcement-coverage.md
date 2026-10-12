@@ -167,6 +167,7 @@ Clauses 27; consolidated obligations 6; structured clauses 26; excepted 1; remai
 | Never compare clocks or read mid-task. | uda.kernel.clock-cadence / two-read-cadence |
 | The final answer opens with the second reading | uda.final.timestamp / final-elapsed-time |
 | and says how long the turn took in total. | uda.final.timestamp / final-elapsed-time |
+| Get the second reading and the elapsed time from one command that prints the finished first line, not from reasoning: | uda.kernel.clock-cadence / two-read-cadence |
 | Don't reuse a prior-turn timestamp | uda.kernel.clock-cadence / two-read-cadence |
 | or present capture time as hidden provider sent time. | uda.kernel.clock-cadence / two-read-cadence |
 | If no clock answers, say so rather than inventing a time. | uda.kernel.clock-cadence / two-read-cadence |
@@ -1025,6 +1026,8 @@ Both actual sizes are measured through the compiler and Mission Control's produc
 |---|---:|---:|---:|
 | Rendered Work contract | 32,429 | 32,561 | 32,768 |
 | Injected Work block | 37,194 | 37,194 | 40,960 |
+
+On 2026-10-11 the owner-required one-command turn stamp (`docs/requirements/2026-10-11-one-command-turn-stamp.owner-requirement.json`) added one clock-cadence selector. The rendered Work contract rose from 32,561 to 32,680 bytes, 88 below the cap; the injected block was not re-measured with the Mission Control adapter.
 
 The five omitted event records add 132 rendered guard bytes and zero injected bytes; 207 rendered bytes remain. Three broader worker-duty proposals would actually be selected by unchanged Work facts if activated. Their complete definitions and source selectors are preserved as CANDIDATE in `rules/rule-graph/owner-outcome-budget-deferred.v1.json`, outside active metadata. Their mapped clauses remain legacy. The table measures explicit hypothetical CURRENT activation against the final five-record catalog, not the compiler's intentionally inactive CANDIDATE state:
 
