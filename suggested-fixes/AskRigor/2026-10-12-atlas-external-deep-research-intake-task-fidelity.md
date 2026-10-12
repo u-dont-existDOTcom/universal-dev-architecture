@@ -1,17 +1,13 @@
 # Atlas intake: reject external Deep Research outputs that answer a different question or omit the evidence records
 
-- For: `u-dont-existDOTcom/AskRigor` (Atlas planning/ingestion workstream)
-- Filed: 2026-10-12 from a user's explicit ongoing Natural Treatment Atlas automation goal and two delivered Deep Research exports.
-- Owner request: preserve all collected evidence, not just an essay; prioritize symptom-first global botanicals, books and primary sources; make output resumable. Here the planned first pilot was **migraine/recurrent headaches**.
-- This is an **ingestion-validation suggestion**, not a claim that AskRigor caused an external Deep Research failure; the exact external run invocation is not available.
+- For: `u-dont-existDOTcom/AskRigor`
+- Filed: 2026-10-12, by the assistant running the owner's Natural Treatment Atlas research (Atlas planning and ingestion workstream). Put in the lane format by the UDA maintainer (Claude) the same day.
+- From: the owner's ongoing Natural Treatment Atlas automation goal and two Deep Research exports delivered for its first pilot, migraine and recurrent headaches (private; not linked).
+- Owner request: no. The owner's Atlas goals it serves: preserve all collected evidence, not just an essay; prioritize symptom-first global botanicals, books and primary sources; make output resumable.
+- Existing pull request: none.
+- Supersedes: none.
 
-## Observed failure
-
-The original 2026-10-12 evidence-only instructions explicitly requested **migraine/recurrent-headache intervention research**, no narrative report, and durable `sources.jsonl`, `evidence.jsonl`, `search_log.jsonl`, `disagreements.jsonl`, `access_requests.jsonl`, `frontier.json` plus minimal manifest. Two subsequently uploaded **complete 117-line and 155-line Markdown outputs** instead discussed AskRigor's research architecture, diversified markets/policy/competitive intelligence and citation export formats. The first had zero appearances of 'migraine'; the second mentioned migraine once only to say its uploaded migraine-evidence Markdown was unrelated and not used. Neither provided any migraine-treatment outcome records, extracted trial contrasts, ethnographic reports, or ranked absent books. They advertised `sandbox:/mnt/data/...` links to ZIPs and full reports created in the **other research session**, whose exact paths did **not** exist in the current follow-up runtime. Both Markdown uploads themselves were readable and fully verified. There is no evidence to blame the document upload transport.
-
-This is a **scope/objective fidelity failure plus artifact handoff mismatch** relative to the initial evidence-only task. It is NOT proof of what exact prompt the external run actually received, or a software defect in AskRigor itself. The broad meta reports may be useful process references, but they are not medicinal evidence.
-
-## Proposed fix, narrowly scoped
+## What to do
 
 At the boundary where an external Deep Research output is submitted to the owner-specific Atlas ingest workflow:
 1. Verify the current **owner research target**, e.g. phenotype `migraine / recurrent headache`, against the actual accepted output before marking the topic explored. Keep source-domain ontology flexible: a book about indigenous medicine may still have a migraine-relevant chapter.
@@ -21,6 +17,18 @@ At the boundary where an external Deep Research output is submitted to the owner
 5. Maintain a ranked unavailable original-study/book acquisition queue as part of the accepted records; preserve original full-text vs abstract-only vs not accessed and separate source-linked method audit.
 6. Gate any claims `Atlas ingestion saved` or `research pass completed` on actual source-specific records. If the external mode only exports an ordinary report, derive/source-audit record blocks from its **migraine-relevant** contents rather than pretending nonexistent files were saved.
 
+Accept a versioned **migraine/headache evidence bundle** only when material source and outcome records genuinely concern migraine, alongside a source-access ledger and missing-books queue. A related research-software report belongs in a different mission lane.
+
+## Why
+
+The original 2026-10-12 evidence-only instructions explicitly requested **migraine/recurrent-headache intervention research**, no narrative report, and durable `sources.jsonl`, `evidence.jsonl`, `search_log.jsonl`, `disagreements.jsonl`, `access_requests.jsonl`, `frontier.json` plus minimal manifest. Two subsequently uploaded **complete 117-line and 155-line Markdown outputs** instead discussed AskRigor's research architecture, diversified markets/policy/competitive intelligence and citation export formats. The first had zero appearances of 'migraine'; the second mentioned migraine once only to say its uploaded migraine-evidence Markdown was unrelated and not used. Neither provided any migraine-treatment outcome records, extracted trial contrasts, ethnographic reports, or ranked absent books. They advertised `sandbox:/mnt/data/...` links to ZIPs and full reports created in the **other research session**, whose exact paths did **not** exist in the current follow-up runtime. Both Markdown uploads themselves were readable and fully verified. There is no evidence to blame the document upload transport.
+
+This is a **scope/objective fidelity failure plus artifact handoff mismatch** relative to the initial evidence-only task. It is NOT proof of what exact prompt the external run actually received, or a software defect in AskRigor itself; the exact external run invocation is not available. This is an **ingestion-validation suggestion**, not a claim that AskRigor caused an external Deep Research failure. The broad meta reports may be useful process references, but they are not medicinal evidence.
+
+## Check first
+
+Run the regression examples below against the current Atlas ingest workflow before changing it.
+
 ## Regression examples
 
 - **Wrong topic:** requested migraine botanical evidence; returns AskRigor MCP architecture review with many correct citations and zero migraine treatments. MUST fail Atlas intake; no claim of scientific saturation and no fake evidence records.
@@ -29,6 +37,3 @@ At the boundary where an external Deep Research output is submitted to the owner
 - **Wrong question transferred:** migraine evidence appears in a source appendix but the task output mainly discusses research software. Preserve useful citations, classify primary deliverable mismatch.
 - **Book sources:** requested priority queue contains a monograph but no verified text; mark `identified, not accessed`, not `full text inspected`.
 - **Public product independence:** run with standalone AskRigor without UDA to determine if the Atlas handoff itself prevents false completion. This must not be credited to other instructions used only in a private workflow.
-
-## Outcome
-Accept a versioned **migraine/headache evidence bundle** only when material source and outcome records genuinely concern migraine, alongside a source-access ledger and missing-books queue. A related research-software report belongs in a different mission lane. The user's separate strength and endogenous-testosterone workstreams remain OPEN.
