@@ -6,6 +6,8 @@ import type { WorkerState } from "@/lib/projection";
 import type { StoredEvent } from "@/lib/schema";
 import { StatusDot } from "./StatusDot";
 import { SupervisorLink } from "./SupervisorLink";
+import { SupervisorActivityPanel } from "./SupervisorActivity";
+import { latestSupervisorConversation } from "@/lib/supervisor-activity";
 import { WorkerChannel } from "./WorkerChannel";
 
 export function WorkerDetail({ workerId }: { workerId: string }) {
@@ -39,9 +41,11 @@ export function WorkerDetail({ workerId }: { workerId: string }) {
         <div className="detail-actions">
           <span className={`verdict-badge ${worker.operatorState.traffic.toLowerCase()}`}>{worker.operatorState.label}</span>
           <span className="diagnostic-caption">Diagnostic index {worker.alignment}/100 · secondary metadata</span>
-          <SupervisorLink url={worker.supervisorChatUrl} label={worker.supervisorChatLabel} placeholder={worker.supervisorChatIsPlaceholder} />
+          <SupervisorLink url={worker.supervisorChatUrl} label={worker.supervisorChatLabel} placeholder={worker.supervisorChatIsPlaceholder} workerId={worker.id} activityUrl={latestSupervisorConversation(worker.supervisorActivity)} />
         </div>
       </header>
+
+      <SupervisorActivityPanel activity={worker.supervisorActivity} />
 
       <DecisionStrip worker={worker} />
 
@@ -160,7 +164,7 @@ export function WorkerDetail({ workerId }: { workerId: string }) {
           <p className="route-trigger"><span className="field-label">NEXT ROUTE TRIGGER</span>{worker.supervisionRoute.nextReviewTrigger}</p>
           <p className="assessment-reason">{worker.supervisor.reason}</p>
           <div className="freshness-row"><span>Assessment binding</span><strong className={worker.supervisor.assessmentFresh ? "good" : "bad"}>{worker.supervisor.assessmentFresh ? "CURRENT" : "STALE"}</strong></div>
-          <SupervisorLink url={worker.supervisorChatUrl} label={worker.supervisorChatLabel} placeholder={worker.supervisorChatIsPlaceholder} />
+          <SupervisorLink url={worker.supervisorChatUrl} label={worker.supervisorChatLabel} placeholder={worker.supervisorChatIsPlaceholder} workerId={worker.id} activityUrl={latestSupervisorConversation(worker.supervisorActivity)} />
         </Panel>
 
         {worker.research && <Panel eyebrow="RESEARCH ASSURANCE" title="Operational, scientific, and release planes" className="research-panel">

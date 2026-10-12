@@ -7,6 +7,10 @@ import type { StoredEvent } from "@/lib/schema";
 import { formatMessageTimestamp } from "@/lib/message-time";
 import { StatusDot } from "./StatusDot";
 import type { OperatorStatusProjection, OperatorSupervisorStatus } from "@/lib/operator-status-contract";
+import { isPendingSupervisorRequest, isSupervisorActivity, latestSupervisorConversation, type SupervisorRequestState } from "@/lib/supervisor-activity";
+import { validOperatorSnapshot, validSupervisionSnapshot } from "@/lib/owner-view";
+import { isSpecificChatAddress } from "@/lib/supervisor-chat-address";
+import { SUPERVISOR_REQUEST_STATE, supervisorStatusLine } from "./SupervisorActivity";
 
 interface Snapshot {
   workers: WorkerState[];
@@ -68,6 +72,8 @@ interface RouteRow {
   worker: WorkerState;
   event: WorkerMessageEvent;
   packet: InternalRoutePacket;
+  /** Where the question stands now (sent, answered, expired…), as Mission Control's projection admitted it. */
+  state: SupervisorRequestState;
 }
 
 const emptyDirectory: ConfiguredSupervisorDirectory = {
@@ -77,15 +83,38 @@ const emptyDirectory: ConfiguredSupervisorDirectory = {
 };
 const internalRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n";
 const providerSessionRoutePrefixes = [
+  "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n",
+  "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V5\n",
   "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n",
   "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n",
 ] as const;
+
+/**
+ * The page's read model from the task and operator answers, or null when either fails the dashboard's own checks or
+ * the page's own (every task's timeline and supervisor address); the page then keeps its last-known view, so a
+ * malformed or another build's answer never reaches the views.
+ */
+export function supervisionReadModel(snapshot: unknown, status: unknown): { snapshot: Snapshot; status: OperatorStatusProjection } | null {
+  return validSupervisionSnapshot(snapshot) && validOperatorSnapshot(status) ? { snapshot: snapshot as Snapshot, status: status as OperatorStatusProjection } : null;
+}
+
+/** Before the page has any good read: the read failed or its answer was refused, so say so and offer a retry. */
+export function SupervisionUnavailable({ onRetry }: { onRetry: () => void }) {
+  return <div role="alert" className="error-banner">
+    <strong>The supervision page couldn&apos;t load.</strong>
+    <p>Mission Control&apos;s answer was missing or couldn&apos;t be read, so nothing is shown rather than something wrong.</p>
+    <button className="owner-retry" onClick={onRetry}>Retry</button>
+  </div>;
+}
 
 export function SupervisionConsole() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [directory, setDirectory] = useState<ConfiguredSupervisorDirectory>(emptyDirectory);
   const [operatorStatus, setOperatorStatus] = useState<OperatorStatusProjection | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Whether the latest read of the read model failed (failed request or refused answer); before any good read, the
+  // page says so with a retry instead of loading forever.
+  const [readFailed, setReadFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -95,8 +124,11 @@ export function SupervisionConsole() {
         fetch("/api/operator-status", { cache: "no-store" }),
       ]);
       if (!snapshotResponse.ok || !operatorResponse.ok) throw new Error("supervision snapshot failed");
-      setSnapshot(await snapshotResponse.json());
-      setOperatorStatus(await operatorResponse.json());
+      const model = supervisionReadModel(await snapshotResponse.json(), await operatorResponse.json());
+      if (!model) throw new Error("supervision snapshot malformed");
+      setSnapshot(model.snapshot);
+      setOperatorStatus(model.status);
+      setReadFailed(false);
       if (directoryResponse.ok) {
         const configured = await directoryResponse.json() as ConfiguredSupervisorDirectory;
         setDirectory(configured);
@@ -106,6 +138,7 @@ export function SupervisionConsole() {
         setError("Mission Control could not load the configured supervisor-chat directory.");
       }
     } catch {
+      setReadFailed(true);
       setError("Mission Control could not load the supervision read model.");
     }
   }, []);
@@ -124,18 +157,12 @@ export function SupervisionConsole() {
       .map((event) => ({ worker, event })));
   }, [snapshot]);
 
-  const routeRows = useMemo(() => {
-    return (snapshot?.workers ?? []).flatMap((worker) => worker.timeline
-      .filter(isWorkerMessageEvent)
-      .flatMap((event) => {
-        const packet = parseInternalRoutePacket(event.data.body);
-        return packet ? [{ worker, event, packet }] : [];
-      }))
-      .sort((left, right) => right.event.occurredAt.localeCompare(left.event.occurredAt));
-  }, [snapshot]);
+  const routeRows = useMemo<RouteRow[]>(() => admittedRouteRows(snapshot?.workers ?? []), [snapshot]);
 
   if (!snapshot || !operatorStatus) {
-    return <main className="shell"><div className="loading-panel">Loading supervision channels…</div></main>;
+    return <main className="shell">{readFailed
+      ? <SupervisionUnavailable onRetry={() => void load()} />
+      : <div className="loading-panel">Loading supervision channels…</div>}</main>;
   }
 
   const projectManagerRows = messageRows.filter((row) => row.event.data.surface_role === "PROJECT_MANAGER");
@@ -151,6 +178,8 @@ export function SupervisionConsole() {
   const projectManagerReachable = projectManagerStatus?.reachable === true;
   const verifiedProjectManagerMessages = projectManagerRows.filter((row) => row.event.data.provenance_status === "VERIFIED").length;
   const configuredSpecialists = directory.entries.filter((entry) => entry.scope === "SPECIALIST");
+  // A task whose snapshot doesn't carry its supervisor activity has unknown questions, not none.
+  const unknownActivity = snapshot.workers.filter((worker) => !isSupervisorActivity(worker.supervisorActivity)).length;
 
   return <main className="shell detail-shell">
     <header className="topbar">
@@ -190,7 +219,7 @@ export function SupervisionConsole() {
             || !row.event.data.stable_supervisor_id && row.event.data.immutable_provider_locator === entry.url));
         const latest = latestMessage(matchingRows);
         const verified = matchingRows.filter((row) => row.event.data.provenance_status === "VERIFIED").length;
-        const queued = routeRows.filter((row) => row.packet.destinationSupervisorId === entry.supervisorId).length;
+        const queued = routeRows.filter((row) => row.packet.destinationSupervisorId === entry.supervisorId && pendingRoute(row)).length;
         return <article key={entry.supervisorId} className="healthy-card">
           <div className="healthy-card-head">
             <div><StatusDot health={live?.reachable ? "GREEN" : live?.registered ? "YELLOW" : "UNKNOWN"} /><h3>{entry.label}</h3></div>
@@ -200,7 +229,7 @@ export function SupervisionConsole() {
           <div className="healthy-planes">
             <span>Verified messages <strong>{verified}</strong></span>
             <span>Total messages <strong>{matchingRows.length}</strong></span>
-            <span>Queued routes <strong>{queued}</strong></span>
+            <span>Questions in flight <strong>{queued}</strong></span>
             <span>Latest reasoning <strong>{reasoningAge(live)}</strong></span>
           </div>
           {latest ? <MessageSummary row={latest} /> : <p className="empty-channel">No verified source-bound reasoning message is currently recorded for this specialist.</p>}
@@ -215,15 +244,17 @@ export function SupervisionConsole() {
         const latest = latestMessage(rows);
         const configured = directory.entries.find((entry) => entry.scope === "SPECIALIST" && entry.workerId === worker.id) ?? null;
         const live = configured ? operatorStatus.supervisors.find((entry) => entry.supervisorId === configured.supervisorId) ?? null : null;
-        const link = latest?.event.data.immutable_provider_locator ?? configured?.url ?? realSupervisorLink(worker);
+        const latestChat = latestSupervisorConversation(worker.supervisorActivity);
+        const link = latestChat ?? latest?.event.data.immutable_provider_locator ?? configured?.url ?? realSupervisorLink(worker);
         const verified = rows.filter((row) => row.event.data.provenance_status === "VERIFIED").length;
-        const state = workflowState(worker, routeRows.some((row) => row.worker.id === worker.id));
+        const state = workflowState(worker, routeRows.some((row) => row.worker.id === worker.id && pendingRoute(row)));
         return <article key={worker.id} className="healthy-card">
           <div className="healthy-card-head">
             <div><StatusDot health={live?.reachable ? "GREEN" : link ? "YELLOW" : "UNKNOWN"} /><h3>{worker.name}</h3></div>
             <span>{state}</span>
           </div>
           <p>Current supervisor: {configured?.label ?? worker.executionSupervision.surface} · execution {worker.executionSupervision.codexExecutionState.replaceAll("_", " ").toLowerCase()}</p>
+          <p>Latest question: {supervisorStatusLine(worker.supervisorActivity)}</p>
           <div className="healthy-planes">
             <span>Verified messages <strong>{verified}</strong></span>
             <span>Total messages <strong>{rows.length}</strong></span>
@@ -232,7 +263,7 @@ export function SupervisionConsole() {
           </div>
           {latest ? <MessageSummary row={latest} /> : <p className="empty-channel">No verified source-bound specialist reasoning is recorded; summaries and saved titles do not count.</p>}
           <div className="detail-actions">
-            {link && <a href={link} target="_blank" rel="noreferrer">Open specialist chat →</a>}
+            {link && <a href={link} target="_blank" rel="noreferrer">{latestChat ? "Open its latest supervisor chat →" : "Open specialist chat →"}</a>}
             <Link href={`/worker/${worker.id}`}>Open worker evidence and transcript →</Link>
           </div>
         </article>;
@@ -242,12 +273,13 @@ export function SupervisionConsole() {
     <section className="change-summary secondary-history" aria-label="Internal supervisor routing queue">
       <div className="summary-title"><span className="scan-icon">⇢</span><p className="eyebrow">INTERNAL SUPERVISOR ROUTES</p></div>
       <p>Pre-action gate requests appear here before a worker may form methodology, priority, spending, proposal, or consequential-tradeoff decisions. A queued item blocks that worker action and never asks the owner to relay it.</p>
+      {unknownActivity > 0 && <p className="empty-channel">The supervisor questions of {unknownActivity} task{unknownActivity === 1 ? "" : "s"} aren&apos;t available right now.</p>}
       {routeRows.length === 0
-        ? <p className="empty-channel">No pre-action supervisor route packets are recorded.</p>
+        ? (unknownActivity === 0 && <p className="empty-channel">No pre-action supervisor route packets are recorded.</p>)
         : routeRows.slice(0, 20).map((row) => {
           const locator = directory.entries.find((entry) => entry.supervisorId === row.packet.destinationSupervisorId)?.bootstrapCapability.url ?? null;
           return <div className="gap-callout" key={row.event.eventId}>
-            <span className="field-label">{row.packet.providerDeliveryState.replaceAll("_", " ")}</span>
+            <span className="field-label">{SUPERVISOR_REQUEST_STATE[row.state]}</span>
             <p><strong>{row.worker.name}</strong> · blocked/routed action {row.packet.actionBlockedOrRouted.replaceAll("_", " ")}</p>
             <p>{row.packet.factualPacket.exactFactualState}</p>
             <p><strong>Decision requested:</strong> {row.packet.factualPacket.decisionRequested}</p>
@@ -295,7 +327,30 @@ function workerLabel(workers: WorkerState[], workerId: string): string {
   return workers.find((worker) => worker.id === workerId)?.name ?? "a currently offline worker";
 }
 
-function workflowState(worker: WorkerState, hasPendingRoute: boolean): string {
+/**
+ * The route rows the page lists, newest first: only the exact route events the server projection admitted (its own
+ * request parser and replacement rules), with each one's state; never a rejected or replayed copy of a request id.
+ */
+export function admittedRouteRows(workers: WorkerState[]): RouteRow[] {
+  return workers.flatMap((worker) => {
+    const activity = isSupervisorActivity(worker.supervisorActivity) ? worker.supervisorActivity : null;
+    return worker.timeline
+      .filter(isWorkerMessageEvent)
+      .flatMap((event) => {
+        const packet = parseInternalRoutePacket(event.data.body);
+        const state = packet && activity && Object.hasOwn(activity.routeEvents, packet.requestId)
+          && activity.routeEvents[packet.requestId] === event.sequence ? activity.states[packet.requestId] : null;
+        return packet && state ? [{ worker, event, packet, state }] : [];
+      });
+  })
+    .sort((left, right) => Date.parse(right.event.occurredAt) - Date.parse(left.event.occurredAt) || right.event.sequence - left.event.sequence);
+}
+
+export function pendingRoute(row: Pick<RouteRow, "state">): boolean {
+  return isPendingSupervisorRequest(row);
+}
+
+export function workflowState(worker: WorkerState, hasPendingRoute: boolean): string {
   if (worker.status === "done") return "FINISHED";
   if (worker.correction.ownerActionType !== "NONE") return "WAITING FOR JOEL";
   if (hasPendingRoute || worker.executionSupervision.pendingReasoningReview) return "WAITING FOR SUPERVISOR";
@@ -322,10 +377,10 @@ function messageTime(row: MessageRow): string {
 
 function realSupervisorLink(worker: WorkerState | undefined): string | null {
   if (!worker || worker.supervisorChatIsPlaceholder) return null;
-  return worker.supervisorChatUrl.startsWith("https://") ? worker.supervisorChatUrl : null;
+  return isSpecificChatAddress(worker.supervisorChatUrl) ? worker.supervisorChatUrl : null;
 }
 
-function parseInternalRoutePacket(body: string): InternalRoutePacket | null {
+export function parseInternalRoutePacket(body: string): InternalRoutePacket | null {
   const providerSessionPrefix = providerSessionRoutePrefixes.find((candidate) => body.startsWith(candidate));
   const providerSession = Boolean(providerSessionPrefix);
   const prefix = providerSessionPrefix ?? internalRoutePrefix;
