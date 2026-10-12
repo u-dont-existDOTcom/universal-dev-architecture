@@ -840,6 +840,16 @@ test("the button keeps the newest chat that was reached even when newer question
   assert.deepEqual(activity.evidence.map((request) => request.requestId), ["fleet-review:reached"], "the older question the chat comes from goes with it");
   const tampered = { ...activity, evidence: [{ ...activity.evidence[0], conversationUrl: "https://chatgpt.com/c/another-chat" }] };
   assert.equal(isSupervisorActivity(tampered), false, "the chat must be the one that question records");
+  const hidden = { ...activity, evidence: [], latestConversationUrl: null, lastSentAt: null };
+  assert.equal(isSupervisorActivity(hidden), false, "an older sent question can't be hidden by leaving out its evidence");
+  const answeredEarlier = activityOf([
+    route("fleet-review:answered", "2026-10-11T01:00:00Z"), decision("fleet-review:answered", "2026-10-11T01:30:00Z"),
+    ...[1, 2, 3, 4, 5].map((n) => route(`fleet-review:later-${n}`, `2026-10-11T0${n + 1}:00:00Z`)),
+  ]);
+  assert.equal(answeredEarlier.states["fleet-review:answered"], "ANSWERED");
+  assert.equal(isSupervisorActivity(answeredEarlier), true);
+  assert.equal(isSupervisorActivity({ ...answeredEarlier, evidence: [], lastAnsweredAt: null, lastSentAt: null, latestConversationUrl: null }), false,
+    "nor an older answered one");
 });
 
 test("an operator status without well-formed supervisors is not accepted as a refresh", () => {

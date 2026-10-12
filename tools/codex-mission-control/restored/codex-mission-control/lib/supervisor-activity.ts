@@ -312,6 +312,13 @@ export function isSupervisorActivity(value: unknown): value is SupervisorActivit
   if (new Set([...listed, ...evidenceIds]).size !== listed.length + evidenceIds.length) return false;
   const pool = [...activity.requests, ...activity.evidence] as unknown[];
   if (!pool.every((item) => requestFits(item, states))) return false;
+  // An older question that is neither listed nor carried as evidence can't hide a send or an answer: when its state
+  // has a send (or answer) time, the last send (or answer) must be set, so its source is among the questions here.
+  const carried = new Set([...listed, ...evidenceIds]);
+  const olderTimes = Object.entries(states).filter(([requestId]) => !carried.has(requestId))
+    .flatMap(([, state]) => STATE_TIMES[state as SupervisorRequestState] ?? []);
+  if ((olderTimes.includes("sentAt") && activity.lastSentAt === null)
+    || (olderTimes.includes("answeredAt") && activity.lastAnsweredAt === null)) return false;
   // The latest chat, last send and last answer must be what these questions record, newest first by route event.
   const newestFirst = (pool as SupervisorRequestActivity[]).slice().sort((a, b) => Number(routeEvents[b.requestId]) - Number(routeEvents[a.requestId]));
   const sources = aggregateSources(newestFirst);
