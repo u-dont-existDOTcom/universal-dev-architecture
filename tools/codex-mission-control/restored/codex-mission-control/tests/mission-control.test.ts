@@ -8,6 +8,7 @@ import { DatabaseSync } from "node:sqlite";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AttentionCard, HealthyCard, MissionCard } from "../components/Dashboard";
+import { supervisorChatView } from "../components/SupervisorLink";
 import { sha256 } from "../lib/canonical";
 import { correctionStatusLabel, CorrectionInvariantError, validateCorrectionTransition } from "../lib/correction-lifecycle";
 import { authenticatedEventTypes, producerKinds, producerMayEmit } from "../lib/ingestion-auth";
@@ -58,6 +59,48 @@ test("supervisor chat links remain first-class HTTPS-only data", () => {
   });
   assert.equal(parsed.supervisor_chat_url, "https://chatgpt.com/c/real-supervisor-chat");
   assert.throws(() => eventSchema.parse({ ...parsed, supervisor_chat_url: "javascript:alert(1)" }));
+});
+
+test("a worker with no recorded supervisor chat says so instead of linking the ChatGPT home page", () => {
+  const events = cloneEvents(workerEvents("auth")).filter((event) =>
+    event.data.type !== "supervision_route_recorded" && event.data.type !== "supervisor_chat_link_set");
+  const worker = projectWorker(events, new Date("2026-08-30T20:05:00.000Z"));
+  assert.equal(worker.supervisorChatUrl, "");
+  assert.equal(worker.supervisorChatIsPlaceholder, true);
+  const html = renderToStaticMarkup(createElement(HealthyCard, { worker }));
+  assert.match(html, /Checking for a supervisor chat/);
+  assert.match(html, /href="\/supervision"/);
+  assert.doesNotMatch(html, /href="https:\/\/chatgpt\.com\/"/);
+  const props = { url: worker.supervisorChatUrl, label: worker.supervisorChatLabel, placeholder: worker.supervisorChatIsPlaceholder, workerId: worker.id };
+  assert.deepEqual(supervisorChatView(props, { state: "known", workerId: worker.id, chat: null, at: Date.now() }), { kind: "none" },
+    "once the directory answers with no chat for it, the button says none is linked");
+});
+
+test("a supervisor chat link set later is used when the recorded route has no real chat", () => {
+  const events = cloneEvents(workerEvents("auth"));
+  assert.equal(demoWorker("auth").supervisorChatIsPlaceholder, true, "the demo route has a placeholder address");
+  pushV2(events, "source:auth:supervisor-link", {
+    type: "supervisor_chat_link_set", worker: "auth", supervisor_chat_url: "https://chatgpt.com/c/linked-later",
+    supervisor_chat_label: "Open auth supervisor", reason: "The owner linked the supervisor chat",
+  } as MissionControlEventV2, "2026-08-30T20:04:00.000Z");
+  const worker = projectWorker(events, new Date("2026-08-30T20:05:00.000Z"));
+  assert.equal(worker.supervisorChatUrl, "https://chatgpt.com/c/linked-later");
+  assert.equal(worker.supervisorChatLabel, "Open auth supervisor");
+  assert.equal(worker.supervisorChatIsPlaceholder, false);
+});
+
+test("a recorded real supervisor chat stays a link, and a demo address is not offered as one", () => {
+  const events = cloneEvents(workerEvents("auth"));
+  replaceLatest(events, "supervision_route_recorded", (data) => ({ ...data, supervisor_chat_url: "https://chatgpt.com/c/real-supervisor-chat" }));
+  const linked = projectWorker(events, new Date("2026-08-30T20:05:00.000Z"));
+  assert.equal(linked.supervisorChatIsPlaceholder, false);
+  assert.match(renderToStaticMarkup(createElement(HealthyCard, { worker: linked })), /href="https:\/\/chatgpt\.com\/c\/real-supervisor-chat"/);
+  const demo = demoWorker("auth");
+  assert.equal(demo.supervisorChatIsPlaceholder, true);
+  const demoHtml = renderToStaticMarkup(createElement(HealthyCard, { worker: demo }));
+  assert.match(demoHtml, /Checking for a supervisor chat/);
+  assert.doesNotMatch(demoHtml, /href="https:\/\/chatgpt\.com/);
+  assert.doesNotMatch(demoHtml, /replace-auth-supervisor/);
 });
 
 test("versioned envelopes require stable identity, mission identity, and occurrence time", () => {

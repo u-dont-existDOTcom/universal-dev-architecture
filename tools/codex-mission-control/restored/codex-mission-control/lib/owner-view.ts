@@ -1,5 +1,8 @@
 import type { WorkerState } from "./projection";
+import type { OwnerActionObligation } from "./schema";
 import type { WorkQueueItemProjection } from "./worker-channel";
+import { isSupervisorActivity } from "./supervisor-activity";
+import { isSpecificChatAddress } from "./supervisor-chat-address";
 
 export type SnapshotFailure = { kind: "session" | "network" | "server"; message: string };
 export class SnapshotError extends Error {
@@ -34,8 +37,69 @@ export function resolvePrerequisites(item: WorkQueueItemProjection, queue: WorkQ
     return { id, item: matches.length === 1 ? matches[0] : null, reason: matches.length > 1 ? "Ambiguous reference" : "Unresolved reference" };
   });
 }
+// Alarms Mission Control raises by itself when it can't tell whether the owner is needed (effectiveOwnerAction and
+// the legacy projection in lib/projection.ts). They keep the projection's fail-closed MANUAL_INTERVENTION_REQUIRED
+// state, but the owner view shows them as alarms in plain words, not as decisions: there is nothing to choose, only
+// something to look into, usually by asking the task's supervisor.
+const OWNER_ALARMS: Record<string, { title: string; explain: (action: OwnerActionObligation, now: Date) => string }> = {
+  "OWNER.ACTION_TELEMETRY_MISSING": {
+    title: "Not reporting whether it needs you",
+    explain: () => "Its worker hasn't reported its next step or whether anything waits on you, so Mission Control can't tell. If this task should be moving, ask its supervisor for a status.",
+  },
+  "OWNER.ACTION_TELEMETRY_LEGACY": {
+    title: "Recorded in an older format",
+    explain: () => "This task was recorded before Mission Control tracked what waits on you, so it can't tell. If it matters, ask its supervisor for a status.",
+  },
+  "OWNER.NONE_NEXT_ACTION_OVERDUE": {
+    title: "A worker's step is overdue",
+    explain: (action, now) => {
+      const step = action.exact_text.replace(/^The non-owner next action is overdue:\s*/, "").replace(/[.\s]+$/, "");
+      const due = action.due_at ? ` (due ${timeAgo(action.due_at, now)})` : "";
+      return `The next step isn't yours: ${step}${due}. If the delay matters, ask its supervisor why.`;
+    },
+  },
+  "OWNER.NONE_NEXT_ACTOR_NOT_CURRENT": {
+    title: "Nobody is on the next step",
+    explain: () => "The worker named for the next step is missing, no longer assigned or not reporting. Ask its supervisor to reassign it.",
+  },
+  "OWNER.ACTIVE_DIRECTIVE_CONFLICT": {
+    title: "Conflicting instructions",
+    explain: () => "Two active instructions to this worker conflict, so its correction waits until one is withdrawn. Ask its supervisor to settle it.",
+  },
+  "OWNER.DIRECTIVE_DELIVERY_FAILED_NO_RETRY": {
+    title: "An instruction didn't get through",
+    explain: () => "Mission Control couldn't deliver an instruction to this task's worker, and nothing is set to try again. Ask its supervisor to resend it or change course.",
+  },
+};
+// Reason codes the projection makes up itself that really are the owner's to act on: they stay decisions.
+export const ownerActionReasonCodesForTheOwner = ["OWNER.CORRECTION_BLOCKED_BY_OWNER"];
+export const ownerAlarmReasonCodes = Object.keys(OWNER_ALARMS);
+
+export type OwnerAttention = { kind: "decision" } | { kind: "alarm"; title: string; explanation: string } | null;
+
+/** What a task asks of the owner: a real decision or action, an alarm Mission Control raised itself, or nothing. */
+export function ownerAttention(worker: WorkerState, now = new Date()): OwnerAttention {
+  const action = worker.correction.ownerAction;
+  if (worker.correction.ownerActionType === "NONE" || !action || action.status !== "OPEN") return null;
+  const alarm = OWNER_ALARMS[action.reason_code];
+  return alarm ? { kind: "alarm", title: alarm.title, explanation: alarm.explain(action, now) } : { kind: "decision" };
+}
+
+/** "5 minutes ago", "3 hours ago", "2 days ago"; a future time counts as now. */
+export function timeAgo(value: string, now: Date = new Date()): string {
+  const time = new Date(value).getTime();
+  if (!Number.isFinite(time)) return "at an unrecorded time";
+  const minutes = Math.max(0, Math.round((now.getTime() - time) / 60_000));
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  return `${Math.floor(hours / 24)} days ago`;
+}
+
 export function workerDisposition(worker: WorkerState): string {
-  if (worker.correction.ownerActionType !== "NONE") return "Waiting for your action";
+  const attention = ownerAttention(worker);
+  if (attention?.kind === "decision") return "Waiting for your decision";
+  if (attention?.kind === "alarm") return `Needs a look: ${attention.title.toLowerCase()}`;
   if (worker.executionSupervision.pendingReasoningReview) return "Waiting for review";
   if (worker.blocker || worker.channel.blockers.length || worker.executionSupervision.codexExecutionState === "PARKED") return "Blocked or parked";
   if (worker.connection.state !== "CONNECTED") return "Status needs checking · reporting offline";
@@ -59,9 +123,59 @@ function fleetSupervisorValid(value: unknown) {
     && typeof at(watch, "cadenceMs") === "number"
     && ["nextTickAt", "lastTickAt"].every(key => at(watch, key) === null || date(at(watch, key))));
 }
+// The task cards and the first screen read the supervisor activity; a missing or malformed one is not a usable refresh.
+// Missing means unknown, not "never asked", so a snapshot without it (another build's) keeps the last good one.
+function supervisorActivityValid(value: unknown): boolean {
+  return isSupervisorActivity(value);
+}
+
+// The fields the first screen's classifier (ownerAttention) and its alarm explanations read from the owner action.
+const OWNER_ACTION_STATUSES = ["NOT_REQUIRED", "OPEN", "COMPLETED", "SUPERSEDED"];
+// A task's recorded supervisor address and its flag, as the projection sets them: the flag says whether the address
+// fails to name one ChatGPT conversation, so a home page, settings page or demo address is never offered as a chat.
+function supervisorLinkValid(worker: unknown): boolean {
+  const url = at(worker, "supervisorChatUrl");
+  const placeholder = at(worker, "supervisorChatIsPlaceholder");
+  return typeof url === "string" && typeof placeholder === "boolean" && placeholder === !isSpecificChatAddress(url);
+}
+function ownerActionValid(action: unknown): boolean {
+  if (!strings(action, ["kind", "exact_text", "reason_code"]) || !OWNER_ACTION_STATUSES.includes(String(at(action, "status")))) return false;
+  const due = at(action, "due_at");
+  return due === undefined || due === null || date(due);
+}
+
+// What the supervision page reads from each event of a task's timeline: an id, a sequence and a time; a worker
+// message's body; a reasoning message's role, provenance, ids and optional times, body and locator.
+function timelineEventValid(event: unknown): boolean {
+  if (!record(event) || typeof event.eventId !== "string" || typeof event.sequence !== "number" || !date(event.occurredAt)) return false;
+  const data = event.data;
+  if (!record(data) || typeof data.type !== "string") return false;
+  if (data.type === "worker_message_recorded") return typeof data.body === "string";
+  if (data.type !== "reasoning_message_recorded") return true;
+  return strings(data, ["surface_role", "provenance_status", "message_id", "body_sha256"])
+    && ["immutable_provider_locator", "sent_at_source", "received_at_mission_control", "exact_visible_body", "stable_supervisor_id"]
+      .every((key) => data[key] === undefined || data[key] === null || typeof data[key] === "string");
+}
+
+/**
+ * The supervision page's answer from /api/workers: the dashboard's checks (including every task's supervisor address
+ * and its flag), plus every task's timeline, which the page reads and the dashboard doesn't. Anything else keeps the
+ * page's last-known view.
+ */
+export function validSupervisionSnapshot(value: unknown): boolean {
+  return validTaskSnapshot(value) && record(value) && Array.isArray(value.workers)
+    && value.workers.every((worker) => Array.isArray(at(worker, "timeline")) && (at(worker, "timeline") as unknown[]).every(timelineEventValid));
+}
+
 function workerValid(value: unknown) {
   if (!strings(value, ["id", "name", "status", "objective.goal", "currentStep", "connection.state", "operatorState.traffic", "operatorState.label", "operatorState.reason", "workerToContractAlignment", "contractToOwnerAlignment", "overallTraffic", "channel.freshness", "correction.ownerActionType", "correction.ownerActionText", "correction.statusLabel", "correction.nextReviewTrigger", "correction.ownerAction.kind", "progress.outcomeAdvancement", "progress.strategyEfficacy", "progress.latestEvidence", "progress.previousEvidence", "progress.bestEvidence", "progress.baselineEvidence", "progress.targetEvidence", "progress.requiredIntervention", "executionSupervision.surface", "executionSupervision.proEscalationState", "executionSupervision.codexExecutionState"])) return false;
   if (!["channel.queue", "channel.blockers", "channel.proposals"].every(path => Array.isArray(at(value, path))) || !stringArray(at(value, "nextSteps")) || !date(at(value, "lastCheckpointAt"))) return false;
+  if (!supervisorActivityValid(at(value, "supervisorActivity"))) return false;
+  if (!ownerActionValid(at(value, "correction.ownerAction"))) return false;
+  // The card's summary of the owner action is the action itself, as the projection sets it.
+  if (at(value, "correction.ownerActionType") !== at(value, "correction.ownerAction.kind")
+    || at(value, "correction.ownerActionText") !== at(value, "correction.ownerAction.exact_text")) return false;
+  if (!supervisorLinkValid(value)) return false;
   for (const path of ["primaryProblemSummary", "blocker", "correction.directive", "channel.latestDirectionBody", "executionSupervision.activeDirectiveId"]) { const part = at(value, path); if (part !== null && typeof part !== "string") return false; }
   if (at(value, "correction.ownerAction.kind") === "DECISION_REQUIRED") {
     const action = at(value, "correction.ownerAction");
@@ -84,6 +198,14 @@ export function validOperatorSnapshot(value: unknown): boolean {
   if (!strings(value, ["overallState", "providerRelayState", "authority.state", "authority.writer", "authority.ledgerIntegrity", "pacing.rateLimitState"])) return false;
   if (!["HEALTHY", "DEGRADED", "UNAVAILABLE"].includes(String(at(value, "overallState")))) return false;
   if (!["configuredMinimumIntervalMs", "minimumObservedIntervalMs", "violationsBelowConfiguredMinimum", "cooldownRemainingMs"].every(key => at(value, `pacing.${key}`) === null || typeof at(value, `pacing.${key}`) === "number")) return false;
-  const intervals = at(value, "pacing.recentIntervalsMs"); const hosts = at(value, "hosts");
-  return Array.isArray(intervals) && intervals.every(item => typeof item === "number") && Array.isArray(hosts) && hosts.every(host => strings(host, ["role", "label", "relayWorkerState", "browserState", "authorityBindingState"]) && typeof at(host, "ownedTargetCount") === "number");
+  const lastSend = at(value, "pacing.lastProviderSendBoundaryAt");
+  if (lastSend !== null && typeof lastSend !== "string") return false;
+  const intervals = at(value, "pacing.recentIntervalsMs"); const hosts = at(value, "hosts"); const supervisors = at(value, "supervisors");
+  return Array.isArray(intervals) && intervals.every(item => typeof item === "number")
+    && Array.isArray(hosts) && hosts.every(host => strings(host, ["role", "label", "relayWorkerState", "browserState", "authorityBindingState"])
+      && typeof at(host, "ownedTargetCount") === "number" && typeof at(host, "reportFresh") === "boolean"
+      && (at(host, "observedAt") === null || typeof at(host, "observedAt") === "string"))
+    // The first screen's supervision line reads the supervisors; a response without them is not a usable refresh.
+    && Array.isArray(supervisors) && supervisors.every(supervisor => strings(supervisor, ["supervisorId", "scope", "registrationState", "latestRouteState"])
+      && typeof at(supervisor, "registered") === "boolean" && typeof at(supervisor, "reachable") === "boolean");
 }
