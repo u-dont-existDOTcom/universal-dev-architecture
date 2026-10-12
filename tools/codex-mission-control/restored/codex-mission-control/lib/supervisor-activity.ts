@@ -13,11 +13,12 @@ import { isSpecificChatAddress } from "./supervisor-chat-address";
  * ANSWERED_DUPLICATE_SEND (answered, and also sent more than once: the violation stays visible), NO_ANSWER
  * (sent, then expired without an answer), NO_ANSWER_DUPLICATE_SEND (sent more than once, then expired without one), EXPIRED (expired without an answer, with no send recorded or tracked),
  * EXPIRED_UNSENT and WITHDRAWN (retired with Mission Control's proof that nothing was sent: on expiry, or withdrawn),
- * REPLACED (an admitted replacement superseded it).
+ * RETIRED_BUT_SENT (retired as never sent, yet a trusted relay receipt records a send: the conflict shows, with the
+ * send), REPLACED (an admitted replacement superseded it).
  */
 export const SUPERVISOR_REQUEST_STATES = [
   "QUEUED", "WAITING", "SENT", "FINISHED", "DUPLICATE_SEND", "ANSWERED", "ANSWERED_DUPLICATE_SEND", "NO_ANSWER",
-  "NO_ANSWER_DUPLICATE_SEND", "EXPIRED", "EXPIRED_UNSENT", "WITHDRAWN", "REPLACED",
+  "NO_ANSWER_DUPLICATE_SEND", "EXPIRED", "EXPIRED_UNSENT", "WITHDRAWN", "RETIRED_BUT_SENT", "REPLACED",
 ] as const;
 export const SUPERVISOR_REQUEST_ORIGINS = [
   "ROUTINE_CHECK", "WORK_QUESTION", "OWNER_ANSWER", "AFTER_WORK", "SOURCE_REVIEW", "OTHER",
@@ -44,16 +45,18 @@ export interface SupervisorActivity {
   /** Newest first, at most {@link RECENT_REQUESTS}. */
   requests: SupervisorRequestActivity[];
   /**
-   * The older questions (not listed) that the latest chat, the last send and the last answer below come from, so those
-   * can be checked against the questions themselves; at most one each.
+   * The older questions (not listed) needed to check the latest chat, the last send and the last answer below against
+   * the questions themselves: for each, newest first, every question whose state can carry it, down to the first that
+   * does. Newest first.
    */
   evidence: SupervisorRequestActivity[];
   total: number;
   answered: number;
+  /** When the newest answered question (by route event) was answered, among all of them. */
   lastAnsweredAt: string | null;
   /** The chat of the newest question that reached ChatGPT, among all of them, not only the ones listed. */
   latestConversationUrl: string | null;
-  /** When the relay last started sending one of these questions to ChatGPT, among all of them. */
+  /** When the relay started sending the newest question it sent (by route event), among all of them. */
   lastSentAt: string | null;
   /** The state of every question, by request id, so other views use the same admitted set. */
   states: Record<string, SupervisorRequestState>;
@@ -95,7 +98,7 @@ interface Draft extends SupervisorRequestActivity { sequence: number; version: n
  * a state Mission Control produces.
  */
 const STATE_ALLOWS: Record<SupervisorRequestState, { sent?: true; finished?: true; chat?: true; answered?: true }> = {
-  QUEUED: {}, WAITING: {}, EXPIRED: {}, EXPIRED_UNSENT: {}, WITHDRAWN: {},
+  QUEUED: {}, WAITING: {}, EXPIRED: {}, EXPIRED_UNSENT: {}, WITHDRAWN: {}, RETIRED_BUT_SENT: { sent: true, finished: true, chat: true },
   SENT: { sent: true, chat: true }, FINISHED: { sent: true, finished: true, chat: true }, NO_ANSWER: { sent: true, finished: true, chat: true },
   DUPLICATE_SEND: { sent: true }, NO_ANSWER_DUPLICATE_SEND: { sent: true },
   ANSWERED: { sent: true, finished: true, chat: true, answered: true }, ANSWERED_DUPLICATE_SEND: { sent: true, answered: true },
@@ -107,6 +110,7 @@ const STATE_TIMES: Partial<Record<SupervisorRequestState, ReadonlyArray<"expires
   SENT: ["sentAt"], FINISHED: ["sentAt", "finishedAt"], DUPLICATE_SEND: ["sentAt"], ANSWERED: ["answeredAt"],
   ANSWERED_DUPLICATE_SEND: ["answeredAt", "sentAt"],
   NO_ANSWER: ["sentAt", "expiresAt"], NO_ANSWER_DUPLICATE_SEND: ["sentAt", "expiresAt"], EXPIRED: ["expiresAt"], EXPIRED_UNSENT: ["expiresAt"],
+  RETIRED_BUT_SENT: ["sentAt"],
 };
 
 /**
@@ -130,12 +134,11 @@ export function supervisorActivity(events: readonly StoredEvent[], now: Date, ad
   const { requests: all, routeEvents: routeEventOf } = projectRequests(events, now, admission);
   if (!all.length) return emptySupervisorActivity;
   const listed = all.slice(0, RECENT_REQUESTS);
-  // `all` is newest first, so the first question with a chat is the newest one that reached a chat.
+  // `all` is newest first, so each aggregate's source is the first question that carries it.
   const { latestConversation, lastSent, lastAnswered } = aggregateSources(all);
   const listedIds = new Set(listed.map((request) => request.requestId));
-  const evidence = [...new Map([latestConversation, lastSent, lastAnswered]
-    .filter((request): request is SupervisorRequestActivity => request !== null && !listedIds.has(request.requestId))
-    .map((request) => [request.requestId, request])).values()];
+  const needed = new Set(AGGREGATES.flatMap(({ field, allows }) => aggregateWalk(all, field, allows)));
+  const evidence = all.filter((request) => needed.has(request) && !listedIds.has(request.requestId));
   return {
     requests: listed,
     evidence,
@@ -149,17 +152,35 @@ export function supervisorActivity(events: readonly StoredEvent[], now: Date, ad
   };
 }
 
-/** Among questions in newest-first order: the newest that reached a chat, the latest send and the latest answer. */
+/** The three aggregates: which question field each comes from, and which state flag says a question can carry it. */
+const AGGREGATES = [
+  { field: "conversationUrl", allows: "chat" },
+  { field: "sentAt", allows: "sent" },
+  { field: "answeredAt", allows: "answered" },
+] as const;
+type AggregateField = typeof AGGREGATES[number]["field"];
+type AggregateFlag = typeof AGGREGATES[number]["allows"];
+
+/**
+ * The questions, newest first, that decide one aggregate: every question whose state can carry the field, down to and
+ * including the first one that does (its source). Questions whose state can't carry it are skipped.
+ */
+function aggregateWalk(newestFirst: readonly SupervisorRequestActivity[], field: AggregateField, allows: AggregateFlag) {
+  const walked: SupervisorRequestActivity[] = [];
+  for (const request of newestFirst) {
+    if (!STATE_ALLOWS[request.state][allows]) continue;
+    walked.push(request);
+    if (request[field]) break;
+  }
+  return walked;
+}
+
+/** Among questions in newest-first order (by route event): the newest that reached a chat, was sent, was answered. */
 function aggregateSources(newestFirst: readonly SupervisorRequestActivity[]) {
-  const latestBy = (time: (request: SupervisorRequestActivity) => string | null) => newestFirst.reduce<SupervisorRequestActivity | null>((best, request) => {
-    const value = time(request);
-    if (value === null || !Number.isFinite(instant(value))) return best;
-    return best === null || instant(value) > instant(time(best)!) ? request : best;
-  }, null);
   return {
     latestConversation: newestFirst.find((request) => request.conversationUrl) ?? null,
-    lastSent: latestBy((request) => request.sentAt),
-    lastAnswered: latestBy((request) => request.answeredAt),
+    lastSent: newestFirst.find((request) => request.sentAt) ?? null,
+    lastAnswered: newestFirst.find((request) => request.answeredAt) ?? null,
   };
 }
 
@@ -235,15 +256,13 @@ function projectRequests(unordered: readonly StoredEvent[], now: Date, admission
     // A retirement for expiry names the expiry; without one on the route it reads as a plain withdrawal.
     const retired = admission.retired.get(draft.requestId);
     const retiredState = retired === "EXPIRED_UNSENT" && draft.expiresAt === null ? "WITHDRAWN" : retired;
-    if (retiredState && !draft.answeredAt && !admission.replaced.has(draft.requestId)) {
-      // Retired with the proof that nothing was sent: no send, finish or chat goes with it.
-      draft.sentAt = null; draft.finishedAt = null; draft.conversationUrl = null; draft.duplicateSend = false;
-    }
+    // A retirement says nothing was sent; a trusted send receipt (recorded before or after it) contradicts that. The
+    // conflict shows as its own state with the send, never as "withdrawn" or "never sent" with the send erased.
     // An answer doesn't hide a duplicate send: both show.
     const state: SupervisorRequestState = draft.answeredAt ? (draft.duplicateSend ? "ANSWERED_DUPLICATE_SEND" : "ANSWERED")
       : admission.replaced.has(draft.requestId) ? "REPLACED"
-        : retiredState
-          ?? (!tracked ? (expired ? "EXPIRED" : "WAITING")
+        : retiredState ? (draft.sentAt ? "RETIRED_BUT_SENT" : retiredState)
+          : (!tracked ? (expired ? "EXPIRED" : "WAITING")
             : draft.duplicateSend ? (expired ? "NO_ANSWER_DUPLICATE_SEND" : "DUPLICATE_SEND")
               : draft.sentAt ? (expired ? "NO_ANSWER" : draft.finishedAt ? "FINISHED" : "SENT")
                 : expired ? "EXPIRED" : "QUEUED");
@@ -307,24 +326,32 @@ export function isSupervisorActivity(value: unknown): value is SupervisorActivit
   // The listed questions are exactly the newest ones (by route event), newest first: never a subset or another order.
   const newestIds = Object.keys(states).sort((a, b) => Number(routeEvents[b]) - Number(routeEvents[a])).slice(0, RECENT_REQUESTS);
   if (listed.length !== newestIds.length || listed.some((requestId, index) => requestId !== newestIds[index])) return false;
-  if (!Array.isArray(activity.evidence) || activity.evidence.length > 3) return false;
+  if (!Array.isArray(activity.evidence) || activity.evidence.length > Object.keys(states).length - listed.length) return false;
   const evidenceIds = activity.evidence.map((item: unknown) => record(item)?.requestId);
   if (new Set([...listed, ...evidenceIds]).size !== listed.length + evidenceIds.length) return false;
   const pool = [...activity.requests, ...activity.evidence] as unknown[];
   if (!pool.every((item) => requestFits(item, states))) return false;
-  // An older question that is neither listed nor carried as evidence can't hide a send or an answer: when its state
-  // has a send (or answer) time, the last send (or answer) must be set, so its source is among the questions here.
-  const carried = new Set([...listed, ...evidenceIds]);
-  const olderTimes = Object.entries(states).filter(([requestId]) => !carried.has(requestId))
-    .flatMap(([, state]) => STATE_TIMES[state as SupervisorRequestState] ?? []);
-  if ((olderTimes.includes("sentAt") && activity.lastSentAt === null)
-    || (olderTimes.includes("answeredAt") && activity.lastAnsweredAt === null)) return false;
-  // The latest chat, last send and last answer must be what these questions record, newest first by route event.
-  const newestFirst = (pool as SupervisorRequestActivity[]).slice().sort((a, b) => Number(routeEvents[b.requestId]) - Number(routeEvents[a.requestId]));
-  const sources = aggregateSources(newestFirst);
-  return (sources.latestConversation?.conversationUrl ?? null) === activity.latestConversationUrl
-    && sameInstant(sources.lastSent?.sentAt ?? null, activity.lastSentAt as string | null)
-    && sameInstant(sources.lastAnswered?.answeredAt ?? null, activity.lastAnsweredAt as string | null);
+  // The latest chat, last send and last answer must be what the questions record: walking every question newest first
+  // by route event, each aggregate comes from the first one that carries it, and every question before it whose state
+  // could carry it must be here, so no question left out can hold a newer one.
+  const byId = new Map((pool as SupervisorRequestActivity[]).map((request) => [request.requestId, request]));
+  const newestFirstIds = Object.keys(states).sort((a, b) => Number(routeEvents[b]) - Number(routeEvents[a]));
+  const sourceOf = (field: AggregateField, allows: AggregateFlag): SupervisorRequestActivity | null | undefined => {
+    for (const requestId of newestFirstIds) {
+      if (!STATE_ALLOWS[states[requestId] as SupervisorRequestState][allows]) continue;
+      const request = byId.get(requestId);
+      if (!request) return undefined;
+      if (request[field]) return request;
+    }
+    return null;
+  };
+  const chat = sourceOf("conversationUrl", "chat");
+  const sent = sourceOf("sentAt", "sent");
+  const answered = sourceOf("answeredAt", "answered");
+  if (chat === undefined || sent === undefined || answered === undefined) return false;
+  return (chat?.conversationUrl ?? null) === activity.latestConversationUrl
+    && sameInstant(sent?.sentAt ?? null, activity.lastSentAt as string | null)
+    && sameInstant(answered?.answeredAt ?? null, activity.lastAnsweredAt as string | null);
 }
 
 function sameInstant(a: string | null, b: string | null): boolean {

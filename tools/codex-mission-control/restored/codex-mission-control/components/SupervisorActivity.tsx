@@ -24,6 +24,7 @@ export const SUPERVISOR_REQUEST_STATE: Record<SupervisorRequestActivity["state"]
   EXPIRED: "Expired without an answer",
   EXPIRED_UNSENT: "Never sent; it expired",
   WITHDRAWN: "Withdrawn before it was sent",
+  RETIRED_BUT_SENT: "Recorded as never sent, but the relay recorded sending it",
   REPLACED: "Its answer couldn't be used, so it was asked again",
 };
 
@@ -52,6 +53,7 @@ export function supervisorStatusLine(activity: unknown, now = new Date()): strin
     case "EXPIRED": return `${asked}; it expired ${timeAgo(latest.expiresAt!, now)} without an answer.`;
     case "EXPIRED_UNSENT": return `${asked}; never sent, and it expired ${timeAgo(latest.expiresAt!, now)}.`;
     case "WITHDRAWN": return `${asked}; withdrawn before it was sent.`;
+    case "RETIRED_BUT_SENT": return `${asked}; recorded as never sent, but the relay recorded sending it ${timeAgo(latest.sentAt!, now)}.`;
     case "REPLACED": return `${asked}; its answer couldn't be used, so it was asked again.`;
     default: return `${asked}; waiting to be sent.`;
   }

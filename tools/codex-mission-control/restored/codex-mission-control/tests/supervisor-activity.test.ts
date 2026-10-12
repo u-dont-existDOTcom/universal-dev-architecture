@@ -388,7 +388,7 @@ test("an activity state without the times it is about is not accepted", () => {
   const required: Array<[string, keyof typeof times]> = [["SENT", "sentAt"], ["FINISHED", "sentAt"], ["FINISHED", "finishedAt"], ["DUPLICATE_SEND", "sentAt"],
     ["ANSWERED", "answeredAt"], ["ANSWERED_DUPLICATE_SEND", "answeredAt"], ["ANSWERED_DUPLICATE_SEND", "sentAt"], ["NO_ANSWER", "sentAt"],
     ["NO_ANSWER", "expiresAt"], ["NO_ANSWER_DUPLICATE_SEND", "sentAt"], ["NO_ANSWER_DUPLICATE_SEND", "expiresAt"], ["EXPIRED", "expiresAt"],
-    ["EXPIRED_UNSENT", "expiresAt"]];
+    ["EXPIRED_UNSENT", "expiresAt"], ["RETIRED_BUT_SENT", "sentAt"]];
   // One question in a given state, with the state map and the totals agreeing.
   const withRequest = (listed: Record<string, unknown>) => ({ ...good, requests: [listed], evidence: [], states: { [request.requestId]: listed.state },
     answered: ["ANSWERED", "ANSWERED_DUPLICATE_SEND"].includes(String(listed.state)) ? 1 : 0,
@@ -399,6 +399,7 @@ test("an activity state without the times it is about is not accepted", () => {
     SENT: { sentAt: times.sentAt }, FINISHED: { sentAt: times.sentAt, finishedAt: times.finishedAt }, DUPLICATE_SEND: { sentAt: times.sentAt },
     ANSWERED: { answeredAt: times.answeredAt }, ANSWERED_DUPLICATE_SEND: { answeredAt: times.answeredAt, sentAt: times.sentAt },
     NO_ANSWER: { sentAt: times.sentAt }, NO_ANSWER_DUPLICATE_SEND: { sentAt: times.sentAt }, EXPIRED: {}, EXPIRED_UNSENT: {},
+    RETIRED_BUT_SENT: { sentAt: times.sentAt },
   };
   for (const [state, time] of required) {
     const filled = { ...bare, ...filledFor[state], expiresAt: times.expiresAt, state };
@@ -488,6 +489,51 @@ test("expired, withdrawn and replaced questions say so", () => {
   assert.equal(expired.requests[0].state, "EXPIRED", "no send recorded is not proof it was never sent");
   assert.equal(supervisorStatusLine(expired, NOW), "Asked 2 days ago; it expired 27 hours ago without an answer.");
   assert.equal(pendingRoute({ state: "EXPIRED" }), false);
+});
+
+test("a question retired as never sent, but with a trusted send, shows the conflict and keeps the send", () => {
+  const events = [route("fleet-review:raced", "2026-10-11T08:00:00Z", { expiresAt: "2026-10-12T08:00:00Z" }),
+    ...sent("fleet-review:raced", "2026-10-11T08:30:00Z", "https://chatgpt.com/c/raced-chat")];
+  for (const retired of ["WITHDRAWN", "EXPIRED_UNSENT"] as const) {
+    const activity = activityOf(events, [], { "fleet-review:raced": retired });
+    const [request] = activity.requests;
+    assert.equal(request.state, "RETIRED_BUT_SENT", retired);
+    assert.ok(request.sentAt, "the send stays");
+    assert.equal(request.conversationUrl, "https://chatgpt.com/c/raced-chat", "and so does its chat");
+    assert.equal(activity.lastSentAt, request.sentAt);
+    assert.equal(activity.latestConversationUrl, "https://chatgpt.com/c/raced-chat");
+    assert.equal(isSupervisorActivity(activity), true);
+    assert.match(supervisorStatusLine(activity, NOW), /recorded as never sent, but the relay recorded sending it/);
+  }
+  assert.equal(pendingRoute({ state: "RETIRED_BUT_SENT" }), false);
+  const unsent = activityOf([route("fleet-review:quiet", "2026-10-11T08:00:00Z")], [], { "fleet-review:quiet": "WITHDRAWN" });
+  assert.equal(unsent.requests[0].state, "WITHDRAWN", "without a send, a retirement reads as before");
+});
+
+test("each aggregate comes from the newest question that has it, and every question that could hold a newer one is carried", () => {
+  const events = [
+    route("fleet-review:a", "2026-10-11T01:00:00Z"), decision("fleet-review:a", "2026-10-11T01:30:00Z"),
+    route("fleet-review:b", "2026-10-11T02:00:00Z"), decision("fleet-review:b", "2026-10-11T02:30:00Z"),
+    ...[1, 2, 3, 4, 5].map((n) => route(`fleet-review:later-${n}`, `2026-10-11T0${n + 2}:00:00Z`)),
+  ];
+  const activity = activityOf(events);
+  assert.equal(activity.requests.length, 5);
+  assert.equal(isSupervisorActivity(activity), true);
+  const older = activity.evidence.find((request) => request.requestId === "fleet-review:a");
+  assert.ok(older && activity.evidence.some((request) => request.requestId === "fleet-review:b"),
+    "both older answered questions are carried: either could have a send or a chat");
+  assert.equal(activity.lastAnsweredAt, activity.evidence.find((request) => request.requestId === "fleet-review:b")!.answeredAt);
+  assert.equal(isSupervisorActivity({ ...activity, evidence: [older!], lastAnsweredAt: older!.answeredAt }), false,
+    "leaving out the newer answer and claiming the older one is refused");
+  // Route order decides, not the clock: an older question sent after a newer one doesn't become the last send.
+  const order = activityOf([
+    route("fleet-review:older", "2026-10-11T01:00:00Z"), route("fleet-review:newer", "2026-10-11T02:00:00Z"),
+    ...sent("fleet-review:newer", "2026-10-11T02:10:00Z", "https://chatgpt.com/c/newer-chat"),
+    ...sent("fleet-review:older", "2026-10-11T03:10:00Z", "https://chatgpt.com/c/older-chat"),
+  ]);
+  const newer = order.requests.find((request) => request.requestId === "fleet-review:newer")!;
+  assert.equal(order.lastSentAt, newer.sentAt);
+  assert.equal(order.latestConversationUrl, "https://chatgpt.com/c/newer-chat");
 });
 
 test("the projection retires a question only with Mission Control's full no-send proof", () => {
