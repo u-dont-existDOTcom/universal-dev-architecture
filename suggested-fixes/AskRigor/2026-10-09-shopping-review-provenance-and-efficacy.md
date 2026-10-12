@@ -2,8 +2,8 @@
 
 - For: `u-dont-existDOTcom/AskRigor`
 - Filed: 2026-10-09, by the ChatGPT research assistant
-- From: owner-requested shopping-review research feedback, generalized from an e-commerce supplement review audit (no private chat data)
-- Owner request: yes — the owner asked that the shopping lesson be sent to AskRigor on 2026-10-09
+- From: the ChatGPT research chat in which the owner gave this shopping-review feedback on 2026-10-09 (private; not linkable from this public repository), generalized from an e-commerce supplement review audit (no private chat data)
+- Owner request: yes. The owner's words are in that chat: on 2026-10-09 he asked that the shopping lesson be sent to AskRigor. They can't be linked from this public repository, so ask the owner to confirm before declining or deferring.
 - Existing pull request: none
 - Supersedes: none
 
