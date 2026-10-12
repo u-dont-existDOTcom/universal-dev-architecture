@@ -808,8 +808,10 @@ export class CentralSubmissionScheduler {
       }
       const closableMs = Math.max(Date.parse(request.requestedAt), expiresMs) + this.minIntervalMs;
       if (nowMs < closableMs) {
+        // retryAfterMs is measured on Mission Control's clock, so a relay can wait without trusting its own.
         throw new SubmissionSchedulerError('SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY', 'Closure completes a full global interval after both the admission expiry and Mission Control\'s first receipt of the request.', 409, {
           closableAt: new Date(closableMs).toISOString(),
+          retryAfterMs: closableMs - nowMs,
         });
       }
       const closedAt = new Date(nowMs).toISOString();

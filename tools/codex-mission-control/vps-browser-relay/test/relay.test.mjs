@@ -2113,6 +2113,22 @@ test('submitted reaches Mission Control through the real relay scheduler as an a
   assert.equal(forwarded[0].decidedAt, store.state.deliveries['request:r-1'].confirmedAt);
 });
 
+test('resolve waits for the time Mission Control states on its own clock, even with this host\'s clock ahead', async () => {
+  // This host's clock reads 20 s ahead: closableAt already looks past, but Mission Control says 20 s remain.
+  const aheadClosableAt = new Date(Date.now() - 1_000).toISOString();
+  const { runtime, calls } = centralAmbiguityFixture({
+    delivery: ambiguousDelivery,
+    open: openAdmission,
+    closeAnswers: [
+      schedulerError('SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY', { closableAt: aheadClosableAt, retryAfterMs: 20_000 }),
+      { closed: true, duplicate: false, closedAt: '2026-10-12T05:40:00.000Z' },
+    ],
+  });
+  const resolved = await runtime.resolve('request:r-1', 'discard');
+  assert.equal(resolved.central.state, 'CLOSED');
+  assert.deepEqual(calls.waits, [21_000]);
+});
+
 test('resolve waits again when Mission Control is still a little early, then closes', async () => {
   const soon = () => new Date(Date.now() + 500).toISOString();
   const { runtime, calls } = centralAmbiguityFixture({

@@ -747,8 +747,9 @@ without boundary, abort, or outcome evidence. The command asks while holding the
 relay process that held the admission has stopped and any click of that send happened before
 Mission Control first receives the request. Mission Control records that receipt on its own clock;
 from then on the admission cannot authorize a click, and the closure completes a full minimum
-interval after both that receipt and the admission's expiry. The command waits for that (a few
-waits of at most five minutes each), then exits non-zero if the closure still has not happened;
+interval after both that receipt and the admission's expiry, stating the remaining wait on its own
+clock. The command waits that long (up to two waits of at most five minutes each), then exits
+non-zero if the closure still has not happened;
 re-running it repeats only the Mission Control step with the same recorded decision. If Mission Control's queue head is still a queued or retry item for
 that send, the command says so and exits non-zero; the relay's own cycle cancels such a pre-click
 retry once the send's route has expired. It also exits non-zero while Mission Control holds another

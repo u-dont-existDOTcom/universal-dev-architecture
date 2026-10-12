@@ -697,8 +697,8 @@ export class RelayRuntime {
           ...(otherAdmissionOpen ? { otherAdmissionOpen } : {}),
         };
       } catch (error) {
-        const waitMs = Date.parse(error?.closableAt ?? '') - Date.now();
-        // A few short waits absorb a small clock difference between this host and Mission Control.
+        // Mission Control states the remaining wait on its own clock; this host's clock is only a fallback.
+        const waitMs = Number.isFinite(error?.retryAfterMs) ? error.retryAfterMs : Date.parse(error?.closableAt ?? '') - Date.now();
         if (attempt < 2 && error?.code === 'SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY'
           && Number.isFinite(waitMs) && waitMs <= CENTRAL_AMBIGUITY_CLOSURE_MAX_WAIT_MS) {
           await this.sleepImpl(Math.max(0, waitMs) + 1_000);

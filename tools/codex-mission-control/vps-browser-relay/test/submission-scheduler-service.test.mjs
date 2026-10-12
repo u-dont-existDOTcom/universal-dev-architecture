@@ -1175,6 +1175,7 @@ test('owner discard closes an expired admission once, never replays it, and reop
   const early = await close().catch((error) => error);
   assert.equal(early.code, 'SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY');
   assert.equal(early.detail.closableAt, new Date(Date.parse(admission.expiresAt) + 60_000).toISOString());
+  assert.equal(early.detail.retryAfterMs, Date.parse(admission.expiresAt) + 60_000 - now.value);
   assert.deepEqual(store.state.ambiguityClosureRequests, {
     [admission.admissionId]: { decision: 'OWNER_DISCARDED_NO_REPLAY', decidedAt, requestedAt: new Date(origin).toISOString() },
   });
