@@ -2,8 +2,8 @@
 
 - For: `u-dont-existDOTcom/AskRigor`
 - Filed: 2026-10-11, by ChatGPT reasoning chat
-- From: 2026-10-11 owner-directed correction during continuing specialist herbal-benefit research; generalized and privacy-safe
-- Owner request: yes — carry AskRigor use through continuing research turns without restating the app; require interpretable effect sizes and keep low-value leads out of the main answer
+- From: the ChatGPT reasoning chat in which the owner made this correction on 2026-10-11, during continuing specialist herbal-benefit research (private; not linkable from this public repository); generalized and privacy-safe
+- Owner request: yes. The owner's words are in that chat: carry AskRigor use through continuing research turns without restating the app; require interpretable effect sizes and keep low-value leads out of the main answer. They can't be linked from this public repository, so ask the owner to confirm before declining or deferring.
 - Existing pull request: none
 - Supersedes: none
 
