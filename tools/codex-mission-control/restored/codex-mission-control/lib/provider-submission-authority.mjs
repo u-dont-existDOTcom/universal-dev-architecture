@@ -1684,6 +1684,7 @@ function parseTakeover(value) {
 }
 
 function schedulerStatus(state, minIntervalMs, nowMs) {
+  const today = new Date(nowMs).toISOString().slice(0, 10);
   const lastMs = Date.parse(state.lastBoundaryAt ?? '');
   const retryAfterMs = Number.isFinite(lastMs) ? Math.max(0, lastMs + minIntervalMs - nowMs) : 0;
   const open = state.admissions.find((item) => item.status === 'ADMITTED' || item.status === 'AMBIGUOUS_AFTER_RESTART') ?? null;
@@ -1698,10 +1699,11 @@ function schedulerStatus(state, minIntervalMs, nowMs) {
     && Date.parse(state.activeLease.issuedAt) <= nowMs && Date.parse(state.activeLease.expiresAt) > nowMs;
   return {
     schedulerState: state.activeLease ? (leaseReady ? 'ACTIVE_LEASE' : 'LEASE_STALE') : 'LEASE_MISSING',
-    // A closed ambiguous journal send may have crossed, so it counts on the day it was admitted.
-    journalCallsToday: state.admissions.filter((item) => item.sendPath === 'JOURNAL_WORK'
-      && (item.boundaryAt ?? (item.status === AMBIGUITY_CLOSED_NO_REPLAY ? item.admittedAt : null))?.slice(0, 10)
-        === new Date(nowMs).toISOString().slice(0, 10)).length,
+    // A closed ambiguous journal send may have crossed at any moment of its admission window, so it counts on
+    // every UTC day that window touches.
+    journalCallsToday: state.admissions.filter((item) => item.sendPath === 'JOURNAL_WORK' && (item.boundaryAt
+      ? item.boundaryAt.slice(0, 10) === today
+      : item.status === AMBIGUITY_CLOSED_NO_REPLAY && item.admittedAt.slice(0, 10) <= today && today <= item.expiresAt.slice(0, 10))).length,
     minimumIntervalMs: minIntervalMs,
     lastSubmissionAt: state.lastBoundaryAt,
     retryAfterMs: effectiveRetryAfterMs,

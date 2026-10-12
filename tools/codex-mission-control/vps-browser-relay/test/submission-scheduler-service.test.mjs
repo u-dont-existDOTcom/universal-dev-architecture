@@ -1381,3 +1381,20 @@ function ambiguityClosure(admission, input, now, overrides = {}) {
     ...overrides,
   };
 }
+
+test('a closed ambiguous journal send admitted just before midnight counts on both days its window touches', async () => {
+  const now = { value: Date.parse('2026-09-10T23:59:30.000Z') };
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease({ ...primaryLease(), issuedAt: '2026-09-10T23:00:00.000Z', expiresAt: '2026-09-11T02:00:00.000Z' });
+  const input = request({ sendPath: 'JOURNAL_WORK' });
+  const admission = await scheduler.admit(input, 'collector:relay');
+  assert.equal(admission.expiresAt.slice(0, 10), '2026-09-11');
+  now.value = Date.parse(admission.expiresAt) + CLOSABLE_AFTER_MS;
+  await scheduler.closeAmbiguousAdmission(ambiguityClosure(admission, input, now), 'collector:relay');
+  assert.equal((await scheduler.status()).journalCallsToday, 1);
+  now.value = Date.parse('2026-09-10T23:59:59.000Z');
+  assert.equal((await scheduler.status()).journalCallsToday, 1);
+  now.value = Date.parse('2026-09-12T00:00:01.000Z');
+  assert.equal((await scheduler.status()).journalCallsToday, 0);
+});
