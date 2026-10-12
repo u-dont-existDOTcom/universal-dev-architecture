@@ -25,6 +25,14 @@ The original 2026-10-12 evidence-only instructions explicitly requested **migrai
 
 This is a **scope/objective fidelity failure plus artifact handoff mismatch** relative to the initial evidence-only task. It is NOT proof of what exact prompt the external run actually received, or a software defect in AskRigor itself; the exact external run invocation is not available. This is an **ingestion-validation suggestion**, not a claim that AskRigor caused an external Deep Research failure. The broad meta reports may be useful process references, but they are not medicinal evidence.
 
+## Owner correction: invoking-prompt ambiguity (2026-10-12)
+
+The owner subsequently clarified that the Deep Research initiating message included the instruction **“use AskRigor”**, while the actual migraine research task was provided as an attachment. The external research model apparently interpreted the invocation as a request to *research AskRigor* rather than to perform the attached migraine study. This **changes the suspected cause** from an unexplained wrong-topic output to a **likely ambiguous invocation plus source-task precedence failure**. It is NOT evidence that AskRigor's MCP itself malfunctioned. The exact invoking prompt, external research trace and connector availability remain unverified. The owner reports both the earlier task and the corrected task are being rerun separately; do not launch redundant research or treat the previous meta reports as scientific migraine evidence.
+
+OpenAI's current help documentation says Deep Research in Chat supports the public web, uploaded files and **only some supported connected apps**, with read-only app actions. A connected plugin may not be an eligible Deep Research source; **there is no documented universal “two plugin calls” limit**. Consumer Deep Research's supported-app eligibility is separate from API deep-research model MCP requirements. For the reliable owner workflow: run Deep Research independently for discovery and request evidence records, then use AskRigor in a normal chat/available authorized execution mode to acquire and audit primary evidence. Never insert `@AskRigor` or an unverified “use AskRigor” tool instruction in a research invocation that might be interpreted as changing its topic. Evidence about the externally chosen tools remains `unknown` unless actual invocation logs are supplied.
+
+Keep the narrow Atlas intake validation: regardless of why the wrong-topic output occurred, an output about AskRigor capabilities **is not** a completed migraine evidence pass. Test prompt/attachment precedence with explicit task-target verification before expensive research, and distinguish invocation ambiguity from product research failure rather than attributing blame to either without trace evidence.
+
 ## Check first
 
 Run the regression examples below against the current Atlas ingest workflow before changing it.
