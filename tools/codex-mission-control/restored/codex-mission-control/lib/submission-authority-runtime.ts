@@ -868,7 +868,9 @@ function assertAttestorsDistinctFromIngestBearers(
 }
 
 function ledgerEntry(prior: SchedulerState | null, state: SchedulerState, minimumIntervalMs: number): Record<string, unknown> {
-  const changedAdmission = findChangedRecord(state.admissions, prior?.admissions ?? [], "admissionId");
+  const closureRequest = findNewClosureRequest(state, prior);
+  const changedAdmission = findChangedRecord(state.admissions, prior?.admissions ?? [], "admissionId")
+    ?? (closureRequest ? state.admissions.find((item: SchedulerState) => item.admissionId === closureRequest.admissionId) ?? null : null);
   const changedQueueItem = findChangedRecord(state.queueItems, prior?.queueItems ?? [], "queueItemId");
   const admission = changedAdmission ?? null;
   const changedRelayBinding = findChangedRelayBinding(state.relayBindings ?? {}, prior?.relayBindings ?? {});
@@ -877,7 +879,7 @@ function ledgerEntry(prior: SchedulerState | null, state: SchedulerState, minimu
     ? state.queueItems.find((item: SchedulerState) => item.queueItemId === admission.queueItemId) ?? changedQueueItem ?? null
     : changedQueueItem ?? null;
   const previousAdmission = prior?.admissions?.find((item: SchedulerState) => item.admissionId === admission?.admissionId) ?? null;
-  const eventKind = deriveEventKind(prior, state, previousAdmission, admission, changedRelayBinding);
+  const eventKind = deriveEventKind(prior, state, previousAdmission, admission, changedRelayBinding, closureRequest !== null);
   const previousBoundaryAt = admission?.previousGlobalBoundaryAt ?? null;
   const boundaryMs = Date.parse(admission?.boundaryAt ?? "");
   const previousMs = Date.parse(previousBoundaryAt ?? "");
@@ -928,11 +930,19 @@ function ledgerEntry(prior: SchedulerState | null, state: SchedulerState, minimu
     recoveryStatus: admission?.recoveryStatus ?? null,
     queueStatus: queueItem?.status ?? null,
     admissionStatus: admission?.status ?? null,
+    ...(closureRequest ? {
+      ambiguityClosureRequest: {
+        decision: closureRequest.decision,
+        decidedAt: closureRequest.decidedAt,
+        requestedAt: closureRequest.requestedAt,
+      },
+    } : {}),
     ...(admission?.ambiguityClosure ? {
       ambiguityClosure: {
         decision: admission.ambiguityClosure.decision,
         priorStatus: admission.ambiguityClosure.priorStatus,
         decidedAt: admission.ambiguityClosure.decidedAt,
+        requestedAt: admission.ambiguityClosure.requestedAt,
         closedAt: admission.ambiguityClosure.closedAt,
       },
     } : {}),
@@ -946,7 +956,14 @@ function findChangedRecord(current: SchedulerState[], prior: SchedulerState[], k
   }) ?? null;
 }
 
-function deriveEventKind(prior: SchedulerState | null, state: SchedulerState, previousAdmission: SchedulerState | null, admission: SchedulerState | null, changedRelayBinding: SchedulerState | null): string {
+function findNewClosureRequest(state: SchedulerState, prior: SchedulerState | null): Record<string, string> | null {
+  const current = (state.ambiguityClosureRequests ?? {}) as Record<string, Record<string, string>>;
+  const previous = (prior?.ambiguityClosureRequests ?? {}) as Record<string, Record<string, string>>;
+  const admissionId = Object.keys(current).sort().find((key) => !previous[key]);
+  return admissionId ? { admissionId, ...current[admissionId]! } : null;
+}
+
+function deriveEventKind(prior: SchedulerState | null, state: SchedulerState, previousAdmission: SchedulerState | null, admission: SchedulerState | null, changedRelayBinding: SchedulerState | null, closureRequested = false): string {
   if (!prior || state.leaseHistory.length > prior.leaseHistory.length) return "LEASE_ACTIVATED";
   if (!prior.relayTargetTransition && state.relayTargetTransition) return "RELAY_TARGET_TRANSITION_BEGUN";
   if (prior.relayTargetTransition && !state.relayTargetTransition) return changedRelayBinding ? "RELAY_TARGET_TRANSITION_COMMITTED" : "RELAY_TARGET_TRANSITION_ABORTED";
@@ -958,6 +975,7 @@ function deriveEventKind(prior: SchedulerState | null, state: SchedulerState, pr
   if (admission?.status === AMBIGUITY_CLOSED_NO_REPLAY && previousAdmission?.status !== AMBIGUITY_CLOSED_NO_REPLAY) {
     return "AMBIGUOUS_ADMISSION_CLOSED_NO_REPLAY";
   }
+  if (closureRequested) return "AMBIGUOUS_ADMISSION_CLOSURE_REQUESTED";
   if (admission?.status !== previousAdmission?.status) return "ADMISSION_STATE_CHANGED";
   if (Object.keys(state.targetBindings).length > Object.keys(prior.targetBindings).length) return "TARGET_BOUND";
   return "STATE_COMMITTED";

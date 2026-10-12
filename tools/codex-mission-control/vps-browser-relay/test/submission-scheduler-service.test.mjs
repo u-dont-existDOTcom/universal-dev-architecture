@@ -61,8 +61,8 @@ test('main authority reloads a persisted ledger containing every repair-written 
       await assert.rejects(scheduler.admit(input, 'collector:relay'), hasCode('SUBMISSION_RESTART_AMBIGUITY'));
     },
     async ({ scheduler, admission, now, input }) => {
-      now.value = Date.parse(admission.expiresAt) + CLOSABLE_AFTER_MS;
-      await scheduler.closeAmbiguousAdmission(ambiguityClosure(admission, input, now), 'collector:relay');
+      now.value = Date.parse(admission.expiresAt) + 1_000;
+      await closeAfterRequest(scheduler, ambiguityClosure(admission, input, now), now);
     },
     ...[
       [-1, 'SUBMISSION_BOUNDARY_PRECEDES_ADMISSION'],
@@ -1153,49 +1153,57 @@ test('owner discard closes an expired admission once, never replays it, and reop
   const input = request();
   const admission = await scheduler.admit(input, 'collector:relay');
   const relay = 'collector:relay';
-  const close = (overrides = {}, producer = relay) => scheduler.closeAmbiguousAdmission(ambiguityClosure(admission, input, now, overrides), producer);
+  const decidedAt = new Date(origin).toISOString();
+  const close = (overrides = {}, producer = relay) => scheduler.closeAmbiguousAdmission(ambiguityClosure(admission, input, now, { decidedAt, ...overrides }), producer);
 
-  // While the admission may still authorize a click, closure only reports when it becomes possible.
-  const early = await close({ decidedAt: new Date(now.value).toISOString() }).catch((error) => error);
-  assert.equal(early.code, 'SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY');
-  assert.equal(early.detail.closableAt, new Date(Date.parse(admission.expiresAt) + CLOSABLE_AFTER_MS).toISOString());
-  // A full interval plus the allowed clock skew must pass after both the expiry and the owner decision.
-  const decidedAt = new Date(Date.parse(admission.expiresAt) + 1_000).toISOString();
-  now.value = Date.parse(decidedAt) + CLOSABLE_AFTER_MS - 1;
-  await assert.rejects(close({ decidedAt }), hasCode('SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY'));
-  now.value = Date.parse(decidedAt) + CLOSABLE_AFTER_MS;
-  // Only the admitting relay, for the exact request and body, with a known decision that is not future-dated.
-  await assert.rejects(close({ decidedAt }, 'collector:standby'), hasCode('SUBMISSION_ADMISSION_PRODUCER_MISMATCH'));
-  await assert.rejects(close({ decidedAt, requestId: 'r-other' }), hasCode('SUBMISSION_AMBIGUITY_CLOSURE_MISMATCH'));
-  await assert.rejects(close({ decidedAt, bodySha256: 'b'.repeat(64) }), hasCode('SUBMISSION_AMBIGUITY_CLOSURE_MISMATCH'));
+  // Refusals that record nothing: another relay, another request or body, a future-dated or invalid decision.
+  await assert.rejects(close({}, 'collector:standby'), hasCode('SUBMISSION_ADMISSION_PRODUCER_MISMATCH'));
+  await assert.rejects(close({ requestId: 'r-other' }), hasCode('SUBMISSION_AMBIGUITY_CLOSURE_MISMATCH'));
+  await assert.rejects(close({ bodySha256: 'b'.repeat(64) }), hasCode('SUBMISSION_AMBIGUITY_CLOSURE_MISMATCH'));
   await assert.rejects(close({ decidedAt: new Date(now.value + 30_001).toISOString() }), hasCode('SUBMISSION_AMBIGUITY_CLOSURE_DECISION_TIME_INVALID'));
   for (const invalid of [{ decision: 'OWNER_SAID_SO' }, { bodySha256: 'not-a-digest' }, { decidedAt: 'yesterday' }]) {
-    const error = await close({ decidedAt, ...invalid }).catch((caught) => caught);
+    const error = await close(invalid).catch((caught) => caught);
     assert.equal(error.code, 'SUBMISSION_AMBIGUITY_CLOSURE_INVALID');
     assert.equal(error.statusCode, 400);
   }
   await assert.rejects(scheduler.closeAmbiguousAdmission({ ...ambiguityClosure(admission, input, now, { decidedAt }), queueItemId: admission.queueItemId }, relay), hasCode('SUBMISSION_AMBIGUITY_CLOSURE_INVALID'));
   await assert.rejects(scheduler.closeAmbiguousAdmission(ambiguityClosure({ admissionId: 'send-admission:unknown' }, input, now), relay), hasCode('SUBMISSION_ADMISSION_UNKNOWN'));
-  assert.equal(store.state.admissions[0].status, 'ADMITTED');
-  assert.equal(store.state.queueItems[0].status, 'ADMITTED');
+  assert.equal(store.state.ambiguityClosureRequests, undefined);
 
-  const decided = ambiguityClosure(admission, input, now, { decidedAt });
-  const closed = await scheduler.closeAmbiguousAdmission(decided, relay);
+  // The first request is recorded on Mission Control's clock, even while the admission is still open; from then
+  // on the admission cannot authorize a click, and closure waits a full interval after the expiry.
+  const early = await close().catch((error) => error);
+  assert.equal(early.code, 'SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY');
+  assert.equal(early.detail.closableAt, new Date(Date.parse(admission.expiresAt) + 60_000).toISOString());
+  assert.deepEqual(store.state.ambiguityClosureRequests, {
+    [admission.admissionId]: { decision: 'OWNER_DISCARDED_NO_REPLAY', decidedAt, requestedAt: new Date(origin).toISOString() },
+  });
+  normalizeSchedulerState(JSON.parse(JSON.stringify(store.state)));
+  await assert.rejects(scheduler.validateAdmission({ admissionId: admission.admissionId }, relay), hasCode('SUBMISSION_ADMISSION_CLOSURE_REQUESTED'));
+  await assert.rejects(close({ decision: 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY' }), hasCode('SUBMISSION_AMBIGUITY_CLOSURE_REQUEST_CONFLICT'));
+  now.value = Date.parse(early.detail.closableAt) - 1;
+  await assert.rejects(close(), hasCode('SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY'));
+  assert.equal(store.state.admissions[0].status, 'ADMITTED');
+  now.value = Date.parse(early.detail.closableAt);
+
+  const closed = await close();
   assert.equal(closed.closed, true);
   assert.equal(closed.duplicate, false);
   assert.equal(store.state.admissions[0].status, 'AMBIGUOUS_CLOSED_NO_REPLAY');
   assert.deepEqual(store.state.admissions[0].ambiguityClosure, {
-    decision: 'OWNER_DISCARDED_NO_REPLAY', priorStatus: 'ADMITTED', decidedAt, closedAt: closed.closedAt,
+    decision: 'OWNER_DISCARDED_NO_REPLAY', priorStatus: 'ADMITTED', decidedAt,
+    requestedAt: new Date(origin).toISOString(), closedAt: closed.closedAt,
   });
+  assert.equal(store.state.ambiguityClosureRequests, undefined);
   assert.equal(store.state.queueItems[0].status, 'CLOSED_AMBIGUOUS_NO_REPLAY');
   assert.equal(store.state.queueItems[0].terminalAt, closed.closedAt);
   assert.equal(store.state.lastBoundaryAt, null);
   const reloaded = normalizeSchedulerState(JSON.parse(JSON.stringify(store.state)));
   assert.deepEqual(reloaded.admissions[0].ambiguityClosure, store.state.admissions[0].ambiguityClosure);
   assert.deepEqual(normalizeSchedulerState(JSON.parse(JSON.stringify(reloaded))), reloaded);
-  assert.equal((await scheduler.closeAmbiguousAdmission(decided, relay)).duplicate, true);
-  await assert.rejects(scheduler.closeAmbiguousAdmission({ ...decided, decidedAt: new Date(now.value - 1).toISOString() }, relay), hasCode('SUBMISSION_AMBIGUITY_ALREADY_CLOSED'));
-  await assert.rejects(scheduler.closeAmbiguousAdmission({ ...decided, decision: 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY' }, relay), hasCode('SUBMISSION_AMBIGUITY_ALREADY_CLOSED'));
+  assert.equal((await close()).duplicate, true);
+  await assert.rejects(close({ decidedAt: new Date(now.value - 1).toISOString() }), hasCode('SUBMISSION_AMBIGUITY_ALREADY_CLOSED'));
+  await assert.rejects(close({ decision: 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY' }), hasCode('SUBMISSION_AMBIGUITY_ALREADY_CLOSED'));
 
   const status = await scheduler.status();
   assert.equal(status.unresolvedAdmission, null);
@@ -1215,22 +1223,24 @@ test('owner discard closes an expired admission once, never replays it, and reop
   assert.equal(fresh.admitted, true);
 });
 
-test('a discard recorded before the admission expired still closes once the interval after expiry has passed', async () => {
+test('closure timing uses Mission Control\'s receipt of the request, not the relay\'s clock', async () => {
   const now = { value: origin };
   const store = new MemoryStore();
   const scheduler = makeScheduler(store, now);
   await scheduler.activateLease(primaryLease());
   const input = request();
   const admission = await scheduler.admit(input, 'collector:relay');
-  const decidedAt = new Date(origin + 10_000).toISOString();
-  now.value = origin + 20_000;
+  // A relay clock far behind Mission Control stamps a decision hours old; it cannot shorten the wait.
+  now.value = Date.parse(admission.expiresAt) + 600_000;
+  const decidedAt = new Date(origin - 3 * 3_600_000).toISOString();
   const early = await scheduler.closeAmbiguousAdmission(ambiguityClosure(admission, input, now, { decidedAt }), 'collector:relay').catch((error) => error);
   assert.equal(early.code, 'SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY');
-  now.value = Date.parse(early.detail.closableAt);
+  assert.equal(early.detail.closableAt, new Date(now.value + 60_000).toISOString());
+  now.value += 60_000;
   const closed = await scheduler.closeAmbiguousAdmission(ambiguityClosure(admission, input, now, { decidedAt }), 'collector:relay');
   assert.equal(closed.duplicate, false);
+  assert.equal(store.state.admissions[0].ambiguityClosure.requestedAt, new Date(now.value - 60_000).toISOString());
   assert.equal(store.state.admissions[0].ambiguityClosure.decidedAt, decidedAt);
-  normalizeSchedulerState(JSON.parse(JSON.stringify(store.state)));
 });
 
 test('an owner attestation that the send went out closes it the same way', async () => {
@@ -1240,8 +1250,8 @@ test('an owner attestation that the send went out closes it the same way', async
   await scheduler.activateLease(primaryLease());
   const input = request();
   const admission = await scheduler.admit(input, 'collector:relay');
-  now.value = Date.parse(admission.expiresAt) + CLOSABLE_AFTER_MS;
-  await scheduler.closeAmbiguousAdmission(ambiguityClosure(admission, input, now, { decision: 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY' }), 'collector:relay');
+  now.value = Date.parse(admission.expiresAt) + 1_000;
+  await closeAfterRequest(scheduler, ambiguityClosure(admission, input, now, { decision: 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY' }), now);
   assert.equal(store.state.admissions[0].ambiguityClosure.decision, 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY');
   assert.equal(store.state.queueItems[0].status, 'CLOSED_AMBIGUOUS_NO_REPLAY');
   await assert.rejects(scheduler.admit(input, 'collector:relay'), hasCode('SUBMISSION_QUEUE_ITEM_TERMINAL'));
@@ -1261,7 +1271,7 @@ test('a restart-ambiguous admission closed on the owner decision no longer block
 
   now.value = Date.parse('2026-09-10T13:01:00.000Z');
   await assert.rejects(restarted.activateLease(secondaryTakeoverLease()), hasCode('TAKEOVER_SEND_AMBIGUITY'));
-  const closed = await restarted.closeAmbiguousAdmission(ambiguityClosure(admission, input, now), 'collector:relay');
+  const closed = await closeAfterRequest(restarted, ambiguityClosure(admission, input, now), now);
   assert.equal(store.state.admissions[0].ambiguityClosure.priorStatus, 'AMBIGUOUS_AFTER_RESTART');
   assert.equal(store.state.queueItems[0].terminalAt, closed.closedAt);
   const takeover = await restarted.activateLease(secondaryTakeoverLease());
@@ -1277,15 +1287,17 @@ test('closure refuses crossed and aborted admissions, and a late boundary is rec
     [async ({ scheduler, admission }) => scheduler.abortBeforeBoundary({ admissionId: admission.admissionId, relayStage: 'COMPOSER_FILLED' }, relay), 'ABORTED_BEFORE_BOUNDARY'],
   ]) {
     const now = { value: origin };
-    const scheduler = makeScheduler(new MemoryStore(), now);
+    const store = new MemoryStore();
+    const scheduler = makeScheduler(store, now);
     await scheduler.activateLease(primaryLease());
     const input = request();
     const admission = await scheduler.admit(input, relay);
     await settle({ scheduler, admission });
-    now.value = Date.parse(admission.expiresAt) + CLOSABLE_AFTER_MS;
+    now.value = Date.parse(admission.expiresAt) + 120_000;
     const refused = await scheduler.closeAmbiguousAdmission(ambiguityClosure(admission, input, now), relay).catch((error) => error);
     assert.equal(refused.code, 'SUBMISSION_AMBIGUITY_CLOSURE_STAGE_INVALID');
     assert.equal(refused.detail.admissionStatus, settledStatus);
+    assert.equal(store.state.ambiguityClosureRequests, undefined);
   }
 
   for (const priorHalt of [null, { code: 'EARLIER_HALT', admissionId: 'send-admission:earlier', queueItemId: 'send-queue-item:earlier', boundaryAt: new Date(origin).toISOString() }]) {
@@ -1295,8 +1307,8 @@ test('closure refuses crossed and aborted admissions, and a late boundary is rec
     await scheduler.activateLease(primaryLease());
     const input = request();
     const admission = await scheduler.admit(input, relay);
-    now.value = Date.parse(admission.expiresAt) + CLOSABLE_AFTER_MS;
-    await scheduler.closeAmbiguousAdmission(ambiguityClosure(admission, input, now), relay);
+    now.value = Date.parse(admission.expiresAt) + 1_000;
+    await closeAfterRequest(scheduler, ambiguityClosure(admission, input, now), now);
     if (priorHalt) store.state.safetyHalt = priorHalt;
     const lateBoundaryAt = new Date(now.value - 1_000).toISOString();
     await assert.rejects(scheduler.recordBoundary({ admissionId: admission.admissionId, boundaryAt: lateBoundaryAt,
@@ -1317,15 +1329,34 @@ test('closure refuses crossed and aborted admissions, and a late boundary is rec
   }
 });
 
-test('persisted closures are schema-checked and cannot be forged onto other history', async () => {
+test('persisted closures and pending requests are schema-checked and cannot be forged onto other history', async () => {
   const now = { value: origin };
   const store = new MemoryStore();
   const scheduler = makeScheduler(store, now);
   await scheduler.activateLease(primaryLease());
   const input = request();
   const admission = await scheduler.admit(input, 'collector:relay');
-  now.value = Date.parse(admission.expiresAt) + CLOSABLE_AFTER_MS;
-  await scheduler.closeAmbiguousAdmission(ambiguityClosure(admission, input, now), 'collector:relay');
+  now.value = Date.parse(admission.expiresAt) + 1_000;
+  const closure = ambiguityClosure(admission, input, now);
+  const early = await scheduler.closeAmbiguousAdmission(closure, 'collector:relay').catch((error) => error);
+  assert.equal(early.code, 'SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY');
+  const pending = JSON.parse(JSON.stringify(normalizeSchedulerState(JSON.parse(JSON.stringify(store.state)))));
+  assert.ok(pending.ambiguityClosureRequests[admission.admissionId]);
+  const pendingForgeries = [
+    (state) => { state.ambiguityClosureRequests[admission.admissionId].extra = true; },
+    (state) => { state.ambiguityClosureRequests[admission.admissionId].decision = 'OWNER_SAID_SO'; },
+    (state) => { state.ambiguityClosureRequests['send-admission:unknown'] = state.ambiguityClosureRequests[admission.admissionId]; },
+    (state) => { state.ambiguityClosureRequests[admission.admissionId].requestedAt = new Date(origin - 1).toISOString(); },
+    (state) => { state.ambiguityClosureRequests[admission.admissionId].decidedAt = new Date(now.value + 30_001).toISOString(); },
+  ];
+  for (const [index, forge] of pendingForgeries.entries()) {
+    const state = structuredClone(pending);
+    forge(state);
+    assert.throws(() => normalizeSchedulerState(state), Error, `pending forgery ${index} must fail closed`);
+  }
+
+  now.value = Date.parse(early.detail.closableAt);
+  await scheduler.closeAmbiguousAdmission(closure, 'collector:relay');
   const normalized = normalizeSchedulerState(JSON.parse(JSON.stringify(store.state)));
   assert.equal(normalized.admissions[0].status, 'AMBIGUOUS_CLOSED_NO_REPLAY');
   const closed = JSON.parse(JSON.stringify(normalized));
@@ -1334,9 +1365,10 @@ test('persisted closures are schema-checked and cannot be forged onto other hist
   const forged = [
     (state) => { delete state.admissions[0].ambiguityClosure; },
     (state) => { state.admissions[0].ambiguityClosure.extra = true; },
+    (state) => { delete state.admissions[0].ambiguityClosure.requestedAt; },
     (state) => { state.admissions[0].ambiguityClosure.decision = 'OWNER_SAID_SO'; },
     (state) => { state.admissions[0].ambiguityClosure.priorStatus = 'BOUNDARY_RECORDED'; },
-    (state) => { state.admissions[0].ambiguityClosure.decidedAt = state.admissions[0].ambiguityClosure.closedAt; },
+    (state) => { state.admissions[0].ambiguityClosure.requestedAt = state.admissions[0].ambiguityClosure.closedAt; },
     (state) => { state.admissions[0].boundaryAt = state.admissions[0].ambiguityClosure.closedAt; },
     (state) => { state.queueItems[0].terminalAt = new Date(now.value - 1).toISOString(); },
     (state) => { state.queueItems[0].status = 'CANCELLED_EXPIRED_ROUTE'; },
@@ -1344,6 +1376,7 @@ test('persisted closures are schema-checked and cannot be forged onto other hist
     (state) => {
       state.admissions[0].status = 'ADMITTED'; state.queueItems[0].status = 'ADMITTED'; state.queueItems[0].terminalAt = null;
     },
+    (state) => { state.ambiguityClosureRequests = { [admission.admissionId]: pending.ambiguityClosureRequests[admission.admissionId] }; },
   ];
   for (const [index, forge] of forged.entries()) {
     const state = structuredClone(closed);
@@ -1359,28 +1392,13 @@ test('a closed ambiguous journal send still counts toward that day\'s journal al
   await scheduler.activateLease(primaryLease());
   const input = request({ sendPath: 'JOURNAL_WORK' });
   const admission = await scheduler.admit(input, 'collector:relay');
-  now.value = Date.parse(admission.expiresAt) + CLOSABLE_AFTER_MS;
+  now.value = Date.parse(admission.expiresAt) + 1_000;
   assert.equal((await scheduler.status()).journalCallsToday, 0);
-  await scheduler.closeAmbiguousAdmission(ambiguityClosure(admission, input, now), 'collector:relay');
+  await closeAfterRequest(scheduler, ambiguityClosure(admission, input, now), now);
   assert.equal((await scheduler.status()).journalCallsToday, 1);
   now.value += 86_400_000;
   assert.equal((await scheduler.status()).journalCallsToday, 0);
 });
-
-// A full minimum interval plus the allowed relay clock skew after the later of expiry and decision.
-const CLOSABLE_AFTER_MS = 90_000;
-
-function ambiguityClosure(admission, input, now, overrides = {}) {
-  return {
-    admissionId: admission.admissionId,
-    requestId: input.requestId,
-    bodySha256: input.bodySha256,
-    decision: 'OWNER_DISCARDED_NO_REPLAY',
-    // By default the owner discarded the send as its admission expired.
-    decidedAt: admission.expiresAt ?? new Date(now.value).toISOString(),
-    ...overrides,
-  };
-}
 
 test('a closed ambiguous journal send admitted just before midnight counts on both days its window touches', async () => {
   const now = { value: Date.parse('2026-09-10T23:59:30.000Z') };
@@ -1390,11 +1408,30 @@ test('a closed ambiguous journal send admitted just before midnight counts on bo
   const input = request({ sendPath: 'JOURNAL_WORK' });
   const admission = await scheduler.admit(input, 'collector:relay');
   assert.equal(admission.expiresAt.slice(0, 10), '2026-09-11');
-  now.value = Date.parse(admission.expiresAt) + CLOSABLE_AFTER_MS;
-  await scheduler.closeAmbiguousAdmission(ambiguityClosure(admission, input, now), 'collector:relay');
+  now.value = Date.parse(admission.expiresAt) + 1_000;
+  await closeAfterRequest(scheduler, ambiguityClosure(admission, input, now), now);
   assert.equal((await scheduler.status()).journalCallsToday, 1);
   now.value = Date.parse('2026-09-10T23:59:59.000Z');
   assert.equal((await scheduler.status()).journalCallsToday, 1);
   now.value = Date.parse('2026-09-12T00:00:01.000Z');
   assert.equal((await scheduler.status()).journalCallsToday, 0);
 });
+
+// The first closure call records the request and reports when it can complete; the second completes it.
+async function closeAfterRequest(scheduler, closure, now, producerId = 'collector:relay') {
+  const early = await scheduler.closeAmbiguousAdmission(closure, producerId).catch((error) => error);
+  assert.equal(early.code, 'SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY');
+  now.value = Date.parse(early.detail.closableAt);
+  return scheduler.closeAmbiguousAdmission(closure, producerId);
+}
+
+function ambiguityClosure(admission, input, now, overrides = {}) {
+  return {
+    admissionId: admission.admissionId,
+    requestId: input.requestId,
+    bodySha256: input.bodySha256,
+    decision: 'OWNER_DISCARDED_NO_REPLAY',
+    decidedAt: new Date(now.value).toISOString(),
+    ...overrides,
+  };
+}

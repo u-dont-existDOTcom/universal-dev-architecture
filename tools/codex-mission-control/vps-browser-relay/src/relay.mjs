@@ -698,7 +698,8 @@ export class RelayRuntime {
         };
       } catch (error) {
         const waitMs = Date.parse(error?.closableAt ?? '') - Date.now();
-        if (attempt === 0 && error?.code === 'SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY'
+        // A few short waits absorb a small clock difference between this host and Mission Control.
+        if (attempt < 2 && error?.code === 'SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY'
           && Number.isFinite(waitMs) && waitMs <= CENTRAL_AMBIGUITY_CLOSURE_MAX_WAIT_MS) {
           await this.sleepImpl(Math.max(0, waitMs) + 1_000);
           continue;

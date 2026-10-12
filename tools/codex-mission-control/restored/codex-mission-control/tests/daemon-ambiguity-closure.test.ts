@@ -32,6 +32,12 @@ test("daemon closes one expired admission on the admitting relay's owner decisio
       const admitted = await authority.execute("admissions", admissionRequest(), producer());
       admissionId = admitted.admissionId;
       expiresAt = admitted.expiresAt;
+      // The relay's first request reached Mission Control a few minutes ago; it recorded that receipt.
+      const requested = new SubmissionAuthorityRuntime(store, environment, () => now - 400_000);
+      await assert.rejects(
+        requested.execute("admissions/close-ambiguous", closureFor(admissionId, expiresAt), producer()),
+        (error: any) => error.code === "SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY",
+      );
     } finally {
       store.close();
     }
@@ -54,8 +60,7 @@ test("daemon closes one expired admission on the admitting relay's owner decisio
     assert.equal(before.unresolvedAdmission.admissionId, admissionId);
     assert.equal(before.ready, false);
 
-    const closure = { admissionId, requestId: "request:daemon-closure", bodySha256: "a".repeat(64),
-      decision: "OWNER_DISCARDED_NO_REPLAY", decidedAt: new Date(Date.parse(expiresAt) + 1_000).toISOString() };
+    const closure = closureFor(admissionId, expiresAt);
     const wrongProducer = await fetch(`${origin}/submission-authority/admissions/close-ambiguous`, {
       method: "POST", headers: { ...headers("collector:other"), "content-type": "application/json" }, body: JSON.stringify(closure),
     });
@@ -101,6 +106,10 @@ function authorityEnvironment(now: number): Record<string, string> {
   };
 }
 
+function closureFor(admissionId: string, expiresAt: string) {
+  return { admissionId, requestId: "request:daemon-closure", bodySha256: "a".repeat(64),
+    decision: "OWNER_DISCARDED_NO_REPLAY", decidedAt: new Date(Date.parse(expiresAt) + 1_000).toISOString() };
+}
 function producer() { return { id: relayId, kind: "COLLECTOR" as const, workerScopes: ["worker-a"], taskScopes: ["*"] }; }
 function headers(id: string): Record<string, string> {
   return { authorization: `Bearer ${token}`, "x-mission-control-producer-id": id, "x-mission-control-producer-kind": "COLLECTOR",

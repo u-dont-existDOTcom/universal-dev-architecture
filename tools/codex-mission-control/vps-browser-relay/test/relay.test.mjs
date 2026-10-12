@@ -2112,3 +2112,31 @@ test('submitted reaches Mission Control through the real relay scheduler as an a
   assert.equal(forwarded[0].decision, 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY');
   assert.equal(forwarded[0].decidedAt, store.state.deliveries['request:r-1'].confirmedAt);
 });
+
+test('resolve waits again when Mission Control is still a little early, then closes', async () => {
+  const soon = () => new Date(Date.now() + 500).toISOString();
+  const { runtime, calls } = centralAmbiguityFixture({
+    delivery: ambiguousDelivery,
+    open: openAdmission,
+    closeAnswers: [
+      schedulerError('SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY', { closableAt: soon() }),
+      schedulerError('SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY', { closableAt: soon() }),
+      { closed: true, duplicate: false, closedAt: '2026-10-12T05:40:00.000Z' },
+    ],
+  });
+  const resolved = await runtime.resolve('request:r-1', 'discard');
+  assert.equal(resolved.central.state, 'CLOSED');
+  assert.equal(calls.close.length, 3);
+  assert.equal(calls.waits.length, 2);
+
+  const stubborn = centralAmbiguityFixture({
+    delivery: ambiguousDelivery,
+    open: openAdmission,
+    closeAnswers: [1, 2, 3].map(() => schedulerError('SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY', { closableAt: soon() })),
+  });
+  const notYet = await stubborn.runtime.resolve('request:r-1', 'discard');
+  assert.equal(notYet.central.state, 'NOT_CLOSED');
+  assert.equal(notYet.central.code, 'SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY');
+  assert.equal(stubborn.calls.close.length, 3);
+  assert.equal(ambiguityResolutionExitCode(notYet), 1);
+});

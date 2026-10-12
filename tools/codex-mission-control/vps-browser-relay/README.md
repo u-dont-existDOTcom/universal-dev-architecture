@@ -742,13 +742,14 @@ takeover. `discard` and `submitted` also close it, as `OWNER_DISCARDED_NO_REPLAY
 `OWNER_ATTESTED_SUBMITTED_NO_REPLAY`: the admission and its queue item become
 `AMBIGUOUS_CLOSED_NO_REPLAY` / `CLOSED_AMBIGUOUS_NO_REPLAY`, that queue key can never be admitted
 again, and the recorded pacing boundary is left as it was. Mission Control accepts the closure only
-from the admitting relay, only for that route's exact request and body, only for an admission
-without boundary, abort, or outcome evidence, and only a full minimum interval plus 30 seconds of
-clock skew after the later of the admission's expiry and the recorded decision. The command records
-the decision while holding the relay lock, so the relay that held the admission had stopped by then.
-When Mission Control is not ready yet, the command waits once, up to five minutes, then exits
-non-zero if the closure still has not happened; re-running it repeats only the Mission Control step
-with the same recorded decision. If Mission Control's queue head is still a queued or retry item for
+from the admitting relay, only for that route's exact request and body, and only for an admission
+without boundary, abort, or outcome evidence. The command asks while holding the relay lock, so the
+relay process that held the admission has stopped and any click of that send happened before
+Mission Control first receives the request. Mission Control records that receipt on its own clock;
+from then on the admission cannot authorize a click, and the closure completes a full minimum
+interval after both that receipt and the admission's expiry. The command waits for that (a few
+waits of at most five minutes each), then exits non-zero if the closure still has not happened;
+re-running it repeats only the Mission Control step with the same recorded decision. If Mission Control's queue head is still a queued or retry item for
 that send, the command says so and exits non-zero; the relay's own cycle cancels such a pre-click
 retry once the send's route has expired. It also exits non-zero while Mission Control holds another
 send open. If a boundary for a closed send ever arrives, Mission

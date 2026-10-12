@@ -570,19 +570,21 @@ test("an owner-closed expired admission is ledgered with its decision, survives 
       decision: "OWNER_DISCARDED_NO_REPLAY",
       decidedAt: "",
     };
-    // The owner discarded the send as its admission expired; closure waits one full interval plus the
-    // allowed relay clock skew after that.
+    // The owner discarded the send as its admission expired. Mission Control records its own receipt of the
+    // request, then completes the closure a full interval later.
     closure.decidedAt = admitted.expiresAt;
-    now.value = Date.parse(admitted.expiresAt) + 89_999;
+    now.value = Date.parse(admitted.expiresAt) + 30_000;
     await assert.rejects(
       firstRuntime.execute("admissions/close-ambiguous", closure, producer),
-      (error: any) => error.code === "SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY",
+      (error: any) => error.code === "SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY"
+        && error.detail.closableAt === new Date(now.value + 60_000).toISOString(),
     );
+    const requestedAt = new Date(now.value).toISOString();
     await assert.rejects(
       firstRuntime.execute("admissions/close-ambiguous", closure, { ...producer, kind: "OWNER_AUTHORITY" } as AuthenticatedProducer),
       (error: any) => error.code === "SUBMISSION_PRODUCER_KIND_FORBIDDEN",
     );
-    now.value += 1;
+    now.value += 60_000;
     const closed = await firstRuntime.execute("admissions/close-ambiguous", closure, producer);
     assert.equal(closed.closed, true);
     assert.equal(closed.duplicate, false);
@@ -607,8 +609,13 @@ test("an owner-closed expired admission is ledgered with its decision, survives 
       decision: "OWNER_DISCARDED_NO_REPLAY",
       priorStatus: "ADMITTED",
       decidedAt: admitted.expiresAt,
+      requestedAt,
       closedAt: closed.closedAt,
     });
+    const requests = ledger.records.filter((record: Record<string, unknown>) => record.eventKind === "AMBIGUOUS_ADMISSION_CLOSURE_REQUESTED");
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].admissionId, admitted.admissionId);
+    assert.deepEqual(requests[0].ambiguityClosureRequest, { decision: "OWNER_DISCARDED_NO_REPLAY", decidedAt: admitted.expiresAt, requestedAt });
     assert.ok(ledger.records.filter((record: Record<string, unknown>) => record.eventKind !== "AMBIGUOUS_ADMISSION_CLOSED_NO_REPLAY")
       .every((record: Record<string, unknown>) => !Object.hasOwn(record, "ambiguityClosure")));
     assert.equal((await reopenedRuntime.operatorStatus()).authority.queueDepth, 0);
