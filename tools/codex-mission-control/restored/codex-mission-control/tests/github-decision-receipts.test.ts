@@ -19,8 +19,12 @@ import {
   splitDecisionSessionAttestationSummary,
   ensureConfiguredCapabilityChallenges,
   githubDecisionCandidateFromWebhook,
+  githubReceiptCollector,
   ingestGitHubSupervisionCandidate,
   modeCapabilityVerifiedSummary,
+  ownerDirectionReceiptCommentPrefix,
+  ownerDirectionReceiptSummary,
+  parseGitHubReceiptPolicy,
   parseCanonicalDecisionComment,
   parseStageReceiptComment,
   pendingDecisionRequests,
@@ -60,8 +64,10 @@ import { daemonLiveness } from "../lib/daemon-health";
 import { workerTransportSnapshotFromStore } from "../lib/dashboard-data";
 import { WORK_CLOUD_EXECUTION_RECEIPT_PREFIX } from "../lib/chatgpt-work-cloud-autodispatch";
 import { seedIssue47Store } from "../lib/seed";
+import { pullWorkerOutbox } from "../lib/worker-channel";
 
 const outcomeSha = "a".repeat(64);
+const ownerDirectionText = "Fixture owner answer: proceed with the reviewed option.";
 const evidenceSha = "b".repeat(64);
 const decisionText = "Use the bounded implementation and preserve the stated stop boundary.";
 const readerText = "Evidence capsule capsule-1 was read from the configured GitHub sources.";
@@ -95,6 +101,157 @@ test("central policy rejects worker-selected repository/issue and unauthorized w
   assert.throws(() => buildGitHubDecisionReceiptEnvelope(escalatedEvents(), { ...candidate(), repository: "evil/repo" }, p), /GitHub repository|configured/);
   assert.throws(() => ingestGitHubSupervisionCandidate(fakeStore(escalatedEvents()), { ...candidate(), authorLogin: "other-user" }, p), /not authorized/);
 });
+
+test("receipt relocation policy is exact, destination-bound, and request-unique", () => {
+  const base = policy();
+  const destination = { repository: "u-dont-existDOTcom/private-receipts", issue: 4 };
+  const raw = {
+    ...base,
+    repository: destination.repository,
+    decisionIssueNumber: destination.issue,
+    capabilityIssueNumber: destination.issue,
+    stageIssueNumber: destination.issue,
+    decisionReceiptRelocations: [{
+      requestId: "request-1",
+      sourceRepository: base.repository,
+      sourceDecisionIssueNumber: base.decisionIssueNumber,
+      destinationRepository: destination.repository,
+      destinationDecisionIssueNumber: destination.issue,
+      canonicalReceiptSha256: "a".repeat(64),
+    }],
+  };
+  assert.deepEqual(parseGitHubReceiptPolicy(JSON.stringify(raw))?.decisionReceiptRelocations, raw.decisionReceiptRelocations);
+  assert.throws(() => parseGitHubReceiptPolicy(JSON.stringify({
+    ...raw,
+    decisionReceiptRelocations: [{ ...raw.decisionReceiptRelocations[0], destinationDecisionIssueNumber: 5 }],
+  })), /destination must match/);
+  assert.throws(() => parseGitHubReceiptPolicy(JSON.stringify({
+    ...raw,
+    decisionReceiptRelocations: [raw.decisionReceiptRelocations[0], raw.decisionReceiptRelocations[0]],
+  })), /request IDs must be unique/);
+});
+
+test("authorized private GitHub owner direction becomes one durable owner message plus queued worker delivery", () => {
+  const p = policy();
+  const store = fakeStore(pendingEvents());
+  const exactText = ownerDirectionText;
+  const receipt = ownerDirectionCandidate(p, 9300);
+  const immutableUrl = receipt.immutableUrl;
+
+  const appended = ingestGitHubSupervisionCandidate(store, receipt, p, "2026-09-02T00:03:01.000Z");
+  assert.equal(appended.length, 3);
+  const ownerMessage = appended.find((event) => event.data.type === "owner_message_recorded");
+  const queued = appended.find((event) => event.data.type === "outbound_delivery_lifecycle_recorded");
+  const provenance = appended.find((event) => event.data.type === "evidence_receipt_recorded");
+  assert.ok(ownerMessage?.data.type === "owner_message_recorded");
+  assert.equal(ownerMessage.data.body, exactText);
+  assert.equal(ownerMessage.data.owner_outcome_id, "owner-outcome-1");
+  assert.equal(ownerMessage.data.owner_outcome_sha256, outcomeSha);
+  assert.equal(ownerMessage.data.priority, "HIGH");
+  assert.equal(ownerMessage.producerKind, "OWNER_AUTHORITY");
+  assert.ok(queued?.data.type === "outbound_delivery_lifecycle_recorded");
+  assert.equal(queued.data.status, "QUEUED");
+  assert.equal(queued.producerKind, "SYSTEM");
+  assert.ok(provenance?.data.type === "evidence_receipt_recorded");
+  assert.equal(provenance.data.summary, ownerDirectionReceiptSummary);
+  assert.ok(provenance.data.refs.includes(`github_comment:${immutableUrl}`));
+  assert.ok(provenance.data.refs.includes(`exact_text_sha256:${sha256(exactText)}`));
+
+  assert.deepEqual(ingestGitHubSupervisionCandidate(store, receipt, p, "2026-09-02T00:03:02.000Z"), []);
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, ownerDirectionCandidate(p, 9301, {
+    owner_outcome: { id: "owner-outcome-1", epoch: 8, sha256: outcomeSha },
+  }), p), /stale against the current owner outcome/);
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, ownerDirectionCandidate(p, 9302, {}, { authorLogin: "untrusted-writer" }), p), /not authorized/);
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, ownerDirectionCandidate(p, 9303, {}, { authorLogin: "askrigor-lesson-submitter[bot]" }), p),
+    /not authorized for owner directions/);
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, receipt, { ...p, ownerDirectionWriterLogins: undefined }), /not authorized for owner directions/);
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, ownerDirectionCandidate(p, 9304, { exact_text_sha256: sha256("other bytes") }), p), /digest mismatch/);
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, ownerDirectionCandidate(p, 9305, {}, { issueNumber: p.capabilityIssueNumber }), p),
+    /outside the configured private decision channel/);
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, ownerDirectionCandidate(p, 9306, {}, { repository: "other-owner/other-repo" }), p),
+    /Unauthorized GitHub repository/);
+
+  const outcome = pendingEvents()[0]!.data;
+  assert.ok(outcome.type === "owner_outcome_recorded");
+  store.append({ event_id: "owner-outcome-epoch-8", occurred_at: "2026-09-02T00:04:00.000Z",
+    data: { ...outcome, epoch: 8, owner_outcome_sha256: "f".repeat(64) } });
+  assert.deepEqual(ingestGitHubSupervisionCandidate(store, receipt, p, "2026-09-02T00:04:01.000Z"), []);
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, ownerDirectionCandidate(p, 9307), p), /stale against the current owner outcome/);
+  assert.equal(store.allEvents().filter((event) => event.data.type === "owner_message_recorded").length, 1);
+});
+
+test("an edited or relocated GitHub comment cannot carry owner-direction authority", () => {
+  const p = policy();
+  const store = fakeStore(pendingEvents());
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, ownerDirectionCandidate(p, 9310, {}, { updatedAt: "2026-09-02T00:04:00.000Z" }), p),
+    /must be unedited/);
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, ownerDirectionCandidate(p, 9311, {}, { updatedAt: null }), p), /must be unedited/);
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, ownerDirectionCandidate(p, 9312, {}, {
+    immutableUrl: `https://github.com/${p.repository}/issues/${p.decisionIssueNumber}#issuecomment-1`,
+  }), p), /locator does not match/);
+  assert.equal(store.allEvents().some((event) => event.data.type === "owner_message_recorded"), false);
+});
+
+test("GitHub owner direction commits atomically and is delivered through the existing worker outbox", () => {
+  const p = policy();
+  const worker = "mission-control-live-slice";
+  const workerProducer: AuthenticatedProducer = { id: `worker:${worker}`, kind: "WORKER", workerScopes: [worker], taskScopes: [`task:${worker}`] };
+  const store = continuationStore([pendingEvents()[0]!]);
+  const receipt = ownerDirectionCandidate(p, 9320);
+  const before = store.latestSequence();
+  const appended = ingestGitHubSupervisionCandidate(store, receipt, p, "2026-09-02T00:03:01.000Z");
+  assert.deepEqual(appended.map((event) => event.data.type), ["owner_message_recorded", "outbound_delivery_lifecycle_recorded", "evidence_receipt_recorded"]);
+  assert.deepEqual(appended.map((event) => event.sequence), [before + 1, before + 2, before + 3]);
+  assert.equal(store.verifyChain().valid, true);
+
+  const pulled = pullWorkerOutbox(store, worker, workerProducer, { now: "2026-09-02T00:03:05.000Z" });
+  assert.equal(pulled.deliveries.length, 1);
+  assert.equal(pulled.deliveries[0]!.kind, "DIRECTION");
+  assert.equal(pulled.deliveries[0]!.body, ownerDirectionText);
+  const ackAt = "2026-09-02T00:03:10.000Z";
+  store.appendMany([{ event: { schema_version: 2, event_id: "fixture-owner-direction-ack", mission_id: "mission-control-live", occurred_at: ackAt, data: {
+    type: "outbound_message_acknowledged", worker, acknowledgement_id: "ack:fixture-owner-direction",
+    message_id: pulled.deliveries[0]!.messageId, delivery_id: pulled.deliveries[0]!.deliveryId, acknowledged_at: ackAt,
+  } }, producer: workerProducer }]);
+  assert.deepEqual(pullWorkerOutbox(store, worker, workerProducer, { now: "2026-09-02T01:00:00.000Z" }).deliveries, []);
+  assert.deepEqual(ingestGitHubSupervisionCandidate(store, receipt, p, "2026-09-02T00:03:20.000Z"), []);
+  store.close();
+});
+
+test("GitHub owner direction leaves no partial worker message when its provenance cannot commit", () => {
+  const p = policy();
+  const store = continuationStore([pendingEvents()[0]!]);
+  store.append({ schema_version: 2, event_id: `evidence:${sha256(`${githubReceiptCollector.id}:github-owner-direction:9330`).slice(0, 32)}`,
+    mission_id: "mission-control-live", occurred_at: "2026-09-02T00:02:00.000Z", data: {
+      type: "evidence_receipt_recorded", worker: "mission-control-live-slice", receipt_id: "fixture-conflicting-provenance",
+      producer_id: githubReceiptCollector.id, producer_role: "COLLECTOR", evidence_class: "ARTIFACT", independence: "SAME_PROVENANCE",
+      freshness: "CURRENT", exact_candidate_sha256: null, summary: "FIXTURE_CONFLICTING_PROVENANCE", refs: ["fixture:conflict"], verified: true,
+      changed_path_manifest: null,
+    } }, "2026-09-02T00:02:00.000Z", githubReceiptCollector);
+  const before = store.latestSequence();
+  assert.throws(() => ingestGitHubSupervisionCandidate(store, ownerDirectionCandidate(p, 9330), p, "2026-09-02T00:03:01.000Z"),
+    /already exists with different content/);
+  assert.equal(store.latestSequence(), before);
+  assert.equal(store.allEvents().some((event) => event.data.type === "owner_message_recorded"
+    || event.data.type === "outbound_delivery_lifecycle_recorded"), false);
+  store.close();
+});
+
+function ownerDirectionCandidate(p: GitHubReceiptPolicy, commentId: number, fields: Record<string, unknown> = {},
+  overrides: Partial<GitHubDecisionCandidate> = {}): GitHubDecisionCandidate {
+  const createdAt = "2026-09-02T00:03:00.000Z";
+  return {
+    repository: p.repository, issueNumber: p.decisionIssueNumber, commentId,
+    immutableUrl: `https://github.com/${p.repository}/issues/${p.decisionIssueNumber}#issuecomment-${commentId}`,
+    createdAt, updatedAt: createdAt, authorLogin: "u-dont-existDOTcom", deliveryId: null, ingestionMethod: "RECONCILIATION_POLL",
+    body: `${ownerDirectionReceiptCommentPrefix}${JSON.stringify({
+      schema_version: 1, worker: "mission-control-live-slice", decision_ref: "owner-question:fixture",
+      owner_outcome: { id: "owner-outcome-1", epoch: 7, sha256: outcomeSha },
+      exact_text: ownerDirectionText, exact_text_sha256: sha256(ownerDirectionText), priority: "HIGH", ...fields,
+    })}`,
+    ...overrides,
+  };
+}
 
 test("capability challenge exposes MC nonce, GitHub nonce hash/location, and stage target", () => {
   const p = policy();
@@ -841,7 +998,8 @@ function policy(): GitHubReceiptPolicy {
     decisionIssueNumber: 59,
     capabilityIssueNumber: 60,
     stageIssueNumber: 61,
-    authorizedWriterLogins: ["u-dont-existDOTcom"],
+    authorizedWriterLogins: ["u-dont-existDOTcom", "askrigor-lesson-submitter[bot]"],
+    ownerDirectionWriterLogins: ["u-dont-existdotcom"],
     capabilityChallenges: [{
       challengeId: "challenge-spec", supervisorId, chatId: bootstrapChatId, worker: "mission-control-live-slice",
       mcNonce: "mc-nonce", githubNonce: "github-only-nonce", expiresAt: "2026-09-03T00:00:00.000Z",
@@ -1203,6 +1361,9 @@ function fakeStore(initial: StoredEvent[]) {
   };
   return {
     allEvents: () => events,
+    workerEvents: (worker: string) => events.filter((event) => event.worker === worker),
+    eventByEventId: (eventId: string) => events.find((event) => event.eventId === eventId),
+    latestSequence: () => sequence,
     append,
     appendMany: (items: Array<{ event: unknown; receivedAt?: string; producer?: AuthenticatedProducer }>) => items.map((item) => append(item.event, item.receivedAt, item.producer)),
   } as unknown as EventStore;

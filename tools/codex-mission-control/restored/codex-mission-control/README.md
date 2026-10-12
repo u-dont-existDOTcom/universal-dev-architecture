@@ -102,6 +102,52 @@ metadata-only. This implementation has deterministic test coverage; live routing
 provider source timestamps, deployments, and production promotion are separate
 boundaries and are not established by these tests.
 
+Route-schema-v6 also supports a deterministic provider-response copier. A trusted
+relay supplies one exact canonical machine block plus hashed prompt, target, and
+turn identities. Mission Control validates the pending request/session binding,
+records append-only browser-DOM readback provenance, reuses one byte-identical
+private comment or publishes exactly once, reads the immutable comment back, and
+only then runs the existing canonical receipt admission. Changed content,
+multiple candidates, a retired/superseded request, or immutable-readback mismatch
+fails closed without any provider resend.
+
+### Owner decisions without manual relay
+
+A supervisory Chat that already has the owner's explicit answer must not ask the
+owner to copy that answer into Work. The GitHub decision channel configured in
+`MISSION_CONTROL_GITHUB_RECEIPT_POLICY_JSON` accepts an authenticated
+owner-direction receipt. The receipt carries the owner's exact answer, so the
+channel must be an issue in a private repository: Mission Control checks the
+repository's name, not its visibility, and a receipt posted in a public
+repository is public.
+
+```text
+MISSION_CONTROL_OWNER_DIRECTION_V1
+{"schema_version":1,"worker":"<worker>","decision_ref":"<question-or-decision-ref>","owner_outcome":{"id":"<id>","epoch":<epoch>,"sha256":"<sha256>"},"exact_text":"<exact owner answer>","exact_text_sha256":"<sha256 of exact_text>","priority":"HIGH"}
+```
+
+Only a GitHub login listed in the policy's `ownerDirectionWriterLogins` (which
+must be a subset of `authorizedWriterLogins`) can supply this receipt, and only
+as a never-edited comment in that configured decision channel:
+GitHub lets any write-access collaborator or app edit another user's comment
+without changing its author. Reconciliation requires the exact current
+owner-outcome ID, epoch and digest, verifies the exact-text digest, and then
+records the answer as an `owner_message_recorded` direction, its existing durable
+worker outbox delivery, and the immutable GitHub comment provenance in one
+transaction. Reading a receipt that is already recorded again adds nothing, also
+after the owner outcome advances or after its comment was edited without
+changing the exact text; one whose exact text changed fails closed. A receipt
+read for the first time fails closed if its comment was ever edited, its owner
+outcome is stale, its writer is untrusted, or it sits in another repository or
+issue.
+
+This intentionally does **not** add a mutating tool to the unauthenticated public
+Mission Control MCP. GitHub authentication is the owner-authority boundary; the
+public MCP remains metadata-only and read-only. Any agent that can author
+comments as an `ownerDirectionWriterLogins` account is treated as the owner, so
+keep that list to the owner's own login and give agents distinct GitHub
+identities where possible.
+
 Schema-version-3 canonical decisions may also include one complete optional
 `bounded_execution` residue. After every existing repository, issue, writer,
 nonce, binding, session, lane, owner-outcome, evidence, freshness, capability,
@@ -335,6 +381,20 @@ Continuation is `PAUSE_ALL`, `SAFE_WITHIN_SCOPE`, `CONTINUE_UNRESTRICTED`, or `U
 ## API
 
 Dashboard-facing Next.js BFF:
+
+The main dashboard requests `GET /api/workers?timeline=recent`, forwarded to
+`GET /snapshot?timeline=recent`. This opt-in keeps at most the newest 20 events
+per worker in their existing newest-first order and adds `timelineTotal` and
+`timelineTruncated` to each worker. All other projected fields remain intact.
+Requests without this opt-in retain the full response and omit the new metadata.
+This bounds event count rather than individual event bytes.
+
+`SupervisionConsole` and runtime status retain full history for transcripts,
+route evidence, and reasoning-message counts. `WorkerDetail` continues reading
+`/api/workers/:worker`, feeding full history to `WorkerChannel` and
+`ReasoningTranscript`. The owner-auth smoke script exercises the full default;
+worker verification/recording scripts retain their dedicated worker endpoints.
+The browser relay continues using its existing scoped transport-history MCP tool.
 
 - `GET /api/workers`
 - `GET /api/workers/:worker`

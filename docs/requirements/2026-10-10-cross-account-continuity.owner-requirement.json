@@ -1,0 +1,66 @@
+{
+  "requirement_id": "2026-10-10-cross-account-continuity",
+  "date": "2026-10-10",
+  "source": "Owner message on 2026-10-10 to the Claude Code session doing AskRigor work, after that session reported that it could not open the AskRigor owner questions page from the account it ran in.",
+  "owner_statement": "that's weird the owner question page wasn't stored on github? fix that in UDA rules then, anything that should be continuable between accounts needs to really be stored on github clearly and there should be the continuation handoff always stored in the claude-acceptance-transfer folder in my home folder, isn't that in UDA rules?",
+  "problem": "A workstream's owner questions page existed only as a Claude artifact published from one of the owner's accounts. A session in his other account could not read or republish it, found no copy in Git, and had to ask the owner in chat. The owner's local handoff folder was a convention of other sessions, not a UDA rule, so this workstream kept no note there.",
+  "failure_mechanisms": [
+    "patterns/owner-questions-page.md made a published artifact the page itself on Claude, and a file in Git the fallback only where no page could be published.",
+    "A Claude artifact can be read and republished only from the account that published it.",
+    "patterns/context-compaction-resilience.md required a fresh session in any account to resume from durable state, but did not name the owner questions page or the local handoff note."
+  ],
+  "existing_coverage": [
+    "patterns/context-compaction-resilience.md, Usage limits and account switches: continuous checkpoints, a one-line resume instruction, account-bound items to recreate, and a private durable store for owner-private supervisor state. It is unchanged, because its paragraphs are bound to task-time rule records.",
+    "The owner's local handoff folder already held a one-note-per-line-of-work convention and a resume line, set up by the UDA and Mission Control supervisor sessions."
+  ],
+  "required_behavior": [
+    "Anything a session in another account needs to continue the work is stored in GitHub at a path the project's bootstrap or checkpoint names, including the owner questions page; artifacts, chats, memory, scheduled tasks and scratch files are views or speed-ups, never the only copy.",
+    "The owner questions page's authoritative copy is OWNER-QUESTIONS.md in Git; a published artifact is a view, republished from the file by the account that published it.",
+    "State holding the owner's private details goes in a private repository of his, never a public one; secret values are recorded nowhere, only where a secret is kept.",
+    "Each session doing ongoing work keeps one handoff note per line of work in the owner's local handoff folder, updated at the end of every turn, with a one-line resume instruction that works from any account.",
+    "Before a turn ends, the Git copy and the handoff note are both current; a session that cannot reach another account's view says so, updates the Git copy and gives the owner the Git link."
+  ],
+  "basis": [
+    "The owner's statement above.",
+    "patterns/context-compaction-resilience.md, which this extends.",
+    "The handoff folder convention already in use, recorded as a NON_UNIVERSAL example."
+  ],
+  "scope": "patterns/cross-account-continuity.md (new), rule 2, rule 8 and the status of patterns/owner-questions-page.md, their index and docs entries, this record and their tests. The task-time rule records and patterns/context-compaction-resilience.md are unchanged.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "Work continues from any of the owner's accounts, with its state stored clearly in GitHub and its continuation handoff in his local handoff folder.",
+    "notes": "The private-repository rule is the assistant's addition, made because the repositories involved are public and the page that failed holds the owner's private details: paths to his key files, server access details and his own research goals."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/cross-account-continuity.md and patterns/owner-questions-page.md, reached through LESSON-INDEX.md and docs/INDEX.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Chat, Codex and Claude Code sessions that load this repository's rules",
+      "disposition": "PROJECTED",
+      "note": "Reached through the index; a session that never loads UDA is not covered."
+    },
+    {
+      "surface": "The AskRigor workstream's owner questions page",
+      "disposition": "PROJECTED",
+      "note": "Moved by the requesting session to a file in a private repository on 2026-10-10, from the last copy it could reach."
+    },
+    {
+      "surface": "Other workstreams' existing owner questions pages",
+      "disposition": "QUEUED",
+      "reason": "Each workstream's own session moves its page to Git on its next turn; this task cannot edit artifacts owned by another account."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "No repository rule can force a session that never loaded UDA.",
+    "Storing state in Git does not make it current; the session that changes it must update it.",
+    "The local handoff folder is reachable only from sessions with access to the owner's laptop; the Git copy is the store that does not depend on the laptop."
+  ]
+}

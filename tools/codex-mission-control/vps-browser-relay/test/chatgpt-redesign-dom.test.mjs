@@ -2,14 +2,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  APP_MENTION_STATE_FN,
   APP_SELECTION_STATE_FN,
   CLICK_SEND_FN,
   CURRENT_MODEL_FN,
+  GITHUB_APP_MENTION,
   GENERATION_STATE_FN,
   JOURNAL_WRITE_CONFIRMATION_FN,
   APPROVE_JOURNAL_WRITE_CONFIRMATION_FN,
+  BOUND_TURN_READBACK_FN,
   MODEL_MENU_STATE_FN,
   PAGE_INSPECTION_FN,
+  SUBMITTED_USER_TURN_ANCHOR_FN,
   appSelectionState,
   consumerControlSelectionState,
   modelMenuSelectionState,
@@ -207,6 +211,35 @@ test('app selection scrolls the September 2026 list, picks one exact entry and v
   assert.deepEqual(appSelectionState(end, 'GitHub', { considerList: false }), { type: 'OPEN_TOOLS' });
 });
 
+test('GitHub autocomplete resolves to the exact connected app mention identity', () => {
+  const form = composerForm();
+  const textbox = form.querySelector('[contenteditable="true"][role="textbox"]');
+  const paragraph = textbox.children[0];
+  paragraph.children = [];
+  const mention = h('span', {
+    'app-mention-name': GITHUB_APP_MENTION.name,
+    'app-mention-display-name': GITHUB_APP_MENTION.display,
+    'app-mention-path': GITHUB_APP_MENTION.path,
+    'data-prompt-link-href': GITHUB_APP_MENTION.href,
+    'data-prompt-link-label': GITHUB_APP_MENTION.promptLinkLabel,
+    'data-appearance': 'inline-mention',
+    'data-layout': 'inline-flow',
+    contenteditable: 'false',
+  }, [h('span', {}, [], { text: 'GitHub' })]);
+  paragraph.append(mention);
+  Object.defineProperty(paragraph, 'childNodes', { get: () => [mention, { nodeType: 3, nodeValue: ' ' }] });
+  const result = runInPage(APP_MENTION_STATE_FN, page([form]), [GITHUB_APP_MENTION]);
+  assert.equal(result.mentionCount, 1);
+  assert.equal(result.exactMentionCount, 1);
+  assert.equal(result.mentionExactBodyEmpty, true);
+
+  mention.setAttribute('app-mention-path', 'app://wrong');
+  const wrong = runInPage(APP_MENTION_STATE_FN, page([form]), [GITHUB_APP_MENTION]);
+  assert.equal(wrong.mentionCount, 1);
+  assert.equal(wrong.exactMentionCount, 0);
+  assert.equal(wrong.mentionExactBodyEmpty, false);
+});
+
 test('send and stop use the September 2026 composer controls', () => {
   const send = h('button', { type: 'submit', 'aria-label': 'Send' });
   const clicked = runInPage(CLICK_SEND_FN, page([composerForm({ extra: [send] })]));
@@ -257,6 +290,71 @@ test('stuck recovery reads the visible composer and Stop control on the Septembe
   const stopping = runInPage(IDLE_STATE_FN, page([hiddenForm, composerForm({ extra: [h('button', { type: 'button', 'aria-label': 'Stop' })] })], conversation), [conversation]);
   assert.equal(stopping.stopVisible, true);
   assert.equal(stopping.idleReady, false);
+});
+
+test('exact provider recovery reads the current data-turn-key DOM without treating rendered text as source bytes', () => {
+  const conversation = 'https://chatgpt.com/c/exact-turn-structure';
+  const renderedMention = h('span', {
+    'data-prompt-link-href': GITHUB_APP_MENTION.href,
+    'data-prompt-link-label': GITHUB_APP_MENTION.promptLinkLabel,
+  }, [], { text: GITHUB_APP_MENTION.display });
+  const userContent = h('div', { 'data-markdown-text-tone': 'default' }, [
+    renderedMention,
+    h('div', {}, [], { text: 'rendered text intentionally differs from source markdown' }),
+  ]);
+  const user = h('div', { 'data-turn-key': 'user-key-1' }, [
+    h('div', { 'data-user-message-bubble': '' }, [userContent]),
+  ]);
+  const assistant = h('div', {
+    'data-chatgpt-search-unit-key': 'assistant-search-1',
+    'data-content-search-unit-key': 'assistant-key-1',
+  }, [
+    h('h4', { 'data-conversation-role': 'assistant' }, [], { text: 'assistant' }),
+    h('div', { 'data-markdown-text-style': 'standard' }, [], { text: 'MISSION_CONTROL_CANONICAL_DECISION_V1\n{"ok":true}' }),
+  ]);
+  const current = page([user, assistant, composerForm()], conversation);
+  const observation = runInPage(BOUND_TURN_READBACK_FN, current, [conversation, GITHUB_APP_MENTION]);
+  assert.equal(observation.structureKind, 'CHATGPT_DATA_TURN_KEY_V1');
+  assert.deepEqual(observation.turns.map((turn) => [turn.role, turn.key]), [
+    ['user', 'user-key-1'], ['assistant', 'assistant-key-1'],
+  ]);
+  assert.equal(observation.turns[0].mentionBinding.exact, true);
+  assert.equal(observation.turns[1].contentRootCount, 1);
+  assert.match(observation.turns[1].text, /^MISSION_CONTROL_CANONICAL_DECISION_V1/);
+
+  const anchor = runInPage(SUBMITTED_USER_TURN_ANCHOR_FN, current, [conversation, GITHUB_APP_MENTION]);
+  assert.equal(anchor.candidateCount, 1);
+  assert.equal(anchor.key, 'user-key-1');
+  assert.equal(anchor.keySource, 'data-turn-key');
+  assert.equal(anchor.mentionBindingVerified, true);
+  assert.equal(anchor.assistantContentObserved, false);
+});
+
+test('exact provider recovery fails closed on mixed, missing, and duplicate turn structures', () => {
+  const conversation = 'https://chatgpt.com/c/ambiguous-turn-structure';
+  const modern = h('div', { 'data-turn-key': 'modern-user' }, [h('div', { 'data-user-message-bubble': '' }, [], { text: 'x' })]);
+  const legacy = h('article', { 'data-testid': 'conversation-turn-1' }, [h('div', { 'data-message-author-role': 'user', 'data-message-id': 'legacy-user' }, [], { text: 'x' })]);
+  const mixed = runInPage(BOUND_TURN_READBACK_FN, page([modern, legacy], conversation), [conversation, GITHUB_APP_MENTION]);
+  assert.equal(mixed.structureAmbiguous, true);
+  const duplicate = runInPage(SUBMITTED_USER_TURN_ANCHOR_FN, page([modern,
+    h('div', { 'data-turn-key': 'modern-user-2' }, [h('div', { 'data-user-message-bubble': '' }, [], { text: 'y' })]),
+  ], conversation), [conversation, GITHUB_APP_MENTION]);
+  assert.equal(duplicate.candidateCount, 2);
+  const missing = runInPage(SUBMITTED_USER_TURN_ANCHOR_FN, page([], conversation), [conversation, GITHUB_APP_MENTION]);
+  assert.equal(missing.candidateCount, 0);
+});
+
+test('submitted user-turn anchoring also supports exact messages without a connected-app mention', () => {
+  const conversation = 'https://chatgpt.com/c/plain-exact-message';
+  const user = h('div', { 'data-turn-key': 'plain-user-key' }, [
+    h('div', { 'data-user-message-bubble': '' }, [
+      h('div', { 'data-markdown-text-tone': 'default' }, [], { text: 'plain exact message' }),
+    ]),
+  ]);
+  const anchor = runInPage(SUBMITTED_USER_TURN_ANCHOR_FN, page([user], conversation), [conversation, null]);
+  assert.equal(anchor.candidateCount, 1);
+  assert.equal(anchor.key, 'plain-user-key');
+  assert.equal(anchor.mentionBindingVerified, true);
 });
 
 test('app selection carries the list rewind state through every wait', async () => {

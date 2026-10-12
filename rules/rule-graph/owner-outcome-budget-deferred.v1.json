@@ -1,0 +1,332 @@
+{
+  "schema_version": 1,
+  "status": "NOT_ACTIVATED_BUDGET_CANDIDATES",
+  "source": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+  "limits": "These exact candidate records are not active enforcement. Unchanged Work facts select them, but each exceeds the rendered cap. Packet server duties also require implementation, beyond this persistence-only candidate.",
+  "records": [
+    {
+      "authority_owner": "current UDA owner correction",
+      "authority_domain": "owner-outcome integrity",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "provenance": {
+        "origin": "owner-authorized migration slice 2b; exact existing prose",
+        "review_state": "REVIEWED"
+      },
+      "relations": [],
+      "rule_id": "uda.owner-outcome.source-authority",
+      "revision": 1,
+      "status": "CANDIDATE",
+      "source": {
+        "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "This pattern supersedes any workflow rule that tells an existing worker to preserve a current task checkpoint, acceptance criteria, completion boundary, or supervisor framing **without first validating it against the originating owner outcome**."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The governing invariant is:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "> A downstream task contract, checkpoint, review packet, supervisor verdict, or workflow state may refine or operationalize the owner’s requested outcome, but it may not omit, weaken, replace, or terminally bypass that outcome without an explicit owner decision."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The outcome record must preserve:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- the original owner request verbatim;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- later explicit owner corrections that materially affect the result;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- source references and timestamps where available;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- the normalized result;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- required evidence and thresholds;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- known non-satisfying proxies;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "- exact hash."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If the original request is unavailable or materially ambiguous, the state is `OUTCOME_AUTHORITY_UNRESOLVED`. The worker may continue clearly useful reversible contributing work, but may not declare the root outcome satisfied."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The normalized result exists to make execution testable. It must not soften modality, remove thresholds, narrow scope, or convert a final outcome into review readiness."
+          },
+          {
+            "kind": "exact_text",
+            "text": "When the verbatim and normalized forms conflict, the verbatim owner request and later explicit corrections control until the owner resolves the discrepancy."
+          },
+          {
+            "kind": "exact_text",
+            "text": "When they conflict, this owner correction governs task-contract authority and terminal-state integrity."
+          }
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "fact": "continuity_required",
+            "eq": true
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "source-authority-at-boundary",
+          "required_behavior": "Recover originating owner authority before preserving a checkpoint or derived finish line; normalization remains subordinate.",
+          "due_phase": "pre-action",
+          "destination": "owner-outcome-authority",
+          "acceptance_evidence": "Recover original owner request and material later corrections from their source rather than treating the downstream checkpoint as authority. Preserve original request verbatim, later material corrections, available source references/timestamps, normalized result, required evidence/thresholds, known non-satisfying proxies and exact hash. Validate preserved checkpoints, acceptance criteria, completion boundaries and supervisor framing against it first. Downstream contracts/packets/verdicts/states may refine but cannot omit, weaken, replace or terminally bypass it without explicit owner decision. Unavailable or materially ambiguous authority is OUTCOME_AUTHORITY_UNRESOLVED: continue clearly useful reversible contribution, never declare root satisfied. Normalization cannot soften modality, remove thresholds, narrow scope or convert outcome into review readiness. Verbatim request and later explicit corrections control discrepancies until owner resolution; this correction governs conflicting contract-authority/terminal-state patterns.",
+          "non_substitutes": [
+            "a checkpoint substituted for original owner authority",
+            "a normalized target that narrows the verbatim request",
+            "root satisfaction while source authority is unresolved"
+          ],
+          "carry_through": "Carry the exact owner source, epoch, parent mapping and unmet gap through checkpoints, handoffs and revisions; refresh changed authority.",
+          "repair": "Repair the contract or literal outgoing state before the affected boundary; preserve valid supporting work and continue required open outcomes.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "refresh_on_facts": [
+        "actor",
+        "continuity_required",
+        "envelope.bootstrap",
+        "envelope.legacy_rule_ids",
+        "governance_required",
+        "role"
+      ]
+    },
+    {
+      "authority_owner": "current UDA owner correction",
+      "authority_domain": "owner-outcome integrity",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "provenance": {
+        "origin": "owner-authorized migration slice 2b; exact existing prose",
+        "review_state": "REVIEWED"
+      },
+      "relations": [],
+      "rule_id": "uda.owner-outcome.checkpoint-packet",
+      "revision": 1,
+      "status": "CANDIDATE",
+      "source": {
+        "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Every meaningful checkpoint and every supervision packet must carry:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "```text\nowner_outcome_id / epoch / SHA-256\nverbatim owner request\nnormalized final result\nrequired owner outcomes\ncurrent evidence for each required outcome\ncurrent gap to each required outcome\nunmet and unknown required outcomes\nknown non-satisfying proxies\ncurrent derived-contract mapping\nproposed workflow/terminal state\nterminal-comparator result\n```"
+          },
+          {
+            "kind": "exact_text",
+            "text": "A compact packet may reference content-addressed records, but it may not omit the effective owner outcome."
+          }
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "fact": "continuity_required",
+            "eq": true
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "checkpoint-packet-at-boundary",
+          "required_behavior": "Carry the effective owner outcome and complete current gaps in every meaningful checkpoint and supervision packet.",
+          "due_phase": "persistence",
+          "destination": "durable-task-checkpoint",
+          "acceptance_evidence": "The actual meaningful checkpoint contains owner ID/epoch/SHA-256, verbatim request, normalized final result, required outcomes, current evidence and gap for each, unmet/unknown outcomes, known non-satisfying proxies, current derived mapping, proposed workflow/terminal state and terminal-comparator result. Compact content-addressed references cannot omit the effective outcome. This candidate covers persistence only; supervision packet carriage and server validation/status/approval duties remain separately legacy.",
+          "non_substitutes": [
+            "downstream criteria without the originating outcome",
+            "a compact packet hiding an unmet gap",
+            "a content-addressed reference omitting the effective outcome"
+          ],
+          "carry_through": "Carry the exact owner source, epoch, parent mapping and unmet gap through checkpoints, handoffs and revisions; refresh changed authority.",
+          "repair": "Repair the contract or literal outgoing state before the affected boundary; preserve valid supporting work and continue required open outcomes.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "refresh_on_facts": [
+        "actor",
+        "continuity_required",
+        "envelope.bootstrap",
+        "envelope.legacy_rule_ids",
+        "governance_required",
+        "role"
+      ]
+    },
+    {
+      "authority_owner": "current UDA owner correction",
+      "authority_domain": "owner-outcome integrity",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "provenance": {
+        "origin": "owner-authorized migration slice 2b; exact existing prose",
+        "review_state": "REVIEWED"
+      },
+      "relations": [],
+      "rule_id": "uda.owner-outcome.migration-repair",
+      "revision": 1,
+      "status": "CANDIDATE",
+      "source": {
+        "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "8. Preserve supporting completed work and generate the remaining outcome gap."
+          },
+          {
+            "kind": "exact_text",
+            "text": "The completed preservation and editorial work remains valid evidence and must not be discarded. It is supporting work, not the final outcome."
+          },
+          {
+            "kind": "exact_text",
+            "text": "At the next safe checkpoint, every active nontrivial worker must:"
+          },
+          {
+            "kind": "exact_text",
+            "text": "1. recover the original owner request and material later corrections;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "2. create or verify the owner-outcome record;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "3. compare the current task contract and completion boundary against it;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "4. preserve valid supporting work;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "5. reopen or continue any required outcome that was omitted or replaced by a proxy;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "6. update the current gap and unmet-outcome ledger;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "7. invalidate stale supervisor approvals that evaluated only a laundered contract."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Do not restart the project or discard valid work merely because the contract was narrowed. Repair the authority chain and continue from the latest useful boundary."
+          },
+          {
+            "kind": "exact_text",
+            "text": "If the original request cannot be recovered, do not silently preserve the narrowed checkpoint. Mark `OUTCOME_AUTHORITY_UNRESOLVED`, search the canonical project records, and pause only the terminal/completion decision if useful reversible work can continue safely."
+          }
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "fact": "continuity_required",
+            "eq": true
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "migration-repair-at-boundary",
+          "required_behavior": "At the next safe checkpoint repair narrowed legacy authority and continue without discarding useful completed work.",
+          "due_phase": "persistence",
+          "destination": "durable-task-checkpoint",
+          "acceptance_evidence": "Each active nontrivial worker at its next safe checkpoint recovers original request/material corrections, creates/verifies outcome record, compares current contract/completion boundary, preserves valid supporting work, reopens/continues omitted or proxy-replaced required outcomes, updates current gap/unmet ledger, and invalidates stale supervisor approvals based only on laundering. No restart or discard merely for narrowed contract; repair authority and resume latest useful boundary. If original request is unrecoverable, do not silently preserve narrowed checkpoint: mark OUTCOME_AUTHORITY_UNRESOLVED, search canonical project records and pause only terminal/completion decision while useful reversible work safely continues.",
+          "non_substitutes": [
+            "discarding valid supporting work to restart",
+            "a stale approval retained after contract repair",
+            "silently retaining the narrowed checkpoint with missing source"
+          ],
+          "carry_through": "Carry the exact owner source, epoch, parent mapping and unmet gap through checkpoints, handoffs and revisions; refresh changed authority.",
+          "repair": "Repair the contract or literal outgoing state before the affected boundary; preserve valid supporting work and continue required open outcomes.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": false,
+          "independent_review_required": false
+        }
+      ],
+      "refresh_on_facts": [
+        "actor",
+        "continuity_required",
+        "envelope.bootstrap",
+        "envelope.legacy_rule_ids",
+        "governance_required",
+        "role"
+      ]
+    }
+  ]
+}

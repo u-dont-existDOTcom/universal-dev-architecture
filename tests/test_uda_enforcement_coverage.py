@@ -22,11 +22,13 @@ class EnforcementCoverageTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
         inventory = json.loads((ROOT / coverage.COVERAGE).read_text())
+        baseline = json.loads((ROOT / coverage.BASELINE).read_text())
         paths = {coverage.COVERAGE, coverage.BASELINE, coverage.METADATA,
                  coverage.LOCK, coverage.REQUIREMENT, "rules/UDA-RULE-GRAPH.json", "AGENTS.md",
                  "LESSON-INDEX.md", ".github/codex-repository.json", ".github/uda-kernel", "docs/uda-enforcement-coverage.md",
                  "scripts/uda_rule_graph_task_time.py", "scripts/instruction-layering-profile.json",
                  "examples/rule-graph/work-handoff.json", WORK_CONTRACT}
+        paths.update(addition["source"] for addition in baseline.get("owner_authorized_additions", []))
         paths.update(p.relative_to(ROOT).as_posix() for p in (ROOT / "patterns").rglob("*.md"))
         paths.update(e["path"] for entry in inventory["entries"] for e in entry["evidence"])
         for path in paths:
@@ -272,12 +274,13 @@ class EnforcementCoverageTests(unittest.TestCase):
             migration={"priority": "P1", "trigger_frequency": "EVERY_TURN",
                        "next_step": "Restore complete task-time admission coverage for the remaining operative obligations."}))
         baseline = self.read(coverage.BASELINE)
+        existing = list(baseline.get("owner_authorized_additions", []))
         for addition in (
                 {"id": target, "date": "2026-10-07", "owner_quote": "Approved.", "source": "test-only owner directive"},
                 {"id": target, "date": "2026-10-07", "owner_quote": "Approved."},
                 {"id": "patterns/another-entry.md", "date": "2026-10-07", "owner_quote": "Approved.", "source": "test-only owner directive"}):
             with self.subTest(addition=addition):
-                baseline["owner_authorized_additions"] = [addition]
+                baseline["owner_authorized_additions"] = existing + [addition]
                 self.write(coverage.BASELINE, baseline)
                 if addition.get("source") and addition["id"] == target:
                     self.assertEqual([], coverage.validate(self.root))
@@ -378,6 +381,22 @@ class EnforcementCoverageTests(unittest.TestCase):
         self.write(coverage.REQUIREMENT, requirement)
         self.rejected("source clause manifest identity is not independently pinned")
 
+    def test_owner_outcome_manifest_identity_cannot_be_removed_from_both_collections(self):
+        target = "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md"
+        requirement = self.read(coverage.REQUIREMENT)
+        requirement["source_clause_manifest"].pop(target)
+        requirement["manifest_backed_ids"].remove(target)
+        self.write(coverage.REQUIREMENT, requirement)
+        with self.subTest(boundary="API"):
+            self.rejected("missing required owner-outcome manifest identity")
+        with self.subTest(boundary="CLI"):
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "scripts/uda_enforcement_coverage.py"),
+                 "validate", "--root", str(self.root)],
+                capture_output=True, text=True)
+            self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+            self.assertIn("missing required owner-outcome manifest identity", result.stdout)
+
     def test_missing_exception_reason_fails(self):
         self.change(lambda entries: self.workflow(entries).pop("exception_reason"))
         self.rejected("missing or generic exception_reason")
@@ -463,7 +482,9 @@ class EnforcementCoverageTests(unittest.TestCase):
 
     def test_condensed_requirement_retains_counts_and_exact_list_pointers(self):
         findings = self.read(coverage.REQUIREMENT)["related_findings"]
-        self.assertLess(len(json.dumps(findings, indent=2, ensure_ascii=False).encode()), 4096)
+        # Each slice adds a short finding; earlier historical findings remain intact.
+        for finding in findings:
+            self.assertLess(len(json.dumps(finding, indent=2, ensure_ascii=False).encode()), 4096)
         historical = next(f for f in findings if f["finding_id"] == "pass-2-inventory")
         # A later migration must not rewrite the pass-2 historical snapshot.
         counts = historical["identity_counts_by_disposition"]
@@ -490,7 +511,7 @@ class EnforcementCoverageTests(unittest.TestCase):
         self.assertEqual(removed, report["removed_since_baseline"])
         self.assertEqual(7, len(removed))
         self.assertEqual(84, report["baseline_backlog_count"])
-        self.assertEqual(77, report["backlog_count"])
+        self.assertEqual(78, report["backlog_count"])
 
     def test_documented_counts_match_report(self):
         report = coverage.report(self.root)

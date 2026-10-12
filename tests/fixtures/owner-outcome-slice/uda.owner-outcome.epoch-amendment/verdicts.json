@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Before accepting the outcome-changing correction, I retained epoch 1 unchanged and appended epoch 2. The explicit owner decision authorizes this amendment; the new revision points to the prior outcome and its exact identity. I reviewed every active derived task and packet for its changed obligations, invalidated stale bindings and kept their remaining gaps open. No planner, worker or supervisor revised the goal silently. This amendment does not retroactively make the old contract faithful.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "I edited the existing epoch in place because the supervisor preferred a more achievable finish line.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The owner explicitly amended the result, and the new immutable epoch links correctly to the prior one. I accepted it immediately; the active-task and packet inventory has not been examined because those consumers can discover the change on their own.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "epoch-amendment-at-boundary",
+    "non_substitute": "a new epoch without active-task and packet impact review"
+  }
+}

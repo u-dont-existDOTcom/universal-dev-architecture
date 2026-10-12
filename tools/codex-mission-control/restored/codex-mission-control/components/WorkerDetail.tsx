@@ -6,6 +6,8 @@ import type { WorkerState } from "@/lib/projection";
 import type { StoredEvent } from "@/lib/schema";
 import { StatusDot } from "./StatusDot";
 import { SupervisorLink } from "./SupervisorLink";
+import { SupervisorActivityPanel } from "./SupervisorActivity";
+import { latestSupervisorConversation } from "@/lib/supervisor-activity";
 import { WorkerChannel } from "./WorkerChannel";
 
 export function WorkerDetail({ workerId }: { workerId: string }) {
@@ -39,9 +41,11 @@ export function WorkerDetail({ workerId }: { workerId: string }) {
         <div className="detail-actions">
           <span className={`verdict-badge ${worker.operatorState.traffic.toLowerCase()}`}>{worker.operatorState.label}</span>
           <span className="diagnostic-caption">Diagnostic index {worker.alignment}/100 · secondary metadata</span>
-          <SupervisorLink url={worker.supervisorChatUrl} label={worker.supervisorChatLabel} placeholder={worker.supervisorChatIsPlaceholder} />
+          <SupervisorLink url={worker.supervisorChatUrl} label={worker.supervisorChatLabel} placeholder={worker.supervisorChatIsPlaceholder} workerId={worker.id} activityUrl={latestSupervisorConversation(worker.supervisorActivity)} />
         </div>
       </header>
+
+      <SupervisorActivityPanel activity={worker.supervisorActivity} />
 
       <DecisionStrip worker={worker} />
 
@@ -160,7 +164,7 @@ export function WorkerDetail({ workerId }: { workerId: string }) {
           <p className="route-trigger"><span className="field-label">NEXT ROUTE TRIGGER</span>{worker.supervisionRoute.nextReviewTrigger}</p>
           <p className="assessment-reason">{worker.supervisor.reason}</p>
           <div className="freshness-row"><span>Assessment binding</span><strong className={worker.supervisor.assessmentFresh ? "good" : "bad"}>{worker.supervisor.assessmentFresh ? "CURRENT" : "STALE"}</strong></div>
-          <SupervisorLink url={worker.supervisorChatUrl} label={worker.supervisorChatLabel} placeholder={worker.supervisorChatIsPlaceholder} />
+          <SupervisorLink url={worker.supervisorChatUrl} label={worker.supervisorChatLabel} placeholder={worker.supervisorChatIsPlaceholder} workerId={worker.id} activityUrl={latestSupervisorConversation(worker.supervisorActivity)} />
         </Panel>
 
         {worker.research && <Panel eyebrow="RESEARCH ASSURANCE" title="Operational, scientific, and release planes" className="research-panel">
@@ -281,6 +285,10 @@ function eventSummary(event: StoredEvent): string {
     case "chatgpt_work_cloud_dispatch_recorded": return `${data.status}: ${data.work_thread_id ?? data.client_thread_id ?? data.error_code ?? "awaiting native Work"}`;
     case "chatgpt_work_cloud_handoff_intent_recorded": return `${data.app_tool}: app-boundary intent recorded for ${data.dispatch_id}`;
     case "chatgpt_work_cloud_execution_receipt_recorded": return `${data.status}: ${data.terminal_state} · ${data.check_summary.passed} passed / ${data.check_summary.failed} failed`;
+    case "work_supervisor_handoff_recorded": return `Reasoning handoff ${data.handoff_id}: ${data.question}`;
+    case "owner_decision_request_recorded": return data.owner_action.kind === "DECISION_REQUIRED"
+      ? `Owner decision ${data.owner_action.decision_id}: ${data.owner_action.decision_question}`
+      : "Owner decision request recorded";
     case "codex_execution_started": return `${data.execution_mode}: ${data.declared_tactical_boundary}`;
     case "execution_receipt_recorded": return `${data.receipt_id}: ${data.execution_claim}`;
     case "work_model_routing_checkpoint_recorded": return `${data.checkpoint_kind}: ${data.eligible_execution_count}/10 eligible executions`;

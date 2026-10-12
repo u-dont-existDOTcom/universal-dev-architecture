@@ -164,6 +164,16 @@ try {
     const result = await runtime.cycle();
     print(result);
     process.exitCode = oneShotExitCode(result);
+  } else if (command === 'once-request') {
+    const workerId = process.argv[3];
+    const requestId = process.argv[4];
+    if (!workerId || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,179}$/.test(workerId)
+      || !requestId || !/^fleet-review:[a-f0-9]{32}$/.test(requestId)) {
+      throw new Error('Usage: mc-chatgpt-relay once-request <worker> <fleet-review-request-id>');
+    }
+    const result = await runtime.cycle({ skipCodexExecution: true, exactRequest: { workerId, requestId } });
+    print(result);
+    process.exitCode = oneShotExitCode(result);
   } else if (command === 'journal-work') {
     const journalConfig = withJournalRuntime(journalWorkConfig, config.runtime);
     const journalChat = config.runtime.chats.find((entry) => entry.supervisorId === journalConfig.supervisorId);
@@ -256,7 +266,7 @@ try {
     if (!routeKey || !outcome) throw new Error('Usage: mc-chatgpt-relay resolve <route-key> <retry|submitted|discard>');
     print(await runtime.resolve(routeKey, outcome));
   } else {
-    throw new Error('Usage: mc-chatgpt-relay <doctor|health-report|mcp-preflight|capabilities|provision|once|once-exact|journal-work|run|controller-init|controller-once|controller-run|status|lock-status|resolve>');
+    throw new Error('Usage: mc-chatgpt-relay <doctor|health-report|mcp-preflight|capabilities|provision|once|once-request|once-exact|journal-work|run|controller-init|controller-once|controller-run|status|lock-status|resolve>');
   }
 } catch (error) {
   console.error(JSON.stringify({ status: 'FATAL', time: new Date().toISOString(), error: error instanceof Error ? error.message : String(error) }));

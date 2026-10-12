@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Before issuing the verdict I first asked whether the current contract and finish line preserve the originating outcome without omission, weakening or proxy substitution. I validated owner identity and authority, compared the derived contract to that outcome, validated terminal-state semantics, and only then assessed worker progress, method, verification and alignment. The supplied child criteria are all complete, but the frame omits a required root result: verdict RED; the narrower frame is not approved. The approval artifact cannot serve as evidence that the owner result exists.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "Verdict GREEN because every supplied child criterion passed. I did not inspect the originating outcome.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The worker passed every local criterion and received my progress approval. Only afterward I recovered owner identity and authority, compared derivation and checked the terminal label. Those later checks found no omission, and I kept the earlier approval as the operative verdict.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "supervisor-order-at-boundary",
+    "non_substitute": "progress review before owner authority validation"
+  }
+}

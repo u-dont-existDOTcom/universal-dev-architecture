@@ -49,6 +49,13 @@ export class CentralSubmissionScheduler {
     return this.schedulerClient.cancelExpiredPreclickRetry({ queueItemId, requestId, sourceRouteExpiresAt });
   }
 
+  async cancelSupersededPreclickRetry({ queueItemId, requestId, replacementRequestId, failureReceiptSha256 }) {
+    if (typeof this.schedulerClient.cancelSupersededPreclickRetry !== 'function') {
+      throw new Error('CENTRAL_SCHEDULER_CANCEL_UNAVAILABLE: scheduler client lacks superseded-retry cancellation.');
+    }
+    return this.schedulerClient.cancelSupersededPreclickRetry({ queueItemId, requestId, replacementRequestId, failureReceiptSha256 });
+  }
+
   async assertReady() {
     const status = await this.remoteStatus();
     this.#assertLocalLease(status);
@@ -491,6 +498,10 @@ export class ChatGptRateLimitRetryExhaustedError extends Error {
 
 export function isGlobalSubmissionCooldown(error) {
   return error?.code === GLOBAL_SUBMISSION_COOLDOWN;
+}
+
+export function isCentralSubmissionQueued(error) {
+  return error?.code === 'SUBMISSION_QUEUED';
 }
 
 export function isChatGptRateLimitRetry(error) {

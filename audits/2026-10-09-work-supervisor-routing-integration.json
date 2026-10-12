@@ -1,0 +1,766 @@
+{
+  "schema_version": 1,
+  "task_id": "pr-348",
+  "issue_number": 339,
+  "branch": "claude/integrate-work-supervisor-repair-20261009",
+  "scope": "Published nonsecret Work-supervisor routing repair reconciled with newer main; owner-directed working-tree handoff only.",
+  "baselines": {
+    "starting_head": "8857c133c67b8c3af6e0442aab711cb550cb0753",
+    "main": "1018c78cc104f144947e3fc996fcb3fac4b1dc50",
+    "merge_base": "9a173657d49685da014ac81ef131f6a99fb9edde",
+    "published_source": "856fb31286916e62edb087ae205ac994bfcf15ce",
+    "published_source_ref": "origin/work/private-receipt-relocation-20261004",
+    "source_commit_count": 44,
+    "main_is_ancestor_of_starting_head": true
+  },
+  "bootstrap": {
+    "live_default_branch_agents": "UNAVAILABLE: gh contents retrieval rejected by sandbox policy",
+    "local_instructions_ref": "8857c133c67b8c3af6e0442aab711cb550cb0753",
+    "issue_directive": "Full title/body returned by gh issue view; current owner restrictions control."
+  },
+  "included_source_paths": [
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/.env.example",
+      "sha256": "ca8fc6e9a105184c9c1ed257749b5dfbd7797b36772f0fc5b071c4d2eb6c1618",
+      "source_sha256": "1b0895b5dd99b6005ae97c7678ce33253bf380a0eae8e07060771ebbefd0fac6",
+      "matches_published_source": false
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/README.md",
+      "sha256": "26fd6323b4e240119d718db086718f93ab123935f42e8a152dd5daa3d8879e24",
+      "source_sha256": "97d08a51d8cf6915b22cccdeacbdb5e6a71102c093110bdd5f30a3c31ecf1c69",
+      "matches_published_source": false
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/app/api/github/decision-receipts/copy/route.ts",
+      "sha256": "a38832fd84f502b15229c088bfe5bca5819f51dde8bc8efc02fd19ddc9c995a9",
+      "source_sha256": "a38832fd84f502b15229c088bfe5bca5819f51dde8bc8efc02fd19ddc9c995a9",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/app/api/github/decision-receipts/validate/route.ts",
+      "sha256": "5b48b84c857bc860490f865a30155943156c65c9fa6198d6c33012f0bc83262a",
+      "source_sha256": "5b48b84c857bc860490f865a30155943156c65c9fa6198d6c33012f0bc83262a",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/app/api/submission-authority/[...operation]/route.ts",
+      "sha256": "2cb8f0170e49e2dc70a3c1d1fb87bd63dd546fe286eb8e22c7289b26adaeb010",
+      "source_sha256": "2cb8f0170e49e2dc70a3c1d1fb87bd63dd546fe286eb8e22c7289b26adaeb010",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/app/api/worker-channel/[worker]/admission/route.ts",
+      "sha256": "37d8ac221d5ac20195a4c2882fcf39e60a41d245c05e9c430f3704553b619821",
+      "source_sha256": "37d8ac221d5ac20195a4c2882fcf39e60a41d245c05e9c430f3704553b619821",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/daemon/server.ts",
+      "sha256": "5f7fb85460ea6c261ec86246a44c75ce9ea7c721727faf374973457a8bcb7cad",
+      "source_sha256": "df6321667bf9b45c895ac2f7c5b4eeac78c9c2cf639d07fdd9b186db902637e1",
+      "matches_published_source": false
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/lib/dashboard-data.ts",
+      "sha256": "b23bd6b7d6b203b9fa97f668df9937aa708015a67d98ba3c4ea4c5af1379853f",
+      "source_sha256": "b23bd6b7d6b203b9fa97f668df9937aa708015a67d98ba3c4ea4c5af1379853f",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/lib/fleet-supervisor.ts",
+      "sha256": "8662693e3ec1416b378924bcbc76b4d8b71cc4d90d2630510226509866511eb4",
+      "source_sha256": "5efaf313c8640fcaa981e0e2d08a91eb15bb8a99c8a36ecd505877cbfe802fd4",
+      "matches_published_source": false
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/lib/github-app-auth.ts",
+      "sha256": "ca2c3f8cf2a6e3b61d69512031fb35e2b369f7904c3a0bbbf4fb57913b6743a0",
+      "source_sha256": "ca2c3f8cf2a6e3b61d69512031fb35e2b369f7904c3a0bbbf4fb57913b6743a0",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/lib/github-decision-receipts.ts",
+      "sha256": "8278824715d70eaa64708d04f57d389add3e6d7bf03f21448378da691479aff5",
+      "source_sha256": "8278824715d70eaa64708d04f57d389add3e6d7bf03f21448378da691479aff5",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/lib/in-band-request-binding.ts",
+      "sha256": "92527b058acae989c37c3514f5c4ce61cf05be42efc7371b05a45633342c3175",
+      "source_sha256": "92527b058acae989c37c3514f5c4ce61cf05be42efc7371b05a45633342c3175",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/lib/provider-decision-copier.ts",
+      "sha256": "90f26abe1e0e9fa03f613dc1d537175e2d94fd347d576db9fbd9d2dd5b6f1d24",
+      "source_sha256": "90f26abe1e0e9fa03f613dc1d537175e2d94fd347d576db9fbd9d2dd5b6f1d24",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/lib/provider-submission-authority.mjs",
+      "sha256": "5dd504f30839941ffe6413708158ad35ce9f218e7089708012e8bd0a629d2ff9",
+      "source_sha256": "5dd504f30839941ffe6413708158ad35ce9f218e7089708012e8bd0a629d2ff9",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/lib/schema.ts",
+      "sha256": "53cb8bb35d527d3a407e2a96a2dba6333d32cffe799609afac69d12306f9b249",
+      "source_sha256": "53cb8bb35d527d3a407e2a96a2dba6333d32cffe799609afac69d12306f9b249",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/lib/store.ts",
+      "sha256": "05fab6ff12aa769266250fa302f2c35dd711bf2a7ab05f1606d82ecd19abf87c",
+      "source_sha256": "05fab6ff12aa769266250fa302f2c35dd711bf2a7ab05f1606d82ecd19abf87c",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/lib/submission-authority-runtime.ts",
+      "sha256": "eec342103b8a624c4def5bf0029e7a036a19391459d2705d0bdc19b1821eb9f9",
+      "source_sha256": "eec342103b8a624c4def5bf0029e7a036a19391459d2705d0bdc19b1821eb9f9",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/lib/work-execution-runtime.ts",
+      "sha256": "07db28e826b2bdcca15f1bb4564427f491f6267c305395172104f30537bc4476",
+      "source_sha256": "07db28e826b2bdcca15f1bb4564427f491f6267c305395172104f30537bc4476",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/scripts/owner-action.ts",
+      "sha256": "168f35f7ad03e72a65b148178d00c60d69fa8e48cf0e2e4d3f709750a33f10fb",
+      "source_sha256": "168f35f7ad03e72a65b148178d00c60d69fa8e48cf0e2e4d3f709750a33f10fb",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/scripts/record-chatgpt-browser-dom-readback.ts",
+      "sha256": "02f1224be8249abe5dfac418602e9bfec2e62774c39307f62ccad4fa02a326b8",
+      "source_sha256": "02f1224be8249abe5dfac418602e9bfec2e62774c39307f62ccad4fa02a326b8",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/tests/daemon-exact-admission-proof.test.ts",
+      "sha256": "f90ac83610acfcad938100cb3386d791cd22aff27d80e2e6b898787b39c72bc1",
+      "source_sha256": "f90ac83610acfcad938100cb3386d791cd22aff27d80e2e6b898787b39c72bc1",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/tests/dashboard-data.test.ts",
+      "sha256": "aa9e1a35ddcf023af7330935cdfa7e370ce5c60c80cd010695d91474400a20b5",
+      "source_sha256": "aa9e1a35ddcf023af7330935cdfa7e370ce5c60c80cd010695d91474400a20b5",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/tests/exact-admission-proof.test.ts",
+      "sha256": "35bb923c79ce48a3072dae5efcd95684b8b557f8cb6a082748f0e91fcd1ca49c",
+      "source_sha256": "35bb923c79ce48a3072dae5efcd95684b8b557f8cb6a082748f0e91fcd1ca49c",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/tests/fleet-supervisor.test.ts",
+      "sha256": "d6da4a00790a4d2db382149772b1c0fe85d2f0afaa139a7f3db492a407ee6d7e",
+      "source_sha256": "d6da4a00790a4d2db382149772b1c0fe85d2f0afaa139a7f3db492a407ee6d7e",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/tests/github-app-auth.test.ts",
+      "sha256": "06c58fa604cd70b92ac77919d9a21561d2987169e465672a0d2b4f9b1cc7bc8b",
+      "source_sha256": "06c58fa604cd70b92ac77919d9a21561d2987169e465672a0d2b4f9b1cc7bc8b",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/tests/github-decision-receipts.test.ts",
+      "sha256": "61ad5e600096760ab06b455b514bccc581e8abedecf22473963d25ef970a1b24",
+      "source_sha256": "61ad5e600096760ab06b455b514bccc581e8abedecf22473963d25ef970a1b24",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/tests/in-band-request-binding.test.ts",
+      "sha256": "c78b9a7cbe589c30e8f995ae42fd1853f0bddc64a929c4efd5e55d100a280a00",
+      "source_sha256": "c78b9a7cbe589c30e8f995ae42fd1853f0bddc64a929c4efd5e55d100a280a00",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/tests/owner-action.test.ts",
+      "sha256": "15b1152fc2a6139367de6fa2ab9e10f705bc92562372404606c7fa3655a70cef",
+      "source_sha256": "15b1152fc2a6139367de6fa2ab9e10f705bc92562372404606c7fa3655a70cef",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/tests/provider-decision-copier.test.ts",
+      "sha256": "146b293596448d5f9403881998db585db9aea9700cdb669713a9674e919b3e61",
+      "source_sha256": "146b293596448d5f9403881998db585db9aea9700cdb669713a9674e919b3e61",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/tests/submission-authority-route.test.ts",
+      "sha256": "c1c763b22b974b9f521b32a45b57aba1512ca822b0390c0f9d983f21539d0b7e",
+      "source_sha256": "c1c763b22b974b9f521b32a45b57aba1512ca822b0390c0f9d983f21539d0b7e",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/tests/submission-authority-runtime.test.ts",
+      "sha256": "567c15181c16ef095db6cb6fb2ad55558e2938e053f4debcf899d1df4ead6038",
+      "source_sha256": "567c15181c16ef095db6cb6fb2ad55558e2938e053f4debcf899d1df4ead6038",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/tests/work-execution-profile.test.ts",
+      "sha256": "0166bc9e7885b33db7c984a315f247bfdfd6fc3e9c5ebdcc1ac2161b1f582f19",
+      "source_sha256": "0166bc9e7885b33db7c984a315f247bfdfd6fc3e9c5ebdcc1ac2161b1f582f19",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/README.md",
+      "sha256": "d8ebc1fe419682f41763e13b4c34c84543209581353d8fde204e66ed7f9447e8",
+      "source_sha256": "d8ebc1fe419682f41763e13b4c34c84543209581353d8fde204e66ed7f9447e8",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/bin/mc-chatgpt-relay.mjs",
+      "sha256": "5c404429cfb41ea8f925beced6efc3452aea7c454b4baf0d42ea144082845826",
+      "source_sha256": "5c404429cfb41ea8f925beced6efc3452aea7c454b4baf0d42ea144082845826",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/src/automation-owned-browser.mjs",
+      "sha256": "1a183f4e9187117660478e9371db0c73ed34bd2ee91b3ba4e69288a4c60d37fb",
+      "source_sha256": "1a183f4e9187117660478e9371db0c73ed34bd2ee91b3ba4e69288a4c60d37fb",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/src/cdp.mjs",
+      "sha256": "40a6ff05a9b165e56c90b4861358047e5aba0dd49bc3309869cf9f31f3adc878",
+      "source_sha256": "40a6ff05a9b165e56c90b4861358047e5aba0dd49bc3309869cf9f31f3adc878",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/src/codex-exec-candidate.mjs",
+      "sha256": "2edbe978f5ec6a39d2ef0037cbf42ebaa8ce12fe15040ca1d9eb5bde08e35235",
+      "source_sha256": "2edbe978f5ec6a39d2ef0037cbf42ebaa8ce12fe15040ca1d9eb5bde08e35235",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/src/config.mjs",
+      "sha256": "b019f14dc5208979ab348027242df1929baa79c1372ef8c8816d51e112e0f149",
+      "source_sha256": "b019f14dc5208979ab348027242df1929baa79c1372ef8c8816d51e112e0f149",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/src/controller-mediated-pm.mjs",
+      "sha256": "6f14067cca36ff0e0fed2c081196db1fba13296ce990edb3cc6d08364fb3ab6f",
+      "source_sha256": "6f14067cca36ff0e0fed2c081196db1fba13296ce990edb3cc6d08364fb3ab6f",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/src/core.mjs",
+      "sha256": "ded08d16f1dfb9734b9a68d476852fe26afb1dc2dcfe5bb1c663ad8149215e30",
+      "source_sha256": "ded08d16f1dfb9734b9a68d476852fe26afb1dc2dcfe5bb1c663ad8149215e30",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/src/mission-control.mjs",
+      "sha256": "ca9e68cd7f244f1a9304d3184e1abab6d40837a59c62d87bd360c72b9f62d6de",
+      "source_sha256": "ca9e68cd7f244f1a9304d3184e1abab6d40837a59c62d87bd360c72b9f62d6de",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/src/provider-decision-recovery.mjs",
+      "sha256": "12b9908b5cddb77b1c7c1987649099b3cc41b2935ca040362b295af49a39e3ce",
+      "source_sha256": "12b9908b5cddb77b1c7c1987649099b3cc41b2935ca040362b295af49a39e3ce",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/src/relay.mjs",
+      "sha256": "07f0520b50ff0a270686543a2b0652cb728f3ec6c8e6bf4577a2f573ac5dbd82",
+      "source_sha256": "07f0520b50ff0a270686543a2b0652cb728f3ec6c8e6bf4577a2f573ac5dbd82",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/src/submission-pacing.mjs",
+      "sha256": "9e280bb401e9dca3d9d0fbc7330630548ef5211911c8813096b3483cb3e5f6ab",
+      "source_sha256": "9e280bb401e9dca3d9d0fbc7330630548ef5211911c8813096b3483cb3e5f6ab",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/src/submission-scheduler-client.mjs",
+      "sha256": "2b313b88e5f0a00e328d3c8e8f94ce5e97f962eafdacfb5d4d9069c9cf6b7917",
+      "source_sha256": "2b313b88e5f0a00e328d3c8e8f94ce5e97f962eafdacfb5d4d9069c9cf6b7917",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/test/automation-owned-browser.test.mjs",
+      "sha256": "2d2b4d1971e4a125bbf955fd8b172edb9c7d468ced67c8ce1dab5cfd9b775082",
+      "source_sha256": "2d2b4d1971e4a125bbf955fd8b172edb9c7d468ced67c8ce1dab5cfd9b775082",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/test/cdp-composer.test.mjs",
+      "sha256": "6c44bd8fa121c6af74cab5bcbe02da4f027ff649fb637274536d387db1a93586",
+      "source_sha256": "6c44bd8fa121c6af74cab5bcbe02da4f027ff649fb637274536d387db1a93586",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/test/cdp-model-picker.test.mjs",
+      "sha256": "3c93a1a0792357c7bd471841040e7686824d58add68027b18c109f775af5e861",
+      "source_sha256": "3c93a1a0792357c7bd471841040e7686824d58add68027b18c109f775af5e861",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/test/cdp-send-uncertainty.test.mjs",
+      "sha256": "82bf5f4c2dcee624ddc75ba8b48ef6f73f4a670a11a2c3c208a1942fc3873fcd",
+      "source_sha256": "82bf5f4c2dcee624ddc75ba8b48ef6f73f4a670a11a2c3c208a1942fc3873fcd",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/test/chatgpt-redesign-dom.test.mjs",
+      "sha256": "3c4409ca11dfaf70b3d4f20905ed4b700766eeb4e6d422e4c271bf9d9b68c6a3",
+      "source_sha256": "3c4409ca11dfaf70b3d4f20905ed4b700766eeb4e6d422e4c271bf9d9b68c6a3",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/test/codex-exec-candidate.test.mjs",
+      "sha256": "fb67addf7189e8c2101f0ccd5005609030580ddf5160623f4f9ec272a8db2710",
+      "source_sha256": "fb67addf7189e8c2101f0ccd5005609030580ddf5160623f4f9ec272a8db2710",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/test/core.test.mjs",
+      "sha256": "736625604d962754a3ebcb0187c25d95cadfd8a67bf2197e4a5d72f1e0604d41",
+      "source_sha256": "736625604d962754a3ebcb0187c25d95cadfd8a67bf2197e4a5d72f1e0604d41",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/test/provider-decision-recovery.test.mjs",
+      "sha256": "66f7a579a750f89b73d854e00e3b57178b9208f6f2921c39108ad26ac0698c2b",
+      "source_sha256": "66f7a579a750f89b73d854e00e3b57178b9208f6f2921c39108ad26ac0698c2b",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/test/relay.test.mjs",
+      "sha256": "9de4e26b22761e5b9b9d693b06b99996a43c3240214e4fcfbf84ac47c1c8de7d",
+      "source_sha256": "9de4e26b22761e5b9b9d693b06b99996a43c3240214e4fcfbf84ac47c1c8de7d",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/test/state-and-client.test.mjs",
+      "sha256": "d70cd909b8e5b989351afbf27ce8cb0e6f9775a92ed4db253b80c0f0ec45ff98",
+      "source_sha256": "d70cd909b8e5b989351afbf27ce8cb0e6f9775a92ed4db253b80c0f0ec45ff98",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/test/submission-scheduler-proof-client.test.mjs",
+      "sha256": "2cd68800f159027bb56eaaac35c0942ddb2509be214e805d1bc5c0974977a257",
+      "source_sha256": "2cd68800f159027bb56eaaac35c0942ddb2509be214e805d1bc5c0974977a257",
+      "matches_published_source": true
+    },
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/test/submission-scheduler-service.test.mjs",
+      "sha256": "fc2cb47b1c6470c29c9b69571debf65c0f4627e533edbe4b86dc706fd24927f3",
+      "source_sha256": "4c43182ef1a410bca20dd305c9a6e11885bbaa80008c56fd348877b061a0ace7",
+      "matches_published_source": false
+    }
+  ],
+  "added_integration_artifacts": [
+    "audits/2026-10-09-work-supervisor-routing-integration.json",
+    "state/tasks/task-8836af8da0ed45054bce7cfa733d7c88049bbdf68160fa13fe00f7abcc269c5a.md"
+  ],
+  "excluded_paths": [
+    {
+      "path": "state/tasks/task-c6612c5a7a815d3e8ec0e6ba8846e9dbda94a32d070b07fedbe822c1ae47235c.md",
+      "reason": "Source-branch task recovery/evidence; private task state is outside the public integration payload."
+    },
+    {
+      "path": "LESSON-INDEX.md",
+      "reason": "Only source delta is the unrelated native-file-picker rule; retain all newer main index/coverage/rule-graph work."
+    },
+    {
+      "path": "patterns/persistent-browser-automation-hygiene.md",
+      "reason": "Unrelated native-file-picker owner correction; not required to preserve Work-supervisor routing."
+    }
+  ],
+  "private_material_boundary": {
+    "source_delta_paths": 60,
+    "included_source_paths": 57,
+    "excluded_source_delta_paths": 3,
+    "source_history_unique_paths_equal_delta": true,
+    "owner_questions_or_private_receipt_paths_in_source_delta": [],
+    "source_checkpoint_content_read_or_imported": false,
+    "server_private_uncommitted_material": "Unavailable; never imported or probed. No exact absent path inventory is possible.",
+    "payload_manifest_verified": {
+      "changed_paths": 59,
+      "unexpected_paths": [],
+      "source_hash_mismatches": [],
+      "excluded_paths_changed": [],
+      "active_task_unchanged": true
+    }
+  },
+  "conflicts": {
+    "textual_conflict_count": 0,
+    "overlap_resolutions": [
+      {
+        "path": "tools/codex-mission-control/restored/codex-mission-control/README.md",
+        "resolution": "Automatic three-way merge retains main year-long owner session/persistent-secret guidance and adds repair copier documentation."
+      },
+      {
+        "path": "tools/codex-mission-control/restored/codex-mission-control/daemon/server.ts",
+        "resolution": "Automatic three-way merge retains main sampleJevShadowOnStateChange wrapper and adds repair authentication, copy/validation, retirement/replacement and exact-proof routes."
+      },
+      {
+        "path": "tools/codex-mission-control/restored/codex-mission-control/lib/fleet-supervisor.ts",
+        "resolution": "Automatic three-way merge retains main nullable Jev observation signature and adds repair route selection/replacement/retirement behavior."
+      }
+    ],
+    "repair_over_newer_main_runtime_choices": []
+  },
+  "integration_additions": [
+    {
+      "path": "tools/codex-mission-control/vps-browser-relay/test/submission-scheduler-service.test.mjs",
+      "change": "One additive regression validates actual transition writes for all 13 queue statuses, serializes a combined ledger, reloads it with main authority normalization, checks scheduler inspection and preserved supersession bindings, and rejects an unknown status."
+    },
+    {
+      "path": "tools/codex-mission-control/restored/codex-mission-control/.env.example",
+      "change": "Correct source comment: reconciliation uses Issues read; deterministic copier requires Issues write. Only generic example values/paths."
+    }
+  ],
+  "main_preservation": {
+    "untargeted_newer_main_paths_preserved": 448,
+    "violations": [],
+    "merged_main_intent_checks": 3,
+    "credential_pattern_hits": []
+  },
+  "server_only_gap": {
+    "unavailable_commits": [
+      "20dd89db",
+      "2a5d96f5"
+    ],
+    "git_object_presence": "Both git cat-file -t checks failed: objects absent.",
+    "additional_deployed_diff": "UNKNOWN; no file or behavior attribution to these commits is possible.",
+    "known_published_inconsistency_resolved": "GitHub App example formerly described all minted tokens as read-only although copier requests Issues write. Example corrected without changing runtime.",
+    "runtime_configuration_not_in_payload": "Private App key/installation configuration, receipt channels, browser registry/profile, service configuration and private DB/evidence remain private; copying requires existing Issues-write access.",
+    "live_evidence_limit": "Issue reports healthy deployed routing and synthetic no-send acceptance, not a proven fresh real supervisor conversation. No live verification, deployment, restart or provider request performed."
+  },
+  "gates": {
+    "mission_control_npm_test": {
+      "command": "npm test",
+      "exit_code": 127,
+      "status": "UNAVAILABLE",
+      "tests_run": 0,
+      "reason": "tsx not found; node_modules absent; no packages installed."
+    },
+    "mission_control_typecheck": {
+      "command": "npm run typecheck",
+      "exit_code": 127,
+      "status": "UNAVAILABLE",
+      "reason": "tsc not found; no packages installed."
+    },
+    "mission_control_build": {
+      "command": "npm run build",
+      "exit_code": 127,
+      "status": "UNAVAILABLE",
+      "reason": "next not found; no packages installed."
+    },
+    "relay": {
+      "declared_command": "npm test (node --test test/*.test.mjs)",
+      "status": "SOCKET_FREE_SUBSET_PASS_FULL_GATE_CI_REQUIRED",
+      "default_isolation_attempt": {
+        "files": 26,
+        "passed": 22,
+        "failed": 4,
+        "exit_code": 1,
+        "limitation": "Child-process isolation gives file-only failure reporting in this sandbox."
+      },
+      "detailed_attempt": {
+        "command": "node --test --test-isolation=none --test-skip-pattern='^CLI once holds a derived lifetime' test/*.test.mjs",
+        "tests": 522,
+        "passed": 493,
+        "failed": 29,
+        "exit_code": 1
+      },
+      "selected_run": {
+        "runner": "node --test --test-isolation=none --test-skip-pattern=<exact deferred case names> test/*.test.mjs",
+        "tests": 493,
+        "passed": 493,
+        "failed": 0,
+        "exit_code": 0,
+        "duration_ms": 8290.587716,
+        "skip_pattern": "^(?:valid\\ source\\-bound\\ mayExecute\\ and\\ persisted\\ preflight\\ make\\ the\\ Codex\\ backend\\ eligible|a\\ campaign\\ deadline\\ beyond\\ one\\ attempt\\ keeps\\ the\\ child\\ bounded\\ by\\ the\\ configured\\ attempt\\ timeout|CODEX_LOCAL\\ runs\\ through\\ the\\ integrated\\ Mission\\ Control\\ dispatch\\ seam|CODEX_BROWSER_RESTRICTED\\ reaches\\ Codex\\ with\\ only\\ the\\ digest\\-bound\\ restricted\\ MCP\\ adapter|authentication\\ runtime\\ is\\ private,\\ outside\\ durable\\ attempts,\\ removed,\\ and\\ never\\ copied\\ into\\ evidence|deadline\\ expiry\\ stays\\ scoped\\ to\\ the\\ attempt\\ process\\ group\\ and\\ records\\ TIMED_OUT|changed\\ retry\\ semantics\\ are\\ rejected\\ while\\ a\\ valid\\ same\\-source\\ retry\\ gets\\ a\\ distinct\\ attempt\\ identity|exact\\ pre\\-execution\\ model\\ capacity\\ closes\\ for\\ reasoning\\ review\\ without\\ claiming\\ task\\ execution|an\\ interrupted\\ pre\\-execution\\ capacity\\ receipt\\ is\\ reconciled\\ without\\ a\\ duplicate\\ Codex\\ launch|a\\ structured\\ STOPPED\\ result\\ closes\\ the\\ directive\\ and\\ requests\\ independent\\ reasoning\\ review|a\\ structured\\ STOPPED_FOR_REASONING_REVIEW\\ result\\ closes\\ the\\ directive\\ and\\ preserves\\ its\\ trigger|an\\ interrupted\\ structured\\ STOPPED\\ receipt\\ is\\ reconciled\\ without\\ duplicate\\ execution|a\\ structured\\ BLOCKED\\ result\\ closes\\ the\\ directive\\ for\\ independent\\ reasoning\\ review|a\\ structured\\ STOPPED\\ result\\ accepts\\ the\\ source\\-bound\\ stop_trigger\\ alias|a\\ source\\-bound\\ schema\\ without\\ status\\ may\\ request\\ reasoning\\ review\\ with\\ its\\ explicit\\ stop\\ gate|a\\ structured\\ COMPLETED\\ result\\ closes\\ the\\ directive\\ without\\ requiring\\ a\\ success\\ boolean|an\\ interrupted\\ structured\\ COMPLETED\\ receipt\\ is\\ reconciled\\ without\\ duplicate\\ execution|raw\\ CDP\\ remains\\ absent\\ from\\ restricted\\ Codex\\ job\\ configuration|malformed\\ result|missing\\ terminal|durable\\ schema\\-v3\\ state\\ automatically\\ reaches\\ CODEX_LOCAL\\ without\\ directive\\ or\\ admission\\ files|automatic\\ dispatch\\ selects\\ the\\ highest\\-sequence\\ directive\\ from\\ a\\ newest\\-first\\ transport\\ timeline|the\\ command\\ runner\\ suppresses\\ npm\\ preambles\\ so\\ dispatch\\ stdout\\ is\\ strict\\ JSON\\ lines|the\\ command\\ runner\\ preserves\\ bounded\\ stdout\\ when\\ an\\ import\\ command\\ exits\\ nonzero|deadline:\\ helper\\ lifecycle\\ cannot\\ strand\\ the\\ relay|frozen:\\ helper\\ lifecycle\\ cannot\\ strand\\ the\\ relay|CLI\\ errors\\ release\\ ownership;\\ lock\\-status\\ diagnoses\\ a\\ live\\ owner\\ without\\ acquiring\\ or\\ sending|journal\\-work\\ exits\\ disabled\\ before\\ requiring\\ journal\\ configuration\\ or\\ constructing\\ live\\ provider\\ clients|CLI\\ once\\ holds\\ a\\ derived\\ lifetime\\ covering\\ 60\\-minute\\ operations,\\ honors\\ the\\ override,\\ and\\ exits\\ 143\\ on\\ SIGTERM|malformed\\ or\\ absent\\ terminal\\ protocol\\ evidence\\ remains\\ non\\-success)$"
+      },
+      "deferred_test_nodes": 30,
+      "deferred_cases": [
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 71,
+          "name": "valid source-bound mayExecute and persisted preflight make the Codex backend eligible",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 83,
+          "name": "a campaign deadline beyond one attempt keeps the child bounded by the configured attempt timeout",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 105,
+          "name": "CODEX_LOCAL runs through the integrated Mission Control dispatch seam",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 114,
+          "name": "CODEX_BROWSER_RESTRICTED reaches Codex with only the digest-bound restricted MCP adapter",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 142,
+          "name": "authentication runtime is private, outside durable attempts, removed, and never copied into evidence",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 159,
+          "name": "deadline expiry stays scoped to the attempt process group and records TIMED_OUT",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 170,
+          "name": "changed retry semantics are rejected while a valid same-source retry gets a distinct attempt identity",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 229,
+          "name": "exact pre-execution model capacity closes for reasoning review without claiming task execution",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 245,
+          "name": "an interrupted pre-execution capacity receipt is reconciled without a duplicate Codex launch",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 264,
+          "name": "a structured STOPPED result closes the directive and requests independent reasoning review",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 279,
+          "name": "a structured STOPPED_FOR_REASONING_REVIEW result closes the directive and preserves its trigger",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 293,
+          "name": "an interrupted structured STOPPED receipt is reconciled without duplicate execution",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 313,
+          "name": "a structured BLOCKED result closes the directive for independent reasoning review",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 326,
+          "name": "a structured STOPPED result accepts the source-bound stop_trigger alias",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 339,
+          "name": "a source-bound schema without status may request reasoning review with its explicit stop gate",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 353,
+          "name": "a structured COMPLETED result closes the directive without requiring a success boolean",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 365,
+          "name": "an interrupted structured COMPLETED receipt is reconciled without duplicate execution",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 396,
+          "name": "raw CDP remains absent from restricted Codex job configuration",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 407,
+          "name": "malformed result",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 407,
+          "name": "missing terminal",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 416,
+          "name": "durable schema-v3 state automatically reaches CODEX_LOCAL without directive or admission files",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 433,
+          "name": "automatic dispatch selects the highest-sequence directive from a newest-first transport timeline",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/journal-work-runner.test.mjs",
+          "line": 72,
+          "name": "the command runner suppresses npm preambles so dispatch stdout is strict JSON lines",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/journal-work-runner.test.mjs",
+          "line": 81,
+          "name": "the command runner preserves bounded stdout when an import command exits nonzero",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/relay-lock.test.mjs",
+          "line": 121,
+          "name": "deadline: helper lifecycle cannot strand the relay",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/relay-lock.test.mjs",
+          "line": 121,
+          "name": "frozen: helper lifecycle cannot strand the relay",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/state-and-client.test.mjs",
+          "line": 82,
+          "name": "CLI errors release ownership; lock-status diagnoses a live owner without acquiring or sending",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/state-and-client.test.mjs",
+          "line": 107,
+          "name": "journal-work exits disabled before requiring journal configuration or constructing live provider clients",
+          "reason": "Sandbox denies Node subprocess stdio capture (independent spawnSync probe returned EPERM); CI must run the unmodified case."
+        },
+        {
+          "path": "test/state-and-client.test.mjs",
+          "line": 233,
+          "name": "CLI once holds a derived lifetime covering 60-minute operations, honors the override, and exits 143 on SIGTERM",
+          "reason": "Opens a loopback HTTP socket, unavailable in this sandbox; excluded by test runner option."
+        },
+        {
+          "path": "test/codex-exec-candidate.test.mjs",
+          "line": 405,
+          "name": "malformed or absent terminal protocol evidence remains non-success",
+          "reason": "Parent case fails with its two subprocess-capture subtests; sandbox spawnSync probe returned EPERM."
+        }
+      ],
+      "selection_reproduction": "Exact skip regex: ^(?: + pipe-separated regex-escaped deferred case names + )$. Tests themselves and their assertions were not changed to accommodate sandbox."
+    },
+    "root_tests": {
+      "declared_command": "python3 -m unittest discover -s tests -v",
+      "initial_attempt": {
+        "tests": 905,
+        "failures": 2,
+        "errors": 1,
+        "exit_code": 1,
+        "reasons": [
+          "Checkpoint gate-count evidence was incomplete; repaired and 9 focused concision tests then passed.",
+          "Canary HTTP test opens a prohibited loopback socket."
+        ]
+      },
+      "socket_free_run": {
+        "status": "PASS",
+        "tests": 904,
+        "passed": 904,
+        "failures": 0,
+        "errors": 0,
+        "exit_code": 0,
+        "duration_seconds": 150.986
+      },
+      "deferred_cases": [
+        "test_chatgpt_storage_canary.StorageCanaryTests.test_http_surface_requires_auth_and_round_trips_exact_text"
+      ],
+      "selection_reproduction": "Load unittest.TestLoader().discover(\"tests\"), flatten suites, select all cases except the exact deferred ID, run unittest.TextTestRunner(verbosity=2). No test changes.",
+      "checkpoint_repair_verification": {
+        "tests": 9,
+        "passed": 9,
+        "exit_code": 0
+      }
+    },
+    "repository_audit": {
+      "command": "GITHUB_HEAD_REF=claude/integrate-work-supervisor-repair-20261009 UDA_TASK_ID=pr-348 python3 scripts/audit_codex_github.py --root . --fail-on error",
+      "status": "PASS",
+      "exit_code": 0,
+      "errors": 0,
+      "warnings": 0,
+      "final_candidate_rechecked": true
+    },
+    "diff_check": {
+      "command": "git diff --check",
+      "status": "PASS"
+    },
+    "mc_socket_cases_for_ci": [
+      {
+        "path": "tests/owner-action.test.ts",
+        "names": [
+          "watches and watch-enroll call the fixed daemon routes as the owner and never print credentials",
+          "reasoning replacement posts only the exact bounded identity and sealed failure digest",
+          "reasoning replacement accepts only the explicit invalid-canonical reason enum"
+        ]
+      },
+      {
+        "path": "tests/chatgpt-work-cloud-autodispatcher.test.ts",
+        "names": [
+          "unattended watcher derives and invokes current direct Work controller from durable state"
+        ]
+      },
+      {
+        "path": "tests/daemon-exact-event-read.test.ts",
+        "names": [
+          "daemon exact event lookup is bounded to the original producer and worker scope"
+        ]
+      },
+      {
+        "path": "tests/reconciliation-event-cache.test.ts",
+        "names": [
+          "file-backed reconciliation cache stays incremental, reconstructs on restart, and leaves live authority routes responsive"
+        ]
+      },
+      {
+        "path": "tests/daemon-exact-admission-proof.test.ts",
+        "names": [
+          "daemon serves one authenticated producer-scoped exact admission proof from its owning store"
+        ]
+      }
+    ],
+    "mjs_syntax": {
+      "status": "PASS",
+      "files": 25,
+      "command": "node --check <each included .mjs path>"
+    }
+  },
+  "delivery_boundary": {
+    "claim": "SOURCE_INTEGRATION_HANDOFF; mainline integration is not yet complete",
+    "resulting_mainline_commit": "Not created by this execution; runner and subsequent merge supply actual hashes.",
+    "publication": "No commit/push/merge/issue closure performed by this execution.",
+    "rollback": "No live runtime, service or rollback state was modified. Git integration is a path-scoped working-tree change based on the recorded starting head.",
+    "next_actor": "Runner commits/pushes, CI runs unavailable full gates, maintainer integrates into main; no deploy authority.",
+    "stop_admission": "Parent mainline integration OPEN; bounded working-tree handoff finished. All safe independent work performed; runner/CI own publication and unavailable verification; no deployment authority."
+  }
+}

@@ -327,6 +327,15 @@ export class AutomationOwnedBrowser {
     return this.rawBrowser.detectJournalWriteConfirmation(target, input);
   }
 
+  async recoverBoundConversationTurns(target, input) {
+    await this.requireExactOwnedTarget({
+      targetId: target?.id,
+      automationWindowId: target?.automationWindowId,
+      expectedUrl: input?.expectedUrl,
+    });
+    return this.rawBrowser.recoverBoundConversationTurns(target, input);
+  }
+
   async approveJournalWriteConfirmation(target, input) {
     await this.#assertOwned(target?.id);
     return this.rawBrowser.approveJournalWriteConfirmation(target, input);

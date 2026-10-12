@@ -170,9 +170,12 @@ class ReviewMergeSliceTests(unittest.TestCase):
     def test_new_identities_do_not_change_legacy_baseline_or_shrinkage(self):
         baseline = tt.read_json(ROOT / coverage.BASELINE)
         self.assertFalse(set(SOURCES).intersection(baseline["backlog_ids"]))
-        self.assertFalse(baseline.get("owner_authorized_additions"))
+        self.assertEqual(
+            ["patterns/cross-account-continuity.md"],
+            [entry["id"] for entry in baseline["owner_authorized_additions"]],
+        )
         report = coverage.report(ROOT)
-        self.assertEqual(77, report["backlog_count"])
+        self.assertEqual(78, report["backlog_count"])
         self.assertEqual(7, len(report["removed_since_baseline"]))
         self.assertFalse(set(SOURCES).intersection(report["removed_since_baseline"]))
         for source, expected in zip(SOURCES, (70, 58)):

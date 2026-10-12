@@ -67,6 +67,43 @@ test("watches and watch-enroll call the fixed daemon routes as the owner and nev
   });
 });
 
+test("reasoning replacement posts only the exact bounded identity and sealed failure digest", async () => {
+  await withServer(async (base, seen) => {
+    const requestId = `fleet-review:${"a".repeat(32)}`;
+    const failureReceiptSha256 = "b".repeat(64);
+    const result = await run(["reasoning-replace", "--project", "project:hrp-discern-eval", "--request", requestId,
+      "--failure-receipt-sha", failureReceiptSha256], env(base));
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].method, "POST");
+    assert.equal(seen[0].url, "/fleet-supervisor/project%3Ahrp-discern-eval/reasoning-replace");
+    assert.deepEqual(JSON.parse(seen[0].body), {
+      request_id: requestId, failure_receipt_sha256: failureReceiptSha256, reason_code: "PROVIDER_EMPTY_COMPLETION",
+    });
+    assert.equal(seen[0].headers["x-mission-control-producer-kind"], "OWNER_AUTHORITY");
+    assert.ok(!result.stdout.includes(INTERNAL_TOKEN) && !result.stdout.includes(OWNER_TOKEN));
+  });
+});
+
+test("reasoning replacement accepts only the explicit invalid-canonical reason enum", async () => {
+  await withServer(async (base, seen) => {
+    const requestId = `fleet-review:${"c".repeat(32)}`;
+    const failureReceiptSha256 = "d".repeat(64);
+    const result = await run(["reasoning-replace", "--project", "project:askrigor", "--request", requestId,
+      "--failure-receipt-sha", failureReceiptSha256, "--reason-code", "PROVIDER_INVALID_CANONICAL_DECISION"], env(base));
+    assert.equal(result.code, 0, result.stderr);
+    assert.deepEqual(JSON.parse(seen[0].body), {
+      request_id: requestId, failure_receipt_sha256: failureReceiptSha256,
+      reason_code: "PROVIDER_INVALID_CANONICAL_DECISION",
+    });
+    const rejected = await run(["reasoning-replace", "--project", "project:askrigor", "--request", requestId,
+      "--failure-receipt-sha", failureReceiptSha256, "--reason-code", "RETIRED_UNSENT"], env(base));
+    assert.equal(rejected.code, 2);
+    assert.match(rejected.stderr, /--reason-code must be/);
+    assert.equal(seen.length, 1);
+  });
+});
+
 test("there is no action that forwards caller-supplied content under the owner credential", async () => {
   await withServer(async (base, seen) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "owner-action-"));
@@ -87,6 +124,8 @@ test("bad input, unknown actions and a missing runtime credential are refused be
     for (const args of [["watch-set", "--project", "project:askrigor", "--state", "RUNNING"], ["deploy"], [],
       ["watches", "--path", "/events"], ["watch-enroll", "--project", "askrigor", "--worker", "w", "--task", "t"],
       ["watch-set", "--project", "project:askrigor", "--cadence-ms", "12x"],
+      ["reasoning-replace", "--project", "project:askrigor", "--request", "fleet-review:short", "--failure-receipt-sha", "b".repeat(64)],
+      ["reasoning-replace", "--project", "project:askrigor", "--request", `fleet-review:${"a".repeat(32)}`, "--failure-receipt-sha", "NOT-A-SHA"],
       ["source-review", "--worker", "../x", "--request", "/etc/hostname"]]) {
       const result = await run(args, env(base));
       assert.equal(result.code, 2, `${args.join(" ")}: ${result.stderr}`);

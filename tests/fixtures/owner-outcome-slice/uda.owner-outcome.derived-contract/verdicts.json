@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Before acceptance, the contract declares derivation parent_owner_outcome_id O, parent_owner_outcome_epoch 1, exact parent content digest equal to the current source-bound identity, and contribution_type refine. required_outcome_coverage lists every required_outcome_id with relation directly_satisfies, contributes, verifies or not_addressed, task_criterion_ids and explanation. intentionally_not_addressed entries have parent_task_remains_open true and owner_authorization_ref null unless an explicit owner decision authorizes removal. The coverage matrix contains owner required outcome, derived criteria, relation, evidence required, weakened flag and parent-open flag. Every terminal-required outcome is represented at equal or stronger modality and target, with outcome-proving evidence; unaddressed outcomes remain owned by an open parent. A child may narrow only as a traced subtask; the root omits none, no threshold weakens, must stays must, direct results stay direct and deferral retains authority or an owning parent. No root terminal state leaves a required outcome unowned. Comparison passed before acceptance. The uncertain equivalence row was routed as a bounded comparison containing the verbatim outcome and derived contract to Extra High under the intelligence policy; deterministic mapping was insufficient.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The new contract omits one required outcome, changes must to should, lowers its target, and substitutes review readiness. I accepted it without comparison.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The full parent identity and all required outcome IDs are present. Each row has evidence and an owning parent; direct outcomes and thresholds are retained. To make the child easier to execute, its mandatory result is phrased as should. The source still says must, but both sentences refer to the same result, so I approved the contract.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "derived-contract-at-boundary",
+    "non_substitute": "must changed to should"
+  }
+}

@@ -1,6 +1,12 @@
 import { canonicalJson, sha256 } from "./canonical";
-import type { GitHubDecisionCandidate, GitHubReceiptPolicy, PendingDecisionRequest } from "./github-decision-receipts";
+import type {
+  GitHubDecisionCandidate,
+  GitHubDecisionReceiptRelocation,
+  GitHubReceiptPolicy,
+  PendingDecisionRequest,
+} from "./github-decision-receipts";
 import type { CanonicalDecisionEnvelope, StoredEvent } from "./schema";
+import type { SupervisorTransportEvidence } from "./supervisor-activity";
 
 export const inBandRequestRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V6\n";
 export const inBandRequestProtocol = "IN_BAND_REQUEST_BINDING_V1";
@@ -11,6 +17,9 @@ export const inBandPreSendSummary = "MISSION_CONTROL_IN_BAND_REQUEST_BINDING_PRE
 export const inBandAttestationSummary = "MISSION_CONTROL_IN_BAND_REQUEST_BINDING_EXECUTION_V1";
 export const inBandAppReadbackSummary = "MISSION_CONTROL_PROVIDER_SESSION_APP_READBACK_V1";
 export const inBandAppReadbackProducerId = "collector:chatgpt-app-readback";
+export const inBandBrowserDomReadbackSummary = "MISSION_CONTROL_PROVIDER_SESSION_BROWSER_DOM_READBACK_V1";
+export const inBandBrowserDomReadbackProducerId = "collector:chatgpt-browser-dom-readback";
+export const inBandBrowserDomReadbackMethod = "BOUND_VPS_CDP_EXACT_MACHINE_BLOCK";
 export const inBandMachineTransformSummary = "MISSION_CONTROL_PROVIDER_SESSION_MACHINE_TRANSFORM_V1";
 export const inBandDigestRepairOperation = "DECISION_BLOCK_SHA256_RECOMPUTE_ONLY";
 const sessionSummary = "MISSION_CONTROL_PROVIDER_SESSION_V1";
@@ -97,17 +106,23 @@ export function assertInBandRequestExecution(
   events: StoredEvent[], request: PendingDecisionRequest, policy: GitHubReceiptPolicy,
   decision: Extract<CanonicalDecisionEnvelope, { schema_version: 5 }>, candidate: GitHubDecisionCandidate,
   ingestedAt: string, submissionAuthorityState: unknown,
+  receiptRelocation: GitHubDecisionReceiptRelocation | null = null,
 ): { preSendReceiptId: string; admissionId: string; promptSha256: string } {
   const fail = (reason: string): never => { throw new Error(`In-band request execution rejected: ${reason}.`); };
   const requestBoundPolicy = policy.requestBound;
   if (!requestBoundPolicy?.enabled || request.routeSchemaVersion !== 6) fail("protocol not enabled for this route");
-  const expected = inBandRequestBindingEnvelope(request, decision.provider_session_id, policy);
+  const bindingPolicy = receiptRelocation ? {
+    ...policy,
+    repository: receiptRelocation.sourceRepository,
+    decisionIssueNumber: receiptRelocation.sourceDecisionIssueNumber,
+  } : policy;
+  const expected = inBandRequestBindingEnvelope(request, decision.provider_session_id, bindingPolicy);
   if (decision.supervisor_id !== request.supervisorId
     || decision.in_band_binding_sha256 !== expected.in_band_binding_sha256) fail("exact in-band request/session/context binding mismatch");
-  const expectedLocator = `${expected.decision_receipt_target.immutable_issue_url}#issuecomment-${candidate.commentId}`;
+  const expectedLocator = `https://github.com/${policy.repository}/issues/${policy.decisionIssueNumber}#issuecomment-${candidate.commentId}`;
   if (candidate.immutableUrl !== expectedLocator) fail("GitHub comment locator mismatch");
-  if (candidate.repository.toLowerCase() !== expected.decision_receipt_target.repository.toLowerCase()
-    || candidate.issueNumber !== expected.decision_receipt_target.issue_number) fail("GitHub decision target mismatch");
+  if (candidate.repository.toLowerCase() !== policy.repository.toLowerCase()
+    || candidate.issueNumber !== policy.decisionIssueNumber) fail("GitHub decision target mismatch");
 
   const relayIds = requestBoundPolicy!.relayProducerIds;
   const scoped = events.filter((event) => boundTo(event, request, decision.provider_session_id)
@@ -183,10 +198,36 @@ export function assertInBandRequestExecution(
     }));
   if (appReadbacks.length > 1) fail("app-owned provider completion evidence is ambiguous");
   const appReadback = appReadbacks[0] ?? null;
+  const browserDomReadbacks = events.filter((event) => event.worker === request.worker
+    && inWindow(event, request.queuedAt, ingestedAt) && isTrustedBrowserDomReadback(event)
+    && hasRefs(event, {
+      request: request.requestId, supervisor: request.supervisorId, provider_session: decision.provider_session_id,
+      status: "COMPLETE", provider_prompt_sha256: promptSha256!,
+      conversation_url: conversationUrl, thread_surface: "chatgpt", semantic_authority: "false",
+      browser_capture_surface: "EXISTING_BOUND_CONVERSATION_DOM",
+      assistant_message_selection: "UNIQUE_CANONICAL_BLOCK",
+      source_reader_mode: "READ_ONLY",
+      readback_method: inBandBrowserDomReadbackMethod,
+    }));
+  if (browserDomReadbacks.length > 1) fail("browser-DOM provider completion evidence is ambiguous");
+  const browserDomReadback = browserDomReadbacks[0] ?? null;
+  if (appReadback && browserDomReadback) fail("provider completion readback provenance is ambiguous");
+  if (browserDomReadback) {
+    const targetDigest = exactRef(browserDomReadback, "browser_target_id_sha256");
+    const reader = exactRef(browserDomReadback, "source_reader_app");
+    if (!targetDigest || !/^[a-f0-9]{64}$/.test(targetDigest)
+      || !reader || !["GitHub", "Remote Desktop Commander"].includes(reader)) {
+      fail("browser-DOM readback identity is incomplete or invalid");
+    }
+  }
+  const providerReadback = appReadback ?? browserDomReadback;
   let machineTransform: StoredEvent | null = null;
-  if (appReadback) {
-    const sourceMachineBlockSha256 = exactRef(appReadback, "machine_block_sha256") ?? fail("app-owned provider machine block digest is invalid");
-    if (!/^[a-f0-9]{64}$/.test(sourceMachineBlockSha256)) fail("app-owned provider machine block digest is invalid");
+  if (providerReadback) {
+    const sourceMachineBlockSha256 = exactRef(providerReadback, "machine_block_sha256") ?? fail("provider readback machine block digest is invalid");
+    if (!/^[a-f0-9]{64}$/.test(sourceMachineBlockSha256)) fail("provider readback machine block digest is invalid");
+    if (browserDomReadback && sourceMachineBlockSha256 !== machineBlockSha256) {
+      fail("browser-DOM provider machine block digest does not match the published candidate");
+    }
     if (sourceMachineBlockSha256 !== machineBlockSha256) {
       const transforms = events.filter((event) => event.worker === request.worker
         && inWindow(event, request.queuedAt, ingestedAt) && isTrustedMachineTransform(event)
@@ -206,8 +247,8 @@ export function assertInBandRequestExecution(
     && exactRef(event, "session_role") === inBandRequestRole && controlEvidence(event) !== null);
   if (!model) fail("visible model/control observation missing");
   const modelControls = controlEvidence(model!) ?? fail("model/control observation is invalid");
-  const sourceReaderApp = appReadback ? (exactRef(appReadback, "source_reader_app") ?? "GitHub") : "GitHub";
-  const sourceReaderMode = appReadback ? (exactRef(appReadback, "source_reader_mode") ?? "READ_ONLY") : "READ_ONLY";
+  const sourceReaderApp = providerReadback ? (exactRef(providerReadback, "source_reader_app") ?? "GitHub") : "GitHub";
+  const sourceReaderMode = providerReadback ? (exactRef(providerReadback, "source_reader_mode") ?? "READ_ONLY") : "READ_ONLY";
   if (!["GitHub", "Remote Desktop Commander"].includes(sourceReaderApp)
     || sourceReaderMode !== "READ_ONLY" || sourceReaderApp === "Mission Control") {
     fail("provider source reader is not an approved read-only source reader");
@@ -291,6 +332,7 @@ export function assertInBandRequestExecution(
   const boundary = Date.parse(String(admission.boundaryAt));
   const startAt = Date.parse(start!.occurredAt);
   const appReadbackAt = appReadback ? Date.parse(appReadback.occurredAt) : null;
+  const browserDomReadbackAt = browserDomReadback ? Date.parse(browserDomReadback.occurredAt) : null;
   const machineTransformAt = machineTransform ? Date.parse(machineTransform.occurredAt) : null;
   const relayCompleteAt = complete ? Date.parse(complete.occurredAt) : null;
   const commonTimingInvalid = !Number.isFinite(created) || !Number.isFinite(admitted) || !Number.isFinite(boundary)
@@ -310,11 +352,25 @@ export function assertInBandRequestExecution(
     ? (!Number.isFinite(relayCompleteAt) || relayCompleteAt! < startAt || relayCompleteAt! > requestExpiresAt
       || appReadbackAt! < relayCompleteAt!)
     : false;
-  const completionTimingInvalid = appReadback
-    ? (!Number.isFinite(appReadbackAt) || startAt > appReadbackAt! || appReadbackAt! > createdUpper || created > Date.parse(ingestedAt)
-      || transformTimingInvalid || delayedReadbackInvalid)
-    : (!Number.isFinite(relayCompleteAt) || relayCompleteAt! < created || relayCompleteAt! > Date.parse(ingestedAt)
-      || startAt > relayCompleteAt!);
+  const relocatedTransportTimingInvalid = receiptRelocation
+    ? (!Number.isFinite(relayCompleteAt) || relayCompleteAt! < startAt || relayCompleteAt! > createdUpper
+      || relayCompleteAt! > requestExpiresAt || created > Date.parse(ingestedAt))
+    : false;
+  const browserDomRecoveryTimingInvalid = browserDomReadback
+    ? (!Number.isFinite(browserDomReadbackAt) || !Number.isFinite(relayCompleteAt)
+      || relayCompleteAt! < startAt || relayCompleteAt! > createdUpper
+      || created > browserDomReadbackAt! || browserDomReadbackAt! > Date.parse(ingestedAt)
+      || browserDomReadbackAt! > requestExpiresAt)
+    : false;
+  const completionTimingInvalid = receiptRelocation
+    ? relocatedTransportTimingInvalid
+    : browserDomReadback
+      ? browserDomRecoveryTimingInvalid
+      : appReadback
+        ? (!Number.isFinite(appReadbackAt) || startAt > appReadbackAt! || appReadbackAt! > createdUpper || created > Date.parse(ingestedAt)
+          || transformTimingInvalid || delayedReadbackInvalid)
+        : (!Number.isFinite(relayCompleteAt) || relayCompleteAt! < created || relayCompleteAt! > Date.parse(ingestedAt)
+          || startAt > relayCompleteAt!);
   if (copiedAfterRequestExpiry && !appReadback) fail("post-expiry transport copy requires current app-owned completion evidence");
   if (commonTimingInvalid || completionTimingInvalid) fail("binding/admission/generation/artifact timing is invalid or stale");
   return {
@@ -324,6 +380,110 @@ export function assertInBandRequestExecution(
   };
 }
 
+
+/**
+ * What the relay's own receipts show about one V6 question up to `at`, checked as `assertInBandRequestExecution` checks
+ * them without the answer-specific parts (decision binding, central admission chain, GitHub comment, readbacks): sent
+ * once its first message started, exactly once, in the request's own exact session (its provisional "WEB:" address
+ * allowed), after the trusted pre-send receipt committed the provider body (for this request's exact binding envelope
+ * and session) and after the session's model controls were
+ * observed, with those controls, that body's prompt, one approved read-only source app and no semantic authority on
+ * every stage; finished once that stage completed in the session's conversation. A send in more than one session, or a
+ * second start, is a duplicate send (the validator rejects both); anything not bound this way is null.
+ */
+export function inBandTransportEvidence(
+  events: StoredEvent[], request: PendingDecisionRequest, policy: GitHubReceiptPolicy, at: string,
+): SupervisorTransportEvidence | null {
+  if (request.routeSchemaVersion !== 6 || !policy.requestBound?.enabled || !Number.isFinite(Date.parse(at))) return null;
+  const relayIds = policy.requestBound.relayProducerIds;
+  const sends = events.filter((event) => isTrustedEvidence(event, stageSummary, relayIds) && event.worker === request.worker
+    && exactRef(event, "request") === request.requestId && exactRef(event, "generation_state") === "STARTED"
+    && inWindow(event, request.queuedAt, at));
+  if (!sends.length) return null;
+  const sessionIds = new Set(sends.map((event) => exactRef(event, "provider_session")));
+  if (sessionIds.size !== 1) return duplicateSend(sends);
+  const sessionId = [...sessionIds][0];
+  if (!sessionId) return null;
+  const scoped = events.filter((event) => boundTo(event, request, sessionId) && inWindow(event, request.queuedAt, at));
+  const sessionRecords = scoped.filter((event) => isTrustedEvidence(event, sessionSummary, relayIds));
+  if (sessionRecords.some((event) => exactRef(event, "session_role") !== inBandRequestRole)) return null;
+  const exactSessions = sessionRecords.filter((event) => exactRef(event, "message_ordinal") === "1"
+    && exactRef(event, "url_binding_status") === "EXACT"
+    && /^https:\/\/chatgpt\.com\/c\/(?:WEB:)?[A-Za-z0-9_-]+$/.test(exactRef(event, "conversation_url") ?? ""));
+  const exactSession = [...exactSessions].sort((a, b) => a.sequence - b.sequence).at(-1);
+  const conversationUrl = exactSession ? exactRef(exactSession, "conversation_url") : null;
+  if (!conversationUrl) return null;
+  const provisionalUrls = new Set(exactSessions.map((event) => exactRef(event, "conversation_url"))
+    .filter((url): url is string => Boolean(url && /^https:\/\/chatgpt\.com\/c\/WEB:[A-Za-z0-9_-]+$/.test(url))));
+  const finalIsProvisional = /^https:\/\/chatgpt\.com\/c\/WEB:[A-Za-z0-9_-]+$/.test(conversationUrl);
+  if ((!finalIsProvisional && provisionalUrls.size > 1) || exactSessions.some((event) => {
+    const url = exactRef(event, "conversation_url");
+    return Boolean(url && url !== conversationUrl && !(provisionalUrls.has(url) && !finalIsProvisional));
+  })) return null;
+  // Every pre-send receipt must commit to this request's exact binding envelope for this session, and to one body. A
+  // relocated request was sent for its original decision channel, so its envelope is the one built for that channel,
+  // as the validator builds it; a relocation that doesn't match the request's route and the configured channel binds
+  // nothing.
+  const relocation = policy.decisionReceiptRelocations?.find((item) => item.requestId === request.requestId) ?? null;
+  if (relocation && (request.repository.toLowerCase() !== relocation.sourceRepository.toLowerCase()
+    || request.issueNumber !== relocation.sourceDecisionIssueNumber
+    || policy.repository.toLowerCase() !== relocation.destinationRepository.toLowerCase()
+    || policy.decisionIssueNumber !== relocation.destinationDecisionIssueNumber)) return null;
+  const bindingPolicy = relocation
+    ? { ...policy, repository: relocation.sourceRepository, decisionIssueNumber: relocation.sourceDecisionIssueNumber }
+    : policy;
+  const expected = inBandRequestBindingEnvelope(request, sessionId, bindingPolicy);
+  const preSend = scoped.filter((event) => isTrustedEvidence(event, inBandPreSendSummary, relayIds));
+  const bodies = new Set(preSend.map((event) => exactRef(event, "provider_body_sha256")));
+  const promptSha256 = bodies.size === 1 ? [...bodies][0] : null;
+  if (!promptSha256 || !/^[a-f0-9]{64}$/.test(promptSha256) || preSend.some((event) => exactRef(event, "binding_protocol") !== inBandRequestProtocol
+    || exactRef(event, "binding_schema") !== expected.binding_schema
+    || exactRef(event, "in_band_binding_sha256") !== expected.in_band_binding_sha256
+    || exactRef(event, "decision_receipt_target") !== expected.decision_receipt_target.immutable_issue_url
+    || exactRef(event, "semantic_authority") !== "false"
+    || exactRef(event, "trusted_relay_producer") !== event.producerId || Date.parse(event.occurredAt) >= Date.parse(request.expiresAt))) return null;
+  const model = scoped.find((event) => isTrustedEvidence(event, modelSummary, relayIds)
+    && exactRef(event, "session_role") === inBandRequestRole && controlEvidence(event) !== null);
+  const modelControls = model ? controlEvidence(model) : null;
+  if (!model || !modelControls) return null;
+  const readers = new Set(["GitHub", "Remote Desktop Commander"]);
+  const stageCandidates = scoped.filter((event) => isTrustedEvidence(event, stageSummary, relayIds)
+    && exactRef(event, "step") === inBandRequestStep
+    && exactRef(event, "message_ordinal") === "1" && exactRef(event, "first_message") === "true"
+    && readers.has(exactRef(event, "selected_app") ?? "") && exactRef(event, "semantic_authority") === "false"
+    && controlEvidence(event) !== null);
+  const allowedStageUrls = new Set([conversationUrl, ...provisionalUrls]);
+  if (new Set(stageCandidates.map((event) => exactRef(event, "selected_app"))).size > 1
+    || stageCandidates.some((event) => !allowedStageUrls.has(exactRef(event, "conversation_url") ?? ""))) return null;
+  const starts = stageCandidates.filter((event) => exactRef(event, "generation_state") === "STARTED");
+  const completes = stageCandidates.filter((event) => exactRef(event, "generation_state") === "COMPLETE"
+    && exactRef(event, "conversation_url") === conversationUrl);
+  if (starts.length > 1) return duplicateSend(sends);
+  const start = starts[0];
+  if (!start) return null;
+  const pre = preSend.filter((event) => Date.parse(event.occurredAt) <= Date.parse(start.occurredAt))
+    .sort((a, b) => Date.parse(a.occurredAt) - Date.parse(b.occurredAt)).at(-1);
+  if (!pre || Date.parse(model.occurredAt) > Date.parse(pre.occurredAt)
+    || [...starts, ...completes].some((event) => {
+      const controls = controlEvidence(event);
+      return !controls || controls.kind !== modelControls.kind || controls.modelLabel !== modelControls.modelLabel
+        || exactRef(event, "prompt_sha256") !== promptSha256
+        || (event.data.type === "evidence_receipt_recorded" && event.data.refs.includes("selected_app:Mission Control"));
+    })
+    || scoped.some((event) => event.data.type === "evidence_receipt_recorded"
+      && (event.data.summary === "MISSION_CONTROL_PROVIDER_SESSION_MCP_READ_V1"
+        || event.data.refs.some((ref) => ref.startsWith("tool:get_supervisory_request_binding"))))) return null;
+  const complete = completes.sort((a, b) => a.sequence - b.sequence).at(-1);
+  return {
+    providerSessionId: sessionId, sentAt: start.occurredAt, conversationUrl, duplicateSend: false,
+    finishedAt: complete && Date.parse(complete.occurredAt) >= Date.parse(start.occurredAt) ? complete.occurredAt : null,
+  };
+}
+
+function duplicateSend(sends: StoredEvent[]): SupervisorTransportEvidence {
+  const first = [...sends].sort((a, b) => Date.parse(a.occurredAt) - Date.parse(b.occurredAt))[0]!;
+  return { providerSessionId: null, sentAt: first.occurredAt, finishedAt: null, conversationUrl: null, duplicateSend: true };
+}
 
 function controlEvidence(event: StoredEvent): { kind: "CURRENT" | "LEGACY"; modelLabel: string } | null {
   if (hasRefs(event, currentControlRefs)) {
@@ -359,6 +519,11 @@ function isTrustedEvidence(event: StoredEvent, summary: string, producers: strin
 function isTrustedAppReadback(event: StoredEvent): boolean {
   return event.data.type === "evidence_receipt_recorded" && event.data.summary === inBandAppReadbackSummary && event.data.verified
     && event.producerKind === "COLLECTOR" && event.producerId === inBandAppReadbackProducerId
+    && event.data.producer_id === event.producerId && event.data.producer_role === "COLLECTOR";
+}
+function isTrustedBrowserDomReadback(event: StoredEvent): boolean {
+  return event.data.type === "evidence_receipt_recorded" && event.data.summary === inBandBrowserDomReadbackSummary && event.data.verified
+    && event.producerKind === "COLLECTOR" && event.producerId === inBandBrowserDomReadbackProducerId
     && event.data.producer_id === event.producerId && event.data.producer_role === "COLLECTOR";
 }
 function isTrustedMachineTransform(event: StoredEvent): boolean {

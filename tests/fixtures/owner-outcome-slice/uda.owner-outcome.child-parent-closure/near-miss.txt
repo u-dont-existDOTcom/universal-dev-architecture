@@ -1,0 +1,1 @@
+The child deliverable is finished and its parent still has one unmet requirement. I labeled the child SUBTASK_COMPLETE_PARENT_OPEN, then archived the parent as closed because all currently assigned child work is done. The root result is still missing.

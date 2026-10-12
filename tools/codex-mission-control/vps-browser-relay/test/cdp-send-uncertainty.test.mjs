@@ -168,7 +168,7 @@ test('CDP disconnect after click dispatch is reported as crossed uncertainty', a
     }, {
       expectedUrl: 'https://chatgpt.com/',
       body,
-      bodySha256: 'a'.repeat(64),
+      bodySha256: sha256(body),
       onBeforeSubmissionBoundary: async () => {},
     });
   } catch (error) {

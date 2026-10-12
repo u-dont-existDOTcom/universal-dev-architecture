@@ -3,8 +3,10 @@ import { executionDirectiveArtifactCanonicalJson } from "./github-execution-dire
 import { launchSelectionFor } from "./work-execution-profile";
 import type { StoredEvent } from "./schema";
 import { ruleGraphPromptBlock, workHandoffRuleGraphProjection, WORK_PROMPT_BUDGET_LABEL, WORK_PROMPT_MAX_BYTES } from "./rule-graph-contract";
+import { workQuestionContextForRequest } from "./owner-question-route";
 
 export const WORK_CLOUD_EXECUTION_RECEIPT_PREFIX = "MISSION_CONTROL_WORK_CLOUD_EXECUTION_RECEIPT_V1\n";
+export const WORK_CLOUD_SUPERVISOR_HANDOFF_PREFIX = "MISSION_CONTROL_WORK_SUPERVISOR_HANDOFF_V1\n";
 export const WORK_CLOUD_AUTODISPATCH_PRODUCER_ID = "system:chatgpt-work-cloud-dispatch";
 
 export interface WorkCloudSourceChat {
@@ -25,7 +27,7 @@ export interface PreparedDirectWorkCloudDispatch {
   sourceChat: WorkCloudSourceChat;
   controllerRequest: {
     dispatchId: string;
-    mode: "CREATE";
+    mode: "CREATE" | "CONTINUE";
     binding: {
       worker: string;
       directiveId: string;
@@ -40,7 +42,7 @@ export interface PreparedDirectWorkCloudDispatch {
     sourceChatUrl: string;
     requestedWorkTitle: string;
     chatgptProjectId: string | null;
-    existingWorkThreadId: null;
+    existingWorkThreadId: string | null;
     prompt: string;
     requestedAt: string;
   };
@@ -103,6 +105,8 @@ export function discoverDirectWorkCloudDispatches(input: {
       || !receipt.bounded_execution || receipt.bounded_execution.execution_surface !== "CHATGPT_WORK_CLOUD") continue;
     const sourceChat = sourceBySupervisor.get(receipt.supervisor_id);
     if (!sourceChat) continue;
+    const sourceQuestionRequestId = receipt.continuation_binding?.decision_request_id ?? receipt.request_id;
+    const workQuestionContext = workQuestionContextForRequest(input.events, directive.worker, sourceQuestionRequestId);
     const bounded = receipt.bounded_execution;
     const sourceDirective = {
       id: directive.directive_id,
@@ -127,6 +131,7 @@ export function discoverDirectWorkCloudDispatches(input: {
       sourceMessageId: directive.source_message_id,
       sourceBodySha256: directive.source_body_sha256,
       sourceChatUrl: sourceChat.sourceChatUrl,
+      existingWorkThreadId: workQuestionContext?.workThreadId ?? null,
       boundedPromptSha256: sha256(bounded.prompt),
     })).slice(0, 32)}`;
     const workPrompt = buildDirectWorkPrompt({
@@ -165,7 +170,7 @@ export function discoverDirectWorkCloudDispatches(input: {
       sourceChat,
       controllerRequest: {
         dispatchId,
-        mode: "CREATE",
+        mode: workQuestionContext ? "CONTINUE" : "CREATE",
         binding: {
           worker: directive.worker,
           directiveId: directive.directive_id,
@@ -180,7 +185,7 @@ export function discoverDirectWorkCloudDispatches(input: {
         sourceChatUrl: sourceChat.sourceChatUrl,
         requestedWorkTitle: `Work — ${sourceChat.sourceChatTitle}`,
         chatgptProjectId: sourceChat.chatgptProjectId,
-        existingWorkThreadId: null,
+        existingWorkThreadId: workQuestionContext?.workThreadId ?? null,
         prompt: workPrompt,
         requestedAt: request?.type === "chatgpt_work_cloud_dispatch_requested" ? request.requested_at : input.requestedAt,
       },
@@ -203,6 +208,18 @@ export function buildDirectWorkPrompt(input: {
 }): string {
   const receiptTarget = `https://github.com/${input.receiptTarget.repository}/issues/${input.receiptTarget.stageIssueNumber}`;
   const ruleGraph = workHandoffRuleGraphProjection();
+  const privateHandoffTemplate = canonicalJson({
+    schemaVersion: 1,
+    dispatchId: input.dispatchId,
+    worker: input.worker,
+    taskId: input.taskId,
+    handoffKind: "REASONING_REQUIRED",
+    question: "<exact question for the supervisor>",
+    factualState: "<execution facts needed to answer the question>",
+    evidenceRefs: [],
+    questionSha256: "<sha256 of exact question>",
+    factualStateSha256: "<sha256 of exact factualState>",
+  });
   const receiptTemplate = canonicalJson({
     schemaVersion: 1,
     dispatchId: input.dispatchId,
@@ -224,10 +241,13 @@ export function buildDirectWorkPrompt(input: {
     `Originating Chat URL: ${input.sourceChat.sourceChatBrowserUrl ?? input.sourceChat.sourceChatUrl}`,
     "Receipt backlink to the originating Chat is required in any owner-facing Work receipt.",
     "Execute only the exact bounded directive below. Work has execution-facts authority only; it may not author methodology, strategy, adequacy, owner decisions, or the next consequential directive.",
-    `On COMPLETED, PARTIAL, BLOCKED, or FAILED, return exactly one machine receipt block in the final Work assistant message. Do not write the receipt to GitHub yourself; a deterministic Mission Control copier will publish the exact machine bytes to ${receiptTarget}.`,
+    `If execution reaches a reasoning/strategy/methodology/adequacy question that Work lacks authority to answer, do not ask the owner and do not decide that owner input is required. Ask the configured supervisor instead by emitting one private ${WORK_CLOUD_SUPERVISOR_HANDOFF_PREFIX.trimEnd()} block immediately before the public Work receipt. A deterministic local copier consumes this private block into Mission Control; it is never published to GitHub.`,
+    `Private supervisor-handoff JSON shape: ${privateHandoffTemplate}`,
+    "For a private supervisor handoff, set the public Work receipt to status BLOCKED, terminalState SUPERVISOR_REASONING_REQUIRED, and include blocker code SUPERVISOR_REASONING_REQUIRED. The supervisor—not Work—will decide whether existing authority resolves the question or a genuine owner decision must be surfaced on the Mission Control dashboard.",
+    `On COMPLETED, PARTIAL, BLOCKED, or FAILED, return exactly one public machine receipt block in the final Work assistant message. Do not write the receipt to GitHub yourself; a deterministic Mission Control copier will publish only these privacy-safe receipt bytes to ${receiptTarget}.`,
     `Prefix the machine block with ${WORK_CLOUD_EXECUTION_RECEIPT_PREFIX.trimEnd()} followed immediately by one strict JSON object. The block must be the final content in the response; a mandatory visible timestamp may precede it, but nothing may follow the JSON.`,
-    "The machine receipt may contain only control-plane facts: IDs already shown in the template, status/code fields, check counts, blocker codes, and artifact SHA-256 values.",
-    "Do not put prompts, private source text, credentials, absolute private filesystem paths, raw logs, free-form model reasoning, or artifact paths in the machine receipt.",
+    "The public machine receipt may contain only control-plane facts: IDs already shown in the template, status/code fields, check counts, blocker codes, and artifact SHA-256 values.",
+    "Do not put the private supervisor question, prompts, private source text, credentials, absolute private filesystem paths, raw logs, free-form model reasoning, or artifact paths in the public receipt.",
     `Receipt JSON shape: ${receiptTemplate}`,
     ...ruleGraphPromptBlock(ruleGraph),
     "EXACT_BOUNDED_DIRECTIVE_BEGIN",

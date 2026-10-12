@@ -64,6 +64,45 @@ export class MissionControlClient {
     return payload.event;
   }
 
+  async copyProviderDecision(input) {
+    const payload = await this.#requestJson('/api/github/decision-receipts/copy', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    }, { allowConflict: true });
+    if (payload?.status !== 'INGESTED' || payload?.requestId !== input.requestId
+      || payload?.providerSessionId !== input.providerSessionId
+      || payload?.canonicalBodySha256 !== input.canonicalBodySha256) {
+      throw new Error(`Mission Control deterministic decision copy did not confirm exact ingestion: ${safeMessage(payload)}`);
+    }
+    return payload;
+  }
+
+  async validateProviderDecision(input) {
+    let payload;
+    try {
+      payload = await this.#requestJson('/api/github/decision-receipts/validate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input),
+      }, { allowConflict: true });
+    } catch (error) {
+      throw recoveryFailure('VALID_DECISION_PRESENT_COPIER_FAILED', `Mission Control canonical-schema validation was unavailable: ${error instanceof Error ? error.message : 'unknown error'}`);
+    }
+    if (payload?.code === 'CANONICAL_SCHEMA_OR_IDENTITY_INVALID') {
+      throw recoveryFailure('ASSISTANT_RESPONSE_PRESENT_BUT_INVALID', `Mission Control authoritative canonical-schema validation rejected the recovered response: ${safeMessage(payload)}`);
+    }
+    if (payload?.status !== 'VALIDATED'
+      || payload?.validationScope !== 'CANONICAL_SCHEMA_AND_REQUEST_IDENTITY'
+      || payload?.ingestionAuthorized !== false
+      || payload?.requestId !== input.requestId
+      || payload?.providerSessionId !== input.providerSessionId
+      || payload?.canonicalBodySha256 !== input.canonicalBodySha256) {
+      throw recoveryFailure('READBACK_UNRESOLVED', `Mission Control canonical-schema validation did not confirm exact request/session/body identity: ${safeMessage(payload)}`);
+    }
+    return payload;
+  }
+
   async requestExecutionAdmission(worker, input) {
     return this.#requestJson(`/api/worker-channel/${encodeURIComponent(worker)}/admission`, {
       method: 'POST',
@@ -133,4 +172,11 @@ export class MissionControlClient {
 function safeMessage(value) {
   try { return JSON.stringify(value).slice(0, 1000); }
   catch { return 'unreadable error'; }
+}
+
+function recoveryFailure(classification, message) {
+  const error = new Error(message);
+  error.code = 'PROVIDER_DECISION_RECOVERY_FAILED';
+  error.classification = classification;
+  return error;
 }

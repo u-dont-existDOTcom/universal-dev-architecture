@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "The child result is complete while required parent outcomes remain unmet. ALLOW: SUBTASK_COMPLETE_PARENT_OPEN applies to this child only; the root and parent remain open with their current gap. The state is labeled truthfully. Separately, the owner requested early evaluation of an unfinished candidate: ALLOW: EARLY_OWNER_EVALUATION_PARENT_OPEN applies as explicitly nonterminal. A worker can request early feedback without pretending completion; that request does not close the root.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "The child is complete, therefore the parent and root are closed too.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The child deliverable is finished and its parent still has one unmet requirement. I labeled the child SUBTASK_COMPLETE_PARENT_OPEN, then archived the parent as closed because all currently assigned child work is done. The root result is still missing.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "child-parent-closure-at-boundary",
+    "non_substitute": "parent closed because a child is complete"
+  }
+}

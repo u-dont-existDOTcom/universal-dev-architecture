@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "At root closure I evaluated every terminal-required outcome as MET, UNMET or UNKNOWN against fresh direct evidence bound to this exact candidate and its commit identity. All required outcomes are MET; OWNER_OUTCOME_SATISFIED closes the root. The qualitative outcome has explicit criteria and claim-appropriate evidence. Missing or ambiguous authority would retain uncertainty and prohibit root satisfaction. Supporting work, preservation gates, editorial readiness, tests, reviewer approval, source integrity and READY_FOR_OWNER_REVIEW never substitute unless the owner requested that as the final result. READY_FOR_OWNER_REVIEW, HUMAN_REVIEW, HANDOFF_READY, EDITORIAL_REVIEW_READY, SUPERVISOR_APPROVED, PR_READY and TESTS_GREEN stay nonterminal by default; an explicit owner request may make that state the actual final outcome. An explicit owner cancellation or scope amendment may also close the root. Renaming an intermediate state does not change unmet requirements.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "Tests and review passed, so I renamed the handoff state DONE and closed the root with an unknown required result.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "Every required outcome has a fresh measurement that reports MET, and the root is labeled OWNER_OUTCOME_SATISFIED. The evidence ledger describes candidate A. The final candidate is B, with a last-minute substantive change; I reused the evidence because the change seemed harmless.",
+    "actor": {
+      "id": "synthetic-reviewer",
+      "kind": "fixture",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "terminal-evidence-at-boundary",
+    "non_substitute": "a receipt for a different candidate"
+  }
+}

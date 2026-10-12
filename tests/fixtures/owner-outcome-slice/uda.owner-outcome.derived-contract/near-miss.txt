@@ -1,0 +1,1 @@
+The full parent identity and all required outcome IDs are present. Each row has evidence and an owning parent; direct outcomes and thresholds are retained. To make the child easier to execute, its mandatory result is phrased as should. The source still says must, but both sentences refer to the same result, so I approved the contract.

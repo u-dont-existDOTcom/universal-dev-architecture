@@ -97,6 +97,36 @@ export function buildTrustedTaskCreationSelectionEnvelope(input: {
   };
 }
 
+export function sameWorkExecutionAuthorization(
+  existing: StoredEvent,
+  expected: AppendEnvelope,
+): boolean {
+  return sameStableSystemEvent(existing, expected, "system:work-profile-admission", "authorized_at");
+}
+
+export function sameTrustedTaskCreationSelection(
+  existing: StoredEvent,
+  expected: AppendEnvelope,
+): boolean {
+  return sameStableSystemEvent(existing, expected, "system:trusted-task-creation", "applied_at");
+}
+
+function sameStableSystemEvent(
+  existing: StoredEvent,
+  expected: AppendEnvelope,
+  producerId: string,
+  volatileDataField: string,
+): boolean {
+  if (existing.eventId !== expected.event_id || existing.missionId !== expected.mission_id
+    || existing.schemaVersion !== expected.schema_version
+    || existing.producerId !== producerId || existing.producerKind !== "SYSTEM") return false;
+  const existingData = { ...existing.data } as Record<string, unknown>;
+  const expectedData = { ...expected.data } as Record<string, unknown>;
+  delete existingData[volatileDataField];
+  delete expectedData[volatileDataField];
+  return canonicalJson(existingData) === canonicalJson(expectedData);
+}
+
 export function evaluatePersistedWorkExecutionPreflight(input: {
   worker: string;
   body: unknown;

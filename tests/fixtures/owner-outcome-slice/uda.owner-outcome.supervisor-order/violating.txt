@@ -1,0 +1,1 @@
+Verdict GREEN because every supplied child criterion passed. I did not inspect the originating outcome.

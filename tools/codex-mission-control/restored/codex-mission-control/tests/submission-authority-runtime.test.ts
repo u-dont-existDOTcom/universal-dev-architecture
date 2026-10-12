@@ -555,6 +555,32 @@ test("scheduler status verifies a large authority ledger once at startup and onl
   }
 });
 
+test("exact unsent proof fails closed after any submission-authority record names the request", async () => {
+  const store = new EventStore(":memory:");
+  const now = { value: origin };
+  const requestId = `fleet-review:${"5".repeat(32)}`;
+  try {
+    const authority = runtime(store, now);
+    const unsent = await authority.proveRequestUnsent(requestId);
+    assert.equal(unsent.provenUnsent, true);
+    assert.equal(unsent.ledgerValid, true);
+    assert.deepEqual(unsent.matchingStateSections, []);
+    assert.equal(unsent.queueRecordCount, 0);
+    assert.equal(unsent.admissionRecordCount, 0);
+    assert.match(unsent.proofSha256, /^[a-f0-9]{64}$/);
+
+    await authority.execute("admissions", request({ requestId, queueKey: "queue:stale-review" }), producer);
+    const recorded = await authority.proveRequestUnsent(requestId);
+    assert.equal(recorded.provenUnsent, false);
+    assert.ok(recorded.matchingStateSections.includes("queueItems"));
+    assert.ok(recorded.matchingStateSections.includes("admissions"));
+    assert.equal(recorded.queueRecordCount, 1);
+    assert.equal(recorded.admissionRecordCount, 1);
+  } finally {
+    store.close();
+  }
+});
+
 function runtime(
   store: EventStore,
   now: { value: number },

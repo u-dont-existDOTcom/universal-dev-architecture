@@ -1,0 +1,31 @@
+{
+  "requirement_id": "2026-10-09-mc-compact-dashboard-snapshot",
+  "date": "2026-10-09",
+  "source": "Direct owner task in the current chat for pr-351; bounded repository maintenance, working-tree handoff only.",
+  "owner_statement": "Task: on branch `claude/mc-compact-dashboard-snapshot-20261009` (pull request #351, task ID `pr-351`), make Mission Control's main dashboard load a small task snapshot.\n\n**Fix.**\n1. Give `/snapshot` an opt-in compact form, for example `?timeline=recent`: each worker's `timeline` keeps only its newest events (a small fixed number, at most 50, chosen so the snapshot stays well under 1 MB for the measured shape), plus `timelineTotal` and `timelineTruncated`. Without the parameter, the response is unchanged, so other consumers keep the full history.\n2. Have `/api/workers` pass that parameter through to the daemon, and have the main dashboard (`components/Dashboard.tsx`) request the compact form. Check every other caller of `/api/workers` and `/snapshot` (`SupervisionConsole`, `WorkerChannel`, `ReasoningTranscript`, runtime status and any script): keep the full form where the history is actually needed, and say which you chose for each and why.\n3. The worker detail page keeps loading its full timeline from its own endpoint.\n4. Don't change the dashboard's validation rules or what it shows.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT"
+  },
+  "status": "IMPLEMENTED_NOT_LIVE_VERIFIED",
+  "observable_result": "The dashboard requests the opt-in compact aggregate. Each timeline retains its newest 20 events in existing order with true totals/truncation metadata; default bytes and all other fields are preserved. History consumers and dedicated worker reads remain full.",
+  "non_satisfying_proxies": [
+    "Increasing the 45-second timeout",
+    "Weakening validation or hiding dashboard content",
+    "Truncating the default snapshot or worker-detail history",
+    "Claiming local fixture evidence proves deployed tunnel performance"
+  ],
+  "constraints": [
+    "No packages installed; no network or local sockets available",
+    "No deployment, commit, push, token disclosure, or modification of tasks/ACTIVE-TASK.json",
+    "Only a small self-contained snapshot-handler edit to coexist with the larger daemon repair",
+    "App tests, typecheck, build, root unittest, and exact branch/task-bound audit requested; unavailable dependencies and socket-only tests left to CI"
+  ],
+  "evidence": [
+    "tools/codex-mission-control/restored/codex-mission-control/tests/compact-snapshot.test.ts",
+    "tools/codex-mission-control/restored/codex-mission-control/tests/compact-snapshot-route.test.ts"
+  ],
+  "checkpoint": "state/tasks/task-dd8f17f4d7462829f4f0330dadb566fbfd0a6909e53682cc33797a7f0be34eaf.md",
+  "limits": "Response event-count bound only; unusually large retained events or non-timeline fields can still exceed 1 MB. No live-server assertion or universal lesson promotion.",
+  "owner_source_sha256": "0e7dd2d420297b2e8a81e6210feb883dbd98dc6b32a5a23a23f919b64a28e05e"
+}

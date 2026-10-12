@@ -1,0 +1,1 @@
+The checkpoint contains only completed child acceptance criteria and reports the whole root complete.

@@ -27,7 +27,11 @@ export async function loadConfig(env = process.env) {
     throw new Error(`No active or owner-authorized provisioning chat directory is configured (${chatsFile}, ${provisionsFile}).`);
   }
   assertCombinedSupervisorDirectory(chats, provisions);
-  const workerIds = [...new Set([...chats, ...provisions].map((chat) => chat.workerId).filter(Boolean))];
+  const additionalWorkerIds = optionalWorkerIdList(env.MC_RELAY_ADDITIONAL_WORKER_IDS_JSON);
+  const workerIds = [...new Set([
+    ...[...chats, ...provisions].map((chat) => chat.workerId).filter(Boolean),
+    ...additionalWorkerIds,
+  ])];
 
   const missionControlUrl = normalizeBaseUrl(required(env.MC_RELAY_MISSION_CONTROL_URL, 'MC_RELAY_MISSION_CONTROL_URL'));
   const producerId = required(env.MC_RELAY_PRODUCER_ID, 'MC_RELAY_PRODUCER_ID');
@@ -297,6 +301,19 @@ function optionalAccountEmail(value) {
     throw new Error('MC_RELAY_CHATGPT_ACCOUNT_EMAIL must be a plausible email address no longer than 320 characters.');
   }
   return normalized;
+}
+
+function optionalWorkerIdList(value) {
+  if (value == null || value === '') return [];
+  let parsed;
+  try { parsed = JSON.parse(value); }
+  catch { throw new Error('MC_RELAY_ADDITIONAL_WORKER_IDS_JSON must be a JSON array of worker IDs.'); }
+  if (!Array.isArray(parsed) || parsed.some((workerId) => typeof workerId !== 'string'
+    || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(workerId))) {
+    throw new Error('MC_RELAY_ADDITIONAL_WORKER_IDS_JSON must be a JSON array of valid worker IDs.');
+  }
+  if (new Set(parsed).size !== parsed.length) throw new Error('MC_RELAY_ADDITIONAL_WORKER_IDS_JSON worker IDs must be unique.');
+  return parsed;
 }
 
 function optionalInteger(value, minimum, maximum) {

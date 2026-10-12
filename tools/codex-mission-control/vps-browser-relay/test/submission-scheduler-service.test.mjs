@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createHmac } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { parseChatDirectory, parseChatProvisionDirectory, sha256 } from '../src/core.mjs';
 import {
@@ -12,6 +14,129 @@ import {
 } from '../src/submission-scheduler-service.mjs';
 
 const origin = Date.parse('2026-09-10T12:00:00.000Z');
+
+test('main authority reloads a persisted ledger containing every repair-written queue status', async () => {
+  const expectedStatuses = [
+    'QUEUED', 'ADMITTED', 'PRECLICK_RETRY_PENDING', 'RATE_LIMIT_RETRY_PENDING',
+    'BOUNDARY_RECORDED', 'AMBIGUOUS_AFTER_RESTART', 'AMBIGUOUS_INTERVAL_VIOLATION',
+    'AMBIGUOUS_EXPIRED_AT_BOUNDARY', 'AMBIGUOUS_LEASE_VIOLATION',
+    'RATE_LIMIT_RETRY_EXHAUSTED', 'CANCELLED_AT_TAKEOVER',
+    'CANCELLED_EXPIRED_ROUTE', 'CANCELLED_SUPERSEDED_ROUTE',
+  ];
+  const written = new Map();
+  const scenarios = [
+    async ({ scheduler, admission }) => {
+      await scheduler.recordBoundary({ admissionId: admission.admissionId,
+        boundaryAt: new Date(origin).toISOString(), boundaryKind: 'CLICKED' }, 'collector:relay');
+    },
+    async ({ scheduler, admission, now, input }) => {
+      await scheduler.abortBeforeBoundary({ admissionId: admission.admissionId,
+        relayStage: 'COMPOSER_FILLED', failureKind: 'PROVIDER_RATE_LIMIT' }, 'collector:relay');
+      now.value += 30_000;
+      const retry = await scheduler.admit(input, 'collector:relay');
+      await scheduler.abortBeforeBoundary({ admissionId: retry.admissionId,
+        relayStage: 'COMPOSER_FILLED', failureKind: 'PROVIDER_RATE_LIMIT' }, 'collector:relay');
+    },
+    async ({ scheduler, admission, input }) => {
+      await scheduler.abortBeforeBoundary({ admissionId: admission.admissionId,
+        relayStage: 'COMPOSER_FILLED' }, 'collector:relay');
+      await scheduler.cancelExpiredPreclickRetry({ queueItemId: admission.queueItemId,
+        requestId: input.requestId, sourceRouteExpiresAt: new Date(origin - 1).toISOString() }, 'collector:relay');
+    },
+    async ({ scheduler, admission, input }) => {
+      await scheduler.abortBeforeBoundary({ admissionId: admission.admissionId,
+        relayStage: 'COMPOSER_FILLED' }, 'collector:relay');
+      await scheduler.cancelSupersededPreclickRetry({ queueItemId: admission.queueItemId,
+        requestId: input.requestId, replacementRequestId: 'replacement:ledger',
+        failureReceiptSha256: 'e'.repeat(64) }, 'collector:relay');
+    },
+    async ({ scheduler, admission, now }) => {
+      await scheduler.abortBeforeBoundary({ admissionId: admission.admissionId,
+        relayStage: 'COMPOSER_FILLED' }, 'collector:relay');
+      now.value = Date.parse(primaryLease().expiresAt) + 60_000;
+      await scheduler.activateLease(secondaryTakeoverLease());
+    },
+    async ({ scheduler, now, input }) => {
+      now.value += 120_001;
+      await assert.rejects(scheduler.admit(input, 'collector:relay'), hasCode('SUBMISSION_RESTART_AMBIGUITY'));
+    },
+    ...[
+      [-1, 'SUBMISSION_BOUNDARY_PRECEDES_ADMISSION'],
+      [120_001, 'SUBMISSION_ADMISSION_EXPIRED_AT_BOUNDARY'],
+    ].map(([offset, code]) => async ({ scheduler, admission, now }) => {
+      now.value = Math.max(origin, origin + offset);
+      await assert.rejects(scheduler.recordBoundary({ admissionId: admission.admissionId,
+        boundaryAt: new Date(origin + offset).toISOString(), boundaryKind: 'CLICKED' }, 'collector:relay'), hasCode(code));
+    }),
+    async ({ scheduler, admission, store }) => {
+      // Simulate a persisted lease losing authority while the admission is open.
+      store.state.activeLease = { ...primaryLease(), expiresAt: new Date(origin).toISOString() };
+      store.state.leaseHistory = [store.state.activeLease];
+      await assert.rejects(scheduler.recordBoundary({ admissionId: admission.admissionId,
+        boundaryAt: new Date(origin).toISOString(), boundaryKind: 'CLICKED' }, 'collector:relay'),
+      hasCode('SUBMISSION_LEASE_INVALID_AT_BOUNDARY'));
+    },
+  ];
+
+  for (const [index, scenario] of scenarios.entries()) {
+    const now = { value: origin };
+    const store = new MemoryStore();
+    const originalWrite = store.write.bind(store);
+    store.write = async (value) => {
+      // Validate actual writer output rather than constructing status-only rows.
+      const normalized = normalizeSchedulerState(JSON.parse(JSON.stringify(value)));
+      for (const item of normalized.queueItems) {
+        written.set(item.status, { item: structuredClone(item), admissions: normalized.admissions
+          .filter((entry) => entry.queueItemId === item.queueItemId).map((entry) => structuredClone(entry)) });
+      }
+      return originalWrite(value);
+    };
+    const scheduler = makeScheduler(store, now);
+    await scheduler.activateLease(primaryLease());
+    const input = request({ requestId: `ledger:${index}`, queueKey: `queue:ledger:${index}` });
+    const admission = await scheduler.admit(input, 'collector:relay');
+    await scenario({ scheduler, admission, store, now, input });
+  }
+  assert.deepEqual([...written.keys()].sort(), [...expectedStatuses].sort());
+
+  // Combine independent transition snapshots into one synthetic recovery ledger.
+  // Keep immutable requests and their admission correspondence; disambiguate IDs.
+  const ledger = defaultSchedulerState(new Date(origin).toISOString());
+  for (const [status, { item, admissions }] of written) {
+    item.queueItemId += `:${status}`;
+    item.sequence = ledger.nextQueueSequence++;
+    item.admissionIds = admissions.map((entry) => `${entry.admissionId}:${status}`);
+    for (const entry of admissions) {
+      entry.queueItemId = item.queueItemId;
+      entry.admissionId += `:${status}`;
+      entry.sequence = ledger.nextSequence++;
+      if (entry.boundaryAt && (!ledger.lastBoundaryAt || entry.boundaryAt > ledger.lastBoundaryAt)) {
+        ledger.lastBoundaryAt = entry.boundaryAt;
+      }
+      ledger.admissions.push(entry);
+    }
+    ledger.queueItems.push(item);
+  }
+  const root = await mkdtemp(join(tmpdir(), 'mc-repair-ledger-'));
+  try {
+    const filename = join(root, 'submission-ledger.json');
+    await writeFile(filename, JSON.stringify(ledger));
+    const loaded = normalizeSchedulerState(JSON.parse(await readFile(filename, 'utf8')));
+    assert.deepEqual(loaded, ledger);
+    const store = { read: async () => normalizeSchedulerState(JSON.parse(await readFile(filename, 'utf8'))),
+      write: async () => assert.fail('Ledger inspection must not rewrite recovery state.') };
+    const status = await makeScheduler(store, { value: origin }).status();
+    assert.equal(status.queueDepth, 4);
+    const superseded = loaded.queueItems.find((item) => item.status === 'CANCELLED_SUPERSEDED_ROUTE');
+    assert.equal(superseded.supersededByRequestId, 'replacement:ledger');
+    assert.equal(superseded.supersessionFailureReceiptSha256, 'e'.repeat(64));
+    const corrupt = structuredClone(loaded);
+    corrupt.queueItems[0].status = 'UNKNOWN_REPAIR_STATUS';
+    assert.throws(() => normalizeSchedulerState(corrupt), /status is invalid/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test('central scheduler persists a single-use admission before the actual boundary and enforces 60 seconds globally', async () => {
   const now = { value: origin };
@@ -133,6 +258,41 @@ test('expired-route cancellation cannot erase crossed submission history', async
   await assert.rejects(
     scheduler.cancelExpiredPreclickRetry({ queueItemId: admitted.queueItemId, requestId: 'crossed-route', sourceRouteExpiresAt: new Date(now.value - 1).toISOString() }, 'collector:relay'),
     hasCode('SUBMISSION_QUEUE_CANCEL_STAGE_INVALID'),
+  );
+});
+
+test('exact replacement cancels only the same-producer proven pre-click retry', async () => {
+  const now = { value: origin };
+  const store = new MemoryStore();
+  const scheduler = makeScheduler(store, now);
+  await scheduler.activateLease(primaryLease());
+  const first = await scheduler.admit(request({ requestId: 'superseded-route', queueKey: 'queue:superseded-route' }), 'collector:relay');
+  await scheduler.abortBeforeBoundary({ admissionId: first.admissionId, relayStage: 'COMPOSER_FILLED' }, 'collector:relay');
+  const binding = {
+    queueItemId: first.queueItemId,
+    requestId: 'superseded-route',
+    replacementRequestId: 'replacement-route',
+    failureReceiptSha256: 'e'.repeat(64),
+  };
+  await assert.rejects(
+    scheduler.cancelSupersededPreclickRetry({ ...binding, requestId: 'wrong' }, 'collector:relay'),
+    hasCode('SUBMISSION_QUEUE_REQUEST_MISMATCH'),
+  );
+  await assert.rejects(
+    scheduler.cancelSupersededPreclickRetry(binding, 'collector:standby'),
+    hasCode('SUBMISSION_ADMISSION_PRODUCER_MISMATCH'),
+  );
+  const cancelled = await scheduler.cancelSupersededPreclickRetry(binding, 'collector:relay');
+  assert.equal(cancelled.cancelled, true);
+  assert.equal(cancelled.duplicate, false);
+  assert.equal(store.state.queueItems[0].status, 'CANCELLED_SUPERSEDED_ROUTE');
+  assert.equal(store.state.queueItems[0].supersededByRequestId, 'replacement-route');
+  assert.equal(store.state.queueItems[0].supersessionFailureReceiptSha256, 'e'.repeat(64));
+  assert.equal((await scheduler.status()).queueDepth, 0);
+  assert.equal((await scheduler.cancelSupersededPreclickRetry(binding, 'collector:relay')).duplicate, true);
+  await assert.rejects(
+    scheduler.cancelSupersededPreclickRetry({ ...binding, replacementRequestId: 'other-replacement' }, 'collector:relay'),
+    hasCode('SUBMISSION_QUEUE_REPLACEMENT_MISMATCH'),
   );
 });
 

@@ -32,6 +32,8 @@ import {
   completedWorkRoutingTelemetryCount,
   currentExecutionDirectiveProof,
   evaluatePersistedWorkExecutionPreflight,
+  sameTrustedTaskCreationSelection,
+  sameWorkExecutionAuthorization,
 } from "../lib/work-execution-runtime";
 
 const sourceDigest = "a".repeat(64);
@@ -572,6 +574,47 @@ function trustedEvidenceEvent(selected = profile()): StoredEvent {
       provider_task_locator: null, applied_at: "2026-09-14T03:01:00.000Z",
     } } as unknown as StoredEvent;
 }
+
+test("identical admission retries reuse stable authorization and setter evidence despite later timestamps", () => {
+  const selected = profile();
+    const request = admissionRequest(selected).request as ChatWorkAuthorityRequest;
+    const firstAt = "2026-09-14T03:00:00.000Z";
+    const retryAt = "2026-09-14T03:05:00.000Z";
+    const authorization = buildWorkExecutionAuthorizationEnvelope({ worker: "profile-worker", request, authorizedProfile: selected, now: firstAt });
+    const storedAuthorization = {
+      eventId: authorization.event_id, missionId: authorization.mission_id, schemaVersion: authorization.schema_version,
+      occurredAt: firstAt, receivedAt: firstAt, sequence: 1, previousHash: "0".repeat(64), eventHash: "1".repeat(64),
+      producerId: "system:work-profile-admission", producerKind: "SYSTEM", worker: "profile-worker", data: authorization.data,
+    } as StoredEvent;
+    const retriedAuthorization = buildWorkExecutionAuthorizationEnvelope({ worker: "profile-worker", request, authorizedProfile: selected, now: retryAt });
+    assert.equal(sameWorkExecutionAuthorization(storedAuthorization, retriedAuthorization), true);
+    const conflictingAuthorization = structuredClone(retriedAuthorization);
+    if (conflictingAuthorization.data.type !== "work_execution_profile_authorized") return;
+    conflictingAuthorization.data.source_body_sha256 = "f".repeat(64);
+    assert.equal(sameWorkExecutionAuthorization(storedAuthorization, conflictingAuthorization), false);
+
+    if (authorization.data.type !== "work_execution_profile_authorized") return;
+    const setter = buildTrustedTaskCreationSelectionEnvelope({
+      worker: "profile-worker", authorizationId: authorization.data.authorization_id,
+      directiveId: authorization.data.directive_id, directiveRevision: authorization.data.directive_revision,
+      taskId: authorization.data.task_id, authorizedProfile: selected, now: firstAt,
+    });
+    const storedSetter = {
+      eventId: setter.event_id, missionId: setter.mission_id, schemaVersion: setter.schema_version,
+      occurredAt: firstAt, receivedAt: firstAt, sequence: 2, previousHash: "1".repeat(64), eventHash: "2".repeat(64),
+      producerId: "system:trusted-task-creation", producerKind: "SYSTEM", worker: "profile-worker", data: setter.data,
+    } as StoredEvent;
+    const retriedSetter = buildTrustedTaskCreationSelectionEnvelope({
+      worker: "profile-worker", authorizationId: authorization.data.authorization_id,
+      directiveId: authorization.data.directive_id, directiveRevision: authorization.data.directive_revision,
+      taskId: authorization.data.task_id, authorizedProfile: selected, now: retryAt,
+    });
+    assert.equal(sameTrustedTaskCreationSelection(storedSetter, retriedSetter), true);
+    const conflictingSetter = structuredClone(retriedSetter);
+    if (conflictingSetter.data.type !== "work_task_creation_selection_applied") return;
+    conflictingSetter.data.effort_setter = "high";
+    assert.equal(sameTrustedTaskCreationSelection(storedSetter, conflictingSetter), false);
+});
 
 test("raw worker selection cannot satisfy the pure contract", () => {
   const selected = profile();

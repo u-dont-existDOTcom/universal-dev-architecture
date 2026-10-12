@@ -2,7 +2,7 @@ import { normalizeConversationUrl, sha256 } from './core.mjs';
 
 const PROVIDER_ROOT = 'https://chatgpt.com/';
 
-export function submissionSchedulerContext({ chat, target, expectedUrl, providerSessionId = null, requestId, queueKey, sendPath, bodySha256 }) {
+export function submissionSchedulerContext({ chat, target, expectedUrl, providerSessionId = null, requestId, taskId = null, queueKey, sendPath, bodySha256 }) {
   if (!chat || chat.ownership !== 'MISSION_CONTROL_ONLY' || !chat.registrationId) throw new Error('A current Mission Control-only supervisor registration is required before scheduling a send.');
   if (!target?.id || target.automationOwned !== true || !Number.isInteger(target.automationWindowId)) {
     throw new Error('An exact automation-owned target and window identity are required before scheduling a send.');
@@ -36,7 +36,8 @@ export function submissionSchedulerContext({ chat, target, expectedUrl, provider
   }
   return {
     requestId,
-    authorizationRef: chat.workerId ? `task:${chat.workerId}` : 'task:mission-control',
+    authorizationRef: chat.scope === 'PROJECT_MANAGER' && taskId
+      ? taskId : (chat.workerId ? `task:${chat.workerId}` : 'task:mission-control'),
     queueKey,
     sendPath,
     supervisorId: chat.supervisorId,

@@ -476,7 +476,7 @@ export class ControllerMediatedPmRuntime {
             referencedLabels: [],
           });
           const submitted = await this.browser.submitExactMessage(target, {
-            expectedUrl, body: prompt, bodySha256: promptSha256, onBeforeSubmissionBoundary, onSubmissionBoundary,
+            expectedUrl, body: prompt, bodySha256: promptSha256, composerMentions: messageApps.composerMentions ?? [], onBeforeSubmissionBoundary, onSubmissionBoundary,
           });
           return { ...submitted, messageApps };
         },
