@@ -21,6 +21,13 @@ The table lists the projects whose agents are wired to check their lanes; it is 
 
 Suggestions for this repository are pull requests here carrying the `uda-lane` label; see [step 9 of the suggested-fix pattern](../patterns/suggested-fix-queue.md#rule).
 
+### Public UDA repository write preflight (applies to **every** suggestion lane)
+
+Even when a suggestion is **for another project**, creating its file under `suggested-fixes/<repository>/` **changes this public UDA repository**. It must therefore use the same non-default-branch → PR targeting main → `uda-lane` label → one handoff comment workflow as any other UDA change. This is true for new files, revisions, and moves. GitHub Contents API calls must pass the explicit topic branch; leaving `branch` empty writes to the default branch and may succeed under a privileged bypass. Never use that fallback. Do not send any suggestion directly to main.
+
+**Privacy check before any public write:** exclude the owner's private health details, health experiences, interventions tried, personal medical chronology, private contacts and direct or paraphrased autobiographical reports, even when the proposed rule concerns medical research. Abstract the incident into a generic/synthetic regression without owner-identifying or owner-specific evidence. Never paste raw private chat into public files, PRs or comments. If earlier commits already exposed personal information, avoid quoting that content in new public artifacts; notify the owner privately and treat public-history remediation as a separately authorized step. Removing current file contents does not erase public commit history.
+
+
 ## Item format
 
 One file per suggestion, named `<YYYY-MM-DD>-<short-name>.md`. It starts with a title and these lines:
