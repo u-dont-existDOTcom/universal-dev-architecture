@@ -22,11 +22,13 @@ class EnforcementCoverageTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
         inventory = json.loads((ROOT / coverage.COVERAGE).read_text())
+        baseline = json.loads((ROOT / coverage.BASELINE).read_text())
         paths = {coverage.COVERAGE, coverage.BASELINE, coverage.METADATA,
                  coverage.LOCK, coverage.REQUIREMENT, "rules/UDA-RULE-GRAPH.json", "AGENTS.md",
                  "LESSON-INDEX.md", ".github/codex-repository.json", ".github/uda-kernel", "docs/uda-enforcement-coverage.md",
                  "scripts/uda_rule_graph_task_time.py", "scripts/instruction-layering-profile.json",
                  "examples/rule-graph/work-handoff.json", WORK_CONTRACT}
+        paths.update(addition["source"] for addition in baseline.get("owner_authorized_additions", []))
         paths.update(p.relative_to(ROOT).as_posix() for p in (ROOT / "patterns").rglob("*.md"))
         paths.update(e["path"] for entry in inventory["entries"] for e in entry["evidence"])
         for path in paths:
@@ -272,12 +274,13 @@ class EnforcementCoverageTests(unittest.TestCase):
             migration={"priority": "P1", "trigger_frequency": "EVERY_TURN",
                        "next_step": "Restore complete task-time admission coverage for the remaining operative obligations."}))
         baseline = self.read(coverage.BASELINE)
+        existing = list(baseline.get("owner_authorized_additions", []))
         for addition in (
                 {"id": target, "date": "2026-10-07", "owner_quote": "Approved.", "source": "test-only owner directive"},
                 {"id": target, "date": "2026-10-07", "owner_quote": "Approved."},
                 {"id": "patterns/another-entry.md", "date": "2026-10-07", "owner_quote": "Approved.", "source": "test-only owner directive"}):
             with self.subTest(addition=addition):
-                baseline["owner_authorized_additions"] = [addition]
+                baseline["owner_authorized_additions"] = existing + [addition]
                 self.write(coverage.BASELINE, baseline)
                 if addition.get("source") and addition["id"] == target:
                     self.assertEqual([], coverage.validate(self.root))
@@ -508,7 +511,7 @@ class EnforcementCoverageTests(unittest.TestCase):
         self.assertEqual(removed, report["removed_since_baseline"])
         self.assertEqual(7, len(removed))
         self.assertEqual(84, report["baseline_backlog_count"])
-        self.assertEqual(77, report["backlog_count"])
+        self.assertEqual(78, report["backlog_count"])
 
     def test_documented_counts_match_report(self):
         report = coverage.report(self.root)

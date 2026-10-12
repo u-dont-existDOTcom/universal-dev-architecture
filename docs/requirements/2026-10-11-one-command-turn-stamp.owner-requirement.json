@@ -1,0 +1,67 @@
+{
+  "requirement_id": "2026-10-11-one-command-turn-stamp",
+  "date": "2026-10-11",
+  "source": "Owner messages in a Claude chat on 2026-10-10 and 2026-10-11, after the owner watched the assistant's visible reasoning spend about ten seconds working out the turn's elapsed time.",
+  "owner_statement": "also i noticed you took 10 seconds to subtract the time from the time you started, that's insane ... good yes fix that timestamp rule pls, i've asked claude to fix that numerous times and it never seems to really fix it but fingers crossed.",
+  "problem": "Agents took the second clock reading and then did the subtraction, the minute-resolution range and the formatting in their own reasoning. That cost visible seconds every turn and once produced a malformed range (\"0m-6s\"). Earlier fixes in this class (2026-09-30-quick-clock-reads, 2026-09-30-clock-at-start-and-end, 2026-09-30-hardcoded-clock-order) changed the prose about which clock to read and when, but left the arithmetic to the model.",
+  "recurring_finding": {
+    "class": "Per-turn timing work done in the model's reasoning instead of mechanically.",
+    "prior_fixes": [
+      "2026-09-30-quick-clock-reads",
+      "2026-09-30-clock-at-start-and-end",
+      "2026-09-30-hardcoded-clock-order"
+    ],
+    "redesign": "Move the subtraction and formatting into scripts/turn_stamp.py, which takes the first reading, reads the clock once, and prints the finished first line, including the range when the first reading is only known to the minute. The rule now says to take the second reading through that one command rather than adding more wording about how to reason about time."
+  },
+  "required_behavior": [
+    "Get the second reading and the elapsed time from one command whose printed line becomes the final answer's first line.",
+    "Where this repository is checked out, use `python3 scripts/turn_stamp.py --start '<first reading>' --tz <zone>`; elsewhere, one inline shell command that prints the time and the difference.",
+    "Do no time arithmetic, range reasoning or timestamp formatting in reasoning.",
+    "A first reading known only to the minute is reported as the range the command prints.",
+    "If the command reports that the clock is earlier than the first reading, use the next clock in the AGENTS.md order once."
+  ],
+  "authority": "OWNER_REQUIRED. This adds a mechanical method for the second reading and the elapsed-time report. The two-reading limit, the clock order from 2026-09-30-hardcoded-clock-order, and the first-line timestamp contract stay in force.",
+  "scope": "The second clock reading and the total-time report on every turn under the universal architecture.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "notes": "The owner asked for the timestamp rule to be fixed after the assistant offered to add one-command timing. The script and its wording are the assistant's implementation of that request."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "Root AGENTS.md per-turn bootstrap invariants, the clock-cadence record in rules/rule-graph/task-time-metadata.v1.json with its generated lock and Mission Control projection, the root coverage map, and the per-turn clause pin in docs/requirements/2026-10-06-universal-enforcement-coverage.owner-requirement.json (27 to 28 clauses, re-pinned under this requirement)",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "scripts/turn_stamp.py and tests/test_turn_stamp.py",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Claude chats on claude.ai",
+      "disposition": "DEFERRED",
+      "reason": "The owner's claude.ai preferences carry their own copy of the timing instruction, which this repository cannot edit. The assistant gave the owner replacement wording to paste."
+    },
+    {
+      "surface": "ChatGPT chats that do not load this repository",
+      "disposition": "DEFERRED",
+      "reason": "They follow the owner's ChatGPT custom instructions; if those ask for reply timing, the same one-command method belongs there."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED",
+    "TESTED_TEXT_ONLY"
+  ],
+  "nonclaims": [
+    "Tests check the script's arithmetic and the rule text; they do not prove that a live assistant runs the command instead of reasoning about time.",
+    "The ten-second figure is the owner's observation of one turn, not a measurement recorded here.",
+    "Nothing here is LIVE_VERIFIED."
+  ],
+  "work_budget": {
+    "rendered_work_contract_bytes_before": 32561,
+    "rendered_work_contract_bytes_after": 32680,
+    "cap": 32768,
+    "note": "The new clause is bound by one selector to keep the rendered Work contract under the 32 KiB cap; the rule's other clauses are unchanged."
+  }
+}

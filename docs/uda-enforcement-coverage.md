@@ -39,11 +39,11 @@ The systemic gap fits existing logic-map entries: LF-2.1 for unloaded/stale guid
 
 ## Current counts
 
-Inventory entries: 98
+Inventory entries: 99
 
-Indexed patterns: 84
+Indexed patterns: 85
 
-Migration backlog: 77
+Migration backlog: 78
 
 Task-time records: 75, sourced from 13 files, with 2 mechanical and 83 semantic obligations. Corrected slice 2a adds 28 records and extends three continuity records; its 31 records carry 32 semantic behaviors and 281 mapped clause rows.
 
@@ -52,12 +52,12 @@ Task-time records: 75, sourced from 13 files, with 2 mechanical and 83 semantic 
 | STRUCTURED_ENFORCED | 9 |
 | STRUCTURED_PARTIAL | 9 |
 | WORKFLOW_ONLY | 10 |
-| LEGACY_UNSTRUCTURED | 68 |
+| LEGACY_UNSTRUCTURED | 69 |
 | NOT_ACTIVE | 2 |
 
 Six root sections, the two review/merge patterns and exclusive active-task locks are STRUCTURED_ENFORCED. Context-compaction resilience and terminal admission are STRUCTURED_PARTIAL with exact operative remainders, alongside the six earlier partial sources. Slice 2b also makes the owner-outcome invariant STRUCTURED_PARTIAL with exact server and Work-budget remainders. The parent owner outcome remains OPEN for operating-system slice 2c and later priorities.
 
-The immutable baseline pins 84 identities. Corrected backlog falls from 78 before slice 2a to 77: only the task-lock pattern is a complete promotion. Seven baseline identities are removed, with zero additions. P1 is 15, P2 is 47 and P3 is 15. The two review/merge identities never belonged to the baseline. The owner explicitly required correcting overstated dispositions; the requirement records that authority and pins partial clause maps without authorizing new baseline identities.
+The immutable baseline pins 84 identities. Corrected backlog falls from 78 before slice 2a to 77: only the task-lock pattern is a complete promotion. Seven baseline identities are removed. The owner-required cross-account continuity pattern adds one exact authorized legacy identity; the baseline pin is unchanged. P1 is 15, P2 is 48 and P3 is 15. The two review/merge identities never belonged to the baseline. The owner explicitly required correcting overstated dispositions; the requirement records that authority and pins partial clause maps without authorizing new baseline identities.
 
 ## Kernel slice 1 obligation map
 
@@ -167,6 +167,7 @@ Clauses 27; consolidated obligations 6; structured clauses 26; excepted 1; remai
 | Never compare clocks or read mid-task. | uda.kernel.clock-cadence / two-read-cadence |
 | The final answer opens with the second reading | uda.final.timestamp / final-elapsed-time |
 | and says how long the turn took in total. | uda.final.timestamp / final-elapsed-time |
+| Get the second reading and the elapsed time from one command that prints the finished first line, not from reasoning: | uda.kernel.clock-cadence / two-read-cadence |
 | Don't reuse a prior-turn timestamp | uda.kernel.clock-cadence / two-read-cadence |
 | or present capture time as hidden provider sent time. | uda.kernel.clock-cadence / two-read-cadence |
 | If no clock answers, say so rather than inventing a time. | uda.kernel.clock-cadence / two-read-cadence |
@@ -274,6 +275,7 @@ Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_
 | `patterns/carrying-uda-into-standalone-projects.md` | P2 | CONDITIONAL |
 | `patterns/consilience-and-expected-observability.md` | P2 | CONDITIONAL |
 | `patterns/coverage-before-depth-in-selection.md` | P2 | CONDITIONAL |
+| `patterns/cross-account-continuity.md` | P2 | CONDITIONAL |
 | `patterns/delegate-easy-work-to-cheaper-models.md` | P2 | CONDITIONAL |
 | `patterns/durable-chat-learning.md` | P2 | CONDITIONAL |
 | `patterns/durable-write-checkpoints.md` | P2 | CONDITIONAL |
@@ -1025,6 +1027,8 @@ Both actual sizes are measured through the compiler and Mission Control's produc
 | Rendered Work contract | 32,429 | 32,561 | 32,768 |
 | Injected Work block | 37,194 | 37,194 | 40,960 |
 
+On 2026-10-11 the owner-required one-command turn stamp (`docs/requirements/2026-10-11-one-command-turn-stamp.owner-requirement.json`) added one clock-cadence selector. The rendered Work contract rose from 32,561 to 32,680 bytes, 88 below the cap; the injected block was not re-measured with the Mission Control adapter.
+
 The five omitted event records add 132 rendered guard bytes and zero injected bytes; 207 rendered bytes remain. Three broader worker-duty proposals would actually be selected by unchanged Work facts if activated. Their complete definitions and source selectors are preserved as CANDIDATE in `rules/rule-graph/owner-outcome-budget-deferred.v1.json`, outside active metadata. Their mapped clauses remain legacy. The table measures explicit hypothetical CURRENT activation against the final five-record catalog, not the compiler's intentionally inactive CANDIDATE state:
 
 | Proposed record | Rendered addition | Rendered total | Injected addition | Injected total |
@@ -1204,3 +1208,7 @@ The following table is the inventory's complete obligation_map, including litera
 | 16-limits | - An owner may explicitly redefine the finish line. That creates a new outcome epoch; it does not retroactively make the old contract faithful. | uda.owner-outcome.epoch-amendment / epoch-amendment-at-boundary |
 | 16-limits | - Deterministic mapping catches structural omissions and threshold weakening. Semantic equivalence may still require Extra High, Pro, or the owner. | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
 | 17-required-relationship-to-other-mission-control-patterns | When they conflict, this owner correction governs task-contract authority and terminal-state integrity. | LEGACY: pre-action → owner-outcome-authority; budget proposal uda.owner-outcome.source-authority |
+
+## Cross-account continuity integration
+
+`patterns/cross-account-continuity.md` is LEGACY_UNSTRUCTURED with an index trigger and P2 conditional migration priority. Its tests preserve the four rules, owner quotation, privacy exclusions and routes; they do not prove live Git persistence, handoff updates or account continuity. The exact addition is recorded separately from the unchanged baseline identities. No task-time records, source locks or generated contracts change.

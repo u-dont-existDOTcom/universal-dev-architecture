@@ -231,7 +231,7 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
     && event.data.verified && event.data.refs.includes("retirement_reason:REQUEST_EXPIRED")
     && event.data.refs.includes(`evidence_boundary_event:${boundary.eventId}`));
   const requestId = `fleet-review:${sha256(`${watch.projectId}\n${boundary.eventId}${expiredRetirement ? `\n${expiredRetirement.eventId}` : ""}`).slice(0, 32)}`;
-  const factualState = canonicalJson(fleetReasoningFacts(decision, history, boundary));
+  const factualState = fleetReasoningFactualState(decision, history, boundary, watch.taskId);
   const evidenceSha256 = sha256(factualState);
   const expiresAt = new Date(Date.parse(queuedAt) + 24 * 60 * 60 * 1000).toISOString();
   const priorDecision = history.findLast((event) => event.data.type === "github_decision_receipt_ingested")?.data;
@@ -749,6 +749,85 @@ function isReviewBoundaryEvidence(event: StoredEvent) {
     && Boolean(event.data.exact_candidate_sha256)
     && event.data.refs.includes("status:STAGE_COMPLETE")
     && event.data.refs.includes("next_reasoning_review_required:true");
+}
+
+/** The longest factual state Mission Control's supervision admission accepts (`factualPacket.exactFactualState`). */
+export const FLEET_FACTUAL_STATE_LIMIT = 12_000;
+/** At most this many of the task's recorded supervisor decisions travel in each question's hand-off. */
+export const FLEET_SUPERVISION_HISTORY_DECISIONS = 3;
+
+/**
+ * The exact factual state of a fleet supervisor question: the task's current state, plus what its supervisor decided
+ * the last few times it was asked under the current owner outcome. Every question opens a fresh ChatGPT chat, so this
+ * history is the context the supervisor keeps from one question to the next. Decisions made under an earlier owner
+ * outcome are only counted: the owner replaced that outcome, so they are not current direction. Older decisions are
+ * left out first, and long fields are clipped, so the state stays within the admission's limit; when the current
+ * state leaves no room for a history at all, it goes without one, exactly as before.
+ */
+export function fleetReasoningFactualState(
+  decision: FleetSupervisorDecision,
+  events: readonly StoredEvent[],
+  boundary: StoredEvent,
+  taskId: string,
+  limit = FLEET_FACTUAL_STATE_LIMIT,
+): string {
+  const facts = fleetReasoningFacts(decision, events, boundary);
+  const { decisions, supersededOutcomeDecisions } = supervisionHistory(events, taskId);
+  for (let listed = Math.min(FLEET_SUPERVISION_HISTORY_DECISIONS, decisions.length); listed >= 0; listed -= 1) {
+    const state = canonicalJson({
+      ...facts,
+      supervision_history: {
+        about: "This task's supervisor decisions under the current owner outcome, newest first. Earlier ones are counted, not listed; long fields are clipped. Decisions made under an earlier owner outcome are only counted, because the owner replaced that outcome.",
+        recorded_decisions: decisions.length,
+        superseded_outcome_decisions: supersededOutcomeDecisions,
+        decisions: decisions.slice(0, listed),
+      },
+    });
+    if (state.length <= limit) return state;
+  }
+  return canonicalJson(facts);
+}
+
+/**
+ * The task's recorded supervisor decisions under the current owner outcome (the latest recorded outcome's id, epoch
+ * and hash), newest first: what was decided and why, in clipped form; and how many were made under an earlier one.
+ */
+function supervisionHistory(events: readonly StoredEvent[], taskId: string) {
+  const outcome = events.findLast((event) => event.data.type === "owner_outcome_recorded")?.data;
+  const taskDecisions = [...events].sort((left, right) => right.sequence - left.sequence)
+    .flatMap((event) => event.data.type === "github_decision_receipt_ingested" && event.data.task_id === taskId
+      ? [{ event, data: event.data }] : []);
+  const current = taskDecisions.filter(({ data }) => outcome?.type === "owner_outcome_recorded"
+    && data.owner_outcome_id === outcome.owner_outcome_id && data.owner_outcome_epoch === outcome.epoch
+    && data.owner_outcome_sha256 === outcome.owner_outcome_sha256);
+  const decisions = current.map(({ event, data }) => {
+    const execution = data.bounded_execution;
+    const ownerAction = data.owner_action;
+    return {
+      request_id: data.request_id,
+      recorded_at: event.occurredAt,
+      reasoning_lane: data.reasoning_lane,
+      strategy_id: execution?.strategy_id ?? null,
+      execution_objective: clip(execution?.execution_objective, 400),
+      reasoning_summary: clip(execution?.reasoning_summary, 800),
+      next_decision_changing_evidence: clip(execution?.next_decision_changing_evidence, 300),
+      owner_question: ownerAction?.kind === "DECISION_REQUIRED" ? clip(ownerAction.question, 300) : null,
+      decision_excerpt: execution ? null : clip(data.decision_block.exact_text, 600),
+    };
+  });
+  return { decisions, supersededOutcomeDecisions: taskDecisions.length - current.length };
+}
+
+/** The text cut to at most `limit` characters (whole code points), with an ellipsis when cut. */
+function clip(text: string | null | undefined, limit: number): string | null {
+  if (typeof text !== "string") return null;
+  if (text.length <= limit) return text;
+  let cut = "";
+  for (const character of text) {
+    if (cut.length + character.length > limit - 1) break;
+    cut += character;
+  }
+  return `${cut}…`;
 }
 
 function fleetReasoningFacts(

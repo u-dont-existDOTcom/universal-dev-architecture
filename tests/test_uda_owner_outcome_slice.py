@@ -21,6 +21,7 @@ SOURCE = 'patterns/owner-outcome-invariant-and-contract-laundering-prevention.md
 DEFERRED = 'rules/rule-graph/owner-outcome-budget-deferred.v1.json'
 FIXTURES = ROOT / 'tests/fixtures/owner-outcome-slice'
 PREFIX = 'uda.owner-outcome.'
+WORK_RENDERED = 32680  # rendered Work contract after the 2026-10-11 one-command turn stamp (slice 2b: 32561)
 # Independent boundary pins, not generated from the mutable metadata.
 # phase, destination, N/A, event fact, event value
 BOUNDARIES = {
@@ -219,15 +220,16 @@ class OwnerOutcomeSliceTests(unittest.TestCase):
         ids = {r['rule_id'] for r in actual['selected_rules']}
         self.assertTrue({'uda.continuity.step-checkpoint', 'uda.continuity.turn-end-handoff'} <= ids)
         self.assertFalse({r['rule_id'] for r in self.records} & ids)
-        self.assertEqual(32561, len(actual['rendered_contract'].encode()))
+        self.assertEqual(WORK_RENDERED, len(actual['rendered_contract'].encode()))
         self.assertLessEqual(len(actual['rendered_contract'].encode()), 32768)
-        expected = {'source-authority': (34906, 2345), 'checkpoint-packet': (33887, 1326), 'migration-repair': (34526, 1965)}
+        # Slice 2b measured 32561; the 2026-10-11 turn-stamp selector adds 119 bytes. Candidate deltas are unchanged.
+        expected = {'source-authority': (WORK_RENDERED + 2345, 2345), 'checkpoint-packet': (WORK_RENDERED + 1326, 1326), 'migration-repair': (WORK_RENDERED + 1965, 1965)}
         for record in self.deferred:
             candidate = tt.compile_contract({**self.catalog, 'records': self.catalog['records'] + [{**record, 'status': 'CURRENT'}]}, self.profile, task, 'graph')
             name = record['rule_id'].removeprefix(PREFIX)
             self.assertIn(record['rule_id'], {r['rule_id'] for r in candidate['selected_rules']})
             size = len(candidate['rendered_contract'].encode())
-            self.assertEqual(expected[name], (size, size - 32561))
+            self.assertEqual(expected[name], (size, size - WORK_RENDERED))
             self.assertGreater(size, 32768)
 
 

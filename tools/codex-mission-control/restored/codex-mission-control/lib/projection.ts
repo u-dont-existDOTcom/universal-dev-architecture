@@ -1,3 +1,12 @@
+import { isSpecificChatAddress } from "./supervisor-chat-address";
+import {
+  conflictedRelaySessions, supervisorActivity, type SupervisorActivity, type SupervisorRequestAdmission, type SupervisorTransportEvidence,
+} from "./supervisor-activity";
+import {
+  admittedCycleRequests, parseGitHubReceiptPolicy, retiredUnsentRequests, type GitHubReceiptPolicy, type PendingDecisionRequest,
+} from "./github-decision-receipts";
+import { inBandTransportEvidence } from "./in-band-request-binding";
+import { requestBoundTransportEvidence } from "./request-bound-supervision";
 import { correctionStatusLabel } from "./correction-lifecycle";
 import { driftConfig, DriftConfig } from "./drift-config";
 import type {
@@ -100,6 +109,8 @@ export interface WorkerState {
   supervisorChatUrl: string;
   supervisorChatLabel: string;
   supervisorChatIsPlaceholder: boolean;
+  /** What the task's supervisor chats have been asked and answered, newest first. */
+  supervisorActivity: SupervisorActivity;
   status: WorkerStatus;
   health: Health;
   workerToContractAlignment: WorkerAlignment;
@@ -246,6 +257,64 @@ export interface WorkerState {
   timeline: StoredEvent[];
 }
 
+/**
+ * The relay evidence every task's supervisor view shares: the receipt policy while its request-bound protocol is enabled
+ * (otherwise none, and sending isn't tracked), and the provider sessions its relays reused anywhere in the ledger.
+ */
+export interface SupervisorRelayContext { policy: GitHubReceiptPolicy | null; conflictedSessions: ReadonlySet<string> }
+
+/** Give it the whole ledger: a provider session reused for another task must count for neither. */
+export function supervisorRelayContext(events: StoredEvent[], policy: GitHubReceiptPolicy | null = enabledReceiptPolicy()): SupervisorRelayContext {
+  const relays = new Set(policy?.requestBound?.relayProducerIds ?? []);
+  return { policy, conflictedSessions: conflictedRelaySessions(events, relays) };
+}
+
+/** Like the routing code: the policy counts only while its request-bound protocol is enabled; an invalid one counts as none. */
+function enabledReceiptPolicy(): GitHubReceiptPolicy | null {
+  try {
+    const policy = parseGitHubReceiptPolicy();
+    return policy?.requestBound?.enabled === true ? policy : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Per admitted V5/V6 question, the transport evidence its validator's own rules accept (up to `now`), unless its
+ * provider session was reused for something else anywhere in the ledger.
+ */
+export function supervisorTransport(requests: Iterable<PendingDecisionRequest>, events: StoredEvent[], now: Date, relay: SupervisorRelayContext): Map<string, SupervisorTransportEvidence> {
+  const transport = new Map<string, SupervisorTransportEvidence>();
+  if (!relay.policy) return transport;
+  const at = now.toISOString();
+  for (const request of requests) {
+    const evidence = request.routeSchemaVersion === 6 ? inBandTransportEvidence(events, request, relay.policy, at)
+      : request.routeSchemaVersion === 5 ? requestBoundTransportEvidence(events, request, relay.policy, at) : null;
+    if (evidence && !(evidence.providerSessionId && relay.conflictedSessions.has(evidence.providerSessionId))) transport.set(request.requestId, evidence);
+  }
+  return transport;
+}
+
+/**
+ * Which supervisor questions and relay receipts Mission Control itself accepts (see SupervisorRequestAdmission), for
+ * one task's events; the relay context comes from the whole ledger when the caller has it.
+ */
+export function supervisorRequestAdmission(events: StoredEvent[], now: Date, relay: SupervisorRelayContext = supervisorRelayContext(events)): SupervisorRequestAdmission {
+  const { admitted, superseded } = admittedCycleRequests(events);
+  // The first admitted route event of each request is the question; a later copy of the same request id isn't another.
+  const first = new Map<string, PendingDecisionRequest>();
+  for (const request of admitted) if (!first.has(request.requestId) && request.sourceEventSequence !== undefined) first.set(request.requestId, request);
+  // Retired only with the full no-send proof Mission Control's own pending set requires; the fleet check retires an
+  // expired request on its own (reason REQUEST_EXPIRED), and any other retirement is a deliberate withdrawal.
+  const retired = new Map([...retiredUnsentRequests(events)].map(([requestId, reason]) =>
+    [requestId, reason === "REQUEST_EXPIRED" ? "EXPIRED_UNSENT" as const : "WITHDRAWN" as const]));
+  return {
+    admitted: new Map([...first].map(([requestId, request]) => [requestId, request.sourceEventSequence!])),
+    replaced: superseded, retired, tracksTransport: relay.policy !== null,
+    transport: supervisorTransport(first.values(), events, now, relay),
+  };
+}
+
 export function projectWorkers(events: StoredEvent[], now = new Date(), config: DriftConfig = driftConfig): WorkerState[] {
   const projectableWorkers = new Set(events.flatMap((event) => {
     if (event.data.type === "task_contract_recorded" || event.data.type === "objective_created") return [event.worker];
@@ -254,23 +323,26 @@ export function projectWorkers(events: StoredEvent[], now = new Date(), config: 
   const workerIds = [...new Set(events.map((event) => event.worker)
     .filter((worker): worker is string => typeof worker === "string" && projectableWorkers.has(worker)))];
   const telemetryCompletedCount = completedWorkRoutingTelemetryCount(events);
+  const relay = supervisorRelayContext(events);
   return workerIds
-    .map((worker) => projectWorker(events.filter((event) => event.worker === worker), now, config))
+    .map((worker) => projectWorker(events.filter((event) => event.worker === worker), now, config, relay))
     .map((worker) => ({ ...worker, workExecution: { ...worker.workExecution, telemetryCompletedCount } }))
     .sort((left, right) => attentionPriority(left) - attentionPriority(right)
       || severityScore(right.activeFindings[0]?.severity) - severityScore(left.activeFindings[0]?.severity)
       || new Date(left.lastCheckpointAt).getTime() - new Date(right.lastCheckpointAt).getTime());
 }
 
-export function projectWorker(events: StoredEvent[], now = new Date(), config: DriftConfig = driftConfig): WorkerState {
+/** One task's projection; `relay` carries the relay evidence from the whole ledger (projectWorkers passes it). */
+export function projectWorker(events: StoredEvent[], now = new Date(), config: DriftConfig = driftConfig, relay?: SupervisorRelayContext): WorkerState {
   const contract = latest(events, "task_contract_recorded");
-  return contract ? projectV2Worker(events, contract, now) : projectLegacyWorker(events, now, config);
+  return contract ? projectV2Worker(events, contract, now, relay) : projectLegacyWorker(events, now, config, relay);
 }
 
 function projectV2Worker(
   events: StoredEvent[],
   contract: Extract<MissionControlEventV2, { type: "task_contract_recorded" }>,
   now: Date,
+  relay?: SupervisorRelayContext,
 ): WorkerState {
   const checkpoint = latest(events, "worker_checkpoint_recorded");
   const assessment = latest(events, "supervisor_assessment_recorded");
@@ -333,8 +405,16 @@ function projectV2Worker(
     ?? progressWhy(progress, comparison.outcomeAdvancement)
     ?? (comparison.contractToOwnerAlignment !== "MATCH" ? comparison.currentGap : null)
     ?? terminalWhy(comparison);
-  const supervisorUrl = route?.supervisor_chat_url ?? latestSupervisorLink(events)?.supervisor_chat_url ?? "https://chatgpt.com/";
-  const supervisorLabel = route?.supervisor_chat_label ?? latestSupervisorLink(events)?.supervisor_chat_label ?? "Open supervisor chat";
+  // The recorded route's chat, else a supervisor chat link set for the worker: an address that can't open a specific
+  // chat (a placeholder or a home page) never hides a valid one. With no valid address, nothing is linked ("No
+  // supervisor chat linked") instead of pointing the owner at the ChatGPT home page.
+  const supervisorLink = latestSupervisorLink(events);
+  const supervisorChat = chooseSupervisorChat([
+    route && { url: route.supervisor_chat_url, label: route.supervisor_chat_label },
+    supervisorLink && { url: supervisorLink.supervisor_chat_url, label: supervisorLink.supervisor_chat_label },
+  ]);
+  const supervisorUrl = supervisorChat.url;
+  const supervisorLabel = supervisorChat.label;
   const lastCheckpoint = checkpointEvent(events) ?? events.at(-1)!;
   const channel = projectWorkerChannel(events);
 
@@ -362,7 +442,8 @@ function projectV2Worker(
     },
     supervisorChatUrl: supervisorUrl,
     supervisorChatLabel: supervisorLabel,
-    supervisorChatIsPlaceholder: /replace-|example|placeholder/i.test(supervisorUrl),
+    supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
+    supervisorActivity: supervisorActivity(events, now, supervisorRequestAdmission(events, now, relay)),
     status,
     health: comparison.overallTraffic,
     workerToContractAlignment: comparison.workerToContractAlignment,
@@ -675,7 +756,7 @@ function projectCorrection(
   };
 }
 
-function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConfig): WorkerState {
+function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConfig, relay?: SupervisorRelayContext): WorkerState {
   const objectiveEvent = events.find((event) => event.data.type === "objective_created");
   if (!objectiveEvent || objectiveEvent.data.type !== "objective_created") throw new Error("Worker has no objective contract");
   const objective = objectiveEvent.data;
@@ -731,7 +812,11 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
     pendingReasoningReview: true,
     unresolvedOwnerObligation: true,
   };
-  const supervisorUrl = link?.supervisor_chat_url ?? objective.supervisor_chat_url;
+  const legacySupervisorChat = chooseSupervisorChat([
+    link && { url: link.supervisor_chat_url, label: link.supervisor_chat_label },
+    { url: objective.supervisor_chat_url, label: objective.supervisor_chat_label },
+  ]);
+  const supervisorUrl = legacySupervisorChat.url;
   const channel = projectWorkerChannel(events);
   return {
     id: objective.worker,
@@ -756,8 +841,9 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
       legacy: true,
     },
     supervisorChatUrl: supervisorUrl,
-    supervisorChatLabel: link?.supervisor_chat_label ?? objective.supervisor_chat_label,
-    supervisorChatIsPlaceholder: /replace-|example|placeholder/i.test(supervisorUrl),
+    supervisorChatLabel: legacySupervisorChat.label,
+    supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
+    supervisorActivity: supervisorActivity(events, now, supervisorRequestAdmission(events, now, relay)),
     status: heartbeat?.status ?? "working",
     health: overall,
     workerToContractAlignment: workerAlignment,
@@ -1019,6 +1105,13 @@ export function projectWorkerConnection(events: StoredEvent[], now = new Date())
 function latest<T extends MissionControlEventV2["type"]>(events: StoredEvent[], type: T): Extract<MissionControlEventV2, { type: T }> | undefined {
   const data = [...events].reverse().find((event) => event.data.type === type)?.data;
   return data?.type === type ? data as Extract<MissionControlEventV2, { type: T }> : undefined;
+}
+
+/** The first candidate that opens a specific chat; otherwise the first recorded one (shown as not linked), or none. */
+function chooseSupervisorChat(candidates: Array<{ url: string; label?: string | null } | undefined | null | false>) {
+  const recorded = candidates.filter((candidate): candidate is { url: string; label?: string | null } => Boolean(candidate && candidate.url));
+  const chosen = recorded.find((candidate) => isSpecificChatAddress(candidate.url)) ?? recorded[0];
+  return { url: chosen?.url ?? "", label: chosen?.label || "Open supervisor chat" };
 }
 
 function latestSupervisorLink(events: StoredEvent[]) {
