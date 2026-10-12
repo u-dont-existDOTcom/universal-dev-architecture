@@ -748,8 +748,10 @@ clock skew after the later of the admission's expiry and the recorded decision. 
 the decision while holding the relay lock, so the relay that held the admission had stopped by then.
 When Mission Control is not ready yet, the command waits once, up to five minutes, then exits
 non-zero if the closure still has not happened; re-running it repeats only the Mission Control step
-with the same recorded decision. If a boundary for a closed send ever arrives, Mission Control
-records it as crossed without authority and halts fail closed.
+with the same recorded decision. If Mission Control's queue head is still a queued or retry item for
+that send, the command says so and exits non-zero; the relay's own cycle cancels such a pre-click
+retry once the send's route has expired. If a boundary for a closed send ever arrives, Mission
+Control records it as crossed without authority and halts fail closed.
 
 `retry` leaves Mission Control's record open, and Mission Control refuses to admit that send again
 while it is open. A send cut off before its intent was recorded, and journal or controller sends,

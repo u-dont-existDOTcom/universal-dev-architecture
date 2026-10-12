@@ -56,11 +56,12 @@ const CENTRAL_AMBIGUITY_DECISIONS = Object.freeze({
   submitted: 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY',
 });
 
-// Exit status for `resolve`: non-zero while Mission Control may still hold this send, or another send, open.
+// Exit status for `resolve`: non-zero while Mission Control may still hold this send open or queued, or
+// holds another send open.
 export function ambiguityResolutionExitCode(result) {
   const central = result?.central;
   if (!central || ['CLOSED', 'ALREADY_CLOSED', 'CLEAR'].includes(central.state)) return 0;
-  if (central.state === 'NOT_OPEN' && central.otherAdmissionOpen !== true) return 0;
+  if (central.state === 'NOT_OPEN' && central.otherAdmissionOpen !== true && !central.queueStatus) return 0;
   return 1;
 }
 
@@ -673,10 +674,15 @@ export class RelayRuntime {
     const status = await this.submissionPacer.remoteStatus();
     const open = status?.unresolvedAdmission ?? null;
     const known = typeof delivery.submissionAdmissionId === 'string' ? delivery.submissionAdmissionId : null;
-    if (!known && !open) return { state: 'CLEAR' };
+    const requestId = delivery.requestId ?? routeKey;
+    // Mission Control exposes its queue head; a head that is this send and not admitted (queued, or a pre-click or
+    // rate-limit retry) still holds the queue until it is cancelled.
+    const head = status?.queueHead ?? null;
+    const queueStatus = head && head.requestId === requestId && head.status !== 'ADMITTED' ? head.status : null;
+    if (!known && !open) return queueStatus ? { state: 'QUEUED_CENTRALLY', queueStatus } : { state: 'CLEAR' };
     const input = {
       admissionId: known ?? open.admissionId,
-      requestId: delivery.requestId ?? routeKey,
+      requestId,
       bodySha256: delivery.bodySha256,
       decision,
       decidedAt,
@@ -698,9 +704,12 @@ export class RelayRuntime {
             state: 'NOT_OPEN',
             admissionStatus: typeof error?.admissionStatus === 'string' ? error.admissionStatus : null,
             otherAdmissionOpen: open !== null && open.admissionId !== known,
+            ...(queueStatus ? { queueStatus } : {}),
           };
         }
-        if (!known && error?.code === 'SUBMISSION_AMBIGUITY_CLOSURE_MISMATCH') return { state: 'OPEN_FOR_ANOTHER_SEND' };
+        if (!known && error?.code === 'SUBMISSION_AMBIGUITY_CLOSURE_MISMATCH') {
+          return { state: 'OPEN_FOR_ANOTHER_SEND', ...(queueStatus ? { queueStatus } : {}) };
+        }
         throw error;
       }
     }

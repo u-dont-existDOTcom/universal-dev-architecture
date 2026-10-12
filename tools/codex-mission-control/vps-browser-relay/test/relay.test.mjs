@@ -23,7 +23,7 @@ import {
   defaultState,
 } from '../src/core.mjs';
 import { RelayRuntime, ambiguityResolutionExitCode } from '../src/relay.mjs';
-import { GlobalSubmissionPacer } from '../src/submission-pacing.mjs';
+import { CentralSubmissionScheduler, GlobalSubmissionPacer } from '../src/submission-pacing.mjs';
 
 const normalMetrics = { totalMb: 7941, availableMb: 5400, usedMb: 2541, swapTotalMb: 2048, swapUsedMb: 2, browserRssMb: 1700, sampledAt: '2026-09-02T00:00:00.000Z' };
 
@@ -1903,7 +1903,7 @@ test('V5 missing app chip is telemetry, not capability authorization', async () 
 });
 
 // A Mission Control stand-in that answers closures in order: each entry is a result or an error to throw.
-function centralAmbiguityFixture({ delivery, open = null, closeAnswers = [], statusError = null }) {
+function centralAmbiguityFixture({ delivery, open = null, queueHead = null, closeAnswers = [], statusError = null }) {
   const store = new MemoryStateStore();
   store.state.deliveries['request:r-1'] = structuredClone(delivery);
   const runtime = makeRuntime({ store, mc: new FakeMissionControl(), browser: new FakeBrowser(), submitEnabled: false });
@@ -1912,7 +1912,7 @@ function centralAmbiguityFixture({ delivery, open = null, closeAnswers = [], sta
   runtime.submissionPacer.remoteStatus = async () => {
     calls.status += 1;
     if (statusError) throw statusError;
-    return { authority: 'MISSION_CONTROL_SINGLE_WRITER', ledger: { valid: true }, unresolvedAdmission: open };
+    return { authority: 'MISSION_CONTROL_SINGLE_WRITER', ledger: { valid: true }, unresolvedAdmission: open, queueHead };
   };
   runtime.submissionPacer.closeAmbiguousAdmission = async (input) => {
     calls.close.push(structuredClone(input));
@@ -2053,4 +2053,51 @@ test('submitted closes Mission Control\'s record as an attested send, while retr
 
   const superseded = centralAmbiguityFixture({ delivery: { ...ambiguousDelivery, status: 'DISCARDED', resolution: 'OPERATOR_SUPERSEDED' } });
   await assert.rejects(superseded.runtime.resolve('request:r-1', 'discard'), /is DISCARDED; no ambiguity resolution is permitted/);
+});
+
+test('discard does not report success while Mission Control still queues a retry of the same send', async () => {
+  const capability = { status: 'FAILED_RETRYABLE', bodySha256: 'd'.repeat(64), lastAttemptAt: '2026-10-07T00:58:20.000Z' };
+  const queued = centralAmbiguityFixture({ delivery: capability, queueHead: { requestId: 'request:r-1', status: 'PRECLICK_RETRY_PENDING' } });
+  const result = await queued.runtime.resolve('request:r-1', 'discard');
+  assert.deepEqual(result.central, { state: 'QUEUED_CENTRALLY', queueStatus: 'PRECLICK_RETRY_PENDING' });
+  assert.equal(ambiguityResolutionExitCode(result), 1);
+  assert.equal(queued.calls.close.length, 0);
+
+  const otherHead = centralAmbiguityFixture({ delivery: capability, queueHead: { requestId: 'request:other', status: 'QUEUED' } });
+  const clear = await otherHead.runtime.resolve('request:r-1', 'discard');
+  assert.equal(clear.central.state, 'CLEAR');
+  assert.equal(ambiguityResolutionExitCode(clear), 0);
+
+  const aborted = centralAmbiguityFixture({
+    delivery: { ...ambiguousDelivery, status: 'FAILED_RETRYABLE' },
+    queueHead: { requestId: 'r-1', status: 'PRECLICK_RETRY_PENDING' },
+    closeAnswers: [schedulerError('SUBMISSION_AMBIGUITY_CLOSURE_STAGE_INVALID', { admissionStatus: 'ABORTED_BEFORE_BOUNDARY' })],
+  });
+  const notOpen = await aborted.runtime.resolve('request:r-1', 'discard');
+  assert.deepEqual(notOpen.central, { state: 'NOT_OPEN', admissionStatus: 'ABORTED_BEFORE_BOUNDARY', otherAdmissionOpen: false, queueStatus: 'PRECLICK_RETRY_PENDING' });
+  assert.equal(ambiguityResolutionExitCode(notOpen), 1);
+});
+
+test('submitted reaches Mission Control through the real relay scheduler as an attested send', async () => {
+  const forwarded = [];
+  const store = new MemoryStateStore();
+  store.state.deliveries['request:r-1'] = structuredClone(ambiguousDelivery);
+  const client = {
+    async status() { return { authority: 'MISSION_CONTROL_SINGLE_WRITER', ledger: { valid: true }, unresolvedAdmission: null, queueHead: null }; },
+    async admit() { throw new Error('no admission expected'); },
+    async validateAdmission() { throw new Error('no validation expected'); },
+    async recordBoundary() { throw new Error('no boundary expected'); },
+    async bindTarget() { throw new Error('no binding expected'); },
+    async recordRateLimit() { throw new Error('no rate limit expected'); },
+    async abortBeforeBoundary() { throw new Error('no abort expected'); },
+    async recordOutcome() { throw new Error('no outcome expected'); },
+    async closeAmbiguousAdmission(input) { forwarded.push(input); return { closed: true, duplicate: false, closedAt: '2026-10-12T05:40:00.000Z' }; },
+  };
+  const pacer = new CentralSubmissionScheduler({ schedulerClient: client, stateStore: store, host: { alias: 'primary-test', role: 'PRIMARY', deploymentEpoch: 1, leaseId: 'lease-primary-1' }, minIntervalMs: 60_000 });
+  const runtime = makeRuntime({ store, mc: new FakeMissionControl(), browser: new FakeBrowser(), submitEnabled: false, submissionPacer: pacer });
+  const resolved = await runtime.resolve('request:r-1', 'submitted');
+  assert.equal(resolved.central.state, 'CLOSED');
+  assert.equal(forwarded.length, 1);
+  assert.equal(forwarded[0].decision, 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY');
+  assert.equal(forwarded[0].decidedAt, store.state.deliveries['request:r-1'].confirmedAt);
 });
