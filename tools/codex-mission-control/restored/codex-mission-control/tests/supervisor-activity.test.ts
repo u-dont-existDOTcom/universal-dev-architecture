@@ -431,6 +431,13 @@ test("an activity state without the times it is about is not accepted", () => {
     "a withdrawn question with a chat": { ...bare, state: "WITHDRAWN", conversationUrl: chat },
     "an answer with a chat but no send": { ...bare, state: "ANSWERED", answeredAt: times.answeredAt, conversationUrl: chat },
   })) assert.equal(isSupervisorActivity(withRequest(listed)), false, what);
+  // Nor times in an impossible order.
+  for (const [what, listed] of Object.entries({
+    "a finish before its send": { ...bare, state: "FINISHED", sentAt: times.sentAt, finishedAt: "2026-10-11T10:04:00Z", expiresAt: times.expiresAt },
+    "a send before it was queued": { ...bare, state: "SENT", sentAt: "2026-10-11T09:59:00Z", expiresAt: times.expiresAt },
+    "an answer before it was queued": { ...bare, state: "ANSWERED", answeredAt: "2026-10-11T09:59:00Z", expiresAt: times.expiresAt },
+    "an expiry before it was queued": { ...bare, state: "EXPIRED", expiresAt: "2026-10-11T09:59:00Z" },
+  })) assert.equal(isSupervisorActivity(withRequest(listed)), false, what);
   assert.equal(isSupervisorActivity({ ...good, requests: [{ ...request, sentAt: "yesterday" }] }), false);
   assert.equal(isSupervisorActivity({ ...good, requests: [{ ...request, queuedAt: "soon" }] }), false);
   assert.equal(isSupervisorActivity({ ...good, lastSentAt: "never" }), false);
@@ -520,6 +527,14 @@ test("a question retired as never sent, but with a trusted send, shows the confl
   assert.equal(pendingRoute({ state: "RETIRED_BUT_SENT" }), false);
   const unsent = activityOf([route("fleet-review:quiet", "2026-10-11T08:00:00Z")], [], { "fleet-review:quiet": "WITHDRAWN" });
   assert.equal(unsent.requests[0].state, "WITHDRAWN", "without a send, a retirement reads as before");
+});
+
+test("an answer recorded a moment before its question's queue time shows at the queue time", () => {
+  const skewed = activityOf([route("fleet-review:skew", "2026-10-11T10:00:00Z"), decision("fleet-review:skew", "2026-10-11T09:59:30Z")]);
+  const [request] = skewed.requests;
+  assert.equal(request.state, "ANSWERED");
+  assert.equal(Date.parse(request.answeredAt!), Date.parse(request.queuedAt));
+  assert.equal(isSupervisorActivity(skewed), true);
 });
 
 test("each aggregate comes from the newest question that has it, and every question that could hold a newer one is carried", () => {

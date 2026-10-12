@@ -238,7 +238,10 @@ function projectRequests(unordered: readonly StoredEvent[], now: Date, admission
     if (data.type !== "github_decision_receipt_ingested") continue;
     const draft = drafts.get(data.request_id);
     if (!draft || draft.answeredAt) continue;
-    draft.answeredAt = timestamp(data.ingested_at) ?? event.occurredAt;
+    // Producers' clocks can differ by a little: an answer recorded a moment before its question's queue time shows at
+    // the queue time, so the question's times never run backwards.
+    const recordedAt = timestamp(data.ingested_at) ?? event.occurredAt;
+    draft.answeredAt = instant(recordedAt) < instant(draft.queuedAt) ? draft.queuedAt : recordedAt;
     draft.answer = shorten(answerOf(data), ANSWER_LIMIT);
   }
 
@@ -371,9 +374,22 @@ function requestFits(item: unknown, states: Record<string, unknown>): boolean {
     && ["supervisorId", "question", "answer"].every((key) => nullableString(request[key]))
     && ["expiresAt", "sentAt", "finishedAt", "answeredAt"].every((key) => timeOrNull(request[key]))
     && (STATE_TIMES[request.state as SupervisorRequestState] ?? []).every((key) => request[key] !== null)
+    && chronological(request)
     && fieldsFitState(request)
     && chatAddressOrNull(request.conversationUrl)
     && Object.hasOwn(states, request.requestId) && states[request.requestId] === request.state;
+}
+
+/** A question's times in the order things happen: queued before it expires, is sent or is answered; sent before it finishes. */
+function chronological(request: Record<string, unknown>): boolean {
+  const at = (key: string) => (typeof request[key] === "string" ? instant(request[key] as string) : null);
+  const queued = at("queuedAt")!;
+  const sent = at("sentAt");
+  const finished = at("finishedAt");
+  const answered = at("answeredAt");
+  const expires = at("expiresAt");
+  return (expires === null || expires > queued) && (sent === null || sent >= queued)
+    && (finished === null || (sent !== null && finished >= sent)) && (answered === null || answered >= queued);
 }
 
 /**
