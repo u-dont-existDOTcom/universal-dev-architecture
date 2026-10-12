@@ -410,3 +410,31 @@ test('request-bound post-click rate limit never launches a second provider trans
   await assert.rejects(scheduler.submit({ context: { ...context(), sendPath: 'SUPERVISORY_CYCLE_REQUEST_BOUND_DECISION' }, submit: async () => { sends++; throw error; } }));
   assert.equal(sends, 1); assert.equal(boundaries, 1); assert.equal(retries, 0);
 });
+
+test('a central ambiguity closure carries the exact recorded owner decision and refuses any other', async () => {
+  const forwarded = [];
+  const client = {
+    async status() { return centralStatus(); },
+    async admit() { throw new Error('no admission expected'); },
+    async validateAdmission() { throw new Error('no validation expected'); },
+    async recordBoundary() { throw new Error('no boundary expected'); },
+    async bindTarget() { throw new Error('no binding expected'); },
+    async recordRateLimit() { throw new Error('no rate limit expected'); },
+    async abortBeforeBoundary() { throw new Error('no abort expected'); },
+    async recordOutcome() { throw new Error('no outcome expected'); },
+    async closeAmbiguousAdmission(input) { forwarded.push(input); return { closed: true, duplicate: false }; },
+  };
+  const scheduler = new CentralSubmissionScheduler({ schedulerClient: client, stateStore: new MemoryStateStore(), host: host(), minIntervalMs: 60_000 });
+  const closure = { admissionId: 'send-admission:r-1', requestId: 'r-1', bodySha256: 'a'.repeat(64), decidedAt: '2026-10-12T05:18:26.000Z' };
+  for (const decision of ['OWNER_DISCARDED_NO_REPLAY', 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY']) {
+    await scheduler.closeAmbiguousAdmission({ ...closure, decision });
+  }
+  assert.deepEqual(forwarded.map((input) => input.decision), ['OWNER_DISCARDED_NO_REPLAY', 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY']);
+  assert.deepEqual(forwarded[1], { ...closure, decision: 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY' });
+  for (const decision of [undefined, 'OWNER_SAID_SO']) {
+    await assert.rejects(scheduler.closeAmbiguousAdmission({ ...closure, decision }), /CENTRAL_AMBIGUITY_DECISION_INVALID/);
+  }
+  assert.equal(forwarded.length, 2);
+  delete client.closeAmbiguousAdmission;
+  await assert.rejects(scheduler.closeAmbiguousAdmission({ ...closure, decision: 'OWNER_DISCARDED_NO_REPLAY' }), /CENTRAL_SCHEDULER_CLOSE_UNAVAILABLE/);
+});

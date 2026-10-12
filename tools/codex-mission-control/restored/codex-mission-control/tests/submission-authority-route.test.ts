@@ -21,7 +21,7 @@ test("submission-authority BFF authenticates a bound relay kind before forwardin
     let forwarded = 0;
     globalThis.fetch = async (url, init) => {
       forwarded += 1;
-      assert.ok(["/submission-authority/status", "/submission-authority/admissions/proof", "/submission-authority/admissions", "/submission-authority/expired-preclick-retries/cancel"].includes(new URL(String(url)).pathname));
+      assert.ok(["/submission-authority/status", "/submission-authority/admissions/proof", "/submission-authority/admissions", "/submission-authority/expired-preclick-retries/cancel", "/submission-authority/admissions/close-ambiguous"].includes(new URL(String(url)).pathname));
       const headers = new Headers(init?.headers);
       assert.equal(headers.get("x-mission-control-producer-id"), "collector:primary");
       assert.equal(headers.get("x-mission-control-producer-kind"), "COLLECTOR");
@@ -73,6 +73,21 @@ test("submission-authority BFF authenticates a bound relay kind before forwardin
     }), { params: Promise.resolve({ operation: ["expired-preclick-retries", "cancel"] }) });
     assert.equal(cancelled.status, 200);
     assert.equal(forwarded, 4);
+
+    const closure = await route.POST(new Request("https://mission-control.example/api/submission-authority/admissions/close-ambiguous", {
+      method: "POST",
+      headers: { authorization: `Bearer ${relayToken}`, "x-mission-control-producer-id": "collector:primary", "content-type": "application/json" },
+      body: JSON.stringify({ admissionId: "send-admission:test", requestId: "request:test", bodySha256: "a".repeat(64), decision: "OWNER_DISCARDED_NO_REPLAY", decidedAt: "2026-10-12T05:40:00.000Z" }),
+    }), { params: Promise.resolve({ operation: ["admissions", "close-ambiguous"] }) });
+    assert.equal(closure.status, 200);
+    assert.equal(forwarded, 5);
+    const workerClosure = await route.POST(new Request("https://mission-control.example/api/submission-authority/admissions/close-ambiguous", {
+      method: "POST",
+      headers: { authorization: `Bearer ${workerToken}`, "x-mission-control-producer-id": "worker:test", "content-type": "application/json" },
+      body: "{}",
+    }), { params: Promise.resolve({ operation: ["admissions", "close-ambiguous"] }) });
+    assert.equal(workerClosure.status, 403);
+    assert.equal(forwarded, 5);
   } finally {
     globalThis.fetch = originalFetch;
     restore("MISSION_CONTROL_INTERNAL_TOKEN", originalEnvironment.MISSION_CONTROL_INTERNAL_TOKEN);

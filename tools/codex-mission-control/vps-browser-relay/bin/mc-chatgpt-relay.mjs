@@ -11,7 +11,7 @@ import { ChromeDevtoolsBrowser } from '../src/cdp.mjs';
 import { installAutomationOwnedBrowser } from '../src/automation-owned-browser.mjs';
 import { installStuckRecovery } from '../src/stuck-recovery.mjs';
 import { MissionControlClient } from '../src/mission-control.mjs';
-import { RelayRuntime } from '../src/relay.mjs';
+import { RelayRuntime, ambiguityResolutionExitCode } from '../src/relay.mjs';
 import { StateStore } from '../src/state.mjs';
 import { relayCommandLockOptions } from '../src/relay-lock.mjs';
 import { classifyMemoryPressure, oneShotExitCode, resolveMemoryPolicy } from '../src/core.mjs';
@@ -264,7 +264,9 @@ try {
     const routeKey = process.argv[3];
     const outcome = process.argv[4];
     if (!routeKey || !outcome) throw new Error('Usage: mc-chatgpt-relay resolve <route-key> <retry|submitted|discard>');
-    print(await runtime.resolve(routeKey, outcome));
+    const result = await runtime.resolve(routeKey, outcome);
+    print(result);
+    if (ambiguityResolutionExitCode(result) !== 0) process.exitCode = 1;
   } else {
     throw new Error('Usage: mc-chatgpt-relay <doctor|health-report|mcp-preflight|capabilities|provision|once|once-request|once-exact|journal-work|run|controller-init|controller-once|controller-run|status|lock-status|resolve>');
   }

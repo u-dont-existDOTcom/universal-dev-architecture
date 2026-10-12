@@ -22,8 +22,8 @@ import {
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
   defaultState,
 } from '../src/core.mjs';
-import { RelayRuntime } from '../src/relay.mjs';
-import { GlobalSubmissionPacer } from '../src/submission-pacing.mjs';
+import { RelayRuntime, ambiguityResolutionExitCode } from '../src/relay.mjs';
+import { CentralSubmissionScheduler, GlobalSubmissionPacer } from '../src/submission-pacing.mjs';
 
 const normalMetrics = { totalMb: 7941, availableMb: 5400, usedMb: 2541, swapTotalMb: 2048, swapUsedMb: 2, browserRssMb: 1700, sampledAt: '2026-09-02T00:00:00.000Z' };
 
@@ -1900,4 +1900,259 @@ test('V5 missing app chip is telemetry, not capability authorization', async () 
   const result = await runtime.cycle();
   assert.equal(result.status, 'REQUEST_BOUND_DECISION_GENERATION_STARTED', JSON.stringify(result));
   assert.equal(browser.submitCalls, 1);
+});
+
+// A Mission Control stand-in that answers closures in order: each entry is a result or an error to throw.
+function centralAmbiguityFixture({ delivery, open = null, queueHead = null, closeAnswers = [], statusError = null }) {
+  const store = new MemoryStateStore();
+  store.state.deliveries['request:r-1'] = structuredClone(delivery);
+  const runtime = makeRuntime({ store, mc: new FakeMissionControl(), browser: new FakeBrowser(), submitEnabled: false });
+  const calls = { status: 0, close: [], waits: [] };
+  runtime.sleepImpl = async (ms) => { calls.waits.push(ms); };
+  runtime.submissionPacer.remoteStatus = async () => {
+    calls.status += 1;
+    if (statusError) throw statusError;
+    return { authority: 'MISSION_CONTROL_SINGLE_WRITER', ledger: { valid: true }, unresolvedAdmission: open, queueHead };
+  };
+  runtime.submissionPacer.closeAmbiguousAdmission = async (input) => {
+    calls.close.push(structuredClone(input));
+    const answer = closeAnswers.shift();
+    if (answer instanceof Error) throw answer;
+    return answer;
+  };
+  return { store, runtime, calls };
+}
+
+function schedulerError(code, detail = {}) {
+  return Object.assign(new Error(`${code}: refused`), { code, ...detail });
+}
+
+const ambiguousDelivery = {
+  status: 'AMBIGUOUS_AFTER_RESTART', requestId: 'r-1', workerId: 'worker-a', supervisorId: 'spec', bodySha256: 'c'.repeat(64),
+  submissionAdmissionId: 'send-admission:r-1', lastAttemptAt: '2026-10-07T00:58:20.000Z',
+};
+const openAdmission = { admissionId: 'send-admission:r-1', admittedAt: '2026-10-07T00:58:00.000Z', expiresAt: '2026-10-07T01:00:00.000Z', status: 'ADMITTED' };
+
+test('discard closes Mission Control\'s open admission for the same send, waiting once for its interval', async () => {
+  const closableAt = new Date(Date.now() + 2_000).toISOString();
+  const { store, runtime, calls } = centralAmbiguityFixture({
+    delivery: ambiguousDelivery,
+    open: openAdmission,
+    closeAnswers: [
+      schedulerError('SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY', { closableAt }),
+      { closed: true, duplicate: false, closedAt: '2026-10-12T05:40:00.000Z' },
+    ],
+  });
+  const resolved = await runtime.resolve('request:r-1', 'discard');
+  assert.equal(resolved.status, 'AMBIGUITY_RESOLVED');
+  assert.deepEqual(resolved.central, { state: 'CLOSED', closedAt: '2026-10-12T05:40:00.000Z' });
+  assert.equal(ambiguityResolutionExitCode(resolved), 0);
+  const discarded = store.state.deliveries['request:r-1'];
+  assert.equal(discarded.status, 'DISCARDED');
+  assert.equal(discarded.resolution, 'OPERATOR_DISCARDED');
+  const expected = { admissionId: 'send-admission:r-1', requestId: 'r-1', bodySha256: 'c'.repeat(64), decision: 'OWNER_DISCARDED_NO_REPLAY', decidedAt: discarded.resolvedAt };
+  assert.deepEqual(calls.close, [expected, expected]);
+  assert.equal(calls.waits.length, 1);
+  assert.ok(calls.waits[0] >= 1_000 && calls.waits[0] <= 3_100, String(calls.waits[0]));
+});
+
+test('re-running a discard re-sends the same decision by the known admission and reports what Mission Control holds', async () => {
+  const discarded = { ...ambiguousDelivery, status: 'DISCARDED', resolution: 'OPERATOR_DISCARDED', resolvedAt: '2026-10-12T05:18:26.000Z', lastError: null };
+  const duplicate = centralAmbiguityFixture({
+    delivery: discarded, open: null, closeAnswers: [{ closed: true, duplicate: true, closedAt: '2026-10-12T05:40:00.000Z' }],
+  });
+  const repeated = await duplicate.runtime.resolve('request:r-1', 'discard');
+  assert.equal(repeated.central.state, 'ALREADY_CLOSED');
+  assert.deepEqual(duplicate.store.state.deliveries['request:r-1'], discarded);
+  assert.equal(duplicate.calls.close[0].decidedAt, '2026-10-12T05:18:26.000Z');
+  assert.equal(duplicate.calls.close[0].admissionId, 'send-admission:r-1');
+
+  // Mission Control meanwhile admitted a different send: the repeat still says so and exits non-zero.
+  const busy = centralAmbiguityFixture({
+    delivery: discarded,
+    open: { ...openAdmission, admissionId: 'send-admission:other' },
+    closeAnswers: [{ closed: true, duplicate: true, closedAt: '2026-10-12T05:40:00.000Z' }],
+  });
+  const busyRepeat = await busy.runtime.resolve('request:r-1', 'discard');
+  assert.deepEqual(busyRepeat.central, { state: 'ALREADY_CLOSED', closedAt: '2026-10-12T05:40:00.000Z', otherAdmissionOpen: true });
+  assert.equal(ambiguityResolutionExitCode(busyRepeat), 1);
+  assert.equal(ambiguityResolutionExitCode(repeated), 0);
+
+  const crossed = centralAmbiguityFixture({
+    delivery: discarded,
+    open: { ...openAdmission, admissionId: 'send-admission:other' },
+    closeAnswers: [schedulerError('SUBMISSION_AMBIGUITY_CLOSURE_STAGE_INVALID', { admissionStatus: 'BOUNDARY_RECORDED' })],
+  });
+  const notOpen = await crossed.runtime.resolve('request:r-1', 'discard');
+  assert.deepEqual(notOpen.central, { state: 'NOT_OPEN', admissionStatus: 'BOUNDARY_RECORDED', otherAdmissionOpen: true });
+  assert.equal(ambiguityResolutionExitCode(notOpen), 1);
+  assert.equal(ambiguityResolutionExitCode({ central: { state: 'NOT_OPEN', otherAdmissionOpen: false } }), 0);
+});
+
+test('without a known admission, discard closes only an open admission Mission Control matches to this send', async () => {
+  const capability = { status: 'SUBMISSION_INTENT_RECORDED', bodySha256: 'd'.repeat(64), lastAttemptAt: '2026-10-07T00:58:20.000Z' };
+  const keyed = centralAmbiguityFixture({
+    delivery: capability,
+    open: { ...openAdmission, admissionId: 'send-admission:capability' },
+    closeAnswers: [{ closed: true, duplicate: false, closedAt: '2026-10-12T05:40:00.000Z' }],
+  });
+  assert.equal((await keyed.runtime.resolve('request:r-1', 'discard')).central.state, 'CLOSED');
+  // A capability-style route uses its route key as the Mission Control request ID.
+  assert.equal(keyed.calls.close[0].admissionId, 'send-admission:capability');
+  assert.equal(keyed.calls.close[0].requestId, 'request:r-1');
+  assert.equal(keyed.calls.close[0].bodySha256, 'd'.repeat(64));
+
+  const other = centralAmbiguityFixture({
+    delivery: capability,
+    open: { ...openAdmission, admissionId: 'send-admission:other' },
+    closeAnswers: [schedulerError('SUBMISSION_AMBIGUITY_CLOSURE_MISMATCH')],
+  });
+  const mismatch = await other.runtime.resolve('request:r-1', 'discard');
+  assert.equal(mismatch.central.state, 'OPEN_FOR_ANOTHER_SEND');
+  assert.equal(ambiguityResolutionExitCode(mismatch), 1);
+
+  const clear = centralAmbiguityFixture({ delivery: capability, open: null });
+  const nothing = await clear.runtime.resolve('request:r-1', 'discard');
+  assert.equal(nothing.central.state, 'CLEAR');
+  assert.equal(clear.calls.close.length, 0);
+});
+
+test('discard keeps the local decision and exits non-zero when Mission Control cannot close the send yet', async () => {
+  const unreachable = schedulerError('CENTRAL_SCHEDULER_UNREACHABLE');
+  const offline = centralAmbiguityFixture({ delivery: ambiguousDelivery, statusError: unreachable });
+  const result = await offline.runtime.resolve('request:r-1', 'discard');
+  assert.equal(result.central.state, 'NOT_CLOSED');
+  assert.equal(result.central.code, 'CENTRAL_SCHEDULER_UNREACHABLE');
+  assert.equal(ambiguityResolutionExitCode(result), 1);
+  assert.equal(offline.store.state.deliveries['request:r-1'].status, 'DISCARDED');
+
+  const closableAt = new Date(Date.now() + 10 * 60_000).toISOString();
+  const later = centralAmbiguityFixture({
+    delivery: ambiguousDelivery, open: openAdmission,
+    closeAnswers: [schedulerError('SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY', { closableAt })],
+  });
+  const tooEarly = await later.runtime.resolve('request:r-1', 'discard');
+  assert.equal(tooEarly.central.state, 'NOT_CLOSED');
+  assert.equal(tooEarly.central.closableAt, closableAt);
+  assert.equal(later.calls.waits.length, 0);
+});
+
+test('submitted closes Mission Control\'s record as an attested send, while retry and a started generation never touch it', async () => {
+  const attested = centralAmbiguityFixture({
+    delivery: ambiguousDelivery, open: openAdmission,
+    closeAnswers: [{ closed: true, duplicate: false, closedAt: '2026-10-12T05:40:00.000Z' }, { closed: true, duplicate: true, closedAt: '2026-10-12T05:40:00.000Z' }],
+  });
+  assert.equal((await attested.runtime.resolve('request:r-1', 'submitted')).central.state, 'CLOSED');
+  const confirmed = attested.store.state.deliveries['request:r-1'];
+  assert.equal(confirmed.status, 'SUBMITTED_CONFIRMED');
+  assert.equal(attested.calls.close[0].decision, 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY');
+  assert.equal(attested.calls.close[0].decidedAt, confirmed.confirmedAt);
+  assert.equal((await attested.runtime.resolve('request:r-1', 'submitted')).central.state, 'ALREADY_CLOSED');
+  assert.deepEqual(attested.store.state.deliveries['request:r-1'], confirmed);
+
+  const retried = centralAmbiguityFixture({ delivery: ambiguousDelivery, open: openAdmission });
+  const retry = await retried.runtime.resolve('request:r-1', 'retry');
+  assert.equal(Object.hasOwn(retry, 'central'), false);
+  assert.equal(retried.calls.status + retried.calls.close.length, 0);
+
+  const started = centralAmbiguityFixture({
+    delivery: { ...ambiguousDelivery, status: 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED' }, open: openAdmission,
+  });
+  const generation = await started.runtime.resolve('request:r-1', 'submitted');
+  assert.equal(Object.hasOwn(generation, 'central'), false);
+  assert.equal(started.calls.status + started.calls.close.length, 0);
+
+  const superseded = centralAmbiguityFixture({ delivery: { ...ambiguousDelivery, status: 'DISCARDED', resolution: 'OPERATOR_SUPERSEDED' } });
+  await assert.rejects(superseded.runtime.resolve('request:r-1', 'discard'), /is DISCARDED; no ambiguity resolution is permitted/);
+});
+
+test('discard does not report success while Mission Control still queues a retry of the same send', async () => {
+  const capability = { status: 'FAILED_RETRYABLE', bodySha256: 'd'.repeat(64), lastAttemptAt: '2026-10-07T00:58:20.000Z' };
+  const queued = centralAmbiguityFixture({ delivery: capability, queueHead: { requestId: 'request:r-1', status: 'PRECLICK_RETRY_PENDING' } });
+  const result = await queued.runtime.resolve('request:r-1', 'discard');
+  assert.deepEqual(result.central, { state: 'QUEUED_CENTRALLY', queueStatus: 'PRECLICK_RETRY_PENDING' });
+  assert.equal(ambiguityResolutionExitCode(result), 1);
+  assert.equal(queued.calls.close.length, 0);
+
+  const otherHead = centralAmbiguityFixture({ delivery: capability, queueHead: { requestId: 'request:other', status: 'QUEUED' } });
+  const clear = await otherHead.runtime.resolve('request:r-1', 'discard');
+  assert.equal(clear.central.state, 'CLEAR');
+  assert.equal(ambiguityResolutionExitCode(clear), 0);
+
+  const aborted = centralAmbiguityFixture({
+    delivery: { ...ambiguousDelivery, status: 'FAILED_RETRYABLE' },
+    queueHead: { requestId: 'r-1', status: 'PRECLICK_RETRY_PENDING' },
+    closeAnswers: [schedulerError('SUBMISSION_AMBIGUITY_CLOSURE_STAGE_INVALID', { admissionStatus: 'ABORTED_BEFORE_BOUNDARY' })],
+  });
+  const notOpen = await aborted.runtime.resolve('request:r-1', 'discard');
+  assert.deepEqual(notOpen.central, { state: 'NOT_OPEN', admissionStatus: 'ABORTED_BEFORE_BOUNDARY', otherAdmissionOpen: false, queueStatus: 'PRECLICK_RETRY_PENDING' });
+  assert.equal(ambiguityResolutionExitCode(notOpen), 1);
+});
+
+test('submitted reaches Mission Control through the real relay scheduler as an attested send', async () => {
+  const forwarded = [];
+  const store = new MemoryStateStore();
+  store.state.deliveries['request:r-1'] = structuredClone(ambiguousDelivery);
+  const client = {
+    async status() { return { authority: 'MISSION_CONTROL_SINGLE_WRITER', ledger: { valid: true }, unresolvedAdmission: null, queueHead: null }; },
+    async admit() { throw new Error('no admission expected'); },
+    async validateAdmission() { throw new Error('no validation expected'); },
+    async recordBoundary() { throw new Error('no boundary expected'); },
+    async bindTarget() { throw new Error('no binding expected'); },
+    async recordRateLimit() { throw new Error('no rate limit expected'); },
+    async abortBeforeBoundary() { throw new Error('no abort expected'); },
+    async recordOutcome() { throw new Error('no outcome expected'); },
+    async closeAmbiguousAdmission(input) { forwarded.push(input); return { closed: true, duplicate: false, closedAt: '2026-10-12T05:40:00.000Z' }; },
+  };
+  const pacer = new CentralSubmissionScheduler({ schedulerClient: client, stateStore: store, host: { alias: 'primary-test', role: 'PRIMARY', deploymentEpoch: 1, leaseId: 'lease-primary-1' }, minIntervalMs: 60_000 });
+  const runtime = makeRuntime({ store, mc: new FakeMissionControl(), browser: new FakeBrowser(), submitEnabled: false, submissionPacer: pacer });
+  const resolved = await runtime.resolve('request:r-1', 'submitted');
+  assert.equal(resolved.central.state, 'CLOSED');
+  assert.equal(forwarded.length, 1);
+  assert.equal(forwarded[0].decision, 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY');
+  assert.equal(forwarded[0].decidedAt, store.state.deliveries['request:r-1'].confirmedAt);
+});
+
+test('resolve waits for the time Mission Control states on its own clock, even with this host\'s clock ahead', async () => {
+  // This host's clock reads 20 s ahead: closableAt already looks past, but Mission Control says 20 s remain.
+  const aheadClosableAt = new Date(Date.now() - 1_000).toISOString();
+  const { runtime, calls } = centralAmbiguityFixture({
+    delivery: ambiguousDelivery,
+    open: openAdmission,
+    closeAnswers: [
+      schedulerError('SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY', { closableAt: aheadClosableAt, retryAfterMs: 20_000 }),
+      { closed: true, duplicate: false, closedAt: '2026-10-12T05:40:00.000Z' },
+    ],
+  });
+  const resolved = await runtime.resolve('request:r-1', 'discard');
+  assert.equal(resolved.central.state, 'CLOSED');
+  assert.deepEqual(calls.waits, [21_000]);
+});
+
+test('resolve waits again when Mission Control is still a little early, then closes', async () => {
+  const soon = () => new Date(Date.now() + 500).toISOString();
+  const { runtime, calls } = centralAmbiguityFixture({
+    delivery: ambiguousDelivery,
+    open: openAdmission,
+    closeAnswers: [
+      schedulerError('SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY', { closableAt: soon() }),
+      schedulerError('SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY', { closableAt: soon() }),
+      { closed: true, duplicate: false, closedAt: '2026-10-12T05:40:00.000Z' },
+    ],
+  });
+  const resolved = await runtime.resolve('request:r-1', 'discard');
+  assert.equal(resolved.central.state, 'CLOSED');
+  assert.equal(calls.close.length, 3);
+  assert.equal(calls.waits.length, 2);
+
+  const stubborn = centralAmbiguityFixture({
+    delivery: ambiguousDelivery,
+    open: openAdmission,
+    closeAnswers: [1, 2, 3].map(() => schedulerError('SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY', { closableAt: soon() })),
+  });
+  const notYet = await stubborn.runtime.resolve('request:r-1', 'discard');
+  assert.equal(notYet.central.state, 'NOT_CLOSED');
+  assert.equal(notYet.central.code, 'SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY');
+  assert.equal(stubborn.calls.close.length, 3);
+  assert.equal(ambiguityResolutionExitCode(notYet), 1);
 });

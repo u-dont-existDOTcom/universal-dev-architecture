@@ -265,11 +265,11 @@ const server = http.createServer(async (request, response) => {
       }
       return json(response, 200, await submissionAuthority.operatorStatus());
     }
-    const submissionAuthorityMatch = url.pathname.match(/^\/submission-authority\/(admissions(?:\/validate)?|relay-target-transitions\/(?:begin|commit|abort)|boundaries|target-bindings|provider-rate-limits|aborts|(?:expired|superseded)-preclick-retries\/cancel|outcomes|relay-health)$/);
+    const submissionAuthorityMatch = url.pathname.match(/^\/submission-authority\/(admissions(?:\/validate|\/close-ambiguous)?|relay-target-transitions\/(?:begin|commit|abort)|boundaries|target-bindings|provider-rate-limits|aborts|(?:expired|superseded)-preclick-retries\/cancel|outcomes|relay-health)$/);
     if (request.method === "POST" && submissionAuthorityMatch) {
       const producer = authorizeMutation(request);
       const result = await submissionAuthority.execute(submissionAuthorityMatch[1], await readJson(request), producer);
-      return json(response, submissionAuthorityMatch[1] === "admissions/validate" || submissionAuthorityMatch[1] === "aborts" || submissionAuthorityMatch[1].endsWith("-preclick-retries/cancel") ? 200 : 201, result);
+      return json(response, submissionAuthorityMatch[1] === "admissions/validate" || submissionAuthorityMatch[1] === "admissions/close-ambiguous" || submissionAuthorityMatch[1] === "aborts" || submissionAuthorityMatch[1].endsWith("-preclick-retries/cancel") ? 200 : 201, result);
     }
     if (request.method === "GET" && url.pathname === "/snapshot") {
       const snapshot = snapshotFromEvents(eventHistory(), dashboardProjectionOptions());

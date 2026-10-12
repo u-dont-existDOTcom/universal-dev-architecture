@@ -555,6 +555,85 @@ test("scheduler status verifies a large authority ledger once at startup and onl
   }
 });
 
+test("an owner-closed expired admission is ledgered with its decision, survives restart, and reopens the authority without replay", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "mc-ambiguity-closure-"));
+  const filename = path.join(root, "mission-control.db");
+  const now = { value: origin };
+  try {
+    const firstStore = new EventStore(filename);
+    const firstRuntime = runtime(firstStore, now);
+    const admitted = await firstRuntime.execute("admissions", request(), producer);
+    const closure = {
+      admissionId: admitted.admissionId,
+      requestId: "request:first",
+      bodySha256: "a".repeat(64),
+      decision: "OWNER_DISCARDED_NO_REPLAY",
+      decidedAt: "",
+    };
+    // The owner discarded the send as its admission expired. Mission Control records its own receipt of the
+    // request, then completes the closure a full interval later.
+    closure.decidedAt = admitted.expiresAt;
+    now.value = Date.parse(admitted.expiresAt) + 30_000;
+    await assert.rejects(
+      firstRuntime.execute("admissions/close-ambiguous", closure, producer),
+      (error: any) => error.code === "SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY"
+        && error.detail.closableAt === new Date(now.value + 60_000).toISOString(),
+    );
+    const requestedAt = new Date(now.value).toISOString();
+    await assert.rejects(
+      firstRuntime.execute("admissions/close-ambiguous", closure, { ...producer, kind: "OWNER_AUTHORITY" } as AuthenticatedProducer),
+      (error: any) => error.code === "SUBMISSION_PRODUCER_KIND_FORBIDDEN",
+    );
+    now.value += 60_000;
+    const closed = await firstRuntime.execute("admissions/close-ambiguous", closure, producer);
+    assert.equal(closed.closed, true);
+    assert.equal(closed.duplicate, false);
+    firstStore.close();
+
+    const reopenedStore = new EventStore(filename);
+    const reopenedRuntime = runtime(reopenedStore, now);
+    const status = await reopenedRuntime.status(producer);
+    assert.equal(status.unresolvedAdmission, null);
+    assert.equal(status.queueDepth, 0);
+    assert.equal(status.ready, true);
+    assert.equal(status.ledger.valid, true);
+    assert.equal((await reopenedRuntime.execute("admissions/close-ambiguous", closure, producer)).duplicate, true);
+    const ledger = await reopenedRuntime.ledger(producer);
+    const closures = ledger.records.filter((record: Record<string, unknown>) => record.eventKind === "AMBIGUOUS_ADMISSION_CLOSED_NO_REPLAY");
+    assert.equal(closures.length, 1);
+    assert.equal(closures[0].admissionId, admitted.admissionId);
+    assert.equal(closures[0].admissionStatus, "AMBIGUOUS_CLOSED_NO_REPLAY");
+    assert.equal(closures[0].queueStatus, "CLOSED_AMBIGUOUS_NO_REPLAY");
+    assert.equal(closures[0].actualSubmissionBoundaryAt, null);
+    assert.deepEqual(closures[0].ambiguityClosure, {
+      decision: "OWNER_DISCARDED_NO_REPLAY",
+      priorStatus: "ADMITTED",
+      decidedAt: admitted.expiresAt,
+      requestedAt,
+      closedAt: closed.closedAt,
+    });
+    const requests = ledger.records.filter((record: Record<string, unknown>) => record.eventKind === "AMBIGUOUS_ADMISSION_CLOSURE_REQUESTED");
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].admissionId, admitted.admissionId);
+    assert.deepEqual(requests[0].ambiguityClosureRequest, { decision: "OWNER_DISCARDED_NO_REPLAY", decidedAt: admitted.expiresAt, requestedAt });
+    assert.ok(ledger.records.filter((record: Record<string, unknown>) => record.eventKind !== "AMBIGUOUS_ADMISSION_CLOSED_NO_REPLAY")
+      .every((record: Record<string, unknown>) => !Object.hasOwn(record, "ambiguityClosure")));
+    assert.equal((await reopenedRuntime.operatorStatus()).authority.queueDepth, 0);
+    await assert.rejects(
+      reopenedRuntime.execute("admissions", request(), producer),
+      (error: any) => error.code === "SUBMISSION_QUEUE_ITEM_TERMINAL",
+    );
+    const fresh = await reopenedRuntime.execute("admissions", request({
+      requestId: "request:second",
+      queueKey: "queue:second",
+    }), producer);
+    assert.equal(fresh.admitted, true);
+    reopenedStore.close();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("exact unsent proof fails closed after any submission-authority record names the request", async () => {
   const store = new EventStore(":memory:");
   const now = { value: origin };

@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 export const GLOBAL_SUBMISSION_COOLDOWN = 'GLOBAL_SUBMISSION_COOLDOWN';
 export const CHATGPT_RATE_LIMIT_RETRY = 'CHATGPT_RATE_LIMIT_RETRY';
 export const CHATGPT_RATE_LIMIT_RETRY_EXHAUSTED = 'CHATGPT_RATE_LIMIT_RETRY_EXHAUSTED';
+export const CENTRAL_AMBIGUITY_CLOSURE_DECISIONS = Object.freeze(['OWNER_DISCARDED_NO_REPLAY', 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY']);
 
 export class CentralSubmissionScheduler {
   constructor({ schedulerClient, stateStore, host, minIntervalMs = 60_000, now = Date.now, sleepImpl = sleep }) {
@@ -54,6 +55,19 @@ export class CentralSubmissionScheduler {
       throw new Error('CENTRAL_SCHEDULER_CANCEL_UNAVAILABLE: scheduler client lacks superseded-retry cancellation.');
     }
     return this.schedulerClient.cancelSupersededPreclickRetry({ queueItemId, requestId, replacementRequestId, failureReceiptSha256 });
+  }
+
+  // Carries the operator's decision on one ambiguous send (a discard, or an attestation that it was sent)
+  // to Mission Control exactly as recorded. Only the operator's resolve command calls this; the send loop
+  // never closes an ambiguity.
+  async closeAmbiguousAdmission({ admissionId, requestId, bodySha256, decision, decidedAt }) {
+    if (!CENTRAL_AMBIGUITY_CLOSURE_DECISIONS.includes(decision)) {
+      throw new Error('CENTRAL_AMBIGUITY_DECISION_INVALID: the closure decision must be a recorded owner discard or submitted attestation.');
+    }
+    if (typeof this.schedulerClient.closeAmbiguousAdmission !== 'function') {
+      throw new Error('CENTRAL_SCHEDULER_CLOSE_UNAVAILABLE: scheduler client lacks ambiguity closure.');
+    }
+    return this.schedulerClient.closeAmbiguousAdmission({ admissionId, requestId, bodySha256, decision, decidedAt });
   }
 
   async assertReady() {
