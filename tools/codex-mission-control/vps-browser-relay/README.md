@@ -750,7 +750,8 @@ When Mission Control is not ready yet, the command waits once, up to five minute
 non-zero if the closure still has not happened; re-running it repeats only the Mission Control step
 with the same recorded decision. If Mission Control's queue head is still a queued or retry item for
 that send, the command says so and exits non-zero; the relay's own cycle cancels such a pre-click
-retry once the send's route has expired. If a boundary for a closed send ever arrives, Mission
+retry once the send's route has expired. It also exits non-zero while Mission Control holds another
+send open. If a boundary for a closed send ever arrives, Mission
 Control records it as crossed without authority and halts fail closed.
 
 `retry` leaves Mission Control's record open, and Mission Control refuses to admit that send again

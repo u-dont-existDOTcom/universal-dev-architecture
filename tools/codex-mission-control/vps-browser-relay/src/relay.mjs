@@ -60,9 +60,9 @@ const CENTRAL_AMBIGUITY_DECISIONS = Object.freeze({
 // holds another send open.
 export function ambiguityResolutionExitCode(result) {
   const central = result?.central;
-  if (!central || ['CLOSED', 'ALREADY_CLOSED', 'CLEAR'].includes(central.state)) return 0;
-  if (central.state === 'NOT_OPEN' && central.otherAdmissionOpen !== true && !central.queueStatus) return 0;
-  return 1;
+  if (!central) return 0;
+  if (central.otherAdmissionOpen === true || central.queueStatus) return 1;
+  return ['CLOSED', 'ALREADY_CLOSED', 'CLEAR', 'NOT_OPEN'].includes(central.state) ? 0 : 1;
 }
 
 export class RelayRuntime {
@@ -687,10 +687,15 @@ export class RelayRuntime {
       decision,
       decidedAt,
     };
+    const otherAdmissionOpen = open !== null && open.admissionId !== input.admissionId;
     for (let attempt = 0; ; attempt += 1) {
       try {
         const closed = await this.submissionPacer.closeAmbiguousAdmission(input);
-        return { state: closed?.duplicate === true ? 'ALREADY_CLOSED' : 'CLOSED', closedAt: closed?.closedAt ?? null };
+        return {
+          state: closed?.duplicate === true ? 'ALREADY_CLOSED' : 'CLOSED',
+          closedAt: closed?.closedAt ?? null,
+          ...(otherAdmissionOpen ? { otherAdmissionOpen } : {}),
+        };
       } catch (error) {
         const waitMs = Date.parse(error?.closableAt ?? '') - Date.now();
         if (attempt === 0 && error?.code === 'SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY'
@@ -703,7 +708,7 @@ export class RelayRuntime {
           return {
             state: 'NOT_OPEN',
             admissionStatus: typeof error?.admissionStatus === 'string' ? error.admissionStatus : null,
-            otherAdmissionOpen: open !== null && open.admissionId !== known,
+            otherAdmissionOpen,
             ...(queueStatus ? { queueStatus } : {}),
           };
         }

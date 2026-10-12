@@ -1967,6 +1967,17 @@ test('re-running a discard re-sends the same decision by the known admission and
   assert.equal(duplicate.calls.close[0].decidedAt, '2026-10-12T05:18:26.000Z');
   assert.equal(duplicate.calls.close[0].admissionId, 'send-admission:r-1');
 
+  // Mission Control meanwhile admitted a different send: the repeat still says so and exits non-zero.
+  const busy = centralAmbiguityFixture({
+    delivery: discarded,
+    open: { ...openAdmission, admissionId: 'send-admission:other' },
+    closeAnswers: [{ closed: true, duplicate: true, closedAt: '2026-10-12T05:40:00.000Z' }],
+  });
+  const busyRepeat = await busy.runtime.resolve('request:r-1', 'discard');
+  assert.deepEqual(busyRepeat.central, { state: 'ALREADY_CLOSED', closedAt: '2026-10-12T05:40:00.000Z', otherAdmissionOpen: true });
+  assert.equal(ambiguityResolutionExitCode(busyRepeat), 1);
+  assert.equal(ambiguityResolutionExitCode(repeated), 0);
+
   const crossed = centralAmbiguityFixture({
     delivery: discarded,
     open: { ...openAdmission, admissionId: 'send-admission:other' },
