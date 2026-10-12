@@ -885,6 +885,13 @@ const reviewDecision = {
   reasoningRequired: true, mechanicalRecoveryEligible: false, notifyOwner: false, notificationReason: null,
 } as const;
 
+/** The worker's current owner outcome as a decision records it. */
+function outcomeBinding(events: readonly StoredEvent[]) {
+  const outcome = events.findLast((event) => event.data.type === "owner_outcome_recorded")?.data;
+  assert.ok(outcome?.type === "owner_outcome_recorded");
+  return { owner_outcome_id: outcome.owner_outcome_id, owner_outcome_epoch: outcome.epoch, owner_outcome_sha256: outcome.owner_outcome_sha256 };
+}
+
 /** A recorded supervisor decision for a task, after every seeded event (only the fields the hand-off reads). */
 function recordedDecision(base: StoredEvent, n: number, taskId: string, extra: Record<string, unknown> = {}): StoredEvent {
   return {
@@ -908,13 +915,17 @@ test("each question's hand-off carries the task's recent supervisor decisions, n
     const executed = { bounded_execution: { strategy_id: "strategy-b", execution_objective: `Objective ${"o".repeat(5_000)}`,
       reasoning_summary: `Why ${"r".repeat(20_000)}`, next_decision_changing_evidence: `Evidence ${"e".repeat(5_000)}` } };
     const asked = { owner_action: { kind: "DECISION_REQUIRED", question: `Choose ${"q".repeat(9_000)}` } };
-    const events = [...seeded, recordedDecision(last, 1, "task:auth"), recordedDecision(last, 2, "task:auth", executed),
-      recordedDecision(last, 3, "task:other"), recordedDecision(last, 4, "task:auth", asked), recordedDecision(last, 5, "task:auth"),
-      recordedDecision(last, 6, "task:auth", executed)];
+    const bound = outcomeBinding(seeded);
+    const replaced = { ...bound, owner_outcome_sha256: "b".repeat(64) };
+    const events = [...seeded, recordedDecision(last, 1, "task:auth", bound), recordedDecision(last, 2, "task:auth", { ...bound, ...executed }),
+      recordedDecision(last, 3, "task:other", bound), recordedDecision(last, 4, "task:auth", { ...bound, ...asked }),
+      recordedDecision(last, 5, "task:auth", bound), recordedDecision(last, 6, "task:auth", { ...bound, ...executed }),
+      recordedDecision(last, 7, "task:auth", { ...replaced, ...executed })];
     const state = fleetReasoningFactualState(reviewDecision, events, last, "task:auth");
     assert.ok(state.length <= FLEET_FACTUAL_STATE_LIMIT);
     const history = JSON.parse(state).supervision_history;
-    assert.equal(history.recorded_decisions, 5, "only this task's decisions count");
+    assert.equal(history.recorded_decisions, 5, "only this task's decisions under the current owner outcome count");
+    assert.equal(history.superseded_outcome_decisions, 1, "a decision under a replaced owner outcome is only counted, even when newest");
     assert.deepEqual(history.decisions.map((item: { request_id: string }) => item.request_id),
       [6, 5, 4].map((n) => `fleet-review:${n.toString(16).padStart(32, "0")}`), "the newest three, newest first");
     const [newest, plain, withQuestion] = history.decisions;
@@ -924,14 +935,14 @@ test("each question's hand-off carries the task's recent supervisor decisions, n
     assert.equal(newest.execution_objective.length, 400);
     assert.equal(newest.next_decision_changing_evidence.length, 300);
     assert.equal(newest.decision_excerpt, null, "an executed decision is summarized by its own fields");
-    assert.equal(newest.recorded_at, events.at(-1)!.occurredAt);
+    assert.equal(newest.recorded_at, events.at(-2)!.occurredAt);
     assert.equal(plain.strategy_id, null);
     assert.equal(plain.decision_excerpt.length, 600);
     assert.ok(plain.decision_excerpt.startsWith("Decision 5."));
     assert.equal(withQuestion.owner_question.length, 300);
     assert.ok(withQuestion.owner_question.startsWith("Choose "));
     const none = JSON.parse(fleetReasoningFactualState(reviewDecision, seeded, last, "task:auth")).supervision_history;
-    assert.deepEqual([none.recorded_decisions, none.decisions], [0, []]);
+    assert.deepEqual([none.recorded_decisions, none.superseded_outcome_decisions, none.decisions], [0, 0, []]);
   } finally { store.close(); }
 });
 
@@ -941,7 +952,7 @@ test("the supervision history leaves out older decisions first and never pushes 
     seedStore(store);
     const seeded = store.workerEvents("auth");
     const last = seeded.at(-1)!;
-    const events = [...seeded, ...[1, 2, 3, 4].map((n) => recordedDecision(last, n, "task:auth"))];
+    const events = [...seeded, ...[1, 2, 3, 4].map((n) => recordedDecision(last, n, "task:auth", outcomeBinding(seeded)))];
     const full = JSON.parse(fleetReasoningFactualState(reviewDecision, events, last, "task:auth", 1_000_000));
     assert.equal(full.supervision_history.decisions.length, 3);
     const withListed = (count: number) => canonicalJson({ ...full,

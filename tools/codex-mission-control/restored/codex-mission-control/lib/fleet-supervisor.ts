@@ -758,10 +758,11 @@ export const FLEET_SUPERVISION_HISTORY_DECISIONS = 3;
 
 /**
  * The exact factual state of a fleet supervisor question: the task's current state, plus what its supervisor decided
- * the last few times it was asked. Every question opens a fresh ChatGPT chat, so this history is the context the
- * supervisor keeps from one question to the next. Older decisions are left out first, and long fields are clipped, so
- * the state stays within the admission's limit; when the current state leaves no room for a history at all, it goes
- * without one, exactly as before.
+ * the last few times it was asked under the current owner outcome. Every question opens a fresh ChatGPT chat, so this
+ * history is the context the supervisor keeps from one question to the next. Decisions made under an earlier owner
+ * outcome are only counted: the owner replaced that outcome, so they are not current direction. Older decisions are
+ * left out first, and long fields are clipped, so the state stays within the admission's limit; when the current
+ * state leaves no room for a history at all, it goes without one, exactly as before.
  */
 export function fleetReasoningFactualState(
   decision: FleetSupervisorDecision,
@@ -771,13 +772,14 @@ export function fleetReasoningFactualState(
   limit = FLEET_FACTUAL_STATE_LIMIT,
 ): string {
   const facts = fleetReasoningFacts(decision, events, boundary);
-  const decisions = supervisionHistory(events, taskId);
+  const { decisions, supersededOutcomeDecisions } = supervisionHistory(events, taskId);
   for (let listed = Math.min(FLEET_SUPERVISION_HISTORY_DECISIONS, decisions.length); listed >= 0; listed -= 1) {
     const state = canonicalJson({
       ...facts,
       supervision_history: {
-        about: "This task's recorded supervisor decisions, newest first. Earlier ones are counted, not listed; long fields are clipped.",
+        about: "This task's supervisor decisions under the current owner outcome, newest first. Earlier ones are counted, not listed; long fields are clipped. Decisions made under an earlier owner outcome are only counted, because the owner replaced that outcome.",
         recorded_decisions: decisions.length,
+        superseded_outcome_decisions: supersededOutcomeDecisions,
         decisions: decisions.slice(0, listed),
       },
     });
@@ -786,14 +788,22 @@ export function fleetReasoningFactualState(
   return canonicalJson(facts);
 }
 
-/** The task's recorded supervisor decisions, newest first: what was decided and why, in clipped form. */
+/**
+ * The task's recorded supervisor decisions under the current owner outcome (the latest recorded outcome's id, epoch
+ * and hash), newest first: what was decided and why, in clipped form; and how many were made under an earlier one.
+ */
 function supervisionHistory(events: readonly StoredEvent[], taskId: string) {
-  return [...events].sort((left, right) => right.sequence - left.sequence).flatMap((event) => {
-    const data = event.data;
-    if (data.type !== "github_decision_receipt_ingested" || data.task_id !== taskId) return [];
+  const outcome = events.findLast((event) => event.data.type === "owner_outcome_recorded")?.data;
+  const taskDecisions = [...events].sort((left, right) => right.sequence - left.sequence)
+    .flatMap((event) => event.data.type === "github_decision_receipt_ingested" && event.data.task_id === taskId
+      ? [{ event, data: event.data }] : []);
+  const current = taskDecisions.filter(({ data }) => outcome?.type === "owner_outcome_recorded"
+    && data.owner_outcome_id === outcome.owner_outcome_id && data.owner_outcome_epoch === outcome.epoch
+    && data.owner_outcome_sha256 === outcome.owner_outcome_sha256);
+  const decisions = current.map(({ event, data }) => {
     const execution = data.bounded_execution;
     const ownerAction = data.owner_action;
-    return [{
+    return {
       request_id: data.request_id,
       recorded_at: event.occurredAt,
       reasoning_lane: data.reasoning_lane,
@@ -803,8 +813,9 @@ function supervisionHistory(events: readonly StoredEvent[], taskId: string) {
       next_decision_changing_evidence: clip(execution?.next_decision_changing_evidence, 300),
       owner_question: ownerAction?.kind === "DECISION_REQUIRED" ? clip(ownerAction.question, 300) : null,
       decision_excerpt: execution ? null : clip(data.decision_block.exact_text, 600),
-    }];
+    };
   });
+  return { decisions, supersededOutcomeDecisions: taskDecisions.length - current.length };
 }
 
 /** The text cut to at most `limit` characters (whole code points), with an ellipsis when cut. */
