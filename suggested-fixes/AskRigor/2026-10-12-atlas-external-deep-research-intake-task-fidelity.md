@@ -2,7 +2,7 @@
 
 - For: `u-dont-existDOTcom/AskRigor`
 - Filed: 2026-10-12, by the assistant running the owner's Natural Treatment Atlas research (Atlas planning and ingestion workstream). Put in the lane format by the UDA maintainer (Claude) the same day.
-- From: the owner's ongoing Natural Treatment Atlas automation goal and two Deep Research exports delivered for its first pilot, migraine and recurrent headaches (private; not linked).
+- From: two Deep Research exports the owner uploaded on 2026-10-12 to his Natural Treatment Atlas research chat, for the Atlas's first pilot (migraine and recurrent headaches). They are in no repository and the chat can't be linked from this public one; ask the owner for them. This item was first filed on `main` in commit 8fc6689e.
 - Owner request: no. The owner's Atlas goals it serves: preserve all collected evidence, not just an essay; prioritize symptom-first global botanicals, books and primary sources; make output resumable.
 - Existing pull request: none.
 - Supersedes: none.

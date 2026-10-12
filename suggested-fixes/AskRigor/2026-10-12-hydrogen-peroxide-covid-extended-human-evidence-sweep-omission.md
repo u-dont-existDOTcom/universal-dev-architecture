@@ -2,7 +2,7 @@
 
 - For: `u-dont-existDOTcom/AskRigor`
 - Filed: 2026-10-12, by the assistant doing the owner's Natural Treatment Atlas research, after the owner identified two sources and asked for a bug report. Made public-safe by the UDA maintainer (Claude) the same day, at the owner's request.
-- From: the owner's Natural Treatment Atlas research on early-infection prevention and acute treatment. The owner's own details, and this item as first filed, are in a private issue: https://github.com/u-dont-existDOTcom/AskRigor-findings/issues/15
+- From: the owner's Natural Treatment Atlas research chat on early-infection prevention and acute treatment (private; not linkable from this public repository). The owner's own details, and this item as first filed, are kept privately outside this repository; ask the owner if they are needed.
 - Owner request: yes. The owner asked why AskRigor overlooked https://www.orthomolecular.org/resources/omns/v18n19.shtml and https://onlinelibrary.wiley.com/doi/10.1155/2021/5592042, and asked for the search behavior to be repaired.
 - Existing pull request: none. A drafted fix does not mean the public AskRigor product has been repaired.
 - Supersedes: none.
@@ -62,4 +62,4 @@ Concretely, for an unexpected or contested intervention that the user says matte
 7. The user reports a specific, unusual effect from one named plant preparation, unlike other strong scents. The answer keeps the exact preparation and the reported effect as a hypothesis; it neither reduces it to a generic scent explanation nor declares a mechanism proven.
 8. Report audit state and no Atlas ingestion/implementation claims unless verified in public runtime.
 
-Keep provenance, and do not write anyone's private health experiences into public project records; they belong in the private issue linked above.
+Keep provenance, and do not write anyone's private health experiences into public project records; they stay in the owner's private record.
