@@ -25,7 +25,9 @@ export const SUPERVISOR_REQUEST_STATE: Record<SupervisorRequestActivity["state"]
   EXPIRED_UNSENT: "Never sent; it expired",
   WITHDRAWN: "Withdrawn before it was sent",
   RETIRED_BUT_SENT: "Recorded as never sent, but the relay recorded sending it",
+  RETIRED_DUPLICATE_SEND: "Recorded as never sent, but the relay recorded sending it more than once",
   REPLACED: "Its answer couldn't be used, so it was asked again",
+  REPLACED_DUPLICATE_SEND: "Sent more than once, then asked again because its answer couldn't be used",
 };
 
 function clip(value: string, limit: number): string {
@@ -55,6 +57,8 @@ export function supervisorStatusLine(activity: unknown, now = new Date()): strin
     case "WITHDRAWN": return `${asked}; withdrawn before it was sent.`;
     case "RETIRED_BUT_SENT": return `${asked}; recorded as never sent, but the relay recorded sending it ${timeAgo(latest.sentAt!, now)}.`;
     case "REPLACED": return `${asked}; its answer couldn't be used, so it was asked again.`;
+    case "REPLACED_DUPLICATE_SEND": return `${asked}; sent more than once, then asked again because its answer couldn't be used.`;
+    case "RETIRED_DUPLICATE_SEND": return `${asked}; recorded as never sent, but the relay recorded sending it more than once.`;
     default: return `${asked}; waiting to be sent.`;
   }
 }

@@ -14,11 +14,14 @@ import { isSpecificChatAddress } from "./supervisor-chat-address";
  * (sent, then expired without an answer), NO_ANSWER_DUPLICATE_SEND (sent more than once, then expired without one), EXPIRED (expired without an answer, with no send recorded or tracked),
  * EXPIRED_UNSENT and WITHDRAWN (retired with Mission Control's proof that nothing was sent: on expiry, or withdrawn),
  * RETIRED_BUT_SENT (retired as never sent, yet a trusted relay receipt records a send: the conflict shows, with the
- * send), REPLACED (an admitted replacement superseded it).
+ * send), RETIRED_DUPLICATE_SEND (the same, sent more than once), REPLACED (an admitted replacement superseded it),
+ * REPLACED_DUPLICATE_SEND (superseded, and it had also been sent more than once). A duplicate send always shows, whatever
+ * else happened to the question.
  */
 export const SUPERVISOR_REQUEST_STATES = [
   "QUEUED", "WAITING", "SENT", "FINISHED", "DUPLICATE_SEND", "ANSWERED", "ANSWERED_DUPLICATE_SEND", "NO_ANSWER",
-  "NO_ANSWER_DUPLICATE_SEND", "EXPIRED", "EXPIRED_UNSENT", "WITHDRAWN", "RETIRED_BUT_SENT", "REPLACED",
+  "NO_ANSWER_DUPLICATE_SEND", "EXPIRED", "EXPIRED_UNSENT", "WITHDRAWN", "RETIRED_BUT_SENT", "RETIRED_DUPLICATE_SEND",
+  "REPLACED", "REPLACED_DUPLICATE_SEND",
 ] as const;
 export const SUPERVISOR_REQUEST_ORIGINS = [
   "ROUTINE_CHECK", "WORK_QUESTION", "OWNER_ANSWER", "AFTER_WORK", "SOURCE_REVIEW", "OTHER",
@@ -99,6 +102,7 @@ interface Draft extends SupervisorRequestActivity { sequence: number; version: n
  */
 const STATE_ALLOWS: Record<SupervisorRequestState, { sent?: true; finished?: true; chat?: true; answered?: true }> = {
   QUEUED: {}, WAITING: {}, EXPIRED: {}, EXPIRED_UNSENT: {}, WITHDRAWN: {}, RETIRED_BUT_SENT: { sent: true, finished: true, chat: true },
+  RETIRED_DUPLICATE_SEND: { sent: true }, REPLACED_DUPLICATE_SEND: { sent: true },
   SENT: { sent: true, chat: true }, FINISHED: { sent: true, finished: true, chat: true }, NO_ANSWER: { sent: true, finished: true, chat: true },
   DUPLICATE_SEND: { sent: true }, NO_ANSWER_DUPLICATE_SEND: { sent: true },
   ANSWERED: { sent: true, finished: true, chat: true, answered: true }, ANSWERED_DUPLICATE_SEND: { sent: true, answered: true },
@@ -110,7 +114,7 @@ const STATE_TIMES: Partial<Record<SupervisorRequestState, ReadonlyArray<"expires
   SENT: ["sentAt"], FINISHED: ["sentAt", "finishedAt"], DUPLICATE_SEND: ["sentAt"], ANSWERED: ["answeredAt"],
   ANSWERED_DUPLICATE_SEND: ["answeredAt", "sentAt"],
   NO_ANSWER: ["sentAt", "expiresAt"], NO_ANSWER_DUPLICATE_SEND: ["sentAt", "expiresAt"], EXPIRED: ["expiresAt"], EXPIRED_UNSENT: ["expiresAt"],
-  RETIRED_BUT_SENT: ["sentAt"],
+  RETIRED_BUT_SENT: ["sentAt"], RETIRED_DUPLICATE_SEND: ["sentAt"], REPLACED_DUPLICATE_SEND: ["sentAt"],
 };
 
 /**
@@ -260,8 +264,8 @@ function projectRequests(unordered: readonly StoredEvent[], now: Date, admission
     // conflict shows as its own state with the send, never as "withdrawn" or "never sent" with the send erased.
     // An answer doesn't hide a duplicate send: both show.
     const state: SupervisorRequestState = draft.answeredAt ? (draft.duplicateSend ? "ANSWERED_DUPLICATE_SEND" : "ANSWERED")
-      : admission.replaced.has(draft.requestId) ? "REPLACED"
-        : retiredState ? (draft.sentAt ? "RETIRED_BUT_SENT" : retiredState)
+      : admission.replaced.has(draft.requestId) ? (draft.duplicateSend ? "REPLACED_DUPLICATE_SEND" : "REPLACED")
+        : retiredState ? (draft.duplicateSend ? "RETIRED_DUPLICATE_SEND" : draft.sentAt ? "RETIRED_BUT_SENT" : retiredState)
           : (!tracked ? (expired ? "EXPIRED" : "WAITING")
             : draft.duplicateSend ? (expired ? "NO_ANSWER_DUPLICATE_SEND" : "DUPLICATE_SEND")
               : draft.sentAt ? (expired ? "NO_ANSWER" : draft.finishedAt ? "FINISHED" : "SENT")

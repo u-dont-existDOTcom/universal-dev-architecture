@@ -379,6 +379,18 @@ test("a question sent in more than one session, or a V6 question started twice, 
   assert.equal(supervisorStatusLine(answered, NOW), "Answered 1 hour ago: On track. It was also sent more than once.");
   assert.equal(answered.answered, 1);
   assert.equal(pendingRoute({ state: "ANSWERED_DUPLICATE_SEND" }), false);
+  // Nor does a replacement or a retirement.
+  const sentTwice = [queued, ...sent(id, "2026-10-11T10:01:00Z", first), ...sent(id, "2026-10-11T10:02:00Z", second, { session: "ps-second" })];
+  const replaced = activityOf(sentTwice, [id]);
+  assert.deepEqual([replaced.requests[0].state, replaced.requests[0].conversationUrl], ["REPLACED_DUPLICATE_SEND", null]);
+  assert.equal(supervisorStatusLine(replaced, NOW), "Asked 2 hours ago; sent more than once, then asked again because its answer couldn't be used.");
+  assert.equal(isSupervisorActivity(replaced), true);
+  const retired = activityOf(sentTwice, [], { [id]: "WITHDRAWN" });
+  assert.equal(retired.requests[0].state, "RETIRED_DUPLICATE_SEND");
+  assert.equal(supervisorStatusLine(retired, NOW), "Asked 2 hours ago; recorded as never sent, but the relay recorded sending it more than once.");
+  assert.equal(isSupervisorActivity(retired), true);
+  assert.equal(pendingRoute({ state: "REPLACED_DUPLICATE_SEND" }), false);
+  assert.equal(pendingRoute({ state: "RETIRED_DUPLICATE_SEND" }), false);
 });
 
 test("an activity state without the times it is about is not accepted", () => {
@@ -388,7 +400,7 @@ test("an activity state without the times it is about is not accepted", () => {
   const required: Array<[string, keyof typeof times]> = [["SENT", "sentAt"], ["FINISHED", "sentAt"], ["FINISHED", "finishedAt"], ["DUPLICATE_SEND", "sentAt"],
     ["ANSWERED", "answeredAt"], ["ANSWERED_DUPLICATE_SEND", "answeredAt"], ["ANSWERED_DUPLICATE_SEND", "sentAt"], ["NO_ANSWER", "sentAt"],
     ["NO_ANSWER", "expiresAt"], ["NO_ANSWER_DUPLICATE_SEND", "sentAt"], ["NO_ANSWER_DUPLICATE_SEND", "expiresAt"], ["EXPIRED", "expiresAt"],
-    ["EXPIRED_UNSENT", "expiresAt"], ["RETIRED_BUT_SENT", "sentAt"]];
+    ["EXPIRED_UNSENT", "expiresAt"], ["RETIRED_BUT_SENT", "sentAt"], ["RETIRED_DUPLICATE_SEND", "sentAt"], ["REPLACED_DUPLICATE_SEND", "sentAt"]];
   // One question in a given state, with the state map and the totals agreeing.
   const withRequest = (listed: Record<string, unknown>) => ({ ...good, requests: [listed], evidence: [], states: { [request.requestId]: listed.state },
     answered: ["ANSWERED", "ANSWERED_DUPLICATE_SEND"].includes(String(listed.state)) ? 1 : 0,
@@ -399,7 +411,7 @@ test("an activity state without the times it is about is not accepted", () => {
     SENT: { sentAt: times.sentAt }, FINISHED: { sentAt: times.sentAt, finishedAt: times.finishedAt }, DUPLICATE_SEND: { sentAt: times.sentAt },
     ANSWERED: { answeredAt: times.answeredAt }, ANSWERED_DUPLICATE_SEND: { answeredAt: times.answeredAt, sentAt: times.sentAt },
     NO_ANSWER: { sentAt: times.sentAt }, NO_ANSWER_DUPLICATE_SEND: { sentAt: times.sentAt }, EXPIRED: {}, EXPIRED_UNSENT: {},
-    RETIRED_BUT_SENT: { sentAt: times.sentAt },
+    RETIRED_BUT_SENT: { sentAt: times.sentAt }, RETIRED_DUPLICATE_SEND: { sentAt: times.sentAt }, REPLACED_DUPLICATE_SEND: { sentAt: times.sentAt },
   };
   for (const [state, time] of required) {
     const filled = { ...bare, ...filledFor[state], expiresAt: times.expiresAt, state };
