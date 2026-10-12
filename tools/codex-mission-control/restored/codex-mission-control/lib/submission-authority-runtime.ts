@@ -23,6 +23,7 @@ import { pendingDecisionRequests } from "./github-decision-receipts";
 // deterministic relay contract tests. Mission Control is its only deployable
 // service host.
 import {
+  AMBIGUITY_CLOSED_NO_REPLAY,
   CentralSubmissionScheduler,
   SubmissionSchedulerError,
   defaultSchedulerState,
@@ -534,6 +535,7 @@ export class SubmissionAuthorityRuntime {
     if (operation === "target-bindings") return scheduler.bindTarget(body, producer.id);
     if (operation === "provider-rate-limits") return scheduler.recordRateLimit(body, producer.id);
     if (operation === "aborts") return scheduler.abortBeforeBoundary(body, producer.id);
+    if (operation === "admissions/close-ambiguous") return scheduler.closeAmbiguousAdmission(body, producer.id);
     if (operation === "expired-preclick-retries/cancel") return scheduler.cancelExpiredPreclickRetry(body, producer.id);
     if (operation === "superseded-preclick-retries/cancel") {
       const cancellation = parseSupersededRetryCancellation(body);
@@ -926,6 +928,14 @@ function ledgerEntry(prior: SchedulerState | null, state: SchedulerState, minimu
     recoveryStatus: admission?.recoveryStatus ?? null,
     queueStatus: queueItem?.status ?? null,
     admissionStatus: admission?.status ?? null,
+    ...(admission?.ambiguityClosure ? {
+      ambiguityClosure: {
+        decision: admission.ambiguityClosure.decision,
+        priorStatus: admission.ambiguityClosure.priorStatus,
+        decidedAt: admission.ambiguityClosure.decidedAt,
+        closedAt: admission.ambiguityClosure.closedAt,
+      },
+    } : {}),
   };
 }
 
@@ -945,6 +955,9 @@ function deriveEventKind(prior: SchedulerState | null, state: SchedulerState, pr
   if (admission?.deliveryStatus !== previousAdmission?.deliveryStatus || admission?.recoveryStatus !== previousAdmission?.recoveryStatus) return "DELIVERY_OUTCOME_RECORDED";
   if (admission?.providerRateLimitObservedAt !== previousAdmission?.providerRateLimitObservedAt) return "PROVIDER_RATE_LIMIT_RECORDED";
   if (state.lastBoundaryAt !== prior.lastBoundaryAt) return "BOUNDARY_RECORDED";
+  if (admission?.status === AMBIGUITY_CLOSED_NO_REPLAY && previousAdmission?.status !== AMBIGUITY_CLOSED_NO_REPLAY) {
+    return "AMBIGUOUS_ADMISSION_CLOSED_NO_REPLAY";
+  }
   if (admission?.status !== previousAdmission?.status) return "ADMISSION_STATE_CHANGED";
   if (Object.keys(state.targetBindings).length > Object.keys(prior.targetBindings).length) return "TARGET_BOUND";
   return "STATE_COMMITTED";

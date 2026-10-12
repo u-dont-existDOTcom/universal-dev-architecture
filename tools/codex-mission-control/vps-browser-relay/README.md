@@ -415,7 +415,8 @@ takeover is an operator transaction, never a network-partition guess:
    old host; it records a durable fence marker, stops and disables the relay,
    browser, and health timer, and masks the browser instance. Prove the sender
    quiescent and leave the fence engaged through the whole takeover;
-2. reconcile open/ambiguous admissions;
+2. reconcile open/ambiguous admissions (`resolve <route-key> discard` on the old host closes one
+   whose send is never to be repeated);
 3. read the last boundary and lease from Mission Control without copying or
    forking that ledger;
 4. activate a successor lease in Mission Control at exactly the prior epoch
@@ -734,6 +735,25 @@ $relay resolve 'request:<request-id>' discard
 ```
 
 Use `retry` only after an operator has independently established that re-submission is safe.
+
+Mission Control keeps its own record of every admitted send. A send cut off after admission
+leaves that record open, and an open record blocks every later send, window replacement, and
+takeover. `discard` and `submitted` also close it, as `OWNER_DISCARDED_NO_REPLAY` or
+`OWNER_ATTESTED_SUBMITTED_NO_REPLAY`: the admission and its queue item become
+`AMBIGUOUS_CLOSED_NO_REPLAY` / `CLOSED_AMBIGUOUS_NO_REPLAY`, that queue key can never be admitted
+again, and the recorded pacing boundary is left as it was. Mission Control accepts the closure only
+from the admitting relay, only for that route's exact request and body, only for an admission
+without boundary, abort, or outcome evidence, and only a full minimum interval plus 30 seconds of
+clock skew after the later of the admission's expiry and the recorded decision. The command records
+the decision while holding the relay lock, so the relay that held the admission had stopped by then.
+When Mission Control is not ready yet, the command waits once, up to five minutes, then exits
+non-zero if the closure still has not happened; re-running it repeats only the Mission Control step
+with the same recorded decision. If a boundary for a closed send ever arrives, Mission Control
+records it as crossed without authority and halts fail closed.
+
+`retry` leaves Mission Control's record open, and Mission Control refuses to admit that send again
+while it is open. A send cut off before its intent was recorded, and journal or controller sends,
+have no route here; their open admissions need a separate path.
 
 ## Memory trial
 

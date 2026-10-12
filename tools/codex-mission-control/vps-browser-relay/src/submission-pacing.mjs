@@ -56,6 +56,17 @@ export class CentralSubmissionScheduler {
     return this.schedulerClient.cancelSupersededPreclickRetry({ queueItemId, requestId, replacementRequestId, failureReceiptSha256 });
   }
 
+  // Carries the operator's discard of one ambiguous send to Mission Control. Only the operator's
+  // resolve command calls this; the send loop never closes an ambiguity.
+  async closeAmbiguousAdmission({ admissionId, requestId, bodySha256, decidedAt }) {
+    if (typeof this.schedulerClient.closeAmbiguousAdmission !== 'function') {
+      throw new Error('CENTRAL_SCHEDULER_CLOSE_UNAVAILABLE: scheduler client lacks ambiguity closure.');
+    }
+    return this.schedulerClient.closeAmbiguousAdmission({
+      admissionId, requestId, bodySha256, decision: 'OWNER_DISCARDED_NO_REPLAY', decidedAt,
+    });
+  }
+
   async assertReady() {
     const status = await this.remoteStatus();
     this.#assertLocalLease(status);

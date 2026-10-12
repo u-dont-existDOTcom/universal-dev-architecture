@@ -39,12 +39,16 @@ export class CentralSubmissionScheduler {
   recordRateLimit(input: unknown, producerId: string): Promise<Record<string, unknown>>;
   abortBeforeBoundary(input: unknown, producerId: string): Promise<Record<string, unknown>>;
   cancelExpiredPreclickRetry(input: unknown, producerId: string): Promise<Record<string, unknown>>;
+  closeAmbiguousAdmission(input: unknown, producerId: string): Promise<Record<string, unknown>>;
   recordOutcome(input: unknown, producerId: string): Promise<Record<string, unknown>>;
 }
 
 export const MINIMUM_GLOBAL_SUBMISSION_INTERVAL_MS: number;
 export const MAXIMUM_RECOVERY_PERMIT_LIFETIME_MS: number;
 export const PRECOMPOSITION_RECOVERED: string;
+export const AMBIGUITY_CLOSED_NO_REPLAY: string;
+export const QUEUE_AMBIGUITY_CLOSED_NO_REPLAY: string;
+export const AMBIGUITY_CLOSURE_DECISIONS: readonly string[];
 export function recoverySha256(value: unknown): string;
 export function parseDeploymentLease(value: unknown): Record<string, unknown>;
 export function parseSubmissionRelayBindings(value: unknown): Record<string, Record<string, unknown>>;

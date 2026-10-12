@@ -35,6 +35,7 @@ export class SubmissionSchedulerClient {
   abortBeforeBoundary(input) { return this.#json('/aborts', input); }
   cancelExpiredPreclickRetry(input) { return this.#json('/expired-preclick-retries/cancel', input); }
   cancelSupersededPreclickRetry(input) { return this.#json('/superseded-preclick-retries/cancel', input); }
+  closeAmbiguousAdmission(input) { return this.#json('/admissions/close-ambiguous', input); }
   recordOutcome(input) { return this.#json('/outcomes', input); }
   reportHealth(input) { return this.#json('/relay-health', input); }
   ledger(limit = 200) { return this.#request(`/ledger?limit=${encodeURIComponent(limit)}`, { method: 'GET' }); }

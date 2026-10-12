@@ -49,9 +49,24 @@ import { submissionSchedulerContext } from './submission-context.mjs';
 
 const MCP_BINDING_PRELOAD_RECEIPT_GRACE_MS = 30_000;
 const PROVIDER_SESSION_PROJECTION_TIMEOUT_MS = 30_000;
+// The resolve command holds the relay lock while it waits for Mission Control to accept a closure.
+const CENTRAL_AMBIGUITY_CLOSURE_MAX_WAIT_MS = 5 * 60_000;
+const CENTRAL_AMBIGUITY_DECISIONS = Object.freeze({
+  discard: 'OWNER_DISCARDED_NO_REPLAY',
+  submitted: 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY',
+});
+
+// Exit status for `resolve`: non-zero while Mission Control may still hold this send, or another send, open.
+export function ambiguityResolutionExitCode(result) {
+  const central = result?.central;
+  if (!central || ['CLOSED', 'ALREADY_CLOSED', 'CLEAR'].includes(central.state)) return 0;
+  if (central.state === 'NOT_OPEN' && central.otherAdmissionOpen !== true) return 0;
+  return 1;
+}
 
 export class RelayRuntime {
-  constructor({ config, missionControl, browser, stateStore, submissionPacer = null, codexExecutionDispatcher = null, memoryReader = readMemoryMetrics, logger = console }) {
+  constructor({ config, missionControl, browser, stateStore, submissionPacer = null, codexExecutionDispatcher = null, memoryReader = readMemoryMetrics, logger = console, sleepImpl = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }) {
+    this.sleepImpl = sleepImpl;
     this.config = config;
     this.missionControl = missionControl;
     this.browser = browser;
@@ -598,27 +613,97 @@ export class RelayRuntime {
     let state = await this.stateStore.read();
     const current = state.deliveries[routeKey];
     if (!current) throw new Error(`Unknown route key: ${routeKey}`);
-    const v6GenerationStarted = current.status === startedCycleStepStatus(IN_BAND_REQUEST_STEP);
-    const resolvableAmbiguity = ['SUBMISSION_INTENT_RECORDED', 'AMBIGUOUS_AFTER_RESTART', 'FAILED_RETRYABLE'].includes(current.status);
-    if (!resolvableAmbiguity && !(outcome === 'submitted' && v6GenerationStarted)) {
-      throw new Error(`Route ${routeKey} is ${current.status}; no ambiguity resolution is permitted.`);
+    // Repeating a recorded discard or submitted attestation only carries that decision to Mission Control again.
+    const recorded = (outcome === 'discard' && current.status === 'DISCARDED' && current.resolution === 'OPERATOR_DISCARDED')
+      || (outcome === 'submitted' && current.status === 'SUBMITTED_CONFIRMED' && current.resolution === 'OPERATOR_ATTESTED_SUBMITTED');
+    let carryToCentral = recorded;
+    if (!recorded) {
+      const v6GenerationStarted = current.status === startedCycleStepStatus(IN_BAND_REQUEST_STEP);
+      const resolvableAmbiguity = ['SUBMISSION_INTENT_RECORDED', 'AMBIGUOUS_AFTER_RESTART', 'FAILED_RETRYABLE'].includes(current.status);
+      if (!resolvableAmbiguity && !(outcome === 'submitted' && v6GenerationStarted)) {
+        throw new Error(`Route ${routeKey} is ${current.status}; no ambiguity resolution is permitted.`);
+      }
+      const resolvedAt = new Date().toISOString();
+      if (outcome === 'retry' && current.status === 'FAILED_RETRYABLE'
+        && ['EXTRA_HIGH_DECISION', 'PRO_DECISION'].includes(current.cycleStep)) {
+        state.deliveries[routeKey] = await this.#restoreUnsentDecisionBinding(routeKey, current, state, resolvedAt);
+      } else if (outcome === 'retry') state.deliveries[routeKey] = { ...current, status: 'RETRY_AUTHORIZED', resolvedAt, resolution: 'OPERATOR_AUTHORIZED_RETRY', lastError: null };
+      else if (outcome === 'submitted' && v6GenerationStarted) state.deliveries[routeKey] = {
+        ...current,
+        confirmedAt: resolvedAt,
+        resolution: 'OPERATOR_ATTESTED_SUBMITTED_GENERATION_PENDING',
+        lastError: null,
+      };
+      else if (outcome === 'submitted') {
+        state.deliveries[routeKey] = { ...current, status: 'SUBMITTED_CONFIRMED', confirmedAt: resolvedAt, resolution: 'OPERATOR_ATTESTED_SUBMITTED', lastError: null };
+        carryToCentral = true;
+      } else if (outcome === 'discard') {
+        state.deliveries[routeKey] = { ...current, status: 'DISCARDED', resolvedAt, resolution: 'OPERATOR_DISCARDED', lastError: null };
+        carryToCentral = true;
+      } else throw new Error('Resolution outcome must be retry, submitted, or discard.');
+      state = await this.stateStore.write(state);
     }
-    const resolvedAt = new Date().toISOString();
-    if (outcome === 'retry' && current.status === 'FAILED_RETRYABLE'
-      && ['EXTRA_HIGH_DECISION', 'PRO_DECISION'].includes(current.cycleStep)) {
-      state.deliveries[routeKey] = await this.#restoreUnsentDecisionBinding(routeKey, current, state, resolvedAt);
-    } else if (outcome === 'retry') state.deliveries[routeKey] = { ...current, status: 'RETRY_AUTHORIZED', resolvedAt, resolution: 'OPERATOR_AUTHORIZED_RETRY', lastError: null };
-    else if (outcome === 'submitted' && v6GenerationStarted) state.deliveries[routeKey] = {
-      ...current,
-      confirmedAt: resolvedAt,
-      resolution: 'OPERATOR_ATTESTED_SUBMITTED_GENERATION_PENDING',
-      lastError: null,
+    if (!carryToCentral) return this.#writeStandaloneStatus('AMBIGUITY_RESOLVED', state, { routeKey, outcome });
+    const delivery = state.deliveries[routeKey];
+    let central;
+    try {
+      central = await this.#closeCentralAmbiguity(routeKey, delivery, {
+        decision: CENTRAL_AMBIGUITY_DECISIONS[outcome],
+        decidedAt: outcome === 'discard' ? delivery.resolvedAt : delivery.confirmedAt,
+      });
+    } catch (error) {
+      central = {
+        state: 'NOT_CLOSED',
+        code: typeof error?.code === 'string' ? error.code : 'CENTRAL_AMBIGUITY_CLOSE_FAILED',
+        closableAt: typeof error?.closableAt === 'string' ? error.closableAt : null,
+        error: redactError(error),
+      };
+    }
+    return this.#writeStandaloneStatus('AMBIGUITY_RESOLVED', state, { routeKey, outcome, central });
+  }
+
+  // Mission Control keeps its own record of an admitted send, and that record blocks every later send,
+  // window replacement, and takeover until it is closed. The owner's discard or submitted attestation
+  // closes it without replay. Mission Control checks the exact admitting relay, request, and body, and
+  // the timing; this command holds the relay lock, so the relay that held the admission is stopped.
+  async #closeCentralAmbiguity(routeKey, delivery, { decision, decidedAt }) {
+    if (typeof this.submissionPacer.closeAmbiguousAdmission !== 'function') {
+      throw new Error('CENTRAL_SCHEDULER_CLOSE_UNAVAILABLE: this relay cannot close a Mission Control ambiguity.');
+    }
+    const status = await this.submissionPacer.remoteStatus();
+    const open = status?.unresolvedAdmission ?? null;
+    const known = typeof delivery.submissionAdmissionId === 'string' ? delivery.submissionAdmissionId : null;
+    if (!known && !open) return { state: 'CLEAR' };
+    const input = {
+      admissionId: known ?? open.admissionId,
+      requestId: delivery.requestId ?? routeKey,
+      bodySha256: delivery.bodySha256,
+      decision,
+      decidedAt,
     };
-    else if (outcome === 'submitted') state.deliveries[routeKey] = { ...current, status: 'SUBMITTED_CONFIRMED', confirmedAt: resolvedAt, resolution: 'OPERATOR_ATTESTED_SUBMITTED', lastError: null };
-    else if (outcome === 'discard') state.deliveries[routeKey] = { ...current, status: 'DISCARDED', resolvedAt, resolution: 'OPERATOR_DISCARDED', lastError: null };
-    else throw new Error('Resolution outcome must be retry, submitted, or discard.');
-    state = await this.stateStore.write(state);
-    return this.#writeStandaloneStatus('AMBIGUITY_RESOLVED', state, { routeKey, outcome });
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        const closed = await this.submissionPacer.closeAmbiguousAdmission(input);
+        return { state: closed?.duplicate === true ? 'ALREADY_CLOSED' : 'CLOSED', closedAt: closed?.closedAt ?? null };
+      } catch (error) {
+        const waitMs = Date.parse(error?.closableAt ?? '') - Date.now();
+        if (attempt === 0 && error?.code === 'SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY'
+          && Number.isFinite(waitMs) && waitMs <= CENTRAL_AMBIGUITY_CLOSURE_MAX_WAIT_MS) {
+          await this.sleepImpl(Math.max(0, waitMs) + 1_000);
+          continue;
+        }
+        if (known && error?.code === 'SUBMISSION_AMBIGUITY_CLOSURE_STAGE_INVALID') {
+          // This route's admission is not open in Mission Control (it crossed, aborted, or expired safely).
+          return {
+            state: 'NOT_OPEN',
+            admissionStatus: typeof error?.admissionStatus === 'string' ? error.admissionStatus : null,
+            otherAdmissionOpen: open !== null && open.admissionId !== known,
+          };
+        }
+        if (!known && error?.code === 'SUBMISSION_AMBIGUITY_CLOSURE_MISMATCH') return { state: 'OPEN_FOR_ANOTHER_SEND' };
+        throw error;
+      }
+    }
   }
 
   async #restoreUnsentDecisionBinding(routeKey, current, state, resolvedAt) {

@@ -16,6 +16,14 @@ function normalizeConversationUrl(value) {
 export const MINIMUM_GLOBAL_SUBMISSION_INTERVAL_MS = 60_000;
 export const MAXIMUM_RECOVERY_PERMIT_LIFETIME_MS = 30 * 60_000;
 export const PRECOMPOSITION_RECOVERED = 'RECOVERED_BEFORE_COMPOSITION';
+// An expired or restart-ambiguous admission that the owner closed: the send may or may not have
+// crossed the provider boundary, and it is never replayed. The owner either discarded it or attested
+// that it was sent; both close it the same way.
+export const AMBIGUITY_CLOSED_NO_REPLAY = 'AMBIGUOUS_CLOSED_NO_REPLAY';
+export const QUEUE_AMBIGUITY_CLOSED_NO_REPLAY = 'CLOSED_AMBIGUOUS_NO_REPLAY';
+export const AMBIGUITY_CLOSURE_DECISIONS = Object.freeze(['OWNER_DISCARDED_NO_REPLAY', 'OWNER_ATTESTED_SUBMITTED_NO_REPLAY']);
+// The relay stamps the owner's decision with its own clock; allow the same skew as relay health.
+const AMBIGUITY_DECISION_CLOCK_SKEW_MS = 30_000;
 
 const OPEN_QUEUE_STATUSES = new Set(['QUEUED', 'PRECLICK_RETRY_PENDING', 'RATE_LIMIT_RETRY_PENDING', 'ADMITTED']);
 const QUEUE_STATUSES = new Set([
@@ -29,6 +37,7 @@ const QUEUE_STATUSES = new Set([
   'CANCELLED_AT_TAKEOVER',
   'CANCELLED_EXPIRED_ROUTE',
   'CANCELLED_SUPERSEDED_ROUTE',
+  QUEUE_AMBIGUITY_CLOSED_NO_REPLAY,
 ]);
 const ADMISSION_STATUSES = new Set([
   PRECOMPOSITION_RECOVERED,
@@ -40,6 +49,7 @@ const ADMISSION_STATUSES = new Set([
   'AMBIGUOUS_INTERVAL_VIOLATION',
   'AMBIGUOUS_EXPIRED_AT_BOUNDARY',
   'AMBIGUOUS_LEASE_VIOLATION',
+  AMBIGUITY_CLOSED_NO_REPLAY,
 ]);
 
 export class SubmissionSchedulerError extends Error {
@@ -456,6 +466,35 @@ export class CentralSubmissionScheduler {
         }
         throw new SubmissionSchedulerError('SUBMISSION_ADMISSION_ALREADY_USED', 'A single-use admission cannot record a different second boundary.');
       }
+      if (admission.status === AMBIGUITY_CLOSED_NO_REPLAY) {
+        // The owner closed this send while its relay was stopped, so a boundary reported now crossed
+        // without admission authority. Record it as such, keep the later pacing boundary, and halt
+        // every later send fail closed (an earlier halt keeps its cause).
+        const queueItem = state.queueItems.find((item) => item.queueItemId === admission.queueItemId);
+        if (!queueItem || queueItem.status !== QUEUE_AMBIGUITY_CLOSED_NO_REPLAY) {
+          throw new SubmissionSchedulerError('SUBMISSION_QUEUE_BINDING_INVALID', 'The closed admission is not bound to its closed queue item.');
+        }
+        delete admission.ambiguityClosure;
+        Object.assign(admission, {
+          status: 'AMBIGUOUS_EXPIRED_AT_BOUNDARY',
+          boundaryAt: input.boundaryAt,
+          boundaryKind: input.boundaryKind,
+          conversationUrlSha256: input.conversationUrlSha256,
+          boundaryRecordedAt: new Date(this.now()).toISOString(),
+        });
+        queueItem.status = 'AMBIGUOUS_EXPIRED_AT_BOUNDARY';
+        queueItem.terminalAt = admission.boundaryRecordedAt;
+        const previousMs = Date.parse(state.lastBoundaryAt ?? '');
+        if (!Number.isFinite(previousMs) || Date.parse(input.boundaryAt) > previousMs) state.lastBoundaryAt = input.boundaryAt;
+        state.safetyHalt ??= {
+          code: 'SUBMISSION_BOUNDARY_AFTER_AMBIGUITY_CLOSURE',
+          admissionId: admission.admissionId,
+          queueItemId: queueItem.queueItemId,
+          boundaryAt: input.boundaryAt,
+        };
+        await this.stateStore.write(state);
+        throw new SubmissionSchedulerError('SUBMISSION_BOUNDARY_AFTER_AMBIGUITY_CLOSURE', 'A boundary arrived for a send the owner closed as ambiguous; scheduler is halted fail closed.');
+      }
       if (admission.status !== 'ADMITTED') throw new SubmissionSchedulerError('SUBMISSION_ADMISSION_NOT_OPEN', `Admission is ${admission.status}.`);
       const queueItem = state.queueItems.find((item) => item.queueItemId === admission.queueItemId);
       if (!queueItem || queueItem.status !== 'ADMITTED') throw new SubmissionSchedulerError('SUBMISSION_QUEUE_BINDING_INVALID', 'Admission is not bound to the active durable queue head.');
@@ -708,6 +747,64 @@ export class CentralSubmissionScheduler {
       queueItem.supersessionFailureReceiptSha256 = failureReceiptSha256;
       await this.stateStore.write(state);
       return { cancelled: true, duplicate: false, queueItemId, requestId, replacementRequestId, failureReceiptSha256, cancelledAt: queueItem.terminalAt };
+    });
+  }
+
+  // Closes one expired or restart-ambiguous admission on the owner's decision, carried by the admitting
+  // relay's operator command (never by its send loop). Whether the send crossed the provider boundary
+  // stays unknown, so nothing is replayed: the queue item becomes terminal, its queue key can never be
+  // admitted again, and the pacing boundary is left as recorded. The relay records the decision while
+  // holding its lock, so any authorized click of this send happened before the later of decidedAt and
+  // the admission expiry; closure waits a full global interval plus the allowed clock skew after that.
+  async closeAmbiguousAdmission(raw, producerId) {
+    return this.#serialized(async () => {
+      const input = parseAmbiguityClosure(raw);
+      const state = await this.stateStore.read();
+      const admission = state.admissions.find((item) => item.admissionId === input.admissionId);
+      if (!admission) throw new SubmissionSchedulerError('SUBMISSION_ADMISSION_UNKNOWN', 'The closure names no durable admission.', 404);
+      if (admission.producerId !== producerId) throw new SubmissionSchedulerError('SUBMISSION_ADMISSION_PRODUCER_MISMATCH', 'Only the admitting producer may close its ambiguity.', 403);
+      if (admission.requestId !== input.requestId || admission.bodySha256 !== input.bodySha256) {
+        throw new SubmissionSchedulerError('SUBMISSION_AMBIGUITY_CLOSURE_MISMATCH', 'The closure does not name the exact admitted request and body.', 409);
+      }
+      if (admission.status === AMBIGUITY_CLOSED_NO_REPLAY) {
+        const closure = admission.ambiguityClosure;
+        if (closure.decision === input.decision && closure.decidedAt === input.decidedAt) {
+          return { closed: true, duplicate: true, admissionId: admission.admissionId, queueItemId: admission.queueItemId, decision: closure.decision, closedAt: closure.closedAt };
+        }
+        throw new SubmissionSchedulerError('SUBMISSION_AMBIGUITY_ALREADY_CLOSED', 'This ambiguity was already closed by a different owner decision.', 409);
+      }
+      const nowMs = this.now();
+      const expiresMs = Date.parse(admission.expiresAt);
+      const priorStatus = admission.status;
+      if (!['ADMITTED', 'AMBIGUOUS_AFTER_RESTART'].includes(priorStatus)) {
+        throw new SubmissionSchedulerError('SUBMISSION_AMBIGUITY_CLOSURE_STAGE_INVALID', `Admission is ${priorStatus}; only an open or restart-ambiguous admission may be closed.`, 409, { admissionStatus: priorStatus });
+      }
+      if (hasSubmissionEvidence(admission) || admission.abortedAt != null || admission.abortStage != null
+        || admission.providerRateLimitObservedAt != null) {
+        throw new SubmissionSchedulerError('SUBMISSION_AMBIGUITY_CLOSURE_STAGE_INVALID', 'An admission with boundary, abort, or outcome evidence is not a restart ambiguity.', 409, { admissionStatus: priorStatus });
+      }
+      const decidedMs = Date.parse(input.decidedAt);
+      if (decidedMs > nowMs + AMBIGUITY_DECISION_CLOCK_SKEW_MS) {
+        throw new SubmissionSchedulerError('SUBMISSION_AMBIGUITY_CLOSURE_DECISION_TIME_INVALID', 'The owner decision cannot be future-dated.', 409);
+      }
+      const closableMs = Math.max(decidedMs, expiresMs) + this.minIntervalMs + AMBIGUITY_DECISION_CLOCK_SKEW_MS;
+      if (nowMs < closableMs) {
+        throw new SubmissionSchedulerError('SUBMISSION_AMBIGUITY_CLOSURE_TOO_EARLY', 'Closure waits a full global interval and the allowed clock skew after both the admission expiry and the owner decision.', 409, {
+          closableAt: new Date(closableMs).toISOString(),
+        });
+      }
+      const queueItem = state.queueItems.find((item) => item.queueItemId === admission.queueItemId);
+      if (!queueItem || queueItem.status !== priorStatus || queueItem.admissionIds.at(-1) !== admission.admissionId
+        || queueItem.request.requestId !== input.requestId) {
+        throw new SubmissionSchedulerError('SUBMISSION_QUEUE_BINDING_INVALID', 'The ambiguous admission is not the latest admission of its exact queue item.', 409);
+      }
+      const closedAt = new Date(nowMs).toISOString();
+      admission.status = AMBIGUITY_CLOSED_NO_REPLAY;
+      admission.ambiguityClosure = { decision: input.decision, priorStatus, decidedAt: input.decidedAt, closedAt };
+      queueItem.status = QUEUE_AMBIGUITY_CLOSED_NO_REPLAY;
+      queueItem.terminalAt = closedAt;
+      await this.stateStore.write(state);
+      return { closed: true, duplicate: false, admissionId: admission.admissionId, queueItemId: queueItem.queueItemId, decision: input.decision, closedAt };
     });
   }
 
@@ -1189,6 +1286,11 @@ function normalizeAdmissionRecord(value, index) {
   } else if (Object.hasOwn(root, 'precompositionRecovery')) {
     throw recoveryError('RECORDED_EVIDENCE_INVALID');
   }
+  if (status === AMBIGUITY_CLOSED_NO_REPLAY) {
+    admission.ambiguityClosure = normalizeAmbiguityClosure(root.ambiguityClosure, admission, index);
+  } else if (Object.hasOwn(root, 'ambiguityClosure')) {
+    throw new Error(`admissions.${index}.ambiguityClosure belongs only to a closed ambiguity.`);
+  }
   if (admission.deliveryStatus !== null && !['DELIVERED', 'GENERATION_STARTED', 'PROVIDER_RATE_LIMITED', 'FAILED_CLOSED'].includes(admission.deliveryStatus)) {
     throw new Error(`admissions.${index}.deliveryStatus is invalid.`);
   }
@@ -1234,9 +1336,13 @@ function validateQueueAdmissionCorrespondence(item, linked) {
     AMBIGUOUS_INTERVAL_VIOLATION: 'AMBIGUOUS_INTERVAL_VIOLATION',
     AMBIGUOUS_EXPIRED_AT_BOUNDARY: 'AMBIGUOUS_EXPIRED_AT_BOUNDARY',
     AMBIGUOUS_LEASE_VIOLATION: 'AMBIGUOUS_LEASE_VIOLATION',
+    [QUEUE_AMBIGUITY_CLOSED_NO_REPLAY]: AMBIGUITY_CLOSED_NO_REPLAY,
   }[item.status];
   if (exactLatestStatus && latest?.status !== exactLatestStatus) {
     throw new Error(`Submission scheduler queue item ${item.queueItemId} status is inconsistent with its latest admission.`);
+  }
+  if (item.status === QUEUE_AMBIGUITY_CLOSED_NO_REPLAY && item.terminalAt !== latest.ambiguityClosure.closedAt) {
+    throw new Error(`Submission scheduler queue item ${item.queueItemId} closure time differs from its closed admission.`);
   }
   if (item.status === 'QUEUED' && linked.length !== 0) {
     throw new Error(`Submission scheduler queue item ${item.queueItemId} cannot be newly queued with prior admissions.`);
@@ -1319,6 +1425,48 @@ function parseBoundary(value) {
     boundaryKind: root.boundaryKind,
     conversationUrlSha256: root.conversationUrlSha256 == null ? null : sha(root.conversationUrlSha256, 'conversationUrlSha256'),
   };
+}
+
+function parseAmbiguityClosure(value) {
+  try {
+    const root = requiredRecord(value, 'Ambiguity closure');
+    const fields = ['admissionId', 'requestId', 'bodySha256', 'decision', 'decidedAt'];
+    if (Object.keys(root).sort().join('\0') !== [...fields].sort().join('\0')) {
+      throw new Error(`An ambiguity closure names exactly ${fields.join(', ')}.`);
+    }
+    if (!AMBIGUITY_CLOSURE_DECISIONS.includes(root.decision)) {
+      throw new Error(`decision must be one of ${AMBIGUITY_CLOSURE_DECISIONS.join(', ')}.`);
+    }
+    return {
+      admissionId: boundedString(root.admissionId, 'admissionId', 300),
+      requestId: boundedString(root.requestId, 'requestId', 300),
+      bodySha256: sha(root.bodySha256, 'bodySha256'),
+      decision: root.decision,
+      decidedAt: isoTimestamp(root.decidedAt, 'decidedAt'),
+    };
+  } catch (error) {
+    throw new SubmissionSchedulerError('SUBMISSION_AMBIGUITY_CLOSURE_INVALID', error instanceof Error ? error.message : String(error), 400);
+  }
+}
+
+function normalizeAmbiguityClosure(value, admission, index) {
+  const root = requiredRecord(value, `admissions.${index}.ambiguityClosure`);
+  if (Object.keys(root).sort().join('\0') !== ['closedAt', 'decidedAt', 'decision', 'priorStatus'].join('\0')) {
+    throw new Error(`admissions.${index}.ambiguityClosure has unexpected fields.`);
+  }
+  if (!AMBIGUITY_CLOSURE_DECISIONS.includes(root.decision)) throw new Error(`admissions.${index}.ambiguityClosure.decision is invalid.`);
+  if (!['ADMITTED', 'AMBIGUOUS_AFTER_RESTART'].includes(root.priorStatus)) throw new Error(`admissions.${index}.ambiguityClosure.priorStatus is invalid.`);
+  const decidedAt = isoTimestamp(root.decidedAt, `admissions.${index}.ambiguityClosure.decidedAt`);
+  const closedAt = isoTimestamp(root.closedAt, `admissions.${index}.ambiguityClosure.closedAt`);
+  if (Date.parse(closedAt) < Math.max(Date.parse(decidedAt), Date.parse(admission.expiresAt))
+    + MINIMUM_GLOBAL_SUBMISSION_INTERVAL_MS + AMBIGUITY_DECISION_CLOCK_SKEW_MS) {
+    throw new Error(`admissions.${index}.ambiguityClosure times are inconsistent with the admission.`);
+  }
+  if (hasSubmissionEvidence(admission) || admission.abortedAt != null || admission.abortStage != null
+    || admission.providerRateLimitObservedAt != null) {
+    throw new Error(`admissions.${index} closed ambiguity cannot contain boundary, abort, or outcome evidence.`);
+  }
+  return { decision: root.decision, priorStatus: root.priorStatus, decidedAt, closedAt };
 }
 
 function assertActiveLease(lease, request, nowMs) {
@@ -1550,8 +1698,10 @@ function schedulerStatus(state, minIntervalMs, nowMs) {
     && Date.parse(state.activeLease.issuedAt) <= nowMs && Date.parse(state.activeLease.expiresAt) > nowMs;
   return {
     schedulerState: state.activeLease ? (leaseReady ? 'ACTIVE_LEASE' : 'LEASE_STALE') : 'LEASE_MISSING',
+    // A closed ambiguous journal send may have crossed, so it counts on the day it was admitted.
     journalCallsToday: state.admissions.filter((item) => item.sendPath === 'JOURNAL_WORK'
-      && item.boundaryAt?.slice(0, 10) === new Date(nowMs).toISOString().slice(0, 10)).length,
+      && (item.boundaryAt ?? (item.status === AMBIGUITY_CLOSED_NO_REPLAY ? item.admittedAt : null))?.slice(0, 10)
+        === new Date(nowMs).toISOString().slice(0, 10)).length,
     minimumIntervalMs: minIntervalMs,
     lastSubmissionAt: state.lastBoundaryAt,
     retryAfterMs: effectiveRetryAfterMs,

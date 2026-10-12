@@ -7,6 +7,7 @@ const allowedGetOperations = new Set(["status", "ledger", "admissions/proof"]);
 const allowedPostOperations = new Set([
   "admissions",
   "admissions/validate",
+  "admissions/close-ambiguous",
   "relay-target-transitions/begin",
   "relay-target-transitions/commit",
   "relay-target-transitions/abort",
