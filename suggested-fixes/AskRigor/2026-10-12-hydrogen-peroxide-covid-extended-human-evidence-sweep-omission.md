@@ -7,7 +7,16 @@
   - https://www.orthomolecular.org/resources/omns/v18n19.shtml
   - https://onlinelibrary.wiley.com/doi/10.1155/2021/5592042
 - Relationship: 2026-10-12 proposed immune/respiratory lane (separately queued). This is a retrieval/epistemic regression, **not** a request to validate hydrogen peroxide as a treatment.
-- Existing PR: none. A drafted fix does not mean the public AskRigor product has been repaired.
+- Existing pull request: none. A drafted fix does not mean the public AskRigor product has been repaired.
+- Supersedes: none.
+
+## What to do
+
+Repair the defects under "Diagnosis: what failed and what to fix" below, and add the cases under "Regression cases".
+
+## Why
+
+The sections below record the failure, the verified sources and the diagnosis.
 
 ## Observed failure / reproduced evidence
 
@@ -42,6 +51,10 @@ Concretely, for an unexpected or contested intervention mentioned by the owner a
 - **No inverse overcorrection**: discovering positive studies does not prove a treatment, nor do differently administered or far higher-concentration harms quantify clinical risks for all doses.
 - Preserve owner exposure corrections as facts and propagate to all downstream working summaries and queued Atlas lanes; flag unsupported personal causal conclusions separately without changing the reported observation.
 - Keep safety policy: do not give home inhaled/oral H2O2 preparation instructions or exposure schedules as remedies; ordinary sterile nasal saline is different. This is not a censorship/reporting-exclusion pretext—acknowledge every located clinical source.
+
+## Check first
+
+The verified source-evidence map above, and the regression cases below.
 
 ## Regression cases
 
