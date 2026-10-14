@@ -26,7 +26,8 @@ import {
   type GitHubDecisionCandidate,
   type ReasoningReplacementReasonCode,
 } from "../lib/github-decision-receipts";
-import { SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
+import { SubmissionAuthorityDisabledError, SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
+import { reissueExpiredWorkQuestion } from "../lib/work-question-reissue";
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
 import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
 import { GitHubReconciliationCoordinator } from "../lib/github-reconciliation-coordinator";
@@ -232,6 +233,26 @@ const server = http.createServer(async (request, response) => {
         });
       } catch (error) {
         return json(response, 409, { error: error instanceof Error ? error.message : "Unsent reasoning retirement was rejected." });
+      }
+    }
+    const workQuestionReissueMatch = url.pathname.match(/^\/workers\/([^/]+)\/work-questions\/reissue-expired$/);
+    if (request.method === "POST" && workQuestionReissueMatch) {
+      const producer = authorizeMutation(request);
+      if (!["OWNER_AUTHORITY", "UI"].includes(producer.kind)) return json(response, 403, { error: "Only an authenticated owner surface may reissue an expired Work question." });
+      const worker = decodeURIComponent(workQuestionReissueMatch[1]);
+      if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,179}$/.test(worker)) return json(response, 400, { error: "The worker is not a stable Mission Control identifier." });
+      const body = await readJson(request) as Record<string, unknown>;
+      if (body.request_id !== undefined && typeof body.request_id !== "string") return json(response, 400, { error: "request_id must be a string when present." });
+      try {
+        const result = await reissueExpiredWorkQuestion(store, {
+          worker,
+          ...(typeof body.request_id === "string" ? { requestId: body.request_id } : {}),
+        }, (requestId) => submissionAuthority.proveRequestUnsent(requestId), githubPolicy);
+        if (!result.duplicate) notifications.emit("event", { type: "work_question_reissued", worker, requestId: result.requestId });
+        return json(response, result.duplicate ? 200 : 201, result);
+      } catch (error) {
+        if (error instanceof SubmissionAuthorityDisabledError) return json(response, 503, { error: error.message });
+        return json(response, 409, { error: error instanceof Error ? error.message : "The Work question reissue was rejected." });
       }
     }
     const fleetWatchMatch = url.pathname.match(/^\/fleet-supervisor\/([^/]+)$/);

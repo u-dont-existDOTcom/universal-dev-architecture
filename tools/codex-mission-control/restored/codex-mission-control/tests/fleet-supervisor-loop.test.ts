@@ -31,6 +31,33 @@ function runtimeStore(watches = 1) {
   return { store, commits: () => commits, reads: () => reads };
 }
 
+test("a watch whose tick throws does not starve the watches due after it", async () => {
+  const store = new EventStore(":memory:");
+  store.verifyChain = () => ({ valid: false, errors: ["fixture integrity failure"] });
+  const now = Date.parse("2026-10-03T01:00:00.000Z");
+  const errors: unknown[] = [];
+  for (const projectId of ["project:first", "project:second", "project:third"]) {
+    store.ensureFleetSupervisorWatch(projectId, "task:fixture", "fixture", "2026-10-03T00:00:00.000Z");
+  }
+  const firstDue = store.fleetSupervisorWatch("project:first")!.nextTickAt;
+  const runtime = new FleetSupervisorRuntime(store, {
+    notifyOwner: (watch) => { if (watch.projectId === "project:first") throw new Error("first watch failure"); },
+  });
+  const loop = new FleetSupervisorLoop(runtime, { now: () => now, pollMs: 1000, stallMs: 5000, onFailure: (error) => errors.push(error) });
+  try {
+    loop.advance(); await flush();
+    assert.equal(store.fleetSupervisorTicks("project:first").length, 0);
+    assert.equal(store.fleetSupervisorWatch("project:first")!.nextTickAt, firstDue);
+    for (const projectId of ["project:second", "project:third"]) {
+      assert.equal(store.fleetSupervisorTicks(projectId).length, 1, projectId);
+      assert.ok(Date.parse(store.fleetSupervisorWatch(projectId)!.nextTickAt!) > now, projectId);
+    }
+    assert.equal(loop.status().consecutiveFailures, 1);
+    assert.equal(loop.status().lastErrorMessage, "project:first: first watch failure");
+    assert.equal(errors.length, 1);
+  } finally { store.close(); }
+});
+
 for (const laterOutcome of ["throws", "stalls", "completes"] as const) {
   test(`each completed watch is logged and stored before a later watch ${laterOutcome}`, async () => {
     const store = new EventStore(":memory:"), later = deferred<JevShadowObservation>();
@@ -66,7 +93,7 @@ for (const laterOutcome of ["throws", "stalls", "completes"] as const) {
       assert.equal(store.jevShadowSummary().counts.bySource.LIVE, 1);
       if (laterOutcome === "throws") {
         assert.equal(loop.status().consecutiveFailures, 1);
-        assert.equal(loop.status().lastErrorMessage, "later watch failure");
+        assert.equal(loop.status().lastErrorMessage, "project:second: later watch failure");
         assert.equal(errors.length, 1);
       } else {
         assert.equal(loop.status().lastTickCompletedAt, null);

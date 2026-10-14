@@ -19,6 +19,13 @@ import { projectWorker } from "./projection";
 import type { StoredEvent } from "./schema";
 import type { JevShadowObservation } from "./jev-shadow";
 import { EventStore, type FleetSupervisorWatchRecord, type FleetSupervisorWatchState } from "./store";
+import {
+  FLEET_REQUEST_RETIREMENT_PRODUCER_ID,
+  validUnsentSubmissionProof,
+  type ProvenUnsentSubmissionState,
+} from "./unsent-request-proof";
+
+export type { ProvenUnsentSubmissionState } from "./unsent-request-proof";
 
 export const DEFAULT_FLEET_SUPERVISOR_CADENCE_MS = 3_600_000;
 export type FleetSupervisorTrigger =
@@ -67,18 +74,6 @@ export interface FleetReasoningReplacementResult {
   duplicate: boolean;
 }
 
-export interface ProvenUnsentSubmissionState {
-  schemaVersion: 1;
-  requestId: string;
-  pacingDomain: string;
-  ledgerValid: boolean;
-  matchingStateSections: string[];
-  queueRecordCount: number;
-  admissionRecordCount: number;
-  provenUnsent: boolean;
-  proofSha256: string;
-}
-
 export interface FleetReasoningUnsentRetirementResult {
   retirementEvent: StoredEvent;
   reviewEvent: StoredEvent;
@@ -96,74 +91,88 @@ export class FleetSupervisorRuntime {
   async tick(now = new Date().toISOString(), signal?: AbortSignal, onWatchTiming?: (timing: FleetSupervisorWatchTiming) => void,
     onWatchResults?: (results: FleetSupervisorTickResult[]) => void) {
     const results: FleetSupervisorTickResult[] = [];
+    const failures: Array<{ projectId: string; error: unknown }> = [];
     if (signal?.aborted) return results;
     this.progress = { stage: "selecting", projectId: null };
     for (const watch of this.store.dueFleetSupervisorWatches(now)) {
       if (signal?.aborted) break;
-      const timing: FleetSupervisorWatchTiming = { projectId: watch.projectId,
-        stageMs: { reading_worker_events: 0, verifying_chain: 0, classifying: 0, routing_reasoning: 0,
-          notifying: 0, committing: 0, calling_jev: 0 }, synchronousMs: 0, slowestStage: "reading_worker_events" };
-      let stage: keyof FleetSupervisorWatchTiming["stageMs"] = "reading_worker_events", stageStarted = this.clock();
-      const nextStage = (next: typeof stage) => {
-        const ended = this.clock(); timing.stageMs[stage] += Math.max(0, ended - stageStarted);
-        stage = next; stageStarted = ended;
-      };
-      const synchronous = <T>(work: () => T): T => {
-        const started = this.clock();
-        try { return work(); } finally { timing.synchronousMs += Math.max(0, this.clock() - started); }
-      };
-      this.progress = { stage: "reading worker events", projectId: watch.projectId };
-      const events = synchronous(() => this.store.workerEvents(watch.worker));
-      nextStage("verifying_chain"); this.progress.stage = "verifying chain";
-      const chain = synchronous(() => this.store.verifyChain());
-      nextStage("classifying"); this.progress.stage = "classifying";
-      const decision = synchronous(() => classifyFleetSupervisorTick(watch, events, chain));
-      if (signal?.aborted) break;
-      nextStage("routing_reasoning");
-      this.progress.stage = "routing reasoning";
-      if (decision.mechanicalRecoveryEligible) await synchronous(() => this.hooks.continueMechanical?.(watch, decision, events));
-      if (signal?.aborted) break;
-      if (decision.reasoningRequired) await synchronous(() => this.hooks.routeReasoning?.(watch, decision, events));
-      if (signal?.aborted) break;
-      const fingerprint = decision.notifyOwner ? sha256(`${decision.trigger}\n${decision.notificationReason ?? ""}`) : null;
-      const duplicate = Boolean(fingerprint && fingerprint === watch.notificationFingerprint);
-      const notificationDisposition = decision.notifyOwner
-        ? duplicate ? "SUPPRESSED_DUPLICATE" : "OWNER_NOTIFIED"
-        : "SUPPRESSED_NOT_ACTIONABLE";
-      nextStage("notifying"); this.progress.stage = "notifying";
-      if (decision.notifyOwner && !duplicate) await synchronous(() => this.hooks.notifyOwner?.(watch, decision));
-      if (signal?.aborted) break;
-      nextStage("committing"); this.progress.stage = "committing";
-      const committed = synchronous(() => this.store.completeFleetSupervisorTick({
-        projectId: watch.projectId,
-        dueAt: watch.nextTickAt!,
-        tickAt: now,
-        trigger: decision.trigger,
-        result: decision.result,
-        state: decision.state,
-        notificationDisposition,
-        notificationReason: decision.notificationReason,
-        notificationFingerprint: fingerprint,
-        notifiedAt: notificationDisposition === "OWNER_NOTIFIED" ? now : null,
-      }));
-      nextStage("calling_jev");
-      let jevShadow: JevShadowObservation | null = null;
+      // One watch's failure must not starve the others: it stays due (its tick is not committed) and the tick still
+      // fails after the remaining watches have run, so the loop reports it.
       try {
-        if (!signal?.aborted) {
-          this.progress.stage = "observing Jev";
-          jevShadow = await synchronous(() => this.hooks.observeJevShadow?.(watch, decision, events, chain, signal)) ?? null;
+        const timing: FleetSupervisorWatchTiming = { projectId: watch.projectId,
+          stageMs: { reading_worker_events: 0, verifying_chain: 0, classifying: 0, routing_reasoning: 0,
+            notifying: 0, committing: 0, calling_jev: 0 }, synchronousMs: 0, slowestStage: "reading_worker_events" };
+        let stage: keyof FleetSupervisorWatchTiming["stageMs"] = "reading_worker_events", stageStarted = this.clock();
+        const nextStage = (next: typeof stage) => {
+          const ended = this.clock(); timing.stageMs[stage] += Math.max(0, ended - stageStarted);
+          stage = next; stageStarted = ended;
+        };
+        const synchronous = <T>(work: () => T): T => {
+          const started = this.clock();
+          try { return work(); } finally { timing.synchronousMs += Math.max(0, this.clock() - started); }
+        };
+        this.progress = { stage: "reading worker events", projectId: watch.projectId };
+        const events = synchronous(() => this.store.workerEvents(watch.worker));
+        nextStage("verifying_chain"); this.progress.stage = "verifying chain";
+        const chain = synchronous(() => this.store.verifyChain());
+        nextStage("classifying"); this.progress.stage = "classifying";
+        const decision = synchronous(() => classifyFleetSupervisorTick(watch, events, chain));
+        if (signal?.aborted) break;
+        nextStage("routing_reasoning");
+        this.progress.stage = "routing reasoning";
+        if (decision.mechanicalRecoveryEligible) await synchronous(() => this.hooks.continueMechanical?.(watch, decision, events));
+        if (signal?.aborted) break;
+        if (decision.reasoningRequired) await synchronous(() => this.hooks.routeReasoning?.(watch, decision, events));
+        if (signal?.aborted) break;
+        const fingerprint = decision.notifyOwner ? sha256(`${decision.trigger}\n${decision.notificationReason ?? ""}`) : null;
+        const duplicate = Boolean(fingerprint && fingerprint === watch.notificationFingerprint);
+        const notificationDisposition = decision.notifyOwner
+          ? duplicate ? "SUPPRESSED_DUPLICATE" : "OWNER_NOTIFIED"
+          : "SUPPRESSED_NOT_ACTIONABLE";
+        nextStage("notifying"); this.progress.stage = "notifying";
+        if (decision.notifyOwner && !duplicate) await synchronous(() => this.hooks.notifyOwner?.(watch, decision));
+        if (signal?.aborted) break;
+        nextStage("committing"); this.progress.stage = "committing";
+        const committed = synchronous(() => this.store.completeFleetSupervisorTick({
+          projectId: watch.projectId,
+          dueAt: watch.nextTickAt!,
+          tickAt: now,
+          trigger: decision.trigger,
+          result: decision.result,
+          state: decision.state,
+          notificationDisposition,
+          notificationReason: decision.notificationReason,
+          notificationFingerprint: fingerprint,
+          notifiedAt: notificationDisposition === "OWNER_NOTIFIED" ? now : null,
+        }));
+        nextStage("calling_jev");
+        let jevShadow: JevShadowObservation | null = null;
+        try {
+          if (!signal?.aborted) {
+            this.progress.stage = "observing Jev";
+            jevShadow = await synchronous(() => this.hooks.observeJevShadow?.(watch, decision, events, chain, signal)) ?? null;
+          }
+        } catch {
+          // Shadow evaluation is intentionally non-authoritative and may never fail the fleet tick.
         }
-      } catch {
-        // Shadow evaluation is intentionally non-authoritative and may never fail the fleet tick.
+        nextStage("calling_jev");
+        timing.slowestStage = (Object.keys(timing.stageMs) as Array<typeof stage>)
+          .reduce((slowest, candidate) => timing.stageMs[candidate] > timing.stageMs[slowest] ? candidate : slowest, timing.slowestStage);
+        onWatchTiming?.(timing);
+        const result = { projectId: watch.projectId, decision, committed, notificationDisposition, jevShadow };
+        results.push(result);
+        // Publish synchronously before another watch can throw or await a hook.
+        onWatchResults?.([result]);
+      } catch (error) {
+        if (signal?.aborted) break;
+        failures.push({ projectId: watch.projectId, error });
       }
-      nextStage("calling_jev");
-      timing.slowestStage = (Object.keys(timing.stageMs) as Array<typeof stage>)
-        .reduce((slowest, candidate) => timing.stageMs[candidate] > timing.stageMs[slowest] ? candidate : slowest, timing.slowestStage);
-      onWatchTiming?.(timing);
-      const result = { projectId: watch.projectId, decision, committed, notificationDisposition, jevShadow };
-      results.push(result);
-      // Publish synchronously before another watch can throw or await a hook.
-      onWatchResults?.([result]);
+    }
+    if (failures.length > 0) {
+      const first = failures[0]!;
+      const message = first.error instanceof Error ? first.error.message : "Unknown fleet supervisor failure";
+      throw new Error(failures.length === 1 ? `${first.projectId}: ${message}`
+        : `${failures.length} fleet watches failed; first ${first.projectId}: ${message}`, { cause: first.error });
     }
     return results;
   }
@@ -208,7 +217,7 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
       schema_version: 2, event_id: retirementId, mission_id: "mission-control-live", occurred_at: queuedAt,
       data: {
         type: "evidence_receipt_recorded", worker: watch.worker, receipt_id: retirementId,
-        producer_id: "verifier:fleet-supervisor-request-retirement", producer_role: "VERIFIER",
+        producer_id: FLEET_REQUEST_RETIREMENT_PRODUCER_ID, producer_role: "VERIFIER",
         evidence_class: "ARTIFACT", independence: "INDEPENDENT", freshness: "CURRENT",
         exact_candidate_sha256: submissionProof.proofSha256, summary: supervisoryRequestRetiredUnsentSummary,
         refs: [`request:${pending.requestId}`, `source_route_event:${sourceEvent.eventId}`,
@@ -219,7 +228,7 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
           "provider_transport_evidence_records:0", "historical_request_preserved:true"],
         verified: true, changed_path_manifest: null,
       },
-    }, undefined, { id: "verifier:fleet-supervisor-request-retirement", kind: "VERIFIER",
+    }, undefined, { id: FLEET_REQUEST_RETIREMENT_PRODUCER_ID, kind: "VERIFIER",
       workerScopes: [watch.worker], taskScopes: [watch.taskId] });
     history = store.workerEvents(watch.worker);
   }
@@ -227,7 +236,7 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
   // append deterministic, even when the evidence boundary has not changed.
   const expiredRetirement = history.findLast((event) => event.data.type === "evidence_receipt_recorded"
     && event.data.summary === supervisoryRequestRetiredUnsentSummary
-    && event.data.producer_id === "verifier:fleet-supervisor-request-retirement"
+    && event.data.producer_id === FLEET_REQUEST_RETIREMENT_PRODUCER_ID
     && event.data.verified && event.data.refs.includes("retirement_reason:REQUEST_EXPIRED")
     && event.data.refs.includes(`evidence_boundary_event:${boundary.eventId}`));
   const requestId = `fleet-review:${sha256(`${watch.projectId}\n${boundary.eventId}${expiredRetirement ? `\n${expiredRetirement.eventId}` : ""}`).slice(0, 32)}`;
@@ -597,7 +606,7 @@ export function retireUnsentFleetSupervisorReasoningRequest(
 
   const existingRetirement = history.findLast((event) => event.data.type === "evidence_receipt_recorded"
     && event.data.summary === supervisoryRequestRetiredUnsentSummary
-    && event.data.producer_id === "verifier:fleet-supervisor-request-retirement"
+    && event.data.producer_id === FLEET_REQUEST_RETIREMENT_PRODUCER_ID
     && event.data.producer_role === "VERIFIER"
     && event.data.refs.includes(`request:${input.requestId}`));
   const otherRequestEvidence = history.filter((event) => event.eventId !== sourceEvent.eventId
@@ -617,7 +626,7 @@ export function retireUnsentFleetSupervisorReasoningRequest(
       type: "evidence_receipt_recorded",
       worker: watch.worker,
       receipt_id: `supervisory-request-retired-unsent:${retirementHash.slice(0, 32)}`,
-      producer_id: "verifier:fleet-supervisor-request-retirement",
+      producer_id: FLEET_REQUEST_RETIREMENT_PRODUCER_ID,
       producer_role: "VERIFIER",
       evidence_class: "ARTIFACT",
       independence: "INDEPENDENT",
@@ -642,7 +651,7 @@ export function retireUnsentFleetSupervisorReasoningRequest(
       changed_path_manifest: null,
     },
   }, undefined, {
-    id: "verifier:fleet-supervisor-request-retirement",
+    id: FLEET_REQUEST_RETIREMENT_PRODUCER_ID,
     kind: "VERIFIER",
     workerScopes: [watch.worker],
     taskScopes: [watch.taskId],
@@ -683,12 +692,6 @@ export function retireUnsentFleetSupervisorReasoningRequest(
     reviewRequestId: expectedReviewRequestId,
     duplicate: Boolean(existingRetirement),
   };
-}
-
-function validUnsentSubmissionProof(proof: ProvenUnsentSubmissionState, requestId: string) {
-  return proof.schemaVersion === 1 && proof.requestId === requestId && proof.provenUnsent === true
-    && proof.ledgerValid === true && proof.matchingStateSections.length === 0
-    && proof.queueRecordCount === 0 && proof.admissionRecordCount === 0 && /^[a-f0-9]{64}$/.test(proof.proofSha256);
 }
 
 function inBandRouteRoot(event: StoredEvent): Record<string, unknown> | null {

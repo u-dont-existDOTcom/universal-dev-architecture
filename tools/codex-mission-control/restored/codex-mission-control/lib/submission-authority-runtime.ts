@@ -18,6 +18,7 @@ import type {
 import type { EventStore } from "./store";
 import type { StoredEvent } from "./schema";
 import { pendingDecisionRequests } from "./github-decision-receipts";
+import { UNSENT_PROVABLE_REQUEST_ID } from "./unsent-request-proof";
 
 // This ESM module is the runtime-neutral authority algorithm shared with its
 // deterministic relay contract tests. Mission Control is its only deployable
@@ -273,8 +274,8 @@ export class SubmissionAuthorityRuntime {
   }
 
   async proveRequestUnsent(requestId: string) {
-    if (!/^fleet-review:[a-f0-9]{32}$/.test(requestId)) {
-      throw new Error("Unsent-request proof requires one exact fleet-review request ID.");
+    if (!UNSENT_PROVABLE_REQUEST_ID.test(requestId)) {
+      throw new Error("Unsent-request proof requires one exact fleet-review or work-question request ID.");
     }
     await this.requireScheduler();
     if (!this.stateStore || !this.pacingDomain) {

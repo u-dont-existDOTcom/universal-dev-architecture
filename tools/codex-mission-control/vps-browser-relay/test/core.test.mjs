@@ -563,6 +563,20 @@ test('a verifier-bound RETIRED_UNSENT receipt removes only its exact stale route
   tampered.workers[0].timeline[1].data.producer_role = 'COLLECTOR';
   assert.deepEqual(extractQueuedRoutes(tampered, [chat], defaultState()).map((route) => route.requestId),
     [stale.requestId, current.requestId]);
+  // A Work question is retired only by its own verifier, and a fleet review only by the fleet verifier.
+  const crossed = structuredClone(snapshot);
+  crossed.workers[0].timeline[1].data.producer_id = 'verifier:work-question-request-retirement';
+  assert.deepEqual(extractQueuedRoutes(crossed, [chat], defaultState()).map((route) => route.requestId),
+    [stale.requestId, current.requestId]);
+  const workStale = { ...structuredClone(stale), requestId: 'work-question:' + '5'.repeat(32) };
+  const workRetired = structuredClone(snapshot);
+  workRetired.workers[0].timeline[0].data.body = IN_BAND_REQUEST_CYCLE_ROUTE_PREFIX + JSON.stringify(workStale);
+  workRetired.workers[0].timeline[1].data.refs[0] = `request:${workStale.requestId}`;
+  assert.deepEqual(extractQueuedRoutes(workRetired, [chat], defaultState()).map((route) => route.requestId),
+    [workStale.requestId, current.requestId], 'the fleet verifier cannot retire a Work question');
+  workRetired.workers[0].timeline[1].data.producer_id = 'verifier:work-question-request-retirement';
+  assert.deepEqual(extractQueuedRoutes(workRetired, [chat], defaultState()).map((route) => route.requestId),
+    [current.requestId]);
 });
 
 test('a tampered V6 replacement cannot fence the old route or become generation-eligible', () => {

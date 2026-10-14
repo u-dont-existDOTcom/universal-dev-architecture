@@ -104,6 +104,32 @@ test("reasoning replacement accepts only the explicit invalid-canonical reason e
   });
 });
 
+test("work-question reissue posts only the worker and, when named, the exact request id", async () => {
+  await withServer(async (base, seen) => {
+    const requestId = `work-question:${"e".repeat(32)}`;
+    const named = await run(["work-question-reissue", "--worker", "mission-control-development", "--request", requestId], env(base));
+    assert.equal(named.code, 0, named.stderr);
+    const only = await run(["work-question-reissue", "--worker", "mission-control-development"], env(base));
+    assert.equal(only.code, 0, only.stderr);
+    assert.deepEqual(seen.map((s) => `${s.method} ${s.url}`), [
+      "POST /workers/mission-control-development/work-questions/reissue-expired",
+      "POST /workers/mission-control-development/work-questions/reissue-expired",
+    ]);
+    assert.deepEqual(JSON.parse(seen[0].body), { request_id: requestId });
+    assert.deepEqual(JSON.parse(seen[1].body), {});
+    for (const request of seen) assert.equal(request.headers["x-mission-control-producer-kind"], "OWNER_AUTHORITY");
+    for (const output of [named.stdout, only.stdout]) assert.ok(!output.includes(INTERNAL_TOKEN) && !output.includes(OWNER_TOKEN));
+    for (const args of [["work-question-reissue"], ["work-question-reissue", "--worker", "../x"],
+      ["work-question-reissue", "--worker", "w", "--request", `fleet-review:${"a".repeat(32)}`],
+      ["work-question-reissue", "--worker", "w", "--request", "work-question:short"],
+      ["work-question-reissue", "--worker", "w", "--project", "project:x"]]) {
+      const refused = await run(args, env(base));
+      assert.equal(refused.code, 2, `${args.join(" ")}: ${refused.stderr}`);
+    }
+    assert.equal(seen.length, 2);
+  });
+});
+
 test("there is no action that forwards caller-supplied content under the owner credential", async () => {
   await withServer(async (base, seen) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "owner-action-"));
