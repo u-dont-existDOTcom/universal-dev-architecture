@@ -8,6 +8,11 @@ const OWNERSHIP_SCHEMA_VERSION = 1;
 const CHATGPT_ROOT = 'https://chatgpt.com/';
 const RATE_LIMIT_RETRY_MS = 30_000;
 
+// Chrome's target list also holds out-of-process frames, workers and browser UI; only 'page' targets are tabs.
+function isTopLevelTab(target) {
+  return target?.type === 'page';
+}
+
 export function installAutomationOwnedBrowser(rawBrowser, options) {
   return new AutomationOwnedBrowser(rawBrowser, options);
 }
@@ -662,6 +667,8 @@ export class AutomationOwnedBrowser {
   async #liveWindowTargetIds(windowId) {
     const result = [];
     for (const target of await this.rawBrowser.listTargets()) {
+      // Only tabs count: Chrome also lists a page's out-of-process frames (ChatGPT embeds one) in the same window.
+      if (!isTopLevelTab(target)) continue;
       if (await this.protocol.getWindowId(target.id).catch(() => null) === windowId) result.push(target.id);
     }
     return result.sort();
@@ -843,6 +850,8 @@ export class AutomationOwnedBrowser {
     try { isRoot = normalizeAutomationTargetUrl(target?.url) === CHATGPT_ROOT; } catch { /* marker or mismatch */ }
     const sameWindow = [];
     for (const item of all) {
+      // Count tabs only; an embedded frame of the candidate's own page is not a second tab.
+      if (!isTopLevelTab(item)) continue;
       if (await this.protocol.getWindowId(item.id).catch(() => null) === candidate.windowId) sameWindow.push(item);
     }
     if (!target || target.type !== 'page' || (target.url !== intent.markerUrl && !(recordedCandidate && isRoot)) || sameWindow.length !== 1) {
