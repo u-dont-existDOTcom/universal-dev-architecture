@@ -260,6 +260,21 @@ test('force-create recovers the unique exact-window target after a crash at the 
   assert.equal(browser.transitionEvents.filter((event) => event[0] === 'commit').length, 1);
 });
 
+test('a failed close settles against the window\'s tabs, not the frames their pages embed', async () => {
+  const raw = new FakeRawBrowser([page('anchor', rootUrl, 7), page('closing', chatA, 7)]);
+  raw.targets.push({ id: 'embedded-frame', type: 'iframe', title: '', url: 'https://cdn.platform.openai.com/frame', windowId: 7 });
+  const store = new MemoryOwnershipStore(ownership(7, {
+    anchor: record('anchor', 'scratch', rootUrl),
+    closing: record('closing', 'session', chatA),
+  }));
+  const protocol = new FakeProtocol(raw);
+  const browser = coordinatedBrowser(raw, store, protocol);
+  raw.closeResult = false;
+  await assert.rejects(browser.closeTarget('closing'), /AUTOMATION_OWNED_TARGET_CLOSE_REJECTED/);
+  assert.equal(browser.transitionEvents.filter((event) => event[0] === 'abort').length, 1);
+  assert.equal((await store.read()).targetTransition, null);
+});
+
 test('exact target close commits only after confirmed absence and aborts on a false browser result', async () => {
   const raw = new FakeRawBrowser([page('anchor', rootUrl, 7), page('closing', chatA, 7)]);
   const store = new MemoryOwnershipStore(ownership(7, {
@@ -375,6 +390,43 @@ test('browser restart after candidate persistence re-arms the same transition wi
   assert.equal(recovered[0].automationWindowId, 21);
   assert.notEqual(recovered[0].id, 'foreign-root-after-second-browser-restart');
   assert.equal(protocol.dedicatedWindowCreates, 2);
+});
+
+test('a replacement tab whose ChatGPT page embeds a frame is still one tab and completes the replacement', async () => {
+  const raw = new FakeRawBrowser([]);
+  const store = new MemoryOwnershipStore(ownership(7, {
+    vanished: record('vanished', 'scratch', rootUrl),
+  }));
+  const protocol = new FakeProtocol(raw, { dedicatedWindowId: 19 });
+  protocol.failAfterNavigateOnce = true;
+  const browser = coordinatedBrowser(raw, store, protocol);
+  await assert.rejects(browser.listTargets(), /simulated process death after replacement candidate persistence/);
+  assert.equal(raw.byId('dedicated-1').url, rootUrl);
+  // ChatGPT's page loads a cross-origin frame; Chrome lists it as its own target in the same window.
+  raw.targets.push({ id: 'embedded-frame', type: 'iframe', title: '', url: 'https://cdn.platform.openai.com/frame', windowId: 19 });
+  protocol.windows.set('embedded-frame', 19);
+
+  const recovered = await browser.listTargets();
+  assert.deepEqual(recovered.map((target) => target.id), ['dedicated-1']);
+  assert.equal(recovered[0].automationWindowId, 19);
+  assert.equal((await store.read()).windowReplacementIntent, null);
+  assert.equal(protocol.dedicatedWindowCreates, 1);
+  assert.equal(browser.transitionEvents.filter((event) => event[0] === 'commit').length, 1);
+});
+
+test('a second tab in the replacement window still fails closed', async () => {
+  const raw = new FakeRawBrowser([]);
+  const store = new MemoryOwnershipStore(ownership(7, {
+    vanished: record('vanished', 'scratch', rootUrl),
+  }));
+  const protocol = new FakeProtocol(raw, { dedicatedWindowId: 19 });
+  protocol.failAfterNavigateOnce = true;
+  const browser = coordinatedBrowser(raw, store, protocol);
+  await assert.rejects(browser.listTargets(), /simulated process death after replacement candidate persistence/);
+  raw.targets.push(page('second-tab', rootUrl, 19));
+  protocol.windows.set('second-tab', 19);
+  await assert.rejects(browser.listTargets(), /AUTOMATION_WINDOW_REPLACEMENT_CANDIDATE_INVALID/);
+  assert.equal(browser.transitionEvents.filter((event) => event[0] === 'commit').length, 0);
 });
 
 test('multiple exact replacement markers fail closed instead of choosing by recency', async () => {
