@@ -458,7 +458,6 @@ export function extractQueuedRoutes(snapshot, chats, state) {
       if (event.data.type === 'evidence_receipt_recorded'
         && event.data.summary === SUPERVISORY_REQUEST_RETIRED_UNSENT_SUMMARY
         && event.data.verified === true
-        && event.data.producer_id === 'verifier:fleet-supervisor-request-retirement'
         && event.data.producer_role === 'VERIFIER'
         && Array.isArray(event.data.refs)
         && event.data.refs.includes('lifecycle_status:RETIRED_UNSENT')
@@ -467,7 +466,8 @@ export function extractQueuedRoutes(snapshot, chats, state) {
         && event.data.refs.includes('submission_authority_admission_records:0')
         && event.data.refs.includes('provider_transport_evidence_records:0')) {
         const requestId = refValue(event.data.refs, 'request:');
-        if (requestId) retiredUnsentRequests.add(`${workerId}:${requestId}`);
+        // Each kind of request has its own retirement verifier, as in Mission Control's retiredUnsentRequests.
+        if (requestId && retirementProducerFor(requestId) === event.data.producer_id) retiredUnsentRequests.add(`${workerId}:${requestId}`);
         continue;
       }
       if (event.data.type === 'evidence_receipt_recorded' && event.data.verified === true
@@ -670,6 +670,13 @@ function parseStageLivenessEvidence(event) {
     occurredAt: event.occurredAt ?? null,
     sequence: Number.isInteger(event.sequence) ? event.sequence : -1,
   };
+}
+
+// The verifier allowed to retire a request unsent, by request kind (Mission Control: lib/unsent-request-proof.ts).
+function retirementProducerFor(requestId) {
+  if (/^fleet-review:[a-f0-9]{32}$/.test(requestId)) return 'verifier:fleet-supervisor-request-retirement';
+  if (/^work-question:[a-f0-9]{32}$/.test(requestId)) return 'verifier:work-question-request-retirement';
+  return null;
 }
 
 function refValue(refs, prefix) {

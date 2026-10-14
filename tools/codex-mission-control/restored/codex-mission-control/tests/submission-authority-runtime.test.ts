@@ -660,6 +660,25 @@ test("exact unsent proof fails closed after any submission-authority record name
   }
 });
 
+test("exact unsent proof covers a Work question id and refuses other request kinds", async () => {
+  const store = new EventStore(":memory:");
+  const now = { value: origin };
+  try {
+    const authority = runtime(store, now);
+    const workQuestion = `work-question:${"6".repeat(32)}`;
+    const unsent = await authority.proveRequestUnsent(workQuestion);
+    assert.equal(unsent.requestId, workQuestion);
+    assert.equal(unsent.provenUnsent, true);
+    await authority.execute("admissions", request({ requestId: workQuestion, queueKey: "queue:work-question" }), producer);
+    assert.equal((await authority.proveRequestUnsent(workQuestion)).provenUnsent, false);
+    for (const other of [`post-work-review:${"7".repeat(32)}`, `work-question:${"7".repeat(31)}`, "work-question:"]) {
+      await assert.rejects(authority.proveRequestUnsent(other), /fleet-review or work-question request ID/);
+    }
+  } finally {
+    store.close();
+  }
+});
+
 function runtime(
   store: EventStore,
   now: { value: number },

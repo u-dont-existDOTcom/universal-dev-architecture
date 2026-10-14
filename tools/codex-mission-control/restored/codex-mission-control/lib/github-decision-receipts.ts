@@ -19,6 +19,7 @@ import { buildPostWorkReasoningRouteEnvelope, POST_EXECUTION_REASONING_ROUTER_PR
 import type { GitHubReconciliationTokenProvider } from "./github-app-auth";
 import { recordOwnerMessage } from "./worker-channel";
 import { workQuestionContextForRequest, workQuestionRequestIdForDispatch } from "./owner-question-route";
+import { retirementProducerFor } from "./unsent-request-proof";
 
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
 export const stagedSupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
@@ -817,10 +818,11 @@ export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionR
 }
 
 /**
- * The fleet requests retired before anything was sent: a verified retirement receipt from the retirement verifier
- * carrying the full no-send proof (the provider send boundary not crossed, and no queue, admission or transport
- * record). Keyed by request id; the value is the newest such receipt's `retirement_reason`, or null without one.
- * The pending set and the owner's supervisor-activity view both read this.
+ * The requests retired before anything was sent: a verified retirement receipt carrying the full no-send proof (the
+ * provider send boundary not crossed, and no queue, admission or transport record), from the verifier that may retire
+ * that kind of request (fleet reviews and Work questions each have their own). Keyed by request id; the value is the
+ * newest such receipt's `retirement_reason`, or null without one. The pending set and the owner's supervisor-activity
+ * view both read this.
  */
 export function retiredUnsentRequests(events: StoredEvent[]): Map<string, string | null> {
   const newest = new Map<string, { reason: string | null; sequence: number }>();
@@ -829,7 +831,6 @@ export function retiredUnsentRequests(events: StoredEvent[]): Map<string, string
     if (data.type !== "evidence_receipt_recorded"
       || data.summary !== supervisoryRequestRetiredUnsentSummary
       || data.verified !== true
-      || data.producer_id !== "verifier:fleet-supervisor-request-retirement"
       || data.producer_role !== "VERIFIER"
       || !data.refs.includes("lifecycle_status:RETIRED_UNSENT")
       || !data.refs.includes("provider_send_boundary:NOT_CROSSED")
@@ -837,7 +838,7 @@ export function retiredUnsentRequests(events: StoredEvent[]): Map<string, string
       || !data.refs.includes("submission_authority_admission_records:0")
       || !data.refs.includes("provider_transport_evidence_records:0")) continue;
     const requestId = exactRefValue(data.refs, "request:");
-    if (!requestId || !/^fleet-review:[a-f0-9]{32}$/.test(requestId)) continue;
+    if (!requestId || retirementProducerFor(requestId) !== data.producer_id) continue;
     const prior = newest.get(requestId);
     if (!prior || event.sequence > prior.sequence) newest.set(requestId, { reason: exactRefValue(data.refs, "retirement_reason:"), sequence: event.sequence });
   }
