@@ -199,6 +199,14 @@ class AnswerTargetPreservationTests(unittest.TestCase):
         for selector in record["source"]["selectors"]:
             self.assertEqual(PATTERN.read_text(encoding="utf-8").count(selector["text"]), 1)
 
+    def test_scope_states_the_receipt_the_task_time_records_require(self) -> None:
+        # Selected task-time obligations block their final until a receipt exists, so the scope may not claim no gate.
+        requirement = json.loads(REQUIREMENT.read_text(encoding="utf-8"))
+        self.assertNotIn("no fail-closed gate", requirement["scope"])
+        self.assertIn("fails closed only on that answer until the receipt exists", requirement["scope"])
+        self.assertIn("No universal stop-the-world research gate", requirement["scope"])
+        self.assertNotIn("No new gate is added", AUDIT.read_text(encoding="utf-8"))
+
     def test_coverage_maps_the_record(self) -> None:
         entry = next(e for e in json.loads(COVERAGE.read_text(encoding="utf-8"))["entries"] if e["id"] == "patterns/reasoning-selection.md")
         self.assertIn(RULE, entry["task_time_records"])

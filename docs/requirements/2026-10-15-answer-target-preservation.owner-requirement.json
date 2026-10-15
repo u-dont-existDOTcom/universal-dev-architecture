@@ -27,7 +27,7 @@
   "When the user says an answer missed their question, their account of what they asked governs; this settles which question to answer, not any factual claim, which is still checked before conceding."
  ],
  "regression": "Case A of evals/answer-target-preservation.json: the romantic-love question is answered on love first, with divorce as a labeled proxy and no 'more interesting question' closing. Case B: the marriage-duration question uses marriage and divorce data directly.",
- "scope": "Answers to questions on every surface that loads this repository. Semantic judgment only: no fail-closed gate, no keyword detection, no new authority, no ban on labeled proxies, and no requirement to narrate the check.",
+ "scope": "Answers to questions on every surface that loads this repository. Semantic judgment only, at the response boundary the report asks for (its item 2): where a session compiles a task-time contract, the answer to a selected question needs the answering agent's own semantic receipt, and the task-time protocol fails closed only on that answer until the receipt exists; an owner correction that is not about which question was asked takes a reasoned not-applicable receipt. No universal stop-the-world research gate (the report's item 4), no keyword detection, no new authority, no ban on labeled proxies, and no requirement to narrate the check in the answer.",
  "origin": {
   "classification": "OWNER_REQUIRED",
   "notes": "The owner corrected the answer and asked for the report. The wording of the check is the maintainer's, from the report's requested disposition.",
