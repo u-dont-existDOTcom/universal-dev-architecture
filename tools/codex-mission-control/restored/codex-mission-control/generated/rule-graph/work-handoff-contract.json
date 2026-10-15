@@ -1,6 +1,6 @@
 {
   "catalog_schema_version": 1,
-  "content_sha256": "36f94446e5d122d8ccc298fc07b3bd1c04ad08a56f116d07f28b9dc5314cdf87",
+  "content_sha256": "b12928b05098c00217b69b3db249caf522a5c80affbcbfde52677f012e5270ca",
   "direct_evaluations": {
     "uda.active-contract.boundary-binding": "FALSE",
     "uda.bootstrap.live-root": "TRUE",
@@ -50,6 +50,7 @@
     "uda.owner-outcome.epoch-amendment": "FALSE",
     "uda.owner-outcome.supervisor-order": "FALSE",
     "uda.owner-outcome.terminal-evidence": "FALSE",
+    "uda.reasoning.answer-first-target": "FALSE",
     "uda.reasoning.dominated-alternative": "FALSE",
     "uda.review.acceptance-floors": "FALSE",
     "uda.review.change-scope": "FALSE",
@@ -2360,6 +2361,41 @@
       },
       "phase": "final-delivery",
       "rule_id": "uda.owner-outcome.terminal-evidence"
+    },
+    {
+      "destination": "owner-visible-final",
+      "facts": {
+        "actor": {
+          "state": "KNOWN",
+          "value": "work"
+        },
+        "envelope.bootstrap": {
+          "state": "KNOWN",
+          "value": {
+            "source": "current root AGENTS.md; illustrative governed envelope",
+            "state": "LOADED"
+          }
+        },
+        "envelope.legacy_rule_ids": {
+          "state": "KNOWN",
+          "value": [
+            "uda.final.timestamp",
+            "uda.bootstrap.live-root",
+            "uda.chat-work.execution-separation",
+            "uda.continuation.open-outcome",
+            "uda.worker-directive.same-turn-delivery"
+          ]
+        },
+        "request_kind": {
+          "state": "ABSENT"
+        },
+        "role": {
+          "state": "KNOWN",
+          "value": "mission_control_internal"
+        }
+      },
+      "phase": "final-delivery",
+      "rule_id": "uda.reasoning.answer-first-target"
     },
     {
       "destination": "owner-visible-final",

@@ -1,7 +1,7 @@
 {
-  "catalog_sha256": "1899c1721ff216cf76f01645edd84832a785ed010dc7e31a406dcb568f0ed1ad",
+  "catalog_sha256": "ba74a6dffab7c1e9031f487a33843a17772431227e1a4b44a8b6821f463ffd5e",
   "compiler_sha256": "7ea7e14d49c8e2d10a5c015119a71b4457392fb6090a30f4cb38c9777be10509",
-  "content_sha256": "192b0ff0f7f233e4db0b451f790559542af5318d500797f152d0d60aaaea94e0",
+  "content_sha256": "ce46ca24c4e9f51e118fa04c38c121d3d1b26a3736854f03280ec4c398660ad7",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
@@ -1876,11 +1876,29 @@
       ]
     },
     {
+      "extracted_sha256": "082bcb46fa8c0e59861a6f59320dab570b2e3668373f589a75ffa756af1fb85b",
+      "extracted_utf8_bytes": 319,
+      "git_blob_sha1": "bf1b719709f2fabc77c10d1f5aff79044153a2d8",
+      "path": "patterns/reasoning-selection.md",
+      "repository_revision": "BLOB:bf1b719709f2fabc77c10d1f5aff79044153a2d8",
+      "rule_id": "uda.reasoning.answer-first-target",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Reread the question and compare it with the answer's first substantive claim and with its closing."
+        },
+        {
+          "kind": "exact_text",
+          "text": "No closing, open question, or suggested follow-up may present the question the user already asked as new or more interesting; if the answer leaves it unresolved, say that the user's question is the one still unresolved."
+        }
+      ]
+    },
+    {
       "extracted_sha256": "b5e06a1f9807cc621e98a87e95fc177ed7df7cef7db842efbdc2195a2f815dc2",
       "extracted_utf8_bytes": 367,
-      "git_blob_sha1": "a6a7f86f2d477aba79c495fb163b13697c2891b5",
+      "git_blob_sha1": "bf1b719709f2fabc77c10d1f5aff79044153a2d8",
       "path": "patterns/reasoning-selection.md",
-      "repository_revision": "BLOB:a6a7f86f2d477aba79c495fb163b13697c2891b5",
+      "repository_revision": "BLOB:bf1b719709f2fabc77c10d1f5aff79044153a2d8",
       "rule_id": "uda.reasoning.dominated-alternative",
       "selectors": [
         {

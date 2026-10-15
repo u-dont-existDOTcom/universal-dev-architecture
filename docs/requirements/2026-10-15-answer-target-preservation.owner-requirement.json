@@ -9,12 +9,13 @@
  "failure_mechanisms": [
   "Inferred from the report's excerpts, not established: proxy promotion during evidence selection or synthesis. The easiest evidence to find (divorce and marriage statistics) became the main comparison although the answer itself said it did not measure the target.",
   "Inferred from the excerpts: no final comparison with the question. Nothing compared the answer's first claim and closing with the question's wording, so the closing re-labeled the target as a new question.",
-  "Activation, not established: the report does not say whether the chat loaded this architecture. ChatGPT chats load the owner's ChatGPT instructions and memory, not this repository."
+  "Activation, inferred: the owner reports that the owner's ChatGPT chats load this architecture (they announce loading it and apply its clock rule), so the exact-target rule was probably available. Which files that chat read for this question is not observed. The rule is routed only by the lesson-index trigger 'When selecting a reasoning method or evaluating a claim', which an ordinary comparative question may not match, and no task-time record selected it."
  ],
  "existing_coverage": [
   "patterns/reasoning-selection.md exact-target preservation (2026-09-12) forbids substituting correlates and tests proposed distinctions, but says nothing about answer order, proxy labeling, or the closing.",
   "patterns/reasoning-selection.md Same relation to the end (2026-09-30) covers replacement tests and 'better questions' an answer proposes, worded for claim evaluation; it does not say that the asked question may never be offered back as new.",
-  "patterns/reasoning-selection.md predicate-alignment check covers corrections and rebuttals, not answers to questions."
+  "patterns/reasoning-selection.md predicate-alignment check covers corrections and rebuttals, not answers to questions.",
+  "rules/rule-graph/task-time-metadata.v1.json registered no target-alignment obligation, and rules/rule-graph/enforcement-coverage.v1.json listed target alignment as prose-only P1 migration backlog."
  ],
  "recurring_finding_check": "Fourth change for the target-substitution class (2026-09-12 exact-target rule, 2026-09-13 predicate-alignment check, 2026-09-30 same-relation extension, 2026-10-15). The deciding mechanism is the answering model reading the question, which is the right place for a semantic judgment (pattern-matching fit check); a word or keyword gate is not. The earlier changes each named a context where the target can slip. This one does not add a context: it moves the check to the answer's first claim and closing, which every answer passes through. The remaining gap is activation on surfaces that do not load this repository, which no wording here can close.",
  "required_behavior": [
@@ -38,19 +39,23 @@
    "disposition": "PROJECTED"
   },
   {
-   "surface": "Chat, Codex, and Claude Code sessions that load this repository's root AGENTS.md",
-   "disposition": "PROJECTED",
-   "note": "Reached through LESSON-INDEX.md; sessions that do not load the root file are not covered."
+   "surface": "rules/rule-graph/task-time-metadata.v1.json record uda.reasoning.answer-first-target and its entry in rules/rule-graph/enforcement-coverage.v1.json",
+   "disposition": "PROJECTED"
   },
   {
-   "surface": "The owner's ChatGPT chats (ChatGPT instructions and memory)",
-   "disposition": "DEFERRED",
-   "reason": "The failure came from a ChatGPT chat, which loads the owner's ChatGPT instructions and memory, not this repository. Only the owner can add a compact version there; one is offered on the owner page."
+   "surface": "Chat, Codex, and Claude Code sessions that load this repository's root AGENTS.md",
+   "disposition": "PROJECTED",
+   "note": "Reached through LESSON-INDEX.md, and through task-time rule uda.reasoning.answer-first-target when a session compiles an Active Lesson Contract for a conceptual, comparative, empirical, factual or research question."
+  },
+  {
+   "surface": "The owner's ChatGPT chats, which load this architecture",
+   "disposition": "PROJECTED",
+   "note": "The owner reports that they load this architecture and apply its clock rule; the failure came from one of them. Which files a given chat reads is not observed, so this is projection, not verification."
   },
   {
    "surface": "Claude chats on claude.ai",
    "disposition": "DEFERRED",
-   "reason": "They load the owner's Claude memory preferences, which change only with the owner's approval; the compact version on the owner page fits there too."
+   "reason": "Whether they load this repository is not established here; the known route is the owner's Claude memory preferences, which change only with the owner's approval."
   },
   {
    "surface": "Inner Signal product runtime (a declared public app in portable/PUBLIC-APPS.json)",
@@ -70,7 +75,7 @@
  ],
  "evaluation": {
   "fixture": "evals/answer-target-preservation.json",
-  "run": "One run on 2026-10-15 recorded in the fixture: Claude Sonnet with and without an earlier wording of the rule, graded blind against the report's pass and fail criteria. Both passed all five cases, so the cases did not discriminate and the run does not show the rule's effect. The final wording and case E's last fail condition were added after the run and have not been run. The setup (no tools, short answers) cannot reproduce a researched answer with a table. Not run on ChatGPT."
+  "run": "Two runs on 2026-10-15, recorded in the fixture. Run 1: Claude Sonnet with and without an earlier wording of the rule, graded blind against the report's criteria; both passed all five cases, so the cases did not discriminate. Run 2: Claude Sonnet with the final wording, graded against the final criteria including case E's last fail condition; all five passed, with two borderline calls. Neither run shows the rule's effect: there is no baseline failure to improve on. The setup (no tools, short answers) cannot reproduce a researched answer with a table. Not run on ChatGPT."
  },
  "learning_state_at_merge": [
   "CAPTURED",
@@ -79,11 +84,12 @@
   "TESTED_TEXT_ONLY"
  ],
  "nonclaims": [
-  "Text-presence tests do not show that any agent applies the check.",
-  "The one model run passed with and without the rule, so it is not evidence that the rule changes behavior.",
-  "The final rule wording and case E's last fail condition were never run.",
+  "Text-presence and compilation tests do not show that any agent applies the check.",
+  "The model runs passed with and without the rule, so they are not evidence that the rule changes behavior.",
+  "The final rule wording was run once on Claude, rule condition only.",
   "The fixture has not been run against ChatGPT, where the failure happened.",
-  "The failure location is inferred from excerpts, not established.",
+  "The failure location and the activation gap are inferred, not established.",
   "Nothing here is LIVE_VERIFIED."
- ]
+ ],
+ "acceptance": "This change is accepted on rule text, routing, task-time selection and the recorded evaluation. Behavioral verification (a discriminating run and a ChatGPT run) is out of scope and stays open as remaining work; the nonclaims record it."
 }

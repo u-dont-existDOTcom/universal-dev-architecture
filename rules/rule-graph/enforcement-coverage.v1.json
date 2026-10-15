@@ -7996,7 +7996,8 @@
         "semantic"
       ],
       "task_time_records": [
-        "uda.reasoning.dominated-alternative"
+        "uda.reasoning.dominated-alternative",
+        "uda.reasoning.answer-first-target"
       ],
       "graph_node": null,
       "evidence": [
@@ -8035,15 +8036,19 @@
         {
           "path": "tests/test_uda_dominated_route.py",
           "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "tests/test_answer_target_preservation.py",
+          "class": "COMPILATION"
         }
       ],
-      "review_notes": "Only dominated operational routes have exact-candidate semantic receipt admission here. Other reasoning obligations remain unstructured; receipts verify bindings and record assertions, never prove semantic judgment.",
+      "review_notes": "Dominated operational routes have exact-candidate semantic receipt admission here, and the answer-first target check is a task-time record selected by question kind (compilation only, no golden receipts yet). Other reasoning obligations remain unstructured; receipts verify bindings and record assertions, never prove semantic judgment.",
       "migration": {
         "priority": "P1",
-        "next_step": "Register obligation-level target/predicate alignment, quantitative sanity, scope/provenance, claim evaluation, minimum-owner-choice and exact directional capability checks with semantic evidence at their actual due boundaries.",
+        "next_step": "Register obligation-level predicate alignment, quantitative sanity, scope/provenance, claim evaluation, minimum-owner-choice and exact directional capability checks with semantic evidence at their actual due boundaries; add receipt admission fixtures for the answer-first target check.",
         "trigger_frequency": "FREQUENT"
       },
-      "legacy_remainder": "Target and predicate alignment, quantitative sanity, provenance, claim evaluation, owner-choice admission, capability checks and the other operative reasoning obligations still rely on prose application."
+      "legacy_remainder": "Predicate alignment, the distinction test of exact-target preservation, quantitative sanity, provenance, claim evaluation, owner-choice admission, capability checks and the other operative reasoning obligations still rely on prose application."
     },
     {
       "id": "patterns/recommendation-preflight-integrity.md",

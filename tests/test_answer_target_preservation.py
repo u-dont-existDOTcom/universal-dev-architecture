@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from scripts import uda_rule_graph_task_time as tt
 from tests.root_migration_assertions import assert_routed_rule
 
 
@@ -12,10 +13,33 @@ REQUIREMENT = ROOT / "docs" / "requirements" / "2026-10-15-answer-target-preserv
 EVAL = ROOT / "evals" / "answer-target-preservation.json"
 AUDIT = ROOT / "audits" / "2026-10-15-romantic-love-answer-target-mismatch.md"
 TARGET_SECTION = "## Evidence, specificity, and target discipline"
+CATALOG = ROOT / "rules" / "rule-graph" / "task-time-metadata.v1.json"
+COVERAGE = ROOT / "rules" / "rule-graph" / "enforcement-coverage.v1.json"
+PROFILE = ROOT / "scripts" / "instruction-layering-profile.json"
+RULE = "uda.reasoning.answer-first-target"
+QUESTION_KINDS = ("conceptual_question", "conceptual_explanation", "comparative_question", "empirical_question", "factual_question", "research_question")
 
 
 def section(text: str, heading: str) -> str:
     return text.split(heading, 1)[1].split("\n## ", 1)[0]
+
+
+def contract_for(request_kind: str, actor: str = "chat") -> dict:
+    catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
+    catalog["records"] = [record for record in catalog["records"] if record["rule_id"] == RULE]
+    profile = json.loads(PROFILE.read_text(encoding="utf-8"))
+    envelope = {
+        "schema_version": 1,
+        "task_id": f"answer-first:{request_kind}:{actor}",
+        "bootstrap": {"state": "LOADED", "source": "current canonical root loaded for this illustrative task"},
+        "request": "Answer the user's question.",
+        "facts": {
+            "role": {"state": "KNOWN", "value": "universal_internal", "provenance": "task authority"},
+            "actor": {"state": "KNOWN", "value": actor, "provenance": "candidate author"},
+            "request_kind": {"state": "KNOWN", "value": request_kind, "provenance": "literal request"},
+        },
+    }
+    return tt.compile_contract(catalog, profile, envelope, "graph")
 
 
 class AnswerTargetPreservationTests(unittest.TestCase):
@@ -58,7 +82,8 @@ class AnswerTargetPreservationTests(unittest.TestCase):
         self.assertIn("docs/requirements/2026-10-15-answer-target-preservation.owner-requirement.json", provenance)
         self.assertIn("fourth change for the target-substitution class", provenance)
         self.assertIn("the predicate-alignment check (2026-09-13)", provenance)
-        self.assertIn("Whether that ChatGPT chat loaded this architecture is not established", provenance)
+        self.assertIn("announce loading it and apply its clock rule", provenance)
+        self.assertIn("`uda.reasoning.answer-first-target`", provenance)
 
     def test_lesson_index_routes_the_check(self) -> None:
         assert_routed_rule(self, "patterns/reasoning-selection.md", (
@@ -84,7 +109,9 @@ class AnswerTargetPreservationTests(unittest.TestCase):
                 self.assertIn(name, surfaces)
         self.assertNotIn("LIVE_VERIFIED", data["learning_state_at_merge"])
         self.assertTrue(any("not evidence that the rule changes behavior" in item for item in data["nonclaims"]))
-        self.assertTrue(any("final rule wording" in item and "never run" in item for item in data["nonclaims"]))
+        self.assertTrue(any("ChatGPT" in item and "not been run" in item for item in data["nonclaims"]))
+        self.assertIn("Behavioral verification", data["acceptance"])
+        self.assertIn("out of scope and stays open", data["acceptance"])
 
     def test_eval_fixture_has_the_reported_paired_cases(self) -> None:
         data = json.loads(EVAL.read_text(encoding="utf-8"))
@@ -108,6 +135,42 @@ class AnswerTargetPreservationTests(unittest.TestCase):
         self.assertIn("does not show the rule's effect", run["result"])
         self.assertIn("ChatGPT", run["notRun"])
         self.assertIn("final rule wording", run["notRun"])
+        final = data["runs"][1]
+        self.assertIn("final answer-first target check", final["conditions"][0])
+        self.assertIn("not that it changes behavior", final["result"])
+        self.assertIn("ChatGPT", final["notRun"])
+
+    def test_task_time_record_selects_the_check_for_questions(self) -> None:
+        for kind in QUESTION_KINDS:
+            for actor in ("chat", "work", "codex", "claude"):
+                with self.subTest(kind=kind, actor=actor):
+                    contract = contract_for(kind, actor)
+                    self.assertEqual([rule["rule_id"] for rule in contract["selected_rules"]], [RULE])
+                    self.assertEqual(contract["unresolved"], [])
+
+    def test_task_time_record_skips_operational_requests(self) -> None:
+        for kind in ("operational_command", "procedure", "practical_method"):
+            with self.subTest(kind=kind):
+                self.assertEqual(contract_for(kind)["selected_rules"], [])
+
+    def test_task_time_record_binds_the_pattern_and_the_final(self) -> None:
+        record = next(r for r in json.loads(CATALOG.read_text(encoding="utf-8"))["records"] if r["rule_id"] == RULE)
+        pattern = PATTERN.read_text(encoding="utf-8")
+        self.assertEqual(record["source"]["path"], "patterns/reasoning-selection.md")
+        for selector in record["source"]["selectors"]:
+            with self.subTest(selector=selector["text"][:40]):
+                self.assertEqual(pattern.count(selector["text"]), 1)
+        self.assertEqual(sorted(record["trigger"]["in"]), sorted(QUESTION_KINDS))
+        (obligation,) = record["obligations"]
+        self.assertEqual(obligation["due_phase"], "final-delivery")
+        self.assertEqual(obligation["destination"], "owner-visible-final")
+        self.assertEqual(obligation["enforcement"], "semantic")
+        self.assertIn("checking an earlier draft instead of the literal final", obligation["non_substitutes"])
+
+    def test_coverage_maps_the_record(self) -> None:
+        entry = next(e for e in json.loads(COVERAGE.read_text(encoding="utf-8"))["entries"] if e["id"] == "patterns/reasoning-selection.md")
+        self.assertIn(RULE, entry["task_time_records"])
+        self.assertIn({"path": "tests/test_answer_target_preservation.py", "class": "COMPILATION"}, entry["evidence"])
 
     def test_audit_records_a_disposition(self) -> None:
         text = AUDIT.read_text(encoding="utf-8")

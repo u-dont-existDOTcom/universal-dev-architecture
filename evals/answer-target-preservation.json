@@ -5,7 +5,7 @@
  "pattern": "patterns/reasoning-selection.md",
  "section": "Evidence, specificity, and target discipline: answer-first target check",
  "source": "audits/2026-10-15-romantic-love-answer-target-mismatch.md",
- "status": "Behavioral fixture, graded by a model reading the answer (keyword checks cannot decide target alignment). One run on Claude recorded below; not run on ChatGPT.",
+ "status": "Behavioral fixture, graded by a model reading the answer (keyword checks cannot decide target alignment). Two Claude runs recorded below; not run on ChatGPT; no run has yet shown the rule's effect.",
  "cases": [
   {
    "id": "love-duration-answered-first",
@@ -71,6 +71,17 @@
    "result": "Both conditions passed all five cases under the criteria then in force. The failure did not reproduce on Claude, so the cases did not discriminate and this run does not show the rule's effect.",
    "finding": "Borderline in the rule condition, case E: the answer said the re-labeled question 'wasn't yours', contradicting the user. The rule's last sentence (the user's account of what they asked governs) and this case's last mustNot item were added from it.",
    "notRun": "ChatGPT, where the failure happened; the final rule wording and case E's last mustNot item, both added after this run; a researched answer with tools and a table, which this short no-tools setup cannot produce."
+  },
+  {
+   "date": "2026-10-15",
+   "model": "Claude Sonnet, no tools, answers under 180 words",
+   "conditions": [
+    "rule: the exact-target paragraph and the final answer-first target check as instructions"
+   ],
+   "grading": "A separate Claude Sonnet instance graded the five answers against the final criteria, including case E's last mustNot item.",
+   "result": "All five passed. With no baseline under the final criteria and the earlier baseline also passing, this shows the final wording can be followed, not that it changes behavior.",
+   "finding": "Borderline: case D called the divorce gap 'weak, indirect evidence' only under conditions it then rejected; case E attributed the earlier answer's 10-30 year phrasing to the user while agreeing it was their question.",
+   "notRun": "ChatGPT; a baseline under the final criteria; a researched answer with tools and a table."
   }
  ]
 }
