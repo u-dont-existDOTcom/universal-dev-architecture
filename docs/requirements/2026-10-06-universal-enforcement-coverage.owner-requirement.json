@@ -670,6 +670,23 @@
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
       "implemented": "Owner-required one-command turn stamp (2026-10-11-one-command-turn-stamp): one new clock-cadence selector and obligation_map row; per-turn clause pin 27 -> 28; dispositions and backlog unchanged. Work 32561/37194 -> 32680/unmeasured bytes (rendered/injected; the injected block was not re-measured with the Mission Control adapter). No live enforcement claim."
+    },
+    {
+      "finding_id": "slice-answer-first-target",
+      "date": "2026-10-15",
+      "identity_counts_by_disposition": {
+        "STRUCTURED_ENFORCED": 9,
+        "STRUCTURED_PARTIAL": 9,
+        "WORKFLOW_ONLY": 10,
+        "LEGACY_UNSTRUCTURED": 69,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 78,
+      "baseline_shrinkage": 7,
+      "root_owner_outcome": "OPEN",
+      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "Owner bug report 2026-10-15 (docs/requirements/2026-10-15-answer-target-preservation.owner-requirement.json): two semantic task-time records for patterns/reasoning-selection.md, uda.reasoning.answer-first-target (question request kinds) and uda.reasoning.answer-first-target-correction (owner corrections, reason-bound not-applicable allowed); dispositions and backlog unchanged. Work 32680/37194 -> 32706/unmeasured bytes (rendered/injected; 37194 is the last injected measurement, taken before the 2026-10-11 turn stamp, and neither change re-measured the injected block with the Mission Control adapter; the Work envelope evaluates both records FALSE). No live enforcement claim."
     }
   ],
   "learning_state_at_merge": [
