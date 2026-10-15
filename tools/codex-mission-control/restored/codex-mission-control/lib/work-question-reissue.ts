@@ -23,7 +23,12 @@ import {
   type GitHubReceiptPolicy,
   type PendingDecisionRequest,
 } from "./github-decision-receipts";
-import { inBandRequestRoutePrefix } from "./in-band-request-binding";
+import {
+  inBandAppReadbackSummary,
+  inBandBrowserDomReadbackSummary,
+  inBandMachineTransformSummary,
+  inBandRequestRoutePrefix,
+} from "./in-band-request-binding";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import {
   WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID,
@@ -74,10 +79,11 @@ export function buildExpiredWorkQuestionReissue(
   submissionProof: ProvenUnsentSubmissionState | undefined,
   policy: GitHubReceiptPolicy | null,
 ): ExpiredWorkQuestionReissue {
-  const basis = reissueBasis(events, input, policy, "UNSENT");
-  if (!validUnsentSubmissionProof(submissionProof, input.requestId)) {
-    throw new Error("Submission authority did not prove the expired Work question unsent.");
-  }
+  const basis = reissueBasis(events, input, policy, "UNSENT", () => {
+    if (!validUnsentSubmissionProof(submissionProof, input.requestId)) {
+      throw new Error("Submission authority did not prove the expired Work question unsent.");
+    }
+  });
   const proof = submissionProof!;
   const { worker, requestId, recordedAt } = input;
   const retirementId = `supervisory-request-retired-unsent:${sha256(`${requestId}\n${proof.proofSha256}`).slice(0, 32)}`;
@@ -139,11 +145,13 @@ export function buildSentWorkQuestionResend(
   sendProof: SettledSendSubmissionState | undefined,
   policy: GitHubReceiptPolicy | null,
 ): ExpiredWorkQuestionReissue {
-  const basis = reissueBasis(events, input, policy, "SENT");
-  if (!validSettledSendProof(sendProof, input.requestId)) {
-    throw new Error("Submission authority did not show the Work question sent with no send of it still open.");
-  }
-  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,179}$/.test(input.authorizedBy)) {
+  const basis = reissueBasis(events, input, policy, "SENT", () => {
+    if (!validSettledSendProof(sendProof, input.requestId)) {
+      throw new Error("Submission authority did not show the Work question sent with no send of it still open.");
+    }
+  });
+  // The daemon's producer-identity pattern.
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,179}$/.test(input.authorizedBy)) {
     throw new Error("The re-send needs the authorizing owner identity.");
   }
   const proof = sendProof!;
@@ -215,6 +223,7 @@ function reissueBasis(
   input: { worker: string; requestId: string; recordedAt: string },
   policy: GitHubReceiptPolicy | null,
   kind: "UNSENT" | "SENT",
+  checkSubmissionProof: () => void,
 ): ReissueBasis {
   if (!policy?.requestBound?.enabled) {
     throw new Error("Reissuing a Work question requires the configured in-band request-bound relay policy.");
@@ -229,6 +238,7 @@ function reissueBasis(
   if (Date.parse(pending.expiresAt) > Date.parse(recordedAt)) {
     throw new Error("The Work question has not expired; the relay can still send it.");
   }
+  checkSubmissionProof();
 
   const routeEventId = requestRouteEventId(requestId, 6);
   const source = history.find((event) => event.eventId === routeEventId);
@@ -262,6 +272,10 @@ function reissueBasis(
     if (lifecycle.length > 0) {
       throw new Error("The Work question has send, delivery, response, decision or retirement evidence and cannot be reissued.");
     }
+  } else if (history.some((event) => answerMayStillBeAccepted(event, requestId))) {
+    // A reply the relay saw finish, or one already read back, can still be accepted after the window; retiring the
+    // question would throw that answer away.
+    throw new Error("A reply to the Work question finished or was read back; it may still be accepted, so it is not re-sent.");
   }
 
   const newerWork = history.filter((event) => event.sequence > source.sequence
@@ -373,16 +387,18 @@ export function workQuestionReissueProducers(worker: string, taskId: string): {
 }
 
 /**
- * The reissue already recorded for this request, unsent or the owner's re-send: its retirement names the successor it
- * queued. Either one ends the question, so neither kind is recorded twice.
+ * The reissue already recorded for this request (by default the unsent one; the owner's re-send also looks for its own
+ * kind): its retirement names the successor it queued.
  */
-export function recordedWorkQuestionReissue(events: readonly StoredEvent[], worker: string, requestId: string): {
+export function recordedWorkQuestionReissue(events: readonly StoredEvent[], worker: string, requestId: string,
+  kinds: readonly ("UNSENT" | "AFTER_SEND")[] = ["UNSENT"]): {
   retirementEventId: string; requestId: string;
 } | null {
+  const summaries: string[] = kinds.map((kind) => kind === "UNSENT"
+    ? supervisoryRequestRetiredUnsentSummary : supervisoryRequestRetiredAfterSendSummary);
   const retirement = [...events].reverse().find((event) => event.worker === worker
     && event.data.type === "evidence_receipt_recorded"
-    && (event.data.summary === supervisoryRequestRetiredUnsentSummary
-      || event.data.summary === supervisoryRequestRetiredAfterSendSummary)
+    && summaries.includes(event.data.summary)
     && event.data.producer_id === WORK_QUESTION_RETIREMENT_PRODUCER_ID
     && event.data.refs.includes(`request:${requestId}`));
   if (!retirement || retirement.data.type !== "evidence_receipt_recorded") return null;
@@ -477,7 +493,8 @@ export interface WorkQuestionResendResult {
  * {@link buildSentWorkQuestionResend}). The proof is read after the request is named, the events are rebuilt from the
  * store after it, and the retirement, the successor route and its provenance are appended in one transaction. Nothing
  * is sent here: the relay sends the successor as a new question. A repeat, or a question already reissued unsent,
- * reports the recorded successor and appends nothing.
+ * reports the recorded successor and appends nothing. It refuses a question whose reply finished or was read back,
+ * since that answer can still be accepted.
  */
 export async function resendSentWorkQuestion(
   store: Pick<EventStore, "workerEvents" | "appendMany">,
@@ -493,11 +510,12 @@ export async function resendSentWorkQuestion(
     expiresAt: null, retirementEventId: recorded.retirementEventId, routeEventId: requestRouteEventId(recorded.requestId, 6),
     duplicate: true, originalSendBoundary: null,
   });
-  const recorded = recordedWorkQuestionReissue(store.workerEvents(worker), worker, requestId);
+  const kinds = ["UNSENT", "AFTER_SEND"] as const;
+  const recorded = recordedWorkQuestionReissue(store.workerEvents(worker), worker, requestId, kinds);
   if (recorded) return already(recorded);
   const proof = await proveRequestSendSettled(requestId);
   // Another call may have reissued it while the proof was read.
-  const raced = recordedWorkQuestionReissue(store.workerEvents(worker), worker, requestId);
+  const raced = recordedWorkQuestionReissue(store.workerEvents(worker), worker, requestId, kinds);
   if (raced) return already(raced);
   const built = buildSentWorkQuestionResend(store.workerEvents(worker), { worker, requestId, recordedAt: now(), authorizedBy }, proof, policy);
   const producers = workQuestionReissueProducers(worker, built.taskId);
@@ -511,6 +529,14 @@ export async function resendSentWorkQuestion(
     expiresAt: built.expiresAt, retirementEventId: retirement!.eventId, routeEventId: route!.eventId,
     duplicate: false, originalSendBoundary: proof.crossedAdmissionCount > 0 ? "CROSSED" : "NOT_PROVEN_UNSENT",
   };
+}
+
+/** Any record that the reply to this question finished or was read back: the relay's completion, or a readback. */
+function answerMayStillBeAccepted(event: StoredEvent, requestId: string): boolean {
+  const data = event.data;
+  if (data.type !== "evidence_receipt_recorded" || !data.refs.includes(`request:${requestId}`)) return false;
+  return [inBandAppReadbackSummary, inBandBrowserDomReadbackSummary, inBandMachineTransformSummary].includes(data.summary)
+    || data.refs.includes("generation_state:COMPLETE") || data.refs.includes("lifecycle_status:COMPLETE");
 }
 
 function routeRoot(body: string): Record<string, any> | null {

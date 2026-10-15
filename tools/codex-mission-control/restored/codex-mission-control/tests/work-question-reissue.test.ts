@@ -496,6 +496,21 @@ test("the re-send refuses anything but one expired, settled, current Work questi
     assert.throws(() => build(events, {}, invalid), /did not show/);
   }
   assert.throws(() => build(events, { authorizedBy: "" }), /authorizing owner identity/);
+  assert.equal(build(events, { authorizedBy: "owner/primary" }).retiredRequestId, requestId);
+
+  // A reply the relay saw finish, or one read back, can still be accepted after the window: no re-send.
+  const completion = (refs: string[], summary: string) => [...events, stored(events.length + 1, `completion:${summary}`, {
+    type: "evidence_receipt_recorded", worker, receipt_id: `completion:${summary}`, producer_id: "collector:relay",
+    producer_role: "COLLECTOR", evidence_class: "ARTIFACT", independence: "SAME_PROVENANCE", freshness: "CURRENT",
+    exact_candidate_sha256: null, summary, refs: [`request:${requestId}`, ...refs], verified: true, changed_path_manifest: null,
+  }, "collector:relay", "COLLECTOR", "2026-10-08T12:20:00.000Z")];
+  for (const finished of [completion(["generation_state:COMPLETE"], "MISSION_CONTROL_RELAY_STAGE_V1"),
+    completion(["lifecycle_status:COMPLETE"], "MISSION_CONTROL_PROVIDER_SESSION_V1"),
+    completion(["status:COMPLETE"], "MISSION_CONTROL_PROVIDER_SESSION_APP_READBACK_V1"),
+    completion(["status:COMPLETE"], "MISSION_CONTROL_PROVIDER_SESSION_BROWSER_DOM_READBACK_V1")]) {
+    assert.throws(() => build(finished), /finished or was read back/);
+  }
+  assert.equal(build(completion(["generation_state:STARTED"], "MISSION_CONTROL_RELAY_STAGE_V1")).retiredRequestId, requestId);
   assert.throws(() => build(events, { requestId: "fleet-review:" + "1".repeat(32) }), /exact work-question/);
   assert.throws(() => build(events, {}, settledSend(requestId), { ...policy(), requestBound: { enabled: false, relayProducerIds: [] } }), /request-bound/);
 
@@ -550,9 +565,9 @@ test("the re-send appends its three events together once; repeats and an unsent 
   assert.equal(repeat.status, "WORK_QUESTION_ALREADY_REISSUED");
   assert.equal(repeat.requestId, first.requestId);
   assert.equal(repeat.duplicate, true);
-  const unsent = await reissueExpiredWorkQuestion(store as never, { worker, requestId }, async (id) => proof(id), policy(), () => later);
-  assert.equal(unsent.status, "WORK_QUESTION_ALREADY_REISSUED");
-  assert.equal(unsent.requestId, first.requestId);
+  // The unsent reissue never reports a re-sent question as unsent: it is simply no longer pending.
+  await assert.rejects(reissueExpiredWorkQuestion(store as never, { worker, requestId }, async (id) => proof(id), policy(), () => later),
+    /not pending/);
   assert.equal(batches.length, 1);
   assert.deepEqual(proved, [requestId]);
   await assert.rejects(resendSentWorkQuestion(store as never, { ...input, requestId: "fleet-review:" + "1".repeat(32) }, prove, policy(), () => later),

@@ -57,7 +57,7 @@ test('a timeout after the swap reports the structure it last saw, without links 
   const browser = new ChromeDevtoolsBrowser({ WebSocketImpl: page.WebSocketImpl, pageReadyTimeoutMs: 400, submitTimeoutMs: 2_000 });
   await assert.rejects(submit(browser), (error) => error.relayStage === 'GENERATION_STARTED'
     && error.message.endsWith('(last read: 1 user turn(s); mention binding not verified; provisional link swap seen)')
-    && !error.message.includes('chatgpt.com'));
+    && !/https?:|\/c\//.test(error.message));
 });
 
 test('only the provisional-to-stable swap is accepted', () => {
