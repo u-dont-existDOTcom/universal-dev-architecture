@@ -5,7 +5,9 @@ import { canonicalJson, sha256 } from "../lib/canonical";
 import { workerTransportSnapshotFromEvents } from "../lib/dashboard-data";
 import {
   pendingDecisionRequests,
+  retiredAfterSendRequests,
   retiredUnsentRequests,
+  supervisoryRequestRetiredAfterSendSummary,
   supervisoryRequestRetiredUnsentSummary,
   type GitHubReceiptPolicy,
 } from "../lib/github-decision-receipts";
@@ -23,11 +25,14 @@ import {
   FLEET_REQUEST_RETIREMENT_PRODUCER_ID,
   WORK_QUESTION_RETIREMENT_PRODUCER_ID,
   type ProvenUnsentSubmissionState,
+  type SettledSendSubmissionState,
 } from "../lib/unsent-request-proof";
 import {
   buildExpiredWorkQuestionReissue,
+  buildSentWorkQuestionResend,
   expiredPendingWorkQuestions,
   reissueExpiredWorkQuestion,
+  resendSentWorkQuestion,
   workQuestionReissueProducers,
 } from "../lib/work-question-reissue";
 
@@ -223,6 +228,12 @@ test("the relay sees the reissued question once the expired one has stopped coun
     return runtime.cycle();
   };
   assert.equal((await consume(before)).status, "AUTHORITATIVE_PENDING_ROUTE_UNAVAILABLE");
+  // The retirement reaches the relay, whose own list of questions drops the retired one.
+  const queued = (transport: NonNullable<ReturnType<typeof workerTransportSnapshotFromEvents>>) =>
+    relayCore.extractQueuedRoutes({ workers: [transport.worker] }, [projectManagerChat()], relayCore.defaultState())
+      .map((route: { requestId: string }) => route.requestId);
+  assert.deepEqual(queued(before), [requestId]);
+  assert.deepEqual(queued(after), [built.requestId]);
   const ready = await consume(after);
   assert.equal(ready.status, "DRY_RUN_ROUTE_READY", JSON.stringify(ready).slice(0, 400));
   assert.equal(ready.route.requestId, built.requestId);
@@ -397,4 +408,251 @@ test("a retirement counts only from the verifier allowed to retire that kind of 
   const matching = [...events, retirement(requestId, WORK_QUESTION_RETIREMENT_PRODUCER_ID, events.length + 1)];
   assert.equal(retiredUnsentRequests(matching).get(requestId), "REQUEST_EXPIRED");
   assert.deepEqual(pendingDecisionRequests(matching), []);
+});
+
+function settledSend(requestId: string, overrides: Partial<SettledSendSubmissionState> = {}): SettledSendSubmissionState {
+  return { schemaVersion: 1, requestId, pacingDomain: "chatgpt:test", ledgerValid: true,
+    admissions: [{ admissionId: "send-admission:sent-question", status: "BOUNDARY_RECORDED", boundaryKind: "CLICKED" }],
+    openAdmissionCount: 0, openQueueRecordCount: 0, crossedAdmissionCount: 1, settled: true, proofSha256: "d".repeat(64), ...overrides };
+}
+
+/** The asked question, sent: the relay recorded a provider session for it, and no answer came back. */
+function sentEvents(): { events: StoredEvent[]; requestId: string } {
+  const { events, requestId } = askedEvents();
+  return {
+    requestId,
+    events: [...events, stored(events.length + 1, "send-evidence", {
+      type: "evidence_receipt_recorded", worker, receipt_id: "send-evidence", producer_id: "collector:relay",
+      producer_role: "COLLECTOR", evidence_class: "ARTIFACT", independence: "SAME_PROVENANCE", freshness: "CURRENT",
+      exact_candidate_sha256: null, summary: "MISSION_CONTROL_PROVIDER_SESSION_V1", refs: [`request:${requestId}`],
+      verified: true, changed_path_manifest: null,
+    }, "collector:relay", "COLLECTOR", "2026-10-08T12:01:00.000Z")],
+  };
+}
+
+const resendInput = (requestId: string) => ({ worker, requestId, recordedAt: later, authorizedBy: "owner:primary" });
+
+test("the owner re-sends a sent Work question whose window closed, once, as the same question on the same thread", () => {
+  const { events, requestId } = sentEvents();
+  // The unsent reissue refuses it: it was sent.
+  assert.throws(() => buildExpiredWorkQuestionReissue(events, { worker, requestId, recordedAt: later }, proof(requestId), policy()),
+    /send, delivery, response, decision or retirement evidence/);
+
+  const built = buildSentWorkQuestionResend(events, resendInput(requestId), settledSend(requestId), policy());
+  assert.equal(built.retiredRequestId, requestId);
+  assert.match(built.requestId, /^work-question:[a-f0-9]{32}$/);
+  assert.notEqual(built.requestId, requestId);
+  assert.equal(Date.parse(built.expiresAt) - Date.parse(later), 60 * 60_000);
+  const successor = rootOf(built.route);
+  assert.equal(successor.requestId, built.requestId);
+  assert.equal(successor.factualPacket.supervisoryCycle.expiresAt, built.expiresAt);
+  assert.equal(JSON.parse(successor.factualPacket.exactFactualState).exact_question, question);
+
+  const data = built.retirement.data as { summary: string; producer_id: string; exact_candidate_sha256: string; refs: string[] };
+  assert.equal(data.summary, supervisoryRequestRetiredAfterSendSummary);
+  assert.equal(data.producer_id, WORK_QUESTION_RETIREMENT_PRODUCER_ID);
+  assert.equal(data.exact_candidate_sha256, "d".repeat(64));
+  for (const ref of [`request:${requestId}`, `successor_request:${built.requestId}`,
+    "retirement_reason:REQUEST_EXPIRED_WITHOUT_ACCEPTED_ANSWER", "lifecycle_status:RETIRED_AFTER_SEND",
+    "provider_send_boundary:CROSSED", "submission_authority_admission_records:1", "submission_authority_crossed_admissions:1",
+    "submission_authority_open_records:0", "decision_receipts_ingested:0", "authorization:OWNER_EXPLICIT_ONE_RESEND",
+    "authorized_by:owner:primary", "historical_request_preserved:true"]) {
+    assert.ok(data.refs.includes(ref), ref);
+  }
+  assert.ok(!data.refs.includes("lifecycle_status:RETIRED_UNSENT"));
+  const producers = workQuestionReissueProducers(worker, built.taskId);
+  assert.equal(producerMayEmit(producers.retirement, built.retirement.data), true);
+  assert.equal(producerMayEmit(producers.route, built.route.data), true);
+  assert.equal(producerMayEmit(producers.provenance, built.provenance.data), true);
+
+  const after = applied(events, built);
+  // No late answer to the original can be accepted: it is no longer pending.
+  assert.deepEqual(pendingDecisionRequests(after).map((request) => request.requestId), [built.requestId]);
+  assert.ok(retiredAfterSendRequests(after).has(requestId));
+  assert.equal(retiredUnsentRequests(after).size, 0);
+  assert.deepEqual(workQuestionContextForRequest(after, worker, built.requestId), workQuestionContextForRequest(events, worker, requestId));
+  assert.equal(workQuestionRequestIdForDispatch(after, worker, dispatchId), built.requestId);
+  assert.throws(() => buildSentWorkQuestionResend(after, resendInput(requestId), settledSend(requestId), policy()), /not pending/);
+
+  const unproven = buildSentWorkQuestionResend(events, resendInput(requestId), settledSend(requestId, {
+    admissions: [{ admissionId: "send-admission:aborted", status: "ABORTED_BEFORE_BOUNDARY", boundaryKind: null }],
+    crossedAdmissionCount: 0,
+  }), policy());
+  assert.ok((unproven.retirement.data as { refs: string[] }).refs.includes("provider_send_boundary:NOT_PROVEN_UNSENT"));
+});
+
+test("the re-send refuses anything but one expired, settled, current Work question named by the owner", () => {
+  const { events, requestId } = sentEvents();
+  const build = (history: StoredEvent[], overrides: Partial<ReturnType<typeof resendInput>> = {},
+    submission: SettledSendSubmissionState | undefined = settledSend(overrides.requestId ?? requestId), receiptPolicy = policy()) =>
+    buildSentWorkQuestionResend(history, { ...resendInput(requestId), ...overrides }, submission, receiptPolicy);
+
+  assert.throws(() => build(events, { recordedAt: "2026-10-08T12:30:00.000Z" }), /has not expired/);
+  assert.throws(() => buildSentWorkQuestionResend(events, resendInput(requestId), undefined, policy()), /did not show/);
+  for (const invalid of [settledSend(requestId, { settled: false }), settledSend(requestId, { admissions: [], crossedAdmissionCount: 0 }),
+    settledSend(requestId, { openAdmissionCount: 1 }), settledSend(requestId, { openQueueRecordCount: 1 }),
+    settledSend(requestId, { ledgerValid: false }), settledSend(requestId, { crossedAdmissionCount: 2 }),
+    settledSend(requestId, { proofSha256: "not-a-digest" }), settledSend("work-question:" + "d".repeat(32))]) {
+    assert.throws(() => build(events, {}, invalid), /did not show/);
+  }
+  assert.throws(() => build(events, { authorizedBy: "" }), /authorizing owner identity/);
+  assert.equal(build(events, { authorizedBy: "owner/primary" }).retiredRequestId, requestId);
+
+  // A reply the relay saw finish, or one read back, can still be accepted after the window: no re-send.
+  const completion = (refs: string[], summary: string) => [...events, stored(events.length + 1, `completion:${summary}`, {
+    type: "evidence_receipt_recorded", worker, receipt_id: `completion:${summary}`, producer_id: "collector:relay",
+    producer_role: "COLLECTOR", evidence_class: "ARTIFACT", independence: "SAME_PROVENANCE", freshness: "CURRENT",
+    exact_candidate_sha256: null, summary, refs: [`request:${requestId}`, ...refs], verified: true, changed_path_manifest: null,
+  }, "collector:relay", "COLLECTOR", "2026-10-08T12:20:00.000Z")];
+  for (const finished of [completion(["generation_state:COMPLETE"], "MISSION_CONTROL_RELAY_STAGE_V1"),
+    completion(["lifecycle_status:COMPLETE"], "MISSION_CONTROL_PROVIDER_SESSION_V1"),
+    completion(["status:COMPLETE"], "MISSION_CONTROL_PROVIDER_SESSION_APP_READBACK_V1"),
+    completion(["status:COMPLETE"], "MISSION_CONTROL_PROVIDER_SESSION_BROWSER_DOM_READBACK_V1")]) {
+    assert.throws(() => build(finished), /finished or was read back/);
+  }
+  assert.equal(build(completion(["generation_state:STARTED"], "MISSION_CONTROL_RELAY_STAGE_V1")).retiredRequestId, requestId);
+  assert.throws(() => build(events, { requestId: "fleet-review:" + "1".repeat(32) }), /exact work-question/);
+  assert.throws(() => build(events, {}, settledSend(requestId), { ...policy(), requestBound: { enabled: false, relayProducerIds: [] } }), /request-bound/);
+
+  const answered = [...events, stored(events.length + 1, "answer:alpha", {
+    type: "github_decision_receipt_ingested", worker, task_id: taskId, receipt_id: "github-comment:answer", request_id: requestId,
+    supervisor_id: supervisorId, owner_outcome_id: "outcome:alpha", owner_outcome_epoch: 2, owner_outcome_sha256: outcomeSha,
+    reasoning_lane: "EXTRA_HIGH_DIRECT",
+  })];
+  assert.throws(() => build(answered), /not pending/);
+  const changedOutcome = [...events, stored(events.length + 1, "owner-outcome:alpha:3", {
+    ...events[0]!.data, epoch: 3, owner_outcome_sha256: "e".repeat(64),
+  })];
+  assert.throws(() => build(changedOutcome), /stale against the current owner outcome/);
+  const newerDirective = [...events, stored(events.length + 1, "directive:alpha:2", {
+    ...events[3]!.data, directive_id: "directive:alpha:2",
+  })];
+  assert.throws(() => build(newerDirective), /newer directive, Work dispatch or supervisor decision/);
+});
+
+test("the re-send appends its three events together once; repeats and an unsent reissue report the same successor", async () => {
+  const { events, requestId } = sentEvents();
+  let history = events;
+  const batches: Array<Array<{ event: unknown; producer?: AuthenticatedProducer }>> = [];
+  const store = {
+    workerEvents: (selected: string) => history.filter((event) => event.worker === selected),
+    appendMany: (items: Array<{ event: unknown; producer?: AuthenticatedProducer }>) => {
+      batches.push(items);
+      const appended = items.map((item, index) => {
+        const envelope = item.event as AppendEnvelope;
+        return stored(history.length + 1 + index, envelope.event_id, envelope.data, item.producer!.id, item.producer!.kind, envelope.occurred_at);
+      });
+      history = [...history, ...appended];
+      return appended;
+    },
+  };
+  const proved: string[] = [];
+  const prove = async (id: string) => { proved.push(id); return settledSend(id); };
+  const input = { worker, requestId, authorizedBy: "owner:primary" };
+
+  const first = await resendSentWorkQuestion(store as never, input, prove, policy(), () => later);
+  assert.equal(first.status, "WORK_QUESTION_RESENT");
+  assert.equal(first.originalSendBoundary, "CROSSED");
+  assert.equal(batches.length, 1);
+  assert.deepEqual(batches[0]!.map((item) => [item.producer!.id, item.producer!.kind]), [
+    [WORK_QUESTION_RETIREMENT_PRODUCER_ID, "VERIFIER"],
+    [WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID, "SYSTEM"],
+    [workSupervisorQuestionCollector.id, "COLLECTOR"],
+  ]);
+  assert.deepEqual(pendingDecisionRequests(history).map((request) => request.requestId), [first.requestId]);
+
+  const repeat = await resendSentWorkQuestion(store as never, input, prove, policy(), () => later);
+  assert.equal(repeat.status, "WORK_QUESTION_ALREADY_REISSUED");
+  assert.equal(repeat.requestId, first.requestId);
+  assert.equal(repeat.duplicate, true);
+  // The unsent reissue never reports a re-sent question as unsent: it is simply no longer pending.
+  await assert.rejects(reissueExpiredWorkQuestion(store as never, { worker, requestId }, async (id) => proof(id), policy(), () => later),
+    /not pending/);
+  assert.equal(batches.length, 1);
+  assert.deepEqual(proved, [requestId]);
+  await assert.rejects(resendSentWorkQuestion(store as never, { ...input, requestId: "fleet-review:" + "1".repeat(32) }, prove, policy(), () => later),
+    /exact work-question/);
+});
+
+test("a re-send retirement counts only from the Work-question verifier with the owner's one-time authorization", () => {
+  const { events, requestId } = sentEvents();
+  const refs = (id: string) => [`request:${id}`, "lifecycle_status:RETIRED_AFTER_SEND", "authorization:OWNER_EXPLICIT_ONE_RESEND",
+    "submission_authority_open_records:0", "decision_receipts_ingested:0"];
+  const retirement = (sequence: number, producerId: string, refList: string[]) => stored(sequence, `retirement:${sequence}`, {
+    type: "evidence_receipt_recorded", worker, receipt_id: `retirement:${sequence}`, producer_id: producerId,
+    producer_role: "VERIFIER", evidence_class: "ARTIFACT", independence: "INDEPENDENT", freshness: "CURRENT",
+    exact_candidate_sha256: "d".repeat(64), summary: supervisoryRequestRetiredAfterSendSummary, refs: refList,
+    verified: true, changed_path_manifest: null,
+  }, producerId, "VERIFIER");
+  const fleetId = "fleet-review:" + "2".repeat(32);
+  const rejected = [...events,
+    retirement(events.length + 1, FLEET_REQUEST_RETIREMENT_PRODUCER_ID, refs(requestId)),
+    retirement(events.length + 2, WORK_QUESTION_RETIREMENT_PRODUCER_ID, refs(requestId).filter((ref) => !ref.startsWith("authorization:"))),
+    retirement(events.length + 3, WORK_QUESTION_RETIREMENT_PRODUCER_ID, refs(requestId).filter((ref) => !ref.startsWith("submission_authority_open_records:"))),
+    retirement(events.length + 4, WORK_QUESTION_RETIREMENT_PRODUCER_ID, refs(fleetId))];
+  assert.equal(retiredAfterSendRequests(rejected).size, 0);
+  assert.deepEqual(pendingDecisionRequests(rejected).map((request) => request.requestId), [requestId]);
+  const matching = [...events, retirement(events.length + 1, WORK_QUESTION_RETIREMENT_PRODUCER_ID, refs(requestId))];
+  assert.ok(retiredAfterSendRequests(matching).has(requestId));
+  assert.deepEqual(pendingDecisionRequests(matching), []);
+});
+
+test("the relay drops a re-sent question and sends its successor", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse(later) + 60_000 });
+  const fixture = sentEvents();
+  const requestId = fixture.requestId;
+  const events = [...fixture.events, stored(fixture.events.length + 1, "objective:alpha", {
+    type: "objective_created", worker, worker_name: "Alpha worker", goal: "Answer the Work question",
+    acceptance_criteria: ["The supervisor answers"], allowed_scope: ["alpha/**"], forbidden_scope: [],
+    supervisor_chat_url: "https://chatgpt.com/c/alpha-supervisor", supervisor_chat_label: "Alpha supervisor",
+  })];
+  const before = workerTransportSnapshotFromEvents(events, worker)!;
+  const built = buildSentWorkQuestionResend(events, resendInput(requestId), settledSend(requestId), policy());
+  const after = workerTransportSnapshotFromEvents(applied(events, built), worker)!;
+  assert.deepEqual(after.worker.authoritativePendingRequestIds, [built.requestId]);
+
+  const relayCore = await import(new URL("../../../vps-browser-relay/src/core.mjs", import.meta.url).href);
+  const { RelayRuntime } = await import(new URL("../../../vps-browser-relay/src/relay.mjs", import.meta.url).href);
+  const queued = (transport: NonNullable<ReturnType<typeof workerTransportSnapshotFromEvents>>) =>
+    relayCore.extractQueuedRoutes({ workers: [transport.worker] }, [projectManagerChat()], relayCore.defaultState())
+      .map((route: { requestId: string }) => route.requestId);
+  assert.deepEqual(queued(before), [requestId]);
+  assert.deepEqual(queued(after), [built.requestId]);
+  let state = relayCore.defaultState();
+  const runtime = new RelayRuntime({
+    config: { browser: { profileDir: "/tmp/test-profile" }, memory: { profile: "AUTO", overrides: {} },
+      runtime: { chats: [projectManagerChat()], submitEnabled: false, requestBoundEnabled: true, maxHotTabs: 3, retryDelayMs: 300_000 } },
+    missionControl: { fetchFleet: async () => ({ workers: [after.worker] }) },
+    browser: { listTargets: async () => [], doctor: async () => ({}) },
+    stateStore: { read: async () => state, write: async (next: typeof state) => { state = next; return state; }, writeStatus: async () => undefined },
+    submissionPacer: { remoteStatus: async () => ({}), status: () => ({}) },
+    memoryReader: async () => ({ totalMb: 8_000, availableMb: 6_000, usedMb: 2_000, swapTotalMb: 2_000, swapUsedMb: 0, browserRssMb: 0 }),
+  });
+  const ready = await runtime.cycle();
+  assert.equal(ready.status, "DRY_RUN_ROUTE_READY", JSON.stringify(ready).slice(0, 400));
+  assert.equal(ready.route.requestId, built.requestId);
+});
+
+test("reissuing a reissued question names only its own source and retirement", () => {
+  const { events, requestId } = askedEvents();
+  const first = buildExpiredWorkQuestionReissue(events, { worker, requestId, recordedAt: later }, proof(requestId), policy());
+  const reissued = applied(events, first);
+  const resendAt = "2026-10-14T07:00:00.000Z";
+  const sent = [...reissued, stored(reissued.length + 1, "send-evidence:successor", {
+    type: "evidence_receipt_recorded", worker, receipt_id: "send-evidence:successor", producer_id: "collector:relay",
+    producer_role: "COLLECTOR", evidence_class: "ARTIFACT", independence: "SAME_PROVENANCE", freshness: "CURRENT",
+    exact_candidate_sha256: null, summary: "MISSION_CONTROL_PROVIDER_SESSION_V1", refs: [`request:${first.requestId}`],
+    verified: true, changed_path_manifest: null,
+  }, "collector:relay", "COLLECTOR", later)];
+  const second = buildSentWorkQuestionResend(sent, { worker, requestId: first.requestId, recordedAt: resendAt, authorizedBy: "owner:primary" },
+    settledSend(first.requestId), policy());
+  const provenanceRefs = (second.provenance.data as { refs: string[] }).refs;
+  for (const prefix of ["route_event:", "reissue_of_request_route:", "retirement_event:"]) {
+    assert.equal(provenanceRefs.filter((ref) => ref.startsWith(prefix)).length, 1, prefix);
+  }
+  assert.ok(provenanceRefs.includes(`reissue_of_request_route:${first.route.event_id}`));
+  assert.ok(provenanceRefs.includes(`retirement_event:${second.retirement.event_id}`));
+  const after = applied(sent, second);
+  assert.deepEqual(pendingDecisionRequests(after).map((request) => request.requestId), [second.requestId]);
+  assert.equal(workQuestionRequestIdForDispatch(after, worker, dispatchId), second.requestId);
 });

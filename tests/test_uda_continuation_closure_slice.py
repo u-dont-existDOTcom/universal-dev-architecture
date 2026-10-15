@@ -21,6 +21,11 @@ from scripts import uda_rule_graph_task_time as tt
 ROOT = Path(__file__).resolve().parents[1]
 
 
+# Records added after slice 2a; removed so slice 2a history stays fixed.
+LATER_RECORDS = {
+    "uda.reasoning.answer-first-target",
+    "uda.reasoning.answer-first-target-correction",
+}
 # Kernel selectors added after slice 2a; stripped so slice 2a history stays fixed.
 LATER_KERNEL_SELECTORS = {
     "uda.kernel.clock-cadence": {
@@ -31,6 +36,7 @@ LATER_KERNEL_SELECTORS = {
 
 def without_later_kernel_selectors(catalog):
     catalog = copy.deepcopy(catalog)
+    catalog["records"] = [record for record in catalog["records"] if record["rule_id"] not in LATER_RECORDS]
     for record in catalog["records"]:
         later = LATER_KERNEL_SELECTORS.get(record["rule_id"])
         if later:

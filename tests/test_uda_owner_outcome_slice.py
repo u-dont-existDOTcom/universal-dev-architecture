@@ -21,7 +21,7 @@ SOURCE = 'patterns/owner-outcome-invariant-and-contract-laundering-prevention.md
 DEFERRED = 'rules/rule-graph/owner-outcome-budget-deferred.v1.json'
 FIXTURES = ROOT / 'tests/fixtures/owner-outcome-slice'
 PREFIX = 'uda.owner-outcome.'
-WORK_RENDERED = 32680  # rendered Work contract after the 2026-10-11 one-command turn stamp (slice 2b: 32561)
+WORK_RENDERED = 32706  # rendered Work contract after the 2026-10-15 answer-first target records (2026-10-11 turn stamp: 32680; slice 2b: 32561)
 # Independent boundary pins, not generated from the mutable metadata.
 # phase, destination, N/A, event fact, event value
 BOUNDARIES = {

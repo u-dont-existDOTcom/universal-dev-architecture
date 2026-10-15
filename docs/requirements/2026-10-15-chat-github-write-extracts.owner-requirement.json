@@ -1,0 +1,41 @@
+{
+  "requirement_id": "2026-10-15-chat-github-write-extracts",
+  "date": "2026-10-15",
+  "source": "Owner message to the maintainer chat, 2026-10-15, paraphrased here: this repository is public and the rule itself is about not writing conversation text verbatim.",
+  "owner_request_summary": "The owner observed that, at least in ChatGPT, a GitHub write tends to fail when it carries exact conversation output, while a de-identified version with the useful information extracted goes through. He asked for this to be written down as a rule so it does not have to be rediscovered.",
+  "problem": "Chats file bug reports and suggestions to GitHub (suggested-fix items and uda-lane pull requests). When a chat tries to write the conversation's exact output, the write tends to fail, and each chat has had to find the de-identified form again. Exact conversation text also does not belong in a public repository.",
+  "required_behavior": [
+    "An item or a uda-lane pull request filed from a chat gives the useful content in the filer's own words: what was asked, what went wrong, the evidence in summary, and the change wanted.",
+    "It quotes only the short excerpts needed to show the failure and leaves out personal details.",
+    "The extract form applies to every filer, whatever its runtime, because this repository is public; the failed-write observation is recorded as a ChatGPT note, with its cause unknown and no claim about other runtimes.",
+    "If an extract is refused as content too, the chat reports that to the owner and does not retry the same content in another form or through another route; ordinary GitHub, credential, connector or transport failures follow the usual publication recovery.",
+    "The item format in suggested-fixes/README.md and the lesson index carry the rule; a regression test protects the text."
+  ],
+  "scope": "Filing through the suggested-fix lanes and the uda-lane pull-request route from a chat. It does not change what a project may store privately in its own repository, and it is not a way around a refused write.",
+  "origin": {
+    "classification": "OWNER",
+    "admission": "OWNER_DIRECT",
+    "notes": "The wording of the rule is the maintainer's; the observation and the request are the owner's."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/suggested-fix-queue.md step 3, suggested-fixes/README.md item format and LESSON-INDEX.md entry 63",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "tests/test_suggested_fix_queue.py",
+      "disposition": "TESTED_TEXT_ONLY"
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED",
+    "TESTED_TEXT_ONLY"
+  ],
+  "nonclaims": [
+    "The cause of the failed writes is not known; this records the owner's observation and does not claim which ChatGPT check refuses them.",
+    "Text-presence tests protect the rule's wording; they do not prove that a chat writes extracts or that an extract is always admitted."
+  ],
+  "transfer_rationale": "The extract form transfers to every runtime because it follows from rule 3 (this repository is public), not from the ChatGPT observation. The observation itself is bounded to ChatGPT's GitHub writes as seen by the owner on 2026-10-15."
+}
