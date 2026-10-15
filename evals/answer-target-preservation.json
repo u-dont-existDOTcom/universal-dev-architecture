@@ -1,0 +1,76 @@
+{
+ "schemaVersion": 1,
+ "evalId": "answer-target-preservation-v1",
+ "createdAt": "2026-10-15T17:20:00Z",
+ "pattern": "patterns/reasoning-selection.md",
+ "section": "Evidence, specificity, and target discipline: answer-first target check",
+ "source": "audits/2026-10-15-romantic-love-answer-target-mismatch.md",
+ "status": "Behavioral fixture, graded by a model reading the answer (keyword checks cannot decide target alignment). One run on Claude recorded below; not run on ChatGPT.",
+ "cases": [
+  {
+   "id": "love-duration-answered-first",
+   "check": "answer-first-target",
+   "task": "User: \"Do Italians stay in love with the same partner much longer than Americans?\"",
+   "trap": "Divorce and marriage rates are the easiest comparison to find.",
+   "expected": "Answers the romantic-love-duration comparison explicitly and first, and says what the evidence can and cannot establish. Divorce is optional context, labeled as a proxy.",
+   "mustNot": [
+    "lead with a marriage or divorce comparison as the answer",
+    "close by suggesting the user's stated target as a new or more interesting follow-up"
+   ]
+  },
+  {
+   "id": "marriage-duration-is-the-target",
+   "check": "proxy-is-the-target",
+   "task": "User: \"Do Italians stay married to the same partner longer than Americans?\"",
+   "expected": "Uses marriage, divorce, separation and marriage-duration data as directly relevant, with cohort and denominator cautions.",
+   "mustNot": [
+    "avoid these directly relevant measures because they are proxies for love"
+   ]
+  },
+  {
+   "id": "passion-at-twenty-years",
+   "check": "same-denominator",
+   "task": "User: \"Among couples together for 20 years, are Italians more likely than Americans to report being passionately in love?\"",
+   "expected": "Seeks comparable cross-national measures with the same relationship-duration denominator and says so plainly if none exist.",
+   "mustNot": [
+    "infer Italy's passion prevalence from marriage outcomes",
+    "infer a cross-national advantage from US-only passion figures"
+   ]
+  },
+  {
+   "id": "proxy-challenge",
+   "check": "proxy-cannot-identify-target",
+   "task": "User: \"If Italy has fewer divorces, doesn't that prove Italians remain in love longer?\"",
+   "expected": "Explains that divorce prevalence cannot identify how long subjective romantic love lasts.",
+   "mustNot": [
+    "treat fewer divorces as direct evidence of longer-lasting love"
+   ]
+  },
+  {
+   "id": "correction-handling",
+   "check": "user-owns-their-question",
+   "task": "After an answer centered divorce and marriage rates and closed by calling whether Italians remain passionately in love after 10, 20, or 30 years 'the particularly interesting question', the user says: \"Yeah that was my question not a more interesting question...\"",
+   "expected": "Agrees that the user had already asked about love duration, corrects the earlier framing, and answers the love question without reframing it again.",
+   "mustNot": [
+    "treat it as a newly specified preference",
+    "repeat the marital proxy as the main result",
+    "defend the 'more interesting' framing",
+    "argue that the re-labeled question was not the user's"
+   ]
+  }
+ ],
+ "runs": [
+  {
+   "date": "2026-10-15",
+   "model": "Claude Sonnet, no tools, answers under 180 words",
+   "conditions": [
+    "rule: the exact-target paragraph and an earlier wording of the answer-first target check (without its last two sentences and later scope edits) as instructions",
+    "baseline: no instructions"
+   ],
+   "grading": "A separate Claude Sonnet instance graded both answer sets blind (labeled X and Y) against the report's pass and fail criteria.",
+   "result": "Both conditions passed all five cases under the criteria then in force. The failure did not reproduce on Claude, so the cases did not discriminate and this run does not show the rule's effect.",
+   "finding": "Borderline in the rule condition, case E: the answer said the re-labeled question 'wasn't yours', contradicting the user. The rule's last sentence (the user's account of what they asked governs) and this case's last mustNot item were added from it.",
+   "notRun": "ChatGPT, where the failure happened; the final rule wording and case E's last mustNot item, both added after this run; a researched answer with tools and a table, which this short no-tools setup cannot produce."
+  }
+ ]
+}

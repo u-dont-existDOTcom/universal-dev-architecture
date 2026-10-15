@@ -1,7 +1,7 @@
 {
   "catalog_sha256": "1899c1721ff216cf76f01645edd84832a785ed010dc7e31a406dcb568f0ed1ad",
   "compiler_sha256": "7ea7e14d49c8e2d10a5c015119a71b4457392fb6090a30f4cb38c9777be10509",
-  "content_sha256": "71736f3044639851a9b18a300b428347f1db0a60d2c0a635e84ff7977f8c359d",
+  "content_sha256": "192b0ff0f7f233e4db0b451f790559542af5318d500797f152d0d60aaaea94e0",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
@@ -1878,9 +1878,9 @@
     {
       "extracted_sha256": "b5e06a1f9807cc621e98a87e95fc177ed7df7cef7db842efbdc2195a2f815dc2",
       "extracted_utf8_bytes": 367,
-      "git_blob_sha1": "32461019f11cfa700425d1af382e9eb4cf14c94a",
+      "git_blob_sha1": "a6a7f86f2d477aba79c495fb163b13697c2891b5",
       "path": "patterns/reasoning-selection.md",
-      "repository_revision": "BLOB:32461019f11cfa700425d1af382e9eb4cf14c94a",
+      "repository_revision": "BLOB:a6a7f86f2d477aba79c495fb163b13697c2891b5",
       "rule_id": "uda.reasoning.dominated-alternative",
       "selectors": [
         {
