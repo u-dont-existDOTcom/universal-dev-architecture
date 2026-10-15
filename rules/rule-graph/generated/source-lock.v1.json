@@ -1,7 +1,7 @@
 {
-  "catalog_sha256": "1899c1721ff216cf76f01645edd84832a785ed010dc7e31a406dcb568f0ed1ad",
+  "catalog_sha256": "92669fe96ccab05aa27682482b22245ea842e23bf75593adf1cbe5fa080e0783",
   "compiler_sha256": "7ea7e14d49c8e2d10a5c015119a71b4457392fb6090a30f4cb38c9777be10509",
-  "content_sha256": "71736f3044639851a9b18a300b428347f1db0a60d2c0a635e84ff7977f8c359d",
+  "content_sha256": "7fc184c06a1a5e222f532d2e86c38a54fc126ab32ad15ae39b25ff79f7141cf3",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
@@ -1876,11 +1876,43 @@
       ]
     },
     {
+      "extracted_sha256": "082bcb46fa8c0e59861a6f59320dab570b2e3668373f589a75ffa756af1fb85b",
+      "extracted_utf8_bytes": 319,
+      "git_blob_sha1": "bf1b719709f2fabc77c10d1f5aff79044153a2d8",
+      "path": "patterns/reasoning-selection.md",
+      "repository_revision": "BLOB:bf1b719709f2fabc77c10d1f5aff79044153a2d8",
+      "rule_id": "uda.reasoning.answer-first-target",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Reread the question and compare it with the answer's first substantive claim and with its closing."
+        },
+        {
+          "kind": "exact_text",
+          "text": "No closing, open question, or suggested follow-up may present the question the user already asked as new or more interesting; if the answer leaves it unresolved, say that the user's question is the one still unresolved."
+        }
+      ]
+    },
+    {
+      "extracted_sha256": "8c88523f79fe89fcb56e5ac1ca43f87679c59a86d0ebb5310d163e9919437879",
+      "extracted_utf8_bytes": 261,
+      "git_blob_sha1": "bf1b719709f2fabc77c10d1f5aff79044153a2d8",
+      "path": "patterns/reasoning-selection.md",
+      "repository_revision": "BLOB:bf1b719709f2fabc77c10d1f5aff79044153a2d8",
+      "rule_id": "uda.reasoning.answer-first-target-correction",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "When the user says an answer missed their question, their account of what they asked governs: correct the answer instead of arguing which question was theirs. This settles which question to answer, not any factual claim, which is still checked before conceding."
+        }
+      ]
+    },
+    {
       "extracted_sha256": "b5e06a1f9807cc621e98a87e95fc177ed7df7cef7db842efbdc2195a2f815dc2",
       "extracted_utf8_bytes": 367,
-      "git_blob_sha1": "32461019f11cfa700425d1af382e9eb4cf14c94a",
+      "git_blob_sha1": "bf1b719709f2fabc77c10d1f5aff79044153a2d8",
       "path": "patterns/reasoning-selection.md",
-      "repository_revision": "BLOB:32461019f11cfa700425d1af382e9eb4cf14c94a",
+      "repository_revision": "BLOB:bf1b719709f2fabc77c10d1f5aff79044153a2d8",
       "rule_id": "uda.reasoning.dominated-alternative",
       "selectors": [
         {

@@ -25,6 +25,8 @@ const USAGE = `Usage: owner-action <action> [options]
                                                       retire one proven-unsent stale request and queue one current evidence-bound review
   work-question-reissue --worker W [--request R]      reissue one Work question that expired before anything sent it
                                                       (R, or the worker's only expired one) with a fresh answer window
+  work-question-resend --worker W --request R         re-send Work question R once: it was sent, but its answer window
+                                                      closed with no accepted answer; the supervisor is asked again
   reconcile-github                                    run one GitHub decision-receipt reconciliation pass`;
 
 // Deliberately absent: any action that forwards caller-supplied semantic content (such as a source-review
@@ -149,6 +151,17 @@ export async function runOwnerAction(argv: string[]): Promise<{ status: number; 
       return jsonResult(await daemonFetch(`/workers/${encodeURIComponent(worker)}/work-questions/reissue-expired`, {
         method: "POST", headers: daemonMutationHeaders(owner(), { "content-type": "application/json" }),
         body: JSON.stringify(requestId === undefined ? {} : { request_id: requestId }),
+      }));
+    }
+    case "work-question-resend": {
+      const opts = options(rest, ["worker", "request"]);
+      const worker = required(opts, "worker");
+      if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,179}$/.test(worker)) throw new UsageError("--worker must be one exact worker ID.");
+      const requestId = required(opts, "request");
+      if (!/^work-question:[a-f0-9]{32}$/.test(requestId)) throw new UsageError("--request must be one exact work-question request ID.");
+      return jsonResult(await daemonFetch(`/workers/${encodeURIComponent(worker)}/work-questions/resend-sent`, {
+        method: "POST", headers: daemonMutationHeaders(owner(), { "content-type": "application/json" }),
+        body: JSON.stringify({ request_id: requestId }),
       }));
     }
     case "reconcile-github": {

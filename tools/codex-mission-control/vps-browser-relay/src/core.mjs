@@ -16,6 +16,7 @@ export const PROVIDER_SESSION_MCP_SUMMARY = 'MISSION_CONTROL_PROVIDER_SESSION_MC
 export const BINDING_CAPSULE_SUMMARY = 'MISSION_CONTROL_BINDING_CAPSULE_V1';
 export const BINDING_ENVELOPE_SUMMARY = 'MISSION_CONTROL_BINDING_ENVELOPE_V1';
 export const SUPERVISORY_REQUEST_RETIRED_UNSENT_SUMMARY = 'MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1';
+export const SUPERVISORY_REQUEST_RETIRED_AFTER_SEND_SUMMARY = 'MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_AFTER_SEND_V1';
 export const PROVIDER_INVALID_CANONICAL_DECISION_SUMMARY = 'MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1';
 export const REASONING_REPLACEMENT_PROOF_SUMMARY = 'MISSION_CONTROL_REASONING_REPLACEMENT_PROOF_V1';
 export const REASONING_REPLACEMENT_PROOF_PRODUCER_ID = 'verifier:fleet-supervisor-reasoning-replacement';
@@ -468,6 +469,22 @@ export function extractQueuedRoutes(snapshot, chats, state) {
         const requestId = refValue(event.data.refs, 'request:');
         // Each kind of request has its own retirement verifier, as in Mission Control's retiredUnsentRequests.
         if (requestId && retirementProducerFor(requestId) === event.data.producer_id) retiredUnsentRequests.add(`${workerId}:${requestId}`);
+        continue;
+      }
+      // The owner's one re-send of a sent Work question retires it as Mission Control's retiredAfterSendRequests does;
+      // its successor is a new request.
+      if (event.data.type === 'evidence_receipt_recorded'
+        && event.data.summary === SUPERVISORY_REQUEST_RETIRED_AFTER_SEND_SUMMARY
+        && event.data.verified === true
+        && event.data.producer_role === 'VERIFIER'
+        && Array.isArray(event.data.refs)
+        && event.data.refs.includes('lifecycle_status:RETIRED_AFTER_SEND')
+        && event.data.refs.includes('authorization:OWNER_EXPLICIT_ONE_RESEND')
+        && event.data.refs.includes('submission_authority_open_records:0')
+        && event.data.refs.includes('decision_receipts_ingested:0')) {
+        const requestId = refValue(event.data.refs, 'request:');
+        if (requestId && /^work-question:[a-f0-9]{32}$/.test(requestId)
+          && retirementProducerFor(requestId) === event.data.producer_id) retiredUnsentRequests.add(`${workerId}:${requestId}`);
         continue;
       }
       if (event.data.type === 'evidence_receipt_recorded' && event.data.verified === true

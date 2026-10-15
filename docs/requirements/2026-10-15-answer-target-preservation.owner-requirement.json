@@ -1,0 +1,95 @@
+{
+ "requirement_id": "2026-10-15-answer-target-preservation",
+ "date": "2026-10-15",
+ "source": "Owner-requested bug report from a ChatGPT chat, filed to this repository as audits/2026-10-15-romantic-love-answer-target-mismatch.md (pull request 381, 'Send bug report to uda lane for mismatched original answer'). The maintainer disposition is recorded in that file.",
+ "problem": "Asked whether Italians stay in love with the same partner much longer than Americans, a ChatGPT answer opened with a sentence that stated the divorce difference and then said there was no convincing evidence on love itself, made divorce and marriage rates its main comparison and table, and closed by offering the owner's own question back as 'the particularly interesting question'. The owner had to point out that it was their question.",
+ "owner_corrections": [
+  "Yeah that was my question not a more interesting question..."
+ ],
+ "failure_mechanisms": [
+  "Inferred from the report's excerpts, not established: proxy promotion during evidence selection or synthesis. The easiest evidence to find (divorce and marriage statistics) became the main comparison although the answer itself said it did not measure the target.",
+  "Inferred from the excerpts: no final comparison with the question. Nothing compared the answer's first claim and closing with the question's wording, so the closing re-labeled the target as a new question.",
+  "Activation, inferred: the owner reports that the owner's ChatGPT chats load this architecture (they announce loading it and apply its clock rule), so the exact-target rule was probably available. Which files that chat read for this question is not observed. The rule is routed only by the lesson-index trigger 'When selecting a reasoning method or evaluating a claim', which an ordinary comparative question may not match, and no task-time record selected it."
+ ],
+ "existing_coverage": [
+  "patterns/reasoning-selection.md exact-target preservation (2026-09-12) forbids substituting correlates and tests proposed distinctions, but says nothing about answer order, proxy labeling, or the closing.",
+  "patterns/reasoning-selection.md Same relation to the end (2026-09-30) covers replacement tests and 'better questions' an answer proposes, worded for claim evaluation; it does not say that the asked question may never be offered back as new.",
+  "patterns/reasoning-selection.md predicate-alignment check covers corrections and rebuttals, not answers to questions.",
+  "rules/rule-graph/task-time-metadata.v1.json registered no target-alignment obligation, and rules/rule-graph/enforcement-coverage.v1.json listed target alignment as prose-only P1 migration backlog."
+ ],
+ "recurring_finding_check": "Fourth change for the target-substitution class (2026-09-12 exact-target rule, 2026-09-13 predicate-alignment check, 2026-09-30 same-relation extension, 2026-10-15). The deciding mechanism is the answering model reading the question, which is the right place for a semantic judgment (pattern-matching fit check); a word or keyword gate is not. The earlier changes each named a context where the target can slip. This one does not add a context: it moves the check to the answer's first claim and closing, which every answer passes through. The remaining gap is activation on surfaces that do not load this repository, which no wording here can close.",
+ "required_behavior": [
+  "Before sending an answer to a conceptual, comparative, or empirical question, compare the question with the answer's first substantive claim and its closing.",
+  "The first claim is about the target; when there is no direct evidence on the target, say so first and plainly. A needed clarifying question or a one-clause scope note may come before it.",
+  "Easier-to-find evidence that measures a proxy may follow as labeled context with what it cannot show; it is not the main comparison, table, or verdict, though an inference from it may be offered when labeled as indirect with its link to the target named.",
+  "When the question asks about the measured thing itself, that measure is the target; proxies are not banned.",
+  "No closing, open question, or suggested follow-up presents the user's own question as new or more interesting; if it stays unresolved, say that the user's question is the one still unresolved.",
+  "When the user says an answer missed their question, their account of what they asked governs; this settles which question to answer, not any factual claim, which is still checked before conceding."
+ ],
+ "regression": "Case A of evals/answer-target-preservation.json: the romantic-love question is answered on love first, with divorce as a labeled proxy and no 'more interesting question' closing. Case B: the marriage-duration question uses marriage and divorce data directly.",
+ "scope": "Answers to questions on every surface that loads this repository. Semantic judgment only, at the response boundary the report asks for (its item 2): where a session compiles a task-time contract, the answer to a selected question needs the answering agent's own semantic receipt, and the task-time protocol fails closed only on that answer until the receipt exists; an owner correction that is not about which question was asked takes a reasoned not-applicable receipt. No universal stop-the-world research gate (the report's item 4), no keyword detection, no new authority, no ban on labeled proxies, and no requirement to narrate the check in the answer.",
+ "origin": {
+  "classification": "OWNER_REQUIRED",
+  "notes": "The owner corrected the answer and asked for the report. The wording of the check is the maintainer's, from the report's requested disposition.",
+  "admission": "OWNER_GOAL_DERIVED"
+ },
+ "execution_surfaces": [
+  {
+   "surface": "patterns/reasoning-selection.md answer-first target check, its provenance paragraph, and the LESSON-INDEX.md entry for reasoning-selection",
+   "disposition": "PROJECTED"
+  },
+  {
+   "surface": "rules/rule-graph/task-time-metadata.v1.json records uda.reasoning.answer-first-target (question kinds) and uda.reasoning.answer-first-target-correction (owner corrections, reason-bound not-applicable allowed) and their entry in rules/rule-graph/enforcement-coverage.v1.json",
+   "disposition": "PROJECTED"
+  },
+  {
+   "surface": "Chat, Codex, and Claude Code sessions that load this repository's root AGENTS.md",
+   "disposition": "PROJECTED",
+   "note": "Reached through LESSON-INDEX.md, and through task-time rules uda.reasoning.answer-first-target (a conceptual, comparative, empirical, factual or research question) and uda.reasoning.answer-first-target-correction (an owner correction) when a session compiles an Active Lesson Contract."
+  },
+  {
+   "surface": "The owner's ChatGPT chats, which load this architecture",
+   "disposition": "PROJECTED",
+   "note": "The owner reports that they load this architecture and apply its clock rule; the failure came from one of them. Which files a given chat reads is not observed, so this is projection, not verification."
+  },
+  {
+   "surface": "Claude chats on claude.ai",
+   "disposition": "DEFERRED",
+   "reason": "Whether they load this repository is not established here; the known route is the owner's Claude memory preferences, which change only with the owner's approval."
+  },
+  {
+   "surface": "Inner Signal product runtime (a declared public app in portable/PUBLIC-APPS.json)",
+   "disposition": "DEFERRED",
+   "reason": "The product runtime does not load this repository; its own protocol authority decides. Candidate for the next version of the portable claim-integrity pack."
+  },
+  {
+   "surface": "AskRigor public Universal Instructions and HRP (a declared public app in portable/PUBLIC-APPS.json)",
+   "disposition": "DEFERRED",
+   "reason": "Research answers are where proxy promotion is most likely; adoption needs AskRigor's own protocol review. Candidate for the next version of the portable claim-integrity pack."
+  },
+  {
+   "surface": "humandesign participant interviewer GPT (a declared public app in portable/PUBLIC-APPS.json)",
+   "disposition": "NOT_APPLICABLE",
+   "reason": "The interviewer collects a participant's account and reports computed results; it does not answer open comparative questions."
+  }
+ ],
+ "evaluation": {
+  "fixture": "evals/answer-target-preservation.json",
+  "run": "Two runs on 2026-10-15, recorded in the fixture. Run 1: Claude Sonnet with and without an earlier wording of the rule, graded blind against the report's criteria; both passed all five cases, so the cases did not discriminate. Run 2: Claude Sonnet with the final wording, graded against the final criteria including case E's last fail condition; all five passed, with two borderline calls. Neither run shows the rule's effect: there is no baseline failure to improve on. The setup (no tools, short answers) cannot reproduce a researched answer with a table. Not run on ChatGPT."
+ },
+ "learning_state_at_merge": [
+  "CAPTURED",
+  "PROMOTED",
+  "PROJECTED",
+  "TESTED_TEXT_ONLY"
+ ],
+ "nonclaims": [
+  "Text-presence and compilation tests do not show that any agent applies the check.",
+  "The model runs passed with and without the rule, so they are not evidence that the rule changes behavior.",
+  "The final rule wording was run once on Claude, rule condition only.",
+  "The fixture has not been run against ChatGPT, where the failure happened.",
+  "The failure location and the activation gap are inferred, not established.",
+  "Nothing here is LIVE_VERIFIED."
+ ],
+ "acceptance": "This change is accepted on rule text, routing, task-time selection and the recorded evaluation. Behavioral verification (a discriminating run and a ChatGPT run) is out of scope and stays open as remaining work; the nonclaims record it."
+}

@@ -16,6 +16,9 @@ const relayTransportEvidenceSummaries = new Set([
   "MISSION_CONTROL_BINDING_ENVELOPE_V1",
   "MISSION_CONTROL_PM_CONTROLLER_STAGE_V1",
   "MISSION_CONTROL_REASONING_REPLACEMENT_PROOF_V1",
+  // Retirements, so the relay's own list of questions drops a retired one as Mission Control's pending set does.
+  "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1",
+  "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_AFTER_SEND_V1",
 ]);
 
 export function snapshotFromStore(store: EventStore, options: { includeFixtureOnly?: boolean } = {}) {
