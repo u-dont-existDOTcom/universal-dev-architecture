@@ -233,5 +233,25 @@ class SuggestedFixQueueTests(unittest.TestCase):
         self.assertTrue(data["nonclaims"])
 
 
+    def test_chats_file_extracts_not_transcripts(self) -> None:
+        pattern = PATTERN.read_text(encoding="utf-8")
+        for phrase in (
+            "**Write an extract, not a transcript.**",
+            "gives the useful content in the filer's own words",
+            "It quotes only the short excerpts needed to show the failure, and it leaves out personal details.",
+            "The cause is not known.",
+            "Do not retry the same content in another form or through another route.",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, pattern)
+        self.assertIn("Write the item as an extract in your own words, not a transcript of the chat",
+                      README.read_text(encoding="utf-8"))
+        index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
+        self.assertIn("as a de-identified extract in its own words, not a transcript of the conversation", index)
+        requirement = json.loads((ROOT / "docs" / "requirements"
+                                  / "2026-10-15-chat-github-write-extracts.owner-requirement.json").read_text(encoding="utf-8"))
+        self.assertEqual(requirement["origin"]["classification"], "OWNER")
+        self.assertTrue(any("cause" in claim and "not known" in claim for claim in requirement["nonclaims"]))
+
 if __name__ == "__main__":
     unittest.main()
