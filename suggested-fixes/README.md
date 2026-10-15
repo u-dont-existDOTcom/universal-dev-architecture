@@ -38,6 +38,8 @@ One file per suggestion, named `<YYYY-MM-DD>-<short-name>.md`. It starts with a 
 
 Then these sections, in order: `## What to do`, `## Why`, and `## Check first`. Add `## Exact text` when there is text to add word for word.
 
+Write the item as an extract in your own words, not a transcript of the chat: quote only the short excerpts that show the problem, and leave out personal details (step 3 of the pattern; this repository is public). `## Exact text` is for the text to add to the project, not for conversation output.
+
 This repository is public, so an item must be safe to publish. Put private detail in the target repository, in an issue or pull request there, and link to it.
 
 ## Wiring section for a project's `AGENTS.md`
