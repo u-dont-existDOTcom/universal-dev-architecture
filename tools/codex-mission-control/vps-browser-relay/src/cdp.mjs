@@ -614,6 +614,22 @@ export function generationConversationUrlTransition(expectedUrl, observedUrl) {
   return { accepted: false, conversationUrl: null, canonicalized: false };
 }
 
+// The stable link that replaced a provisional WEB: link, or null for any other link change.
+export function provisionalConversationUrlSwap(boundUrl, currentUrl) {
+  let observed;
+  try { observed = normalizeConversationUrl(currentUrl); } catch { return null; }
+  const transition = generationConversationUrlTransition(boundUrl, observed);
+  return transition.accepted && transition.canonicalized ? transition.conversationUrl : null;
+}
+
+// What the last anchor read saw, as structure only: never a link, key or message text.
+export function describeAnchorObservation(anchor, swapSeen) {
+  if (!anchor || typeof anchor !== 'object') return '(last read: no result)';
+  if (anchor.urlMismatch) return `(last read: the page was at another link; provisional link swap ${swapSeen ? 'seen' : 'not seen'})`;
+  return `(last read: ${anchor.structureAmbiguous ? 'mixed page structure' : `${anchor.candidateCount ?? 'unknown'} user turn(s)`}; `
+    + `mention binding ${anchor.mentionBindingVerified === true ? 'verified' : 'not verified'}; provisional link swap ${swapSeen ? 'seen' : 'not seen'})`;
+}
+
 export function appSelectionState(observation, labelWanted, { listRewound = true, considerList = true } = {}) {
   if (!observation?.composerFormFound) throw new Error('ChatGPT composer form is unavailable for app selection.');
   if (observation.toolsControlCount !== 1) throw new Error(`ChatGPT Tools control is ${observation.toolsControlCount > 1 ? 'ambiguous' : 'unavailable'}.`);
@@ -1755,13 +1771,30 @@ export class ChromeDevtoolsBrowser {
 
         relayStage = 'GENERATION_STARTED';
         const boundConversationUrl = normalized === 'https://chatgpt.com/' ? started.conversationUrl : normalized;
-        const submittedUserTurnAnchor = await waitFor(async () => {
-          const anchor = await client.callFunction(SUBMITTED_USER_TURN_ANCHOR_FN, [boundConversationUrl, composerMentions[0] ?? null]);
-          if (anchor?.urlMismatch || anchor?.structureAmbiguous || anchor?.candidateCount !== 1
-            || typeof anchor?.key !== 'string' || !anchor.key || anchor.role !== 'user'
-            || anchor.messageOrdinal !== 1 || anchor.mentionBindingVerified !== true) return false;
-          return anchor;
-        }, this.pageReadyTimeoutMs, 200, 'Submitted user-turn structural anchor was not recoverable after generation start.');
+        // A new chat can swap its provisional WEB: link for its stable link while the first reply is generating. The
+        // anchor is read at whichever of the two the page shows, accepting only that swap, as the generation wait does.
+        // The result still reports the bound link, so the generation wait sees and records the swap as before.
+        let anchorUrl = boundConversationUrl;
+        let lastAnchor = null;
+        let submittedUserTurnAnchor;
+        try {
+          submittedUserTurnAnchor = await waitFor(async () => {
+            const anchor = await client.callFunction(SUBMITTED_USER_TURN_ANCHOR_FN, [anchorUrl, composerMentions[0] ?? null]);
+            lastAnchor = anchor;
+            if (anchor?.urlMismatch) {
+              const swapped = provisionalConversationUrlSwap(anchorUrl, anchor.currentUrl);
+              if (swapped) anchorUrl = swapped;
+              return false;
+            }
+            if (anchor?.structureAmbiguous || anchor?.candidateCount !== 1
+              || typeof anchor?.key !== 'string' || !anchor.key || anchor.role !== 'user'
+              || anchor.messageOrdinal !== 1 || anchor.mentionBindingVerified !== true) return false;
+            return anchor;
+          }, this.pageReadyTimeoutMs, 200, 'Submitted user-turn structural anchor was not recoverable after generation start.');
+        } catch (error) {
+          error.message = `${error.message} ${describeAnchorObservation(lastAnchor, anchorUrl !== boundConversationUrl)}`;
+          throw error;
+        }
         return {
           status: 'GENERATION_STARTED',
           targetId: target.id,
@@ -1772,6 +1805,7 @@ export class ChromeDevtoolsBrowser {
           generationStarted: true,
           startSignal: started.startSignal,
           startedAtObserved: new Date().toISOString(),
+          anchorReadAfterLinkSwap: anchorUrl !== boundConversationUrl,
           submittedUserTurnAnchor: {
             key: submittedUserTurnAnchor.key,
             keySource: submittedUserTurnAnchor.keySource,

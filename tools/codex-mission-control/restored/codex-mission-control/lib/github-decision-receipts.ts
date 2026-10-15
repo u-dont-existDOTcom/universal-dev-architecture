@@ -19,7 +19,7 @@ import { buildPostWorkReasoningRouteEnvelope, POST_EXECUTION_REASONING_ROUTER_PR
 import type { GitHubReconciliationTokenProvider } from "./github-app-auth";
 import { recordOwnerMessage } from "./worker-channel";
 import { workQuestionContextForRequest, workQuestionRequestIdForDispatch } from "./owner-question-route";
-import { retirementProducerFor } from "./unsent-request-proof";
+import { retirementProducerFor, WORK_QUESTION_REQUEST_ID, WORK_QUESTION_RETIREMENT_PRODUCER_ID } from "./unsent-request-proof";
 
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
 export const stagedSupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
@@ -42,6 +42,7 @@ export const bindingCapsuleSummary = "MISSION_CONTROL_BINDING_CAPSULE_V1";
 export const bindingEnvelopeSummary = "MISSION_CONTROL_BINDING_ENVELOPE_V1";
 export const ownerDirectionReceiptSummary = "MISSION_CONTROL_GITHUB_OWNER_DIRECTION_V1";
 export const supervisoryRequestRetiredUnsentSummary = "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1";
+export const supervisoryRequestRetiredAfterSendSummary = "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_AFTER_SEND_V1";
 export const providerInvalidCanonicalDecisionSummary = "MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1";
 export const reasoningReplacementProofSummary = "MISSION_CONTROL_REASONING_REPLACEMENT_PROOF_V1";
 export const reasoningReplacementProofProducerId = "verifier:fleet-supervisor-reasoning-replacement";
@@ -811,10 +812,37 @@ export function buildWorkCloudExecutionReceiptAndReturnRoute(
 export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionRequest[] {
   const completed = new Set(events.flatMap((e) => e.data.type === "github_decision_receipt_ingested" ? [e.data.request_id] : []));
   const retiredUnsent = retiredUnsentRequests(events);
+  const retiredAfterSend = retiredAfterSendRequests(events);
   const { admitted, superseded } = admittedCycleRequests(events);
   return admitted.filter((request) => !completed.has(request.requestId)
     && !retiredUnsent.has(request.requestId)
+    && !retiredAfterSend.has(request.requestId)
     && !superseded.has(request.requestId));
+}
+
+/**
+ * The Work questions the owner re-sent after their answer window closed with no accepted answer: a verified retirement
+ * from the Work-question retirement verifier, carrying the owner's explicit one-time authorization and the submission
+ * authority's record that no send of the question was still open. Such a question stops being pending, so no late
+ * answer to it can be accepted; its successor carries the same question.
+ */
+export function retiredAfterSendRequests(events: StoredEvent[]): Set<string> {
+  const retired = new Set<string>();
+  for (const event of events) {
+    const data = event.data;
+    if (data.type !== "evidence_receipt_recorded"
+      || data.summary !== supervisoryRequestRetiredAfterSendSummary
+      || data.verified !== true
+      || data.producer_role !== "VERIFIER"
+      || data.producer_id !== WORK_QUESTION_RETIREMENT_PRODUCER_ID
+      || !data.refs.includes("lifecycle_status:RETIRED_AFTER_SEND")
+      || !data.refs.includes("authorization:OWNER_EXPLICIT_ONE_RESEND")
+      || !data.refs.includes("submission_authority_open_records:0")
+      || !data.refs.includes("decision_receipts_ingested:0")) continue;
+    const requestId = exactRefValue(data.refs, "request:");
+    if (requestId && WORK_QUESTION_REQUEST_ID.test(requestId)) retired.add(requestId);
+  }
+  return retired;
 }
 
 /**
