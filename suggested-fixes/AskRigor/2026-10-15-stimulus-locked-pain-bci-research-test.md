@@ -1,6 +1,6 @@
 # Test case: do not mistake ongoing pain for stimulus-linked pain reports
 
-- For: u-dont-existDOTcom/AskRigor
+- For: `u-dont-existDOTcom/AskRigor`
 - Filed: 2026-10-15, by ChatGPT architecture/research evaluation
 - From: owner-requested regression following a research-answer error, with the conversation paraphrased for public privacy
 - Owner request: yes; submit this as a research test for AskRigor
