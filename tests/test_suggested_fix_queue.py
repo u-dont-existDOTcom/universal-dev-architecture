@@ -239,8 +239,11 @@ class SuggestedFixQueueTests(unittest.TestCase):
             "**Write an extract, not a transcript.**",
             "gives the useful content in the filer's own words",
             "It quotes only the short excerpts needed to show the failure, and it leaves out personal details.",
-            "The cause is not known.",
-            "Do not retry the same content in another form or through another route.",
+            "This applies to every filer, whatever its runtime, because this repository is public",
+            "**ChatGPT note.**",
+            "The cause is not known, and nothing here claims the same of other runtimes.",
+            "If an extract is refused as content too, report that to the owner and do not retry the same content in another form or through another route.",
+            "follows the usual publication recovery in `patterns/worker-github-publication-and-recovery.md`",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, pattern)
@@ -252,6 +255,7 @@ class SuggestedFixQueueTests(unittest.TestCase):
                                   / "2026-10-15-chat-github-write-extracts.owner-requirement.json").read_text(encoding="utf-8"))
         self.assertEqual(requirement["origin"]["classification"], "OWNER")
         self.assertTrue(any("cause" in claim and "not known" in claim for claim in requirement["nonclaims"]))
+        self.assertIn("follows from rule 3", requirement["transfer_rationale"])
 
 if __name__ == "__main__":
     unittest.main()
