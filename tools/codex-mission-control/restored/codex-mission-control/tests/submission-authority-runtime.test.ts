@@ -679,6 +679,45 @@ test("exact unsent proof covers a Work question id and refuses other request kin
   }
 });
 
+test("a settled-send proof needs an admission of the Work question and no send of it still open", async () => {
+  const store = new EventStore(":memory:");
+  const now = { value: origin };
+  try {
+    const authority = runtime(store, now);
+    const workQuestion = `work-question:${"8".repeat(32)}`;
+    const none = await authority.proveRequestSendSettled(workQuestion);
+    assert.equal(none.settled, false);
+    assert.deepEqual(none.admissions, []);
+
+    const admitted = await authority.execute("admissions", request({ requestId: workQuestion, queueKey: "queue:sent-question" }), producer);
+    const open = await authority.proveRequestSendSettled(workQuestion);
+    assert.equal(open.settled, false);
+    assert.equal(open.openAdmissionCount, 1);
+    assert.equal(open.openQueueRecordCount, 1);
+    assert.deepEqual(open.admissions, [{ admissionId: admitted.admissionId, status: "ADMITTED", boundaryKind: null }]);
+
+    now.value += 1_000;
+    await authority.execute("boundaries", {
+      admissionId: admitted.admissionId, boundaryAt: new Date(now.value).toISOString(), boundaryKind: "CLICKED", conversationUrlSha256: null,
+    }, producer);
+    const crossed = await authority.proveRequestSendSettled(workQuestion);
+    assert.equal(crossed.settled, true);
+    assert.equal(crossed.ledgerValid, true);
+    assert.equal(crossed.openAdmissionCount, 0);
+    assert.equal(crossed.openQueueRecordCount, 0);
+    assert.equal(crossed.crossedAdmissionCount, 1);
+    assert.deepEqual(crossed.admissions, [{ admissionId: admitted.admissionId, status: "BOUNDARY_RECORDED", boundaryKind: "CLICKED" }]);
+    assert.match(crossed.proofSha256, /^[a-f0-9]{64}$/);
+    assert.notEqual(crossed.proofSha256, open.proofSha256);
+
+    for (const other of [`fleet-review:${"8".repeat(32)}`, `work-question:${"8".repeat(31)}`]) {
+      await assert.rejects(authority.proveRequestSendSettled(other), /exact work-question request ID/);
+    }
+  } finally {
+    store.close();
+  }
+});
+
 function runtime(
   store: EventStore,
   now: { value: number },

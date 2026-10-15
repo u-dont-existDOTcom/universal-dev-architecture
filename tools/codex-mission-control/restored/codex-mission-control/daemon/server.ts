@@ -27,7 +27,7 @@ import {
   type ReasoningReplacementReasonCode,
 } from "../lib/github-decision-receipts";
 import { SubmissionAuthorityDisabledError, SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
-import { reissueExpiredWorkQuestion } from "../lib/work-question-reissue";
+import { reissueExpiredWorkQuestion, resendSentWorkQuestion } from "../lib/work-question-reissue";
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
 import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
 import { GitHubReconciliationCoordinator } from "../lib/github-reconciliation-coordinator";
@@ -253,6 +253,26 @@ const server = http.createServer(async (request, response) => {
       } catch (error) {
         if (error instanceof SubmissionAuthorityDisabledError) return json(response, 503, { error: error.message });
         return json(response, 409, { error: error instanceof Error ? error.message : "The Work question reissue was rejected." });
+      }
+    }
+    // The owner's one re-send of a sent Work question whose answer window closed without an accepted answer. It sends
+    // the same question to the supervisor again, so it takes the owner's credential and one exact named request.
+    const workQuestionResendMatch = url.pathname.match(/^\/workers\/([^/]+)\/work-questions\/resend-sent$/);
+    if (request.method === "POST" && workQuestionResendMatch) {
+      const producer = authorizeMutation(request);
+      if (producer.kind !== "OWNER_AUTHORITY") return json(response, 403, { error: "Only the owner may re-send a sent Work question." });
+      const worker = decodeURIComponent(workQuestionResendMatch[1]);
+      if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,179}$/.test(worker)) return json(response, 400, { error: "The worker is not a stable Mission Control identifier." });
+      const body = await readJson(request) as Record<string, unknown>;
+      if (typeof body.request_id !== "string") return json(response, 400, { error: "request_id names the one Work question to re-send." });
+      try {
+        const result = await resendSentWorkQuestion(store, { worker, requestId: body.request_id, authorizedBy: producer.id },
+          (requestId) => submissionAuthority.proveRequestSendSettled(requestId), githubPolicy);
+        if (!result.duplicate) notifications.emit("event", { type: "work_question_resent", worker, requestId: result.requestId });
+        return json(response, result.duplicate ? 200 : 201, result);
+      } catch (error) {
+        if (error instanceof SubmissionAuthorityDisabledError) return json(response, 503, { error: error.message });
+        return json(response, 409, { error: error instanceof Error ? error.message : "The Work question re-send was rejected." });
       }
     }
     const fleetWatchMatch = url.pathname.match(/^\/fleet-supervisor\/([^/]+)$/);

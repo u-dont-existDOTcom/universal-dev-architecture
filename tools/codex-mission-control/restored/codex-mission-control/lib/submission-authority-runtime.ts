@@ -18,7 +18,7 @@ import type {
 import type { EventStore } from "./store";
 import type { StoredEvent } from "./schema";
 import { pendingDecisionRequests } from "./github-decision-receipts";
-import { UNSENT_PROVABLE_REQUEST_ID } from "./unsent-request-proof";
+import { UNSENT_PROVABLE_REQUEST_ID, WORK_QUESTION_REQUEST_ID, type SettledSendSubmissionState } from "./unsent-request-proof";
 
 // This ESM module is the runtime-neutral authority algorithm shared with its
 // deterministic relay contract tests. Mission Control is its only deployable
@@ -37,6 +37,13 @@ import {
 } from "./provider-submission-authority.mjs";
 
 type SchedulerState = Record<string, any>;
+
+// The scheduler's own open states (provider-submission-authority.mjs): a queue item still waiting or admitted, and an
+// admission still in flight or ambiguous without the owner's decision. An admission in one of the crossed states
+// recorded the provider click.
+const OPEN_QUEUE_STATUSES = new Set(["QUEUED", "PRECLICK_RETRY_PENDING", "RATE_LIMIT_RETRY_PENDING", "ADMITTED"]);
+const OPEN_ADMISSION_STATUSES = new Set(["ADMITTED", "AMBIGUOUS_AFTER_RESTART"]);
+const CROSSED_ADMISSION_STATUSES = new Set(["BOUNDARY_RECORDED", "AMBIGUOUS_INTERVAL_VIOLATION", "AMBIGUOUS_EXPIRED_AT_BOUNDARY", "AMBIGUOUS_LEASE_VIOLATION"]);
 
 interface StoredRelayHealthReport extends RelayHealthReport {
   producerId: string;
@@ -304,6 +311,45 @@ export class SubmissionAuthorityRuntime {
         && matchingStateSections.length === 0
         && queueRecords.length === 0
         && admissionRecords.length === 0,
+      proofSha256: createHash("sha256").update(JSON.stringify(proof)).digest("hex"),
+    };
+  }
+
+  /**
+   * Every admission of one Work question and whether any send of it is still open, for the owner's re-send of a
+   * question whose answer window closed without an accepted answer. Settled means: the ledger verifies, the question
+   * has at least one admission, and no queue item or admission of it is still open.
+   */
+  async proveRequestSendSettled(requestId: string): Promise<SettledSendSubmissionState> {
+    if (!WORK_QUESTION_REQUEST_ID.test(requestId)) {
+      throw new Error("A settled-send proof requires one exact work-question request ID.");
+    }
+    await this.requireScheduler();
+    if (!this.stateStore || !this.pacingDomain) {
+      throw new SubmissionAuthorityDisabledError("Mission Control submission authority is unavailable.");
+    }
+    const state = await this.stateStore.read();
+    const ledger = this.store.verifySubmissionAuthorityLedger(this.pacingDomain);
+    const admissions = (state.admissions ?? []).filter((item: SchedulerState) => containsExactString(item, requestId));
+    const queueRecords = (state.queueItems ?? []).filter((item: SchedulerState) => containsExactString(item, requestId));
+    const proof = {
+      schemaVersion: 1 as const,
+      requestId,
+      pacingDomain: this.pacingDomain,
+      ledgerValid: ledger.valid === true,
+      admissions: admissions.map((item: SchedulerState) => ({
+        admissionId: String(item.admissionId),
+        status: String(item.status),
+        boundaryKind: typeof item.boundaryKind === "string" ? item.boundaryKind : null,
+      })),
+      openAdmissionCount: admissions.filter((item: SchedulerState) => OPEN_ADMISSION_STATUSES.has(item.status)).length,
+      openQueueRecordCount: queueRecords.filter((item: SchedulerState) => OPEN_QUEUE_STATUSES.has(item.status)).length,
+      crossedAdmissionCount: admissions.filter((item: SchedulerState) => CROSSED_ADMISSION_STATUSES.has(item.status)).length,
+    };
+    return {
+      ...proof,
+      settled: proof.ledgerValid && proof.admissions.length > 0
+        && proof.openAdmissionCount === 0 && proof.openQueueRecordCount === 0,
       proofSha256: createHash("sha256").update(JSON.stringify(proof)).digest("hex"),
     };
   }
