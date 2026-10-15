@@ -17,11 +17,23 @@ CATALOG = ROOT / "rules" / "rule-graph" / "task-time-metadata.v1.json"
 COVERAGE = ROOT / "rules" / "rule-graph" / "enforcement-coverage.v1.json"
 PROFILE = ROOT / "scripts" / "instruction-layering-profile.json"
 RULE = "uda.reasoning.answer-first-target"
+CORRECTION_RULE = "uda.reasoning.answer-first-target-correction"
+OWNER_CORRECTION = ROOT / "examples" / "rule-graph" / "owner-correction.json"
 QUESTION_KINDS = ("conceptual_question", "conceptual_explanation", "comparative_question", "empirical_question", "factual_question", "research_question")
 
 
 def section(text: str, heading: str) -> str:
     return text.split(heading, 1)[1].split("\n## ", 1)[0]
+
+
+def answer_first_catalog() -> dict:
+    catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
+    catalog["records"] = [record for record in catalog["records"] if record["rule_id"] in {RULE, CORRECTION_RULE}]
+    return catalog
+
+
+def selected(contract: dict) -> list[str]:
+    return [rule["rule_id"] for rule in contract["selected_rules"]]
 
 
 def contract_for(request_kind: str, actor: str = "chat") -> dict:
@@ -167,9 +179,30 @@ class AnswerTargetPreservationTests(unittest.TestCase):
         self.assertEqual(obligation["enforcement"], "semantic")
         self.assertIn("checking an earlier draft instead of the literal final", obligation["non_substitutes"])
 
+    def test_owner_correction_selects_the_stated_question_duty(self) -> None:
+        profile = json.loads(PROFILE.read_text(encoding="utf-8"))
+        envelope = json.loads(OWNER_CORRECTION.read_text(encoding="utf-8"))
+        self.assertEqual(envelope["facts"]["request_kind"]["state"], "ABSENT")
+        contract = tt.compile_contract(answer_first_catalog(), profile, envelope, "graph")
+        self.assertEqual(selected(contract), [CORRECTION_RULE])
+        self.assertEqual(contract["unresolved"], [])
+        envelope["facts"]["owner_correction_present"]["value"] = False
+        self.assertEqual(selected(tt.compile_contract(answer_first_catalog(), profile, envelope, "graph")), [])
+
+    def test_correction_record_allows_only_reasoned_inapplicability(self) -> None:
+        record = next(r for r in json.loads(CATALOG.read_text(encoding="utf-8"))["records"] if r["rule_id"] == CORRECTION_RULE)
+        self.assertEqual(record["trigger"], {"fact": "owner_correction_present", "eq": True})
+        (obligation,) = record["obligations"]
+        self.assertTrue(obligation["not_applicable_allowed"])
+        self.assertIn("marking the obligation not applicable without a reason tied to the correction", obligation["non_substitutes"])
+        self.assertIn({"type": "related_to", "rule_id": RULE}, record["relations"])
+        for selector in record["source"]["selectors"]:
+            self.assertEqual(PATTERN.read_text(encoding="utf-8").count(selector["text"]), 1)
+
     def test_coverage_maps_the_record(self) -> None:
         entry = next(e for e in json.loads(COVERAGE.read_text(encoding="utf-8"))["entries"] if e["id"] == "patterns/reasoning-selection.md")
         self.assertIn(RULE, entry["task_time_records"])
+        self.assertIn(CORRECTION_RULE, entry["task_time_records"])
         self.assertIn({"path": "tests/test_answer_target_preservation.py", "class": "COMPILATION"}, entry["evidence"])
 
     def test_audit_records_a_disposition(self) -> None:

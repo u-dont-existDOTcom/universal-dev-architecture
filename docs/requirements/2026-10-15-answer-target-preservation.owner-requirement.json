@@ -39,13 +39,13 @@
    "disposition": "PROJECTED"
   },
   {
-   "surface": "rules/rule-graph/task-time-metadata.v1.json record uda.reasoning.answer-first-target and its entry in rules/rule-graph/enforcement-coverage.v1.json",
+   "surface": "rules/rule-graph/task-time-metadata.v1.json records uda.reasoning.answer-first-target (question kinds) and uda.reasoning.answer-first-target-correction (owner corrections, reason-bound not-applicable allowed) and their entry in rules/rule-graph/enforcement-coverage.v1.json",
    "disposition": "PROJECTED"
   },
   {
    "surface": "Chat, Codex, and Claude Code sessions that load this repository's root AGENTS.md",
    "disposition": "PROJECTED",
-   "note": "Reached through LESSON-INDEX.md, and through task-time rule uda.reasoning.answer-first-target when a session compiles an Active Lesson Contract for a conceptual, comparative, empirical, factual or research question."
+   "note": "Reached through LESSON-INDEX.md, and through task-time rules uda.reasoning.answer-first-target (a conceptual, comparative, empirical, factual or research question) and uda.reasoning.answer-first-target-correction (an owner correction) when a session compiles an Active Lesson Contract."
   },
   {
    "surface": "The owner's ChatGPT chats, which load this architecture",

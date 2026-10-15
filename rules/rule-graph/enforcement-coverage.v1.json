@@ -7997,7 +7997,8 @@
       ],
       "task_time_records": [
         "uda.reasoning.dominated-alternative",
-        "uda.reasoning.answer-first-target"
+        "uda.reasoning.answer-first-target",
+        "uda.reasoning.answer-first-target-correction"
       ],
       "graph_node": null,
       "evidence": [
@@ -8042,10 +8043,10 @@
           "class": "COMPILATION"
         }
       ],
-      "review_notes": "Dominated operational routes have exact-candidate semantic receipt admission here, and the answer-first target check is a task-time record selected by question kind (compilation only, no golden receipts yet). Other reasoning obligations remain unstructured; receipts verify bindings and record assertions, never prove semantic judgment.",
+      "review_notes": "Dominated operational routes have exact-candidate semantic receipt admission here; the answer-first target check is a task-time record selected by question kind, with a companion record selected on owner corrections (reason-bound not-applicable allowed), both compilation only, no golden receipts yet. Other reasoning obligations remain unstructured; receipts verify bindings and record assertions, never prove semantic judgment.",
       "migration": {
         "priority": "P1",
-        "next_step": "Register obligation-level predicate alignment, quantitative sanity, scope/provenance, claim evaluation, minimum-owner-choice and exact directional capability checks with semantic evidence at their actual due boundaries; add receipt admission fixtures for the answer-first target check.",
+        "next_step": "Register obligation-level predicate alignment, quantitative sanity, scope/provenance, claim evaluation, minimum-owner-choice and exact directional capability checks with semantic evidence at their actual due boundaries; add receipt admission fixtures for the answer-first target records.",
         "trigger_frequency": "FREQUENT"
       },
       "legacy_remainder": "Predicate alignment, the distinction test of exact-target preservation, quantitative sanity, provenance, claim evaluation, owner-choice admission, capability checks and the other operative reasoning obligations still rely on prose application."

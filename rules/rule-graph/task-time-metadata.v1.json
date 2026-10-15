@@ -916,6 +916,75 @@
       ]
     },
     {
+      "rule_id": "uda.reasoning.answer-first-target-correction",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/reasoning-selection.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "When the user says an answer missed their question, their account of what they asked governs: correct the answer instead of arguing which question was theirs. This settles which question to answer, not any factual claim, which is still checked before conceding."
+          }
+        ]
+      },
+      "authority_owner": "reasoning selection pattern; owner bug report audits/2026-10-15-romantic-love-answer-target-mismatch.md",
+      "authority_domain": "answer-target-preservation",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "owner_correction_present",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "honor-stated-question",
+          "required_behavior": "When an owner correction says the answer missed their question, their account of which question they asked governs: answer that question first under the answer-first target check, do not present it as new or more interesting, and do not argue which question was theirs. Factual claims in the correction are still checked before conceding. When the correction is not about which question was asked, record why the obligation does not apply.",
+          "due_phase": "final-delivery",
+          "destination": "owner-visible-final",
+          "acceptance_evidence": "The literal final accepts the owner's stated question, answers it first, and keeps any proxy as labeled context; or a reason-bound not-applicable receipt states that the correction is not about which question was asked.",
+          "non_substitutes": [
+            "agreeing in the first sentence and then repeating the proxy as the main result",
+            "treating the owner's question as a newly specified preference",
+            "arguing that the re-labeled question was not the owner's",
+            "marking the obligation not applicable without a reason tied to the correction"
+          ],
+          "carry_through": "Recheck after any final rewrite; the rewritten payload requires a new bound receipt.",
+          "repair": "Restate the owner's question as theirs, answer it first, and move any proxy into labeled context; issue a receipt for the repaired literal final.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner bug report 2026-10-15 (pull request 381), case E; Codex review round 2",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": [
+        {
+          "type": "related_to",
+          "rule_id": "uda.reasoning.answer-first-target"
+        }
+      ],
+      "refresh_on_facts": [
+        "actor",
+        "owner_correction_present",
+        "envelope.bootstrap",
+        "envelope.legacy_rule_ids",
+        "role"
+      ]
+    },
+    {
       "rule_id": "uda.continuity.step-checkpoint",
       "revision": 4,
       "status": "CURRENT",
