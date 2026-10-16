@@ -596,6 +596,59 @@ test("the re-send appends its three events together once; repeats and an unsent 
     /exact work-question/);
 });
 
+test("the owner's discard goes through the async re-send once, and a readback alone still refuses it", async () => {
+  const { events, requestId } = sentEvents();
+  const evidence = (id: string, summary: string, refs: string[]) => stored(events.length + 1, id, {
+    type: "evidence_receipt_recorded", worker, receipt_id: id, producer_id: "collector:relay", producer_role: "COLLECTOR",
+    evidence_class: "ARTIFACT", independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: null,
+    summary, refs: [`request:${requestId}`, ...refs], verified: true, changed_path_manifest: null,
+  }, "collector:relay", "COLLECTOR", "2026-10-08T12:20:00.000Z");
+  const harness = (history: StoredEvent[]) => {
+    const batches: unknown[][] = [];
+    const proved: string[] = [];
+    const store = {
+      workerEvents: (selected: string) => history.filter((event) => event.worker === selected),
+      appendMany: (items: Array<{ event: unknown; producer?: AuthenticatedProducer }>) => {
+        batches.push(items);
+        const appended = items.map((item, index) => {
+          const envelope = item.event as AppendEnvelope;
+          return stored(history.length + 1 + index, envelope.event_id, envelope.data, item.producer!.id, item.producer!.kind, envelope.occurred_at);
+        });
+        history = [...history, ...appended];
+        return appended;
+      },
+    };
+    const prove = async (id: string) => { proved.push(id); return settledSend(id); };
+    return { store, batches, proved, prove, history: () => history };
+  };
+  const finished = [...events, evidence("stage-complete", "MISSION_CONTROL_RELAY_STAGE_V1", ["generation_state:COMPLETE"])];
+  const input = { worker, requestId, authorizedBy: "owner:primary" };
+
+  const refused = harness(finished);
+  await assert.rejects(resendSentWorkQuestion(refused.store as never, input, refused.prove, policy(), () => later), /finished or was read back/);
+  assert.equal(refused.batches.length, 0);
+
+  const owner = harness(finished);
+  const first = await resendSentWorkQuestion(owner.store as never, { ...input, discardFinishedReply: true }, owner.prove, policy(), () => later);
+  assert.equal(first.status, "WORK_QUESTION_RESENT");
+  assert.equal(first.finishedReplyDiscarded, true);
+  assert.equal(owner.batches.length, 1);
+  const retirement = owner.history().find((event) => event.eventId === first.retirementEventId)!;
+  assert.ok((retirement.data as { refs: string[] }).refs.includes("finished_reply:DISCARDED_BY_OWNER"));
+  assert.deepEqual(pendingDecisionRequests(owner.history()).map((request) => request.requestId), [first.requestId]);
+  const repeat = await resendSentWorkQuestion(owner.store as never, { ...input, discardFinishedReply: true }, owner.prove, policy(), () => later);
+  assert.equal(repeat.status, "WORK_QUESTION_ALREADY_REISSUED");
+  assert.equal(repeat.requestId, first.requestId);
+  assert.equal(repeat.finishedReplyDiscarded, null, "a repeat only reports the earlier re-send");
+  assert.equal(owner.batches.length, 1);
+  assert.deepEqual(owner.proved, [requestId]);
+
+  const readBackOnly = harness([...events, evidence("app-readback", "MISSION_CONTROL_PROVIDER_SESSION_APP_READBACK_V1", ["status:COMPLETE"])]);
+  await assert.rejects(resendSentWorkQuestion(readBackOnly.store as never, { ...input, discardFinishedReply: true }, readBackOnly.prove, policy(), () => later),
+    /was read back; it may still be accepted, so it is not discarded/);
+  assert.equal(readBackOnly.batches.length, 0);
+});
+
 test("a re-send retirement counts only from the Work-question verifier with the owner's one-time authorization", () => {
   const { events, requestId } = sentEvents();
   const refs = (id: string) => [`request:${id}`, "lifecycle_status:RETIRED_AFTER_SEND", "authorization:OWNER_EXPLICIT_ONE_RESEND",

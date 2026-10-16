@@ -138,6 +138,11 @@ export function buildExpiredWorkQuestionReissue(
  * supervisor and Work thread, a fresh window of the same length, and today's decision channel. The successor is a
  * second provider send of the same question, so it needs the owner's explicit authorization, and the submission
  * authority's record that the question has send records and that none of its sends is still open.
+ *
+ * A reply the relay saw finish refuses the re-send, because the app-owned readback could still carry it in. When no
+ * readback route can reach it, the owner may discard it explicitly (`discardFinishedReply`): the retirement records
+ * `finished_reply:DISCARDED_BY_OWNER`, and the reply can then never be taken in. A readback or digest-only transform of
+ * the reply always refuses the re-send. Run a GitHub reconciliation first, so a reply already posted is taken in.
  */
 export function buildSentWorkQuestionResend(
   events: readonly StoredEvent[],
@@ -497,8 +502,9 @@ export interface WorkQuestionResendResult {
   duplicate: boolean;
   /** What the submission authority recorded of the original's send; null when the call only reports an earlier one. */
   originalSendBoundary: "CROSSED" | "NOT_PROVEN_UNSENT" | null;
-  /** True when this call discarded a finished reply that nothing read back, at the owner's explicit choice. */
-  finishedReplyDiscarded: boolean;
+  /** True when this call discarded a finished reply that nothing read back, at the owner's explicit choice; null when the
+   * call only reports an earlier re-send. */
+  finishedReplyDiscarded: boolean | null;
 }
 
 /**
@@ -507,7 +513,7 @@ export interface WorkQuestionResendResult {
  * store after it, and the retirement, the successor route and its provenance are appended in one transaction. Nothing
  * is sent here: the relay sends the successor as a new question. A repeat, or a question already reissued unsent,
  * reports the recorded successor and appends nothing. It refuses a question whose reply finished or was read back,
- * since that answer can still be accepted.
+ * since that answer can still be accepted, unless the owner discards a finished reply that nothing read back.
  */
 export async function resendSentWorkQuestion(
   store: Pick<EventStore, "workerEvents" | "appendMany">,
@@ -521,7 +527,7 @@ export async function resendSentWorkQuestion(
   const already = (recorded: { retirementEventId: string; requestId: string }): WorkQuestionResendResult => ({
     status: "WORK_QUESTION_ALREADY_REISSUED", worker, retiredRequestId: requestId, requestId: recorded.requestId,
     expiresAt: null, retirementEventId: recorded.retirementEventId, routeEventId: requestRouteEventId(recorded.requestId, 6),
-    duplicate: true, originalSendBoundary: null, finishedReplyDiscarded: false,
+    duplicate: true, originalSendBoundary: null, finishedReplyDiscarded: null,
   });
   const kinds = ["UNSENT", "AFTER_SEND"] as const;
   const recorded = recordedWorkQuestionReissue(store.workerEvents(worker), worker, requestId, kinds);
@@ -546,18 +552,18 @@ export async function resendSentWorkQuestion(
   };
 }
 
-/** Any record that the reply to this question finished or was read back: the relay's completion, or a readback. */
-/** A readback or digest-only transform of the reply: evidence that can still carry the answer in. */
+/** The readbacks and the digest-only transform of a reply: evidence that can still carry the answer in. */
+const READBACK_SUMMARIES: readonly string[] = [inBandAppReadbackSummary, inBandBrowserDomReadbackSummary, inBandMachineTransformSummary];
+
 function isReadback(event: StoredEvent): boolean {
-  return event.data.type === "evidence_receipt_recorded"
-    && [inBandAppReadbackSummary, inBandBrowserDomReadbackSummary, inBandMachineTransformSummary].includes(event.data.summary);
+  return event.data.type === "evidence_receipt_recorded" && READBACK_SUMMARIES.includes(event.data.summary);
 }
 
+/** Any record that the reply to this question finished or was read back: the relay's completion, or a readback. */
 function answerMayStillBeAccepted(event: StoredEvent, requestId: string): boolean {
   const data = event.data;
   if (data.type !== "evidence_receipt_recorded" || !data.refs.includes(`request:${requestId}`)) return false;
-  return [inBandAppReadbackSummary, inBandBrowserDomReadbackSummary, inBandMachineTransformSummary].includes(data.summary)
-    || data.refs.includes("generation_state:COMPLETE") || data.refs.includes("lifecycle_status:COMPLETE");
+  return isReadback(event) || data.refs.includes("generation_state:COMPLETE") || data.refs.includes("lifecycle_status:COMPLETE");
 }
 
 function routeRoot(body: string): Record<string, any> | null {

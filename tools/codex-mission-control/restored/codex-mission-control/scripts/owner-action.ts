@@ -29,7 +29,8 @@ const USAGE = `Usage: owner-action <action> [options]
                                                       re-send Work question R once: it was sent, but its answer window
                                                       closed with no accepted answer; the supervisor is asked again.
                                                       With --discard-finished-reply yes, a reply the relay saw finish but
-                                                      nothing read back is discarded for good (a readback still stops it)
+                                                      nothing read back is discarded for good (a readback still stops it);
+                                                      run reconcile-github first, so a reply already posted is taken in
   reconcile-github                                    run one GitHub decision-receipt reconciliation pass`;
 
 // Deliberately absent: any action that forwards caller-supplied semantic content (such as a source-review
