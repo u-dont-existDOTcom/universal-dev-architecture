@@ -2,7 +2,7 @@
 
 ## Goal
 
-- Task ID: `uda-lane-claude-bootstrap-latency`.
+- Task ID: `pr-389`.
 - Branch: `uda-lane/claude-bootstrap-latency`.
 - File the owner-requested bug report on slow UDA loading in Claude, and the fix: `audits/2026-10-16-claude-uda-bootstrap-latency.md`.
 
