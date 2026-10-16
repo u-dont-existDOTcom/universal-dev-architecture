@@ -275,7 +275,11 @@ const server = http.createServer(async (request, response) => {
         // is already posted, and then, as the last step before the retirement, the decision issue itself is read: any
         // comment there naming the question stops the discard.
         const requestId = body.request_id;
-        const result = await resendSentWorkQuestion(store, {
+        // A discard runs with no decision copy in flight, so Mission Control's own copier can't post a reply to the
+        // question after it is retired.
+        const exclusive = <T>(section: () => Promise<T>) => body.discard_finished_reply === true && providerDecisionCopier
+          ? providerDecisionCopier.exclusive(section) : section();
+        const result = await exclusive(() => resendSentWorkQuestion(store, {
           worker, requestId, authorizedBy: producer.id, discardFinishedReply: body.discard_finished_reply === true,
         }, (id) => submissionAuthority.proveRequestSendSettled(id), githubPolicy, undefined, async () => {
           await reconcileBeforeDiscard(githubReconciliationCoordinator);
@@ -286,7 +290,7 @@ const server = http.createServer(async (request, response) => {
             since: queuedAt ? new Date(Date.parse(queuedAt) - 10 * 60_000).toISOString() : null,
             tokenProvider: githubReconciliationTokenProvider,
           });
-        });
+        }));
         if (!result.duplicate) notifications.emit("event", { type: "work_question_resent", worker, requestId: result.requestId });
         return json(response, result.duplicate ? 200 : 201, result);
       } catch (error) {

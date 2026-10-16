@@ -109,6 +109,17 @@ export class ProviderDecisionCopier {
     return run;
   }
 
+  /**
+   * Runs `section` with no copy in flight: after every copy already queued, and before any copy queued while it runs.
+   * The owner's discard of a finished reply runs here, so a decision this copier is posting can't land after the
+   * question it answers was retired.
+   */
+  exclusive<T>(section: () => Promise<T>): Promise<T> {
+    const run = this.tail.then(section);
+    this.tail = run.then(() => undefined, () => undefined);
+    return run;
+  }
+
   validate(rawInput: unknown, caller: AuthenticatedProducer): ProviderDecisionValidationResult {
     const input = this.validateInput(rawInput, caller);
     return {

@@ -55,7 +55,7 @@ class FakeStore {
 
 function fixture({ readbackBody = canonicalBody, conflictBody = null as string | null, pending = true,
   initialComments = [] as Array<Record<string, unknown>>, failPage = null as number | null, ambiguousPost = false, failPost = false,
-  pendingRequests = () => pending ? [request] : [], now = (): string => '2026-10-06T00:10:00.000Z',
+  pendingRequests = () => pending ? [request] : [], now = (): string => '2026-10-06T00:10:00.000Z', tokenDelay = null as Promise<void> | null,
   onToken = (_store: FakeStore) => {}, onDiscovery = (_store: FakeStore) => {} } = {}) {
   const store = new FakeStore();
   const ownerOutcome = {
@@ -93,7 +93,9 @@ function fixture({ readbackBody = canonicalBody, conflictBody = null as string |
     throw new Error(`Unexpected URL ${url}`);
   };
   const copier = new ProviderDecisionCopier({
-    store: store as unknown as EventStore, policy, tokenProvider: async () => { tokenCalls += 1; onToken(store); return 'installation-token'; },
+    store: store as unknown as EventStore, policy, tokenProvider: async () => {
+      tokenCalls += 1; onToken(store); if (tokenDelay) await tokenDelay; return 'installation-token';
+    },
     eventHistory: () => [ownerOutcome, ...store.events], fetchImpl: fetchImpl as typeof fetch,
     now, pendingRequests,
     ingestCandidate: ((eventStore: EventStore, candidate: any, _policy: any, at: string) => {
@@ -205,6 +207,35 @@ test('retry after an ambiguous POST finds the receipt past page 20 without publi
 function unrelatedComments(count: number, createdAt?: string) {
   return Array.from({ length: count }, (_, index) => comment(10_000 + index, 'Unrelated discussion.', createdAt));
 }
+
+test('an exclusive section runs after the copy in flight and holds later copies until it ends', async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const f = fixture({ tokenDelay: gate });
+  const seen: Array<{ at: string; ingested: boolean; tokenCalls: number; posts: number }> = [];
+  const mark = (at: string) => {
+    const effects = f.sideEffects();
+    seen.push({ at, ingested: f.store.events.some((event) => event.data.type === 'github_decision_receipt_ingested'),
+      tokenCalls: effects.tokenCalls, posts: effects.posts });
+  };
+  const first = f.copier.copy(input, relay);
+  const section = f.copier.exclusive(async () => { mark('start'); await new Promise((resolve) => setTimeout(resolve, 5)); mark('end'); return 7; });
+  const later = f.copier.copy({ ...input, browserTargetIdSha256: '5'.repeat(64) }, relay);
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.deepEqual(seen, [], 'the section waits for the copy that is still waiting for its token');
+  assert.equal(f.sideEffects().tokenCalls, 1, 'the later copy waits behind the section');
+  release();
+  assert.equal(await section, 7);
+  assert.deepEqual(seen, [
+    { at: 'start', ingested: true, tokenCalls: 1, posts: 1 },
+    { at: 'end', ingested: true, tokenCalls: 1, posts: 1 },
+  ], 'the earlier copy had posted and been taken in, and the later one had not started');
+  assert.equal((await first).duplicate, false);
+  assert.equal((await later).duplicate, true);
+  assert.equal(f.sideEffects().posts, 1);
+  await assert.rejects(f.copier.exclusive(async () => { throw new Error('section failed'); }), /section failed/);
+  assert.equal((await f.copier.copy(input, relay)).duplicate, true, 'a failed section does not stop later copies');
+});
 
 test('discovery reads the decision issue only from just before the request was queued', async () => {
   const f = fixture({ initialComments: [...unrelatedComments(2_000, '2026-10-05T12:00:00.000Z'), comment(7001, canonicalBody)] });

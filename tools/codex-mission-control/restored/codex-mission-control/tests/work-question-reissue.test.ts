@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { canonicalJson, sha256 } from "../lib/canonical";
@@ -622,7 +623,7 @@ test("the owner's discard goes through the async re-send once, and a readback al
       },
     };
     const prove = async (id: string) => { proved.push(id); return settledSend(id); };
-    return { store, batches, proved, prove, history: () => history };
+    return { store, batches, proved, prove, history: () => history, add: (event: StoredEvent) => { history = [...history, event]; } };
   };
   const finished = [...events, evidence("stage-complete", "MISSION_CONTROL_RELAY_STAGE_V1", ["generation_state:COMPLETE"])];
   const input = { worker, requestId, authorizedBy: "owner:primary" };
@@ -662,6 +663,13 @@ test("the owner's discard goes through the async re-send once, and a readback al
   const readBackOnly = harness([...events, evidence("app-readback", "MISSION_CONTROL_PROVIDER_SESSION_APP_READBACK_V1", ["status:COMPLETE"])]);
   await assert.rejects(resendSentWorkQuestion(readBackOnly.store as never, { ...input, discardFinishedReply: true }, readBackOnly.prove, policy(), () => later,
     reconcile), /was read back; it may still be accepted, so it is not discarded/);
+  // Mission Control's copier re-checks the request and records its readback in one step right before its post. If
+  // that step lands while the discard reads GitHub, the discard sees the readback and stops.
+  const copying = harness(finished);
+  await assert.rejects(resendSentWorkQuestion(copying.store as never, { ...input, discardFinishedReply: true }, copying.prove, policy(), () => later,
+    async () => { copying.add(evidence("dom-readback", "MISSION_CONTROL_PROVIDER_SESSION_BROWSER_DOM_READBACK_V1", ["status:COMPLETE"])); }),
+  /was read back; it may still be accepted, so it is not discarded/);
+  assert.equal(copying.batches.length, 0);
   const noReconciliation = harness(finished);
   await assert.rejects(resendSentWorkQuestion(noReconciliation.store as never, { ...input, discardFinishedReply: true }, noReconciliation.prove, policy(),
     () => later), /needs a GitHub reconciliation first/);
@@ -716,6 +724,19 @@ test("the discard's last step reads the decision issue and stops on any comment 
   await assert.rejects(assertNoDecisionCommentFor(options(pages([unrelated, unrelated, unrelated]), { maxPages: 2 })), /too many comments/);
   await assert.rejects(assertNoDecisionCommentFor(options((async () => { throw new Error("network down"); }) as typeof fetch)),
     DiscardReconciliationError);
+});
+
+test("the daemon runs a discard in Mission Control's decision-copy queue, with its reconciliation and final read", () => {
+  const server = readFileSync("daemon/server.ts", "utf8");
+  const start = server.indexOf("work-questions\\/resend-sent");
+  const route = server.slice(start, server.indexOf("const fleetWatchMatch", start));
+  assert.ok(start > 0 && route.length > 0);
+  // No copy is in flight while a discard reads GitHub and retires the question, and none starts until it is done.
+  assert.match(route, /body\.discard_finished_reply === true && providerDecisionCopier\s*\? providerDecisionCopier\.exclusive\(section\) : section\(\)/);
+  assert.match(route, /await exclusive\(\(\) => resendSentWorkQuestion\(store,/);
+  assert.match(route, /await reconcileBeforeDiscard\(githubReconciliationCoordinator\);/);
+  assert.match(route, /await assertNoDecisionCommentFor\(\{/);
+  assert.match(route, /error instanceof DiscardReconciliationError\) return json\(response, 503/);
 });
 
 test("a re-send retirement counts only from the Work-question verifier with the owner's one-time authorization", () => {
