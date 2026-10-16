@@ -142,7 +142,8 @@ export function buildExpiredWorkQuestionReissue(
  * A reply the relay saw finish refuses the re-send, because the app-owned readback could still carry it in. When no
  * readback route can reach it, the owner may discard it explicitly (`discardFinishedReply`): the retirement records
  * `finished_reply:DISCARDED_BY_OWNER`, and the reply can then never be taken in. A readback or digest-only transform of
- * the reply always refuses the re-send. Run a GitHub reconciliation first, so a reply already posted is taken in.
+ * the reply always refuses the re-send. The daemon runs one GitHub reconciliation first ({@link reconcileBeforeDiscard}),
+ * so a reply already posted is taken in rather than discarded.
  */
 export function buildSentWorkQuestionResend(
   events: readonly StoredEvent[],
@@ -550,6 +551,33 @@ export async function resendSentWorkQuestion(
     duplicate: false, originalSendBoundary: proof.crossedAdmissionCount > 0 ? "CROSSED" : "NOT_PROVEN_UNSENT",
     finishedReplyDiscarded: built.finishedReplyDiscarded,
   };
+}
+
+export class DiscardReconciliationError extends Error {}
+
+/**
+ * Before the owner's discard: one completed GitHub reconciliation pass, so a reply another writer already posted is
+ * taken in rather than thrown away (the discard then finds the question answered, not pending). A pass already running
+ * may have started before that reply was posted, so it waits for one of its own. No reconciliation, a failed pass or one
+ * that stays busy stops the discard; nothing is retired.
+ */
+export async function reconcileBeforeDiscard(
+  coordinator: { run: (trigger: "OWNER_RECOVERY") => Promise<{ status: "COMPLETED" | "ALREADY_RUNNING" }> } | null,
+  wait: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  attempts = 20,
+): Promise<void> {
+  if (!coordinator) throw new DiscardReconciliationError("A discard needs a GitHub reconciliation first, and reconciliation is not configured.");
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    let result: { status: "COMPLETED" | "ALREADY_RUNNING" };
+    try {
+      result = await coordinator.run("OWNER_RECOVERY");
+    } catch {
+      throw new DiscardReconciliationError("The GitHub reconciliation before the discard failed, so nothing was discarded.");
+    }
+    if (result.status === "COMPLETED") return;
+    await wait(3_000);
+  }
+  throw new DiscardReconciliationError("GitHub reconciliation stayed busy, so nothing was discarded; try again in a minute.");
 }
 
 /** The readbacks and the digest-only transform of a reply: evidence that can still carry the answer in. */

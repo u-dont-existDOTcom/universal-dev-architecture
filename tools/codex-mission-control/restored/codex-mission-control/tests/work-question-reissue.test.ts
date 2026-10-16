@@ -30,7 +30,9 @@ import {
 import {
   buildExpiredWorkQuestionReissue,
   buildSentWorkQuestionResend,
+  DiscardReconciliationError,
   expiredPendingWorkQuestions,
+  reconcileBeforeDiscard,
   reissueExpiredWorkQuestion,
   resendSentWorkQuestion,
   workQuestionReissueProducers,
@@ -647,6 +649,30 @@ test("the owner's discard goes through the async re-send once, and a readback al
   await assert.rejects(resendSentWorkQuestion(readBackOnly.store as never, { ...input, discardFinishedReply: true }, readBackOnly.prove, policy(), () => later),
     /was read back; it may still be accepted, so it is not discarded/);
   assert.equal(readBackOnly.batches.length, 0);
+});
+
+test("a discard waits for one completed GitHub reconciliation of its own, and stops on anything else", async () => {
+  const waits: number[] = [];
+  const wait = async (ms: number) => { waits.push(ms); };
+  const coordinator = (statuses: Array<"COMPLETED" | "ALREADY_RUNNING" | "THROW">) => {
+    const calls: string[] = [];
+    return { calls, run: async (trigger: "OWNER_RECOVERY") => {
+      calls.push(trigger);
+      const next = statuses.shift() ?? "ALREADY_RUNNING";
+      if (next === "THROW") throw new Error("GitHub unavailable");
+      return { status: next };
+    } };
+  };
+  const busyThenDone = coordinator(["ALREADY_RUNNING", "ALREADY_RUNNING", "COMPLETED"]);
+  await reconcileBeforeDiscard(busyThenDone, wait);
+  assert.deepEqual(busyThenDone.calls, ["OWNER_RECOVERY", "OWNER_RECOVERY", "OWNER_RECOVERY"]);
+  assert.deepEqual(waits, [3_000, 3_000]);
+  await assert.rejects(reconcileBeforeDiscard(null, wait), DiscardReconciliationError);
+  await assert.rejects(reconcileBeforeDiscard(null, wait), /not configured/);
+  await assert.rejects(reconcileBeforeDiscard(coordinator(["THROW"]), wait), /failed, so nothing was discarded/);
+  const alwaysBusy = coordinator([]);
+  await assert.rejects(reconcileBeforeDiscard(alwaysBusy, wait, 4), /stayed busy, so nothing was discarded/);
+  assert.equal(alwaysBusy.calls.length, 4);
 });
 
 test("a re-send retirement counts only from the Work-question verifier with the owner's one-time authorization", () => {

@@ -27,7 +27,7 @@ import {
   type ReasoningReplacementReasonCode,
 } from "../lib/github-decision-receipts";
 import { SubmissionAuthorityDisabledError, SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
-import { reissueExpiredWorkQuestion, resendSentWorkQuestion } from "../lib/work-question-reissue";
+import { reconcileBeforeDiscard, reissueExpiredWorkQuestion, resendSentWorkQuestion } from "../lib/work-question-reissue";
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
 import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
 import { GitHubReconciliationCoordinator } from "../lib/github-reconciliation-coordinator";
@@ -267,6 +267,14 @@ const server = http.createServer(async (request, response) => {
       if (typeof body.request_id !== "string") return json(response, 400, { error: "request_id names the one Work question to re-send." });
       if (body.discard_finished_reply !== undefined && typeof body.discard_finished_reply !== "boolean") {
         return json(response, 400, { error: "discard_finished_reply is true or false." });
+      }
+      if (body.discard_finished_reply === true) {
+        // A reply already posted is taken in before anything is discarded.
+        try {
+          await reconcileBeforeDiscard(githubReconciliationCoordinator);
+        } catch (error) {
+          return json(response, 503, { error: error instanceof Error ? error.message : "The reconciliation before the discard failed." });
+        }
       }
       try {
         const result = await resendSentWorkQuestion(store, {
