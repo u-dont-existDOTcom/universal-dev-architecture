@@ -12,6 +12,8 @@ PATTERN = ROOT / "patterns" / "reasoning-selection.md"
 REQUIREMENT = ROOT / "docs" / "requirements" / "2026-10-15-answer-target-preservation.owner-requirement.json"
 EVAL = ROOT / "evals" / "answer-target-preservation.json"
 AUDIT = ROOT / "audits" / "2026-10-15-romantic-love-answer-target-mismatch.md"
+PAIN_AUDIT = ROOT / "audits" / "2026-10-15-pain-bci-question-alignment-failure.md"
+PAIN_ASKRIGOR_ITEM = ROOT / "suggested-fixes" / "AskRigor" / "2026-10-15-stimulus-locked-pain-bci-research-test.md"
 TARGET_SECTION = "## Evidence, specificity, and target discipline"
 CATALOG = ROOT / "rules" / "rule-graph" / "task-time-metadata.v1.json"
 COVERAGE = ROOT / "rules" / "rule-graph" / "enforcement-coverage.v1.json"
@@ -220,8 +222,17 @@ class AnswerTargetPreservationTests(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, disposition)
 
+    def test_pain_report_is_disposed_under_the_existing_checks(self) -> None:
+        disposition = section(PAIN_AUDIT.read_text(encoding="utf-8"), "## Maintainer disposition")
+        for phrase in ("COVERED BY EXISTING CHECKS", "answer-first target check", "predicate-alignment check",
+                       "**Recurring-finding check.**", "discriminating evaluation on ChatGPT, not another rule",
+                       "suggested-fixes/AskRigor/2026-10-15-stimulus-locked-pain-bci-research-test.md", "**Not done.**"):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, disposition)
+        self.assertTrue(PAIN_ASKRIGOR_ITEM.is_file())
+
     def test_public_artifacts_carry_no_private_chat_locators(self) -> None:
-        for path in (PATTERN, REQUIREMENT, EVAL, AUDIT):
+        for path in (PATTERN, REQUIREMENT, EVAL, AUDIT, PAIN_AUDIT, PAIN_ASKRIGOR_ITEM):
             with self.subTest(path=path.name):
                 text = path.read_text(encoding="utf-8")
                 self.assertNotIn("claude.ai/chat", text)
