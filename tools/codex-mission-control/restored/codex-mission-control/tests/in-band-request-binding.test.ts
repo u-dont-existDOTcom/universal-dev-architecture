@@ -23,6 +23,7 @@ import {
   inBandRequestRoutePrefix,
   inBandRequestStep,
 } from "../lib/in-band-request-binding";
+import { ProviderDecisionCopier } from "../lib/provider-decision-copier";
 import type { AppendEnvelope, CanonicalDecisionEnvelope, StoredEvent } from "../lib/schema";
 import { EventStore } from "../lib/store";
 import { WORK_MODEL_ROUTING_POLICY_BASE_COMMIT, WORK_MODEL_ROUTING_POLICY_REF } from "../lib/work-execution-profile";
@@ -411,6 +412,102 @@ test("V6 admits one exact post-completion browser-DOM recovery readback and reje
     lateReadback.occurredAt = time("32.000");
     assert.throws(() => buildGitHubDecisionReceiptEnvelope(afterExpiry, afterExpiryCandidate, policy, time("33.000"), { submissionAuthorityState: f.authority }),
       /post-expiry transport copy requires current app-owned completion evidence/);
+  } finally { f.store.close(); }
+});
+
+test("V6 admits the copier's own order: browser-DOM readback, then its publication, then ingestion", () => {
+  const readbackRefs = (body: string) => [
+    "status:COMPLETE", `machine_block_sha256:${sha256(body)}`, `provider_prompt_sha256:${promptSha256}`,
+    `conversation_url:${conversation}`, "thread_surface:chatgpt", "browser_target_id_sha256:" + "7".repeat(64),
+    "source_reader_app:GitHub", "source_reader_mode:READ_ONLY",
+    "browser_capture_surface:EXISTING_BOUND_CONVERSATION_DOM",
+    "assistant_message_selection:UNIQUE_CANONICAL_BLOCK", "semantic_authority:false",
+    `readback_method:${inBandBrowserDomReadbackMethod}`,
+  ];
+  const posted = (f: ReturnType<typeof fixture>, createdAt: string, commentId = 5744000110) => ({ ...f.candidate, commentId, createdAt,
+    immutableUrl: `https://github.com/${policy.repository}/issues/53#issuecomment-${commentId}` });
+  const withReadback = (at: string) => {
+    const f = fixture();
+    const readback = evidence(f.store, "browser-dom-readback", inBandBrowserDomReadbackSummary, readbackRefs(f.candidate.body), at,
+      inBandBrowserDomReadbackProducerId);
+    return { f, events: [...f.events, readback] };
+  };
+  const ingest = (h: ReturnType<typeof withReadback>, createdAt: string, ingestedAt: string) =>
+    buildGitHubDecisionReceiptEnvelope(h.events, posted(h.f, createdAt), policy, ingestedAt, { submissionAuthorityState: h.f.authority });
+
+  const ordinary = withReadback(time("07.000"));
+  try {
+    assert.equal(ingest(ordinary, time("09.000"), time("10.000")).data.type, "github_decision_receipt_ingested",
+      "a comment posted after the readback is admitted");
+    assert.equal(ingest(ordinary, time("06.000"), time("10.000")).data.type, "github_decision_receipt_ingested",
+      "a comment that was already there is admitted too");
+    assert.throws(() => ingest(ordinary, time("09.000"), time("08.000")), /timing is invalid or stale/,
+      "ingestion can't come before the comment it ingests");
+    assert.throws(() => ingest(ordinary, time("31.000"), time("32.000")), /post-expiry transport copy requires current app-owned completion evidence/,
+      "a comment created after the window still needs app-owned evidence");
+  } finally { ordinary.f.store.close(); }
+
+  const beforeCompletion = withReadback(time("04.500"));
+  try {
+    assert.throws(() => ingest(beforeCompletion, time("06.000"), time("07.000")), /timing is invalid or stale/,
+      "the readback follows the relay's completion");
+  } finally { beforeCompletion.f.store.close(); }
+
+  const afterWindow = withReadback(time("30.500"));
+  try {
+    assert.throws(() => ingest(afterWindow, time("09.000"), time("31.000")), /timing is invalid or stale/,
+      "a readback after the window can't carry the decision");
+  } finally { afterWindow.f.store.close(); }
+});
+
+test("Mission Control's copier publishes a fresh decision and ingests it under the V6 rule", async () => {
+  const f = fixture();
+  try {
+    const comments: Array<Record<string, unknown>> = [];
+    let clock = time("10.000");
+    let posts = 0;
+    const locator = (id: number) => `https://github.com/${policy.repository}/issues/53#issuecomment-${id}`;
+    const reply = (value: unknown) => new Response(JSON.stringify(value), { status: 200, headers: { "content-type": "application/json" } });
+    const fetchImpl = async (value: string | URL | Request, init?: RequestInit) => {
+      const href = String(value);
+      if (new URL(href).searchParams.get("page")) return reply(comments);
+      if (href.endsWith("/comments") && init?.method === "POST") {
+        posts += 1;
+        clock = time("13.000"); // discovery and the write take time
+        const created = { id: 5744000202, body: JSON.parse(String(init.body)).body, html_url: locator(5744000202),
+          created_at: "2026-09-19T00:00:12Z", user: { login: "u-dont-existDOTcom" } };
+        comments.push(created);
+        return reply(created);
+      }
+      const id = href.match(/\/issues\/comments\/(\d+)$/)?.[1];
+      if (id) return reply(comments.find((item) => item.id === Number(id)));
+      throw new Error(`Unexpected URL ${href}`);
+    };
+    const copier = new ProviderDecisionCopier({
+      store: f.store, policy, tokenProvider: async () => "installation-token", eventHistory: () => f.store.allEvents(),
+      fetchImpl: fetchImpl as typeof fetch, now: () => clock,
+      // The real V6 rule; the in-memory store carries no central submission-authority state, so the fixture's is passed,
+      // and an accepted request's exact replay is a duplicate, as in ingestGitHubSupervisionCandidate.
+      ingestCandidate: ((store: EventStore, candidate: GitHubDecisionCandidate, receiptPolicy: GitHubReceiptPolicy, at: string, history: StoredEvent[]) =>
+        history.some((event) => event.data.type === "github_decision_receipt_ingested" && event.data.request_id === requestId) ? []
+          : [store.append(buildGitHubDecisionReceiptEnvelope(history, candidate, receiptPolicy, at, { submissionAuthorityState: f.authority }) as AppendEnvelope, at)]) as never,
+    });
+    const copyInput = {
+      requestId, supervisorId: supervisor, providerSessionId: session, workerId: worker, conversationUrl: conversation,
+      providerPromptSha256: promptSha256, canonicalBody: f.candidate.body, canonicalBodySha256: sha256(f.candidate.body),
+      browserTargetIdSha256: "7".repeat(64), userTurnKeySha256: "1".repeat(64), assistantTurnKeySha256: "2".repeat(64),
+      sourceReaderApp: "GitHub",
+    };
+    const relayProducer = { id: relayId, kind: "COLLECTOR" as const, workerScopes: [worker], taskScopes: ["*"] };
+    const copied = await copier.copy(copyInput, relayProducer);
+    assert.equal(copied.status, "INGESTED");
+    assert.equal(copied.ingestedAt, time("13.000"));
+    assert.equal(posts, 1);
+    const readback = f.store.allEvents().find((event) => event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === inBandBrowserDomReadbackSummary);
+    assert.equal(readback?.occurredAt, time("10.000"), "the readback was recorded before the comment existed");
+    assert.equal((await copier.copy(copyInput, relayProducer)).duplicate, true);
+    assert.equal(posts, 1);
   } finally { f.store.close(); }
 });
 

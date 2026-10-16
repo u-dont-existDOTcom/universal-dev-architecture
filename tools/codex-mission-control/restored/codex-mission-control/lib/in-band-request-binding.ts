@@ -356,10 +356,14 @@ export function assertInBandRequestExecution(
     ? (!Number.isFinite(relayCompleteAt) || relayCompleteAt! < startAt || relayCompleteAt! > createdUpper
       || relayCompleteAt! > requestExpiresAt || created > Date.parse(ingestedAt))
     : false;
+  // Mission Control's copier records the relay's browser-DOM readback and then posts that exact machine block, so the
+  // readback may come before or after the comment. Both follow the relay's completion and precede ingestion; the
+  // readback falls inside the request window, and a comment created after it needs app-owned evidence (below).
   const browserDomRecoveryTimingInvalid = browserDomReadback
     ? (!Number.isFinite(browserDomReadbackAt) || !Number.isFinite(relayCompleteAt)
       || relayCompleteAt! < startAt || relayCompleteAt! > createdUpper
-      || created > browserDomReadbackAt! || browserDomReadbackAt! > Date.parse(ingestedAt)
+      || browserDomReadbackAt! < relayCompleteAt!
+      || browserDomReadbackAt! > Date.parse(ingestedAt) || created > Date.parse(ingestedAt)
       || browserDomReadbackAt! > requestExpiresAt)
     : false;
   const completionTimingInvalid = receiptRelocation

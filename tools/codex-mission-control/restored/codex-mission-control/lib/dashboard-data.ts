@@ -1,4 +1,4 @@
-import { projectWorkers, summarizeChanges } from "./projection";
+import { projectWorkerById, projectWorkers, summarizeChanges } from "./projection";
 import { EventStore } from "./store";
 import type { StoredEvent } from "./schema";
 import { pendingDecisionRequests } from "./github-decision-receipts";
@@ -89,7 +89,7 @@ export function workerSnapshotFromEvents(
   worker: string,
   options: { includeFixtureOnly?: boolean } = {},
 ) {
-  const selected = projectWorkers(events).find((candidate) => candidate.id === worker);
+  const selected = projectWorkerById(events, worker);
   if (!selected || options.includeFixtureOnly === false && selected.connection.state === "FIXTURE_ONLY") return null;
   return { worker: selected, generatedAt: new Date().toISOString() };
 }

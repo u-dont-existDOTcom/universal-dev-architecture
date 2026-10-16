@@ -20,6 +20,9 @@ import type { GitHubReconciliationTokenProvider } from './github-app-auth';
 import type { GitHubReconciliationEventCache } from './github-decision-receipts';
 
 const githubApiVersion = '2022-11-28';
+/** Discovery reads comments updated from this long before the request was queued; an exact or conflicting comment for
+ * the request can't be older (ingestion refuses one created before the request), and the margin absorbs clock skew. */
+const discoveryMarginMs = 10 * 60_000;
 const readbackProducer: AuthenticatedProducer = {
   id: inBandBrowserDomReadbackProducerId,
   kind: 'COLLECTOR',
@@ -68,6 +71,7 @@ export class ProviderDecisionValidationError extends Error {
 
 export class ProviderDecisionCopier {
   private tail: Promise<void> = Promise.resolve();
+  private readonly inFlight = new Map<string, Promise<ProviderDecisionCopyResult>>();
 
   constructor(private readonly options: {
     store: EventStore;
@@ -83,8 +87,18 @@ export class ProviderDecisionCopier {
   }) {}
 
   async copy(rawInput: unknown, caller: AuthenticatedProducer): Promise<ProviderDecisionCopyResult> {
+    // A caller that gives up leaves its copy running, so a retry of the exact same copy joins the one still queued or
+    // running instead of queueing another behind it.
+    const key = copyKey(rawInput, caller);
+    const joined = key === null ? undefined : this.inFlight.get(key);
+    if (joined) return joined;
     const run = this.tail.then(() => this.copySerialized(rawInput, caller));
     this.tail = run.then(() => undefined, () => undefined);
+    if (key !== null) {
+      this.inFlight.set(key, run);
+      const release = () => { if (this.inFlight.get(key) === run) this.inFlight.delete(key); };
+      run.then(release, release);
+    }
     return run;
   }
 
@@ -112,13 +126,14 @@ export class ProviderDecisionCopier {
       throw new Error('Provider decision copy request/supervisor/worker binding mismatch.');
     }
 
-    const now = this.options.now?.() ?? new Date().toISOString();
-    this.ensureReadbackEvidence(input, now);
+    this.ensureReadbackEvidence(input, this.now(), pending[0]);
     const token = await this.options.tokenProvider();
     if (!token) throw new Error('GitHub write authentication is not configured.');
     const candidate = await this.findOrPublishExactComment(input, token, pending[0]);
+    // Ingestion is timed after the comment's immutable readback, never before the comment existed.
+    const ingestedAt = this.now();
     const beforeIngest = this.options.eventHistory();
-    const appended = (this.options.ingestCandidate ?? ingestGitHubSupervisionCandidate)(this.options.store, candidate, this.options.policy, now, beforeIngest);
+    const appended = (this.options.ingestCandidate ?? ingestGitHubSupervisionCandidate)(this.options.store, candidate, this.options.policy, ingestedAt, beforeIngest);
     if (appended.length) {
       this.options.eventCache?.recordReconciliationAppend(this.options.store, appended);
       this.options.onAppended?.(appended);
@@ -162,11 +177,20 @@ export class ProviderDecisionCopier {
     }
   }
 
-  private ensureReadbackEvidence(input: ProviderDecisionCopyInput, occurredAt: string) {
+  private now(): string {
+    return this.options.now?.() ?? new Date().toISOString();
+  }
+
+  private ensureReadbackEvidence(input: ProviderDecisionCopyInput, occurredAt: string, request: PendingDecisionRequest | undefined) {
     const receiptId = `provider-browser-dom-readback:${sha256(`${input.requestId}\0${input.providerSessionId}\0${input.canonicalBodySha256}`)}`;
     const existing = this.options.eventHistory().find((event) => event.data.type === 'evidence_receipt_recorded'
       && event.data.receipt_id === receiptId);
     if (existing) return;
+    // A readback recorded after the window can't carry the decision, and it would make the app-owned readback, the only
+    // route left after the window, ambiguous.
+    if (request && Date.parse(occurredAt) > Date.parse(request.expiresAt)) {
+      throw new Error('The request window closed before the relay readback was recorded; only app-owned completion evidence can carry this decision now.');
+    }
     const envelope: AppendEnvelope = {
       schema_version: 2,
       event_id: `evidence:${sha256(`${readbackProducer.id}:${receiptId}`).slice(0, 32)}`,
@@ -207,8 +231,10 @@ export class ProviderDecisionCopier {
     };
     const matches: Array<Record<string, unknown>> = [];
     const conflicts: Array<Record<string, unknown>> = [];
+    const queuedAt = request ? Date.parse(request.queuedAt) : Number.NaN;
+    const since = Number.isFinite(queuedAt) ? `&since=${encodeURIComponent(new Date(queuedAt - discoveryMarginMs).toISOString())}` : '';
     for (let page = 1; ; page += 1) {
-      const response = await fetchImpl(`https://api.github.com/repos/${owner}/${repository}/issues/${issue}/comments?per_page=100&page=${page}`, {
+      const response = await fetchImpl(`https://api.github.com/repos/${owner}/${repository}/issues/${issue}/comments?per_page=100${since}&page=${page}`, {
         headers, signal: AbortSignal.timeout(30_000),
       });
       if (!response.ok) throw new Error(`GitHub exact-comment discovery failed with HTTP ${response.status}.`);
@@ -246,6 +272,10 @@ export class ProviderDecisionCopier {
         || outcome.owner_outcome_sha256 !== request.ownerOutcome.sha256) {
         throw new Error('Provider decision publication is stale against the current owner-outcome epoch.');
       }
+      // A comment posted after the window needs app-owned evidence, which can't stand beside this relay readback.
+      if (Date.parse(this.now()) > Date.parse(request.expiresAt)) {
+        throw new Error('The request window closed before the decision was posted; it is not posted now.');
+      }
       const response = await fetchImpl(`https://api.github.com/repos/${owner}/${repository}/issues/${issue}/comments`, {
         method: 'POST', headers, body: JSON.stringify({ body: input.canonicalBody }), signal: AbortSignal.timeout(30_000),
       });
@@ -269,6 +299,14 @@ export class ProviderDecisionCopier {
       authorLogin: exactString(user.login, 'GitHub immutable comment author'),
       deliveryId: null, body: exact.body as string, ingestionMethod: 'RECONCILIATION_POLL',
     };
+  }
+}
+
+function copyKey(rawInput: unknown, caller: AuthenticatedProducer): string | null {
+  try {
+    return sha256(canonicalJson({ caller: { id: caller.id, kind: caller.kind }, input: rawInput }));
+  } catch {
+    return null;
   }
 }
 
