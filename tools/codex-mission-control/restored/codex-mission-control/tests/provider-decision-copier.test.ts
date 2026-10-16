@@ -125,8 +125,11 @@ test('exact recovery publishes once, performs immutable readback, ingests, and i
   const second = await f.copier.copy(input, relay);
   assert.equal(second.duplicate, true);
   assert.deepEqual(second.githubReceipt, first.githubReceipt);
-  assert.deepEqual(f.counts(), { posts: 1, gets: 1 }, 'a repeat of an accepted decision is answered from the ledger');
+  assert.deepEqual(f.counts(), { posts: 1, gets: 2 }, 'a repeat reads back only the accepted comment');
   assert.equal(f.discoveries.length, discoveries);
+  const reformatted = canonicalDecisionCommentPrefix + JSON.stringify(JSON.parse(canonicalBody.slice(canonicalDecisionCommentPrefix.length)), null, 1);
+  await assert.rejects(() => f.copier.copy({ ...input, canonicalBody: reformatted, canonicalBodySha256: sha256(reformatted) }, relay),
+    /different decision was already accepted/, 'the same decision in other bytes is not reported as the bytes taken in');
   const parsed = JSON.parse(canonicalBody.slice(canonicalDecisionCommentPrefix.length));
   parsed.decision_block.exact_text += ' changed';
   parsed.decision_block.sha256 = sha256(parsed.decision_block.exact_text);

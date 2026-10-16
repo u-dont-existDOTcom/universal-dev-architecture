@@ -128,8 +128,8 @@ export class ProviderDecisionCopier {
     const already = events.find((event) => event.data.type === 'github_decision_receipt_ingested'
       && event.data.request_id === input.requestId
       && event.data.provider_session_id === input.providerSessionId);
-    // A repeat of an accepted decision is answered from the ledger, without GitHub.
-    if (already?.data.type === 'github_decision_receipt_ingested') return alreadyIngested(input, already);
+    // A repeat of an accepted decision reads back only the accepted comment, without discovery or a post.
+    if (already?.data.type === 'github_decision_receipt_ingested') return this.alreadyIngested(input, already);
     if (pending.length !== 1) throw new Error(`Expected one pending provider decision request; found ${pending.length}.`);
     const request = pending[0]!;
     if (request.supervisorId !== input.supervisorId || request.worker !== input.workerId) {
@@ -195,6 +195,32 @@ export class ProviderDecisionCopier {
     return this.options.now?.() ?? new Date().toISOString();
   }
 
+  /** The accepted comment is read back, so a repeat is confirmed only for the exact bytes that were taken in. */
+  private async alreadyIngested(input: ProviderDecisionCopyInput, ingested: StoredEvent): Promise<ProviderDecisionCopyResult> {
+    if (ingested.data.type !== 'github_decision_receipt_ingested') throw new Error('Unexpected accepted-decision event.');
+    const receipt = ingested.data.github_receipt;
+    const token = await this.options.tokenProvider();
+    if (!token) throw new Error('GitHub write authentication is not configured.');
+    const [owner, repository] = receipt.repository.split('/');
+    const response = await (this.options.fetchImpl ?? fetch)(`https://api.github.com/repos/${owner}/${repository}/issues/comments/${receipt.comment_id}`, {
+      headers: githubHeaders(token), signal: AbortSignal.timeout(30_000),
+    });
+    if (!response.ok) throw new Error(`GitHub accepted-decision readback failed with HTTP ${response.status}.`);
+    const accepted = record(await response.json(), 'GitHub accepted comment');
+    if (accepted.body !== input.canonicalBody || sha256(String(accepted.body)) !== input.canonicalBodySha256) {
+      throw new Error('A different decision was already accepted for the exact request/provider session.');
+    }
+    return {
+      status: 'INGESTED', requestId: input.requestId, providerSessionId: input.providerSessionId,
+      canonicalBodySha256: input.canonicalBodySha256, ingestedEventId: ingested.eventId,
+      ingestedAt: ingested.data.ingested_at, duplicate: true,
+      githubReceipt: {
+        repository: receipt.repository, issueNumber: receipt.issue_number,
+        commentId: receipt.comment_id, immutableUrl: receipt.immutable_url,
+      },
+    };
+  }
+
   private readbackRecorded(input: ProviderDecisionCopyInput): boolean {
     const receiptId = readbackReceiptId(input);
     return this.options.eventHistory().some((event) => event.data.type === 'evidence_receipt_recorded'
@@ -237,11 +263,7 @@ export class ProviderDecisionCopier {
     const fetchImpl = this.options.fetchImpl ?? fetch;
     const [owner, repository] = this.options.policy.repository.split('/');
     const issue = this.options.policy.decisionIssueNumber;
-    const headers = {
-      accept: 'application/vnd.github+json', authorization: `Bearer ${token}`,
-      'content-type': 'application/json', 'user-agent': 'mission-control-provider-decision-copier',
-      'x-github-api-version': githubApiVersion,
-    };
+    const headers = githubHeaders(token);
     // Keyed by comment id: a comment edited while pages are read can move between pages and be listed twice.
     const matches = new Map<unknown, Record<string, unknown>>();
     const conflicts = new Map<unknown, Record<string, unknown>>();
@@ -320,25 +342,16 @@ export class ProviderDecisionCopier {
   }
 }
 
-function readbackReceiptId(input: ProviderDecisionCopyInput): string {
-  return `provider-browser-dom-readback:${sha256(`${input.requestId}\0${input.providerSessionId}\0${input.canonicalBodySha256}`)}`;
+function githubHeaders(token: string) {
+  return {
+    accept: 'application/vnd.github+json', authorization: `Bearer ${token}`,
+    'content-type': 'application/json', 'user-agent': 'mission-control-provider-decision-copier',
+    'x-github-api-version': githubApiVersion,
+  };
 }
 
-function alreadyIngested(input: ProviderDecisionCopyInput, ingested: StoredEvent): ProviderDecisionCopyResult {
-  if (ingested.data.type !== 'github_decision_receipt_ingested') throw new Error('Unexpected accepted-decision event.');
-  if (ingested.data.canonical_envelope_sha256 !== sha256(canonicalJson(parseCanonicalDecisionComment(input.canonicalBody)))) {
-    throw new Error('A different decision was already accepted for the exact request/provider session.');
-  }
-  const receipt = ingested.data.github_receipt;
-  return {
-    status: 'INGESTED', requestId: input.requestId, providerSessionId: input.providerSessionId,
-    canonicalBodySha256: input.canonicalBodySha256, ingestedEventId: ingested.eventId,
-    ingestedAt: ingested.data.ingested_at, duplicate: true,
-    githubReceipt: {
-      repository: receipt.repository, issueNumber: receipt.issue_number,
-      commentId: receipt.comment_id, immutableUrl: receipt.immutable_url,
-    },
-  };
+function readbackReceiptId(input: ProviderDecisionCopyInput): string {
+  return `provider-browser-dom-readback:${sha256(`${input.requestId}\0${input.providerSessionId}\0${input.canonicalBodySha256}`)}`;
 }
 
 function copyKey(rawInput: unknown, caller: AuthenticatedProducer): string | null {
