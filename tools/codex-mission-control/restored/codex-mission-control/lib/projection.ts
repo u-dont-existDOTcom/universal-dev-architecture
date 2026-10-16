@@ -332,6 +332,17 @@ export function projectWorkers(events: StoredEvent[], now = new Date(), config: 
       || new Date(left.lastCheckpointAt).getTime() - new Date(right.lastCheckpointAt).getTime());
 }
 
+/**
+ * One task as {@link projectWorkers} projects it, without projecting the rest of the fleet: its own events, the relay
+ * context and the Work-routing telemetry count from the whole ledger. Null when the task isn't one projectWorkers lists.
+ */
+export function projectWorkerById(events: StoredEvent[], worker: string, now = new Date(), config: DriftConfig = driftConfig): WorkerState | null {
+  const workerEvents = events.filter((event) => event.worker === worker);
+  if (!workerEvents.some((event) => event.data.type === "task_contract_recorded" || event.data.type === "objective_created")) return null;
+  const projected = projectWorker(workerEvents, now, config, supervisorRelayContext(events));
+  return { ...projected, workExecution: { ...projected.workExecution, telemetryCompletedCount: completedWorkRoutingTelemetryCount(events) } };
+}
+
 /** One task's projection; `relay` carries the relay evidence from the whole ledger (projectWorkers passes it). */
 export function projectWorker(events: StoredEvent[], now = new Date(), config: DriftConfig = driftConfig, relay?: SupervisorRelayContext): WorkerState {
   const contract = latest(events, "task_contract_recorded");

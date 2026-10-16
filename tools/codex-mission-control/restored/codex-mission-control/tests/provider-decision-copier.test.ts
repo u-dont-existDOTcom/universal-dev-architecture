@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { sha256 } from '../lib/canonical';
-import { canonicalDecisionCommentPrefix, type GitHubReceiptPolicy, type PendingDecisionRequest } from '../lib/github-decision-receipts';
+import { canonicalJson, sha256 } from '../lib/canonical';
+import { canonicalDecisionCommentPrefix, parseCanonicalDecisionComment, type GitHubReceiptPolicy, type PendingDecisionRequest } from '../lib/github-decision-receipts';
 import { ProviderDecisionCopier, type ProviderDecisionCopyInput } from '../lib/provider-decision-copier';
 import type { AppendEnvelope, StoredEvent } from '../lib/schema';
 import type { EventStore } from '../lib/store';
@@ -54,8 +54,8 @@ class FakeStore {
 }
 
 function fixture({ readbackBody = canonicalBody, conflictBody = null as string | null, pending = true,
-  initialComments = [] as Array<Record<string, unknown>>, failPage = null as number | null, ambiguousPost = false,
-  pendingRequests = () => pending ? [request] : [],
+  initialComments = [] as Array<Record<string, unknown>>, failPage = null as number | null, ambiguousPost = false, failPost = false,
+  pendingRequests = () => pending ? [request] : [], now = (): string => '2026-10-06T00:10:00.000Z',
   onToken = (_store: FakeStore) => {}, onDiscovery = (_store: FakeStore) => {} } = {}) {
   const store = new FakeStore();
   const ownerOutcome = {
@@ -66,16 +66,22 @@ function fixture({ readbackBody = canonicalBody, conflictBody = null as string |
   const comments: Array<Record<string, unknown>> = [...initialComments];
   if (conflictBody) comments.push(comment(7001, conflictBody));
   let posts = 0, gets = 0, tokenCalls = 0;
+  const discoveries: string[] = [];
   const fetchImpl = async (value: string | URL | Request, init?: RequestInit) => {
     const url = String(value);
     const page = new URL(url).searchParams.get('page');
     if (page) {
+      discoveries.push(url);
       onDiscovery(store);
       if (Number(page) === failPage) return new Response('unavailable', { status: 503 });
-      return response(comments.slice((Number(page) - 1) * 100, Number(page) * 100));
+      // GitHub's since keeps comments updated at or after it.
+      const since = new URL(url).searchParams.get('since');
+      const listed = since ? comments.filter((item) => Date.parse(String(item.updated_at ?? item.created_at)) >= Date.parse(since)) : comments;
+      return response(listed.slice((Number(page) - 1) * 100, Number(page) * 100));
     }
     if (url.endsWith('/comments') && init?.method === 'POST') {
       posts += 1;
+      if (failPost) return new Response('unavailable', { status: 503 });
       const posted = JSON.parse(String(init.body)).body;
       const created = comment(7002, posted);
       comments.push(created);
@@ -89,7 +95,7 @@ function fixture({ readbackBody = canonicalBody, conflictBody = null as string |
   const copier = new ProviderDecisionCopier({
     store: store as unknown as EventStore, policy, tokenProvider: async () => { tokenCalls += 1; onToken(store); return 'installation-token'; },
     eventHistory: () => [ownerOutcome, ...store.events], fetchImpl: fetchImpl as typeof fetch,
-    now: () => '2026-10-06T00:10:00.000Z', pendingRequests,
+    now, pendingRequests,
     ingestCandidate: ((eventStore: EventStore, candidate: any, _policy: any, at: string) => {
       if (store.events.some((event) => event.data.type === 'github_decision_receipt_ingested'
         && event.data.request_id === input.requestId)) return [];
@@ -98,12 +104,13 @@ function fixture({ readbackBody = canonicalBody, conflictBody = null as string |
         receipt_id: `github-comment:${candidate.commentId}`, request_id: input.requestId,
         supervisor_id: input.supervisorId, provider_session_id: input.providerSessionId,
         github_receipt: { repository: policy.repository, issue_number: 4, comment_id: candidate.commentId, immutable_url: candidate.immutableUrl },
+        canonical_envelope_sha256: sha256(canonicalJson(parseCanonicalDecisionComment(candidate.body))),
         ingested_at: at,
       } } as unknown as AppendEnvelope;
       return [(eventStore as unknown as FakeStore).append(envelope, at)];
     }) as any,
   });
-  return { store, copier, comments, counts: () => ({ posts, gets }), sideEffects: () => ({ events: store.events.length, tokenCalls, posts, gets }) };
+  return { store, copier, comments, discoveries, counts: () => ({ posts, gets }), sideEffects: () => ({ events: store.events.length, tokenCalls, posts, gets }) };
 }
 
 test('exact recovery publishes once, performs immutable readback, ingests, and is idempotent', async () => {
@@ -114,9 +121,21 @@ test('exact recovery publishes once, performs immutable readback, ingests, and i
   assert.equal(f.comments[0]?.body, canonicalBody);
   assert.equal(f.store.events.some((event) => event.data.type === 'evidence_receipt_recorded'
     && event.data.summary === 'MISSION_CONTROL_PROVIDER_SESSION_BROWSER_DOM_READBACK_V1'), true);
+  const discoveries = f.discoveries.length;
   const second = await f.copier.copy(input, relay);
   assert.equal(second.duplicate, true);
-  assert.deepEqual(f.counts(), { posts: 1, gets: 2 });
+  assert.deepEqual(second.githubReceipt, first.githubReceipt);
+  assert.deepEqual(f.counts(), { posts: 1, gets: 2 }, 'a repeat reads back only the accepted comment');
+  assert.equal(f.discoveries.length, discoveries);
+  const reformatted = canonicalDecisionCommentPrefix + JSON.stringify(JSON.parse(canonicalBody.slice(canonicalDecisionCommentPrefix.length)), null, 1);
+  await assert.rejects(() => f.copier.copy({ ...input, canonicalBody: reformatted, canonicalBodySha256: sha256(reformatted) }, relay),
+    /different decision was already accepted/, 'the same decision in other bytes is not reported as the bytes taken in');
+  const parsed = JSON.parse(canonicalBody.slice(canonicalDecisionCommentPrefix.length));
+  parsed.decision_block.exact_text += ' changed';
+  parsed.decision_block.sha256 = sha256(parsed.decision_block.exact_text);
+  const changedBody = canonicalDecisionCommentPrefix + JSON.stringify(parsed);
+  await assert.rejects(() => f.copier.copy({ ...input, canonicalBody: changedBody, canonicalBodySha256: sha256(changedBody) }, relay),
+    /different decision was already accepted/);
 });
 
 for (const boundary of ['onToken', 'onDiscovery'] as const) {
@@ -183,9 +202,75 @@ test('retry after an ambiguous POST finds the receipt past page 20 without publi
   assert.deepEqual(f.counts(), { posts: 1, gets: 1 });
 });
 
-function unrelatedComments(count: number) {
-  return Array.from({ length: count }, (_, index) => comment(10_000 + index, 'Unrelated discussion.'));
+function unrelatedComments(count: number, createdAt?: string) {
+  return Array.from({ length: count }, (_, index) => comment(10_000 + index, 'Unrelated discussion.', createdAt));
 }
+
+test('discovery reads the decision issue only from just before the request was queued', async () => {
+  const f = fixture({ initialComments: [...unrelatedComments(2_000, '2026-10-05T12:00:00.000Z'), comment(7001, canonicalBody)] });
+  assert.equal((await f.copier.copy(input, relay)).status, 'INGESTED');
+  assert.deepEqual(f.counts(), { posts: 0, gets: 1 });
+  assert.equal(f.discoveries.length, 1, 'older comments are not paged through');
+  assert.equal(new URL(f.discoveries[0]!).searchParams.get('since'), '2026-10-05T23:50:00.000Z');
+});
+
+test('a repeated copy joins the one still running instead of queueing another', async () => {
+  const f = fixture({ initialComments: unrelatedComments(250) });
+  const [first, second] = await Promise.all([f.copier.copy(input, relay), f.copier.copy({ ...input }, relay)]);
+  assert.equal(first, second);
+  assert.equal(first.duplicate, false);
+  assert.deepEqual(f.counts(), { posts: 1, gets: 1 });
+  assert.equal(f.discoveries.length, 3, 'one discovery of three pages');
+  const later = await f.copier.copy(input, relay);
+  assert.equal(later.duplicate, true, 'a copy after it settled runs again');
+  const other = fixture();
+  await assert.rejects(() => Promise.all([other.copier.copy(input, relay),
+    other.copier.copy({ ...input, providerSessionId: 'provider-session:other' }, relay)]), /identity does not match/);
+});
+
+test('no readback is recorded and nothing is posted without time left to post inside the request window', async () => {
+  for (const at of ['2026-10-06T01:00:00.001Z', '2026-10-06T00:58:00.001Z']) {
+    const late = fixture({ now: () => at });
+    await assert.rejects(() => late.copier.copy(input, relay), /Too little of the request window is left to record the relay readback/);
+    assert.deepEqual(late.sideEffects(), { events: 0, tokenCalls: 0, posts: 0, gets: 0 });
+  }
+  const justInTime = fixture({ now: () => '2026-10-06T00:58:00.000Z' });
+  assert.equal((await justInTime.copier.copy(input, relay)).status, 'INGESTED', 'two minutes before the window closes is enough');
+
+  let clock = '2026-10-06T00:10:00.000Z';
+  const posted = fixture({ ambiguousPost: true, now: () => clock });
+  await assert.rejects(() => posted.copier.copy(input, relay), /Ambiguous publication response/);
+  clock = '2026-10-06T01:30:00.000Z';
+  const recovered = await posted.copier.copy(input, relay);
+  assert.equal(recovered.status, 'INGESTED', 'a decision posted inside the window is still ingested after it');
+  assert.equal(recovered.ingestedAt, clock);
+  assert.deepEqual(posted.counts(), { posts: 1, gets: 1 });
+
+  clock = '2026-10-06T00:10:00.000Z';
+  const unposted = fixture({ now: () => clock, failPost: true });
+  await assert.rejects(() => unposted.copier.copy(input, relay), /publication failed with HTTP 503/);
+  assert.equal(unposted.store.events.length, 1, 'the readback was recorded right before the post');
+  clock = '2026-10-06T00:58:30.000Z';
+  await assert.rejects(() => unposted.copier.copy(input, relay), /Too little of the request window is left to post the decision/);
+  assert.deepEqual(unposted.counts(), { posts: 1, gets: 0 }, 'no second post');
+
+  clock = '2026-10-06T00:10:00.000Z';
+  let offline = true;
+  const unreachable = fixture({ now: () => clock, onDiscovery: () => { if (offline) throw new Error('GitHub unreachable'); } });
+  await assert.rejects(() => unreachable.copier.copy(input, relay), /GitHub unreachable/);
+  assert.equal(unreachable.store.events.length, 0, 'nothing is recorded before discovery finishes');
+  offline = false;
+  clock = '2026-10-06T00:58:30.000Z';
+  await assert.rejects(() => unreachable.copier.copy(input, relay), /Too little of the request window is left to record the relay readback/);
+  assert.deepEqual(unreachable.sideEffects(), { events: 0, tokenCalls: 1, posts: 0, gets: 0 });
+});
+
+test('a comment listed twice while pages shift is one match', async () => {
+  const exact = comment(7001, canonicalBody);
+  const f = fixture({ initialComments: [...unrelatedComments(99), exact, exact] });
+  assert.equal((await f.copier.copy(input, relay)).status, 'INGESTED');
+  assert.deepEqual(f.counts(), { posts: 0, gets: 1 });
+});
 
 test('immutable readback mismatch fails closed after publication', async () => {
   const f = fixture({ readbackBody: canonicalBody + 'x' });
@@ -287,9 +372,9 @@ function withBoundedExecution(effort: 'HIGH' | 'XHIGH') {
   return canonicalDecisionCommentPrefix + JSON.stringify(parsed);
 }
 
-function comment(id: number, body: string) {
+function comment(id: number, body: string, createdAt = '2026-10-06T00:09:00.000Z') {
   return { id, body, html_url: `https://github.com/${policy.repository}/issues/4#issuecomment-${id}`,
-    created_at: '2026-10-06T00:09:00.000Z', user: { login: 'mission-control-app[bot]' } };
+    created_at: createdAt, updated_at: createdAt, user: { login: 'mission-control-app[bot]' } };
 }
 
 function response(value: unknown) {

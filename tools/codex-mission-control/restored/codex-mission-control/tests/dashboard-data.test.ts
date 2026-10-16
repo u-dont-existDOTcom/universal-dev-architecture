@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isRelayTransportEvent, snapshotFromStore, workerSnapshotFromStore, workerTransportSnapshotFromStore } from "../lib/dashboard-data";
+import { isRelayTransportEvent, snapshotFromStore, workerSnapshotFromEvents, workerSnapshotFromStore, workerTransportSnapshotFromStore } from "../lib/dashboard-data";
 import { pendingDecisionRequests } from "../lib/github-decision-receipts";
+import { projectWorkerById, projectWorkers } from "../lib/projection";
 import { seedIssue47Store } from "../lib/seed";
 import { EventStore } from "../lib/store";
 
@@ -106,6 +107,27 @@ test("relay transport projection preserves route evidence and omits unrelated wo
     );
     assert.ok(transport.worker.timeline.length < all.length);
     assert.equal(JSON.stringify(transport).length < JSON.stringify(workerSnapshotFromStore(store, "mission-control-live-slice")).length, true);
+  } finally {
+    store.close();
+  }
+});
+
+test("one task's page projects only that task and equals its entry in the fleet projection", () => {
+  const store = new EventStore(":memory:");
+  try {
+    seedIssue47Store(store);
+    const events = store.allEvents();
+    const now = new Date("2026-10-16T12:00:00.000Z");
+    const fleet = projectWorkers(events, now);
+    assert.ok(fleet.length > 1);
+    for (const worker of fleet) assert.deepEqual(projectWorkerById(events, worker.id, now), worker);
+    const listed = new Set(fleet.map((worker) => worker.id));
+    for (const worker of new Set(events.map((event) => event.worker).filter((id): id is string => typeof id === "string"))) {
+      if (!listed.has(worker)) assert.equal(projectWorkerById(events, worker, now), null);
+    }
+    assert.equal(projectWorkerById(events, "no-such-task", now), null);
+    assert.equal(workerSnapshotFromEvents(events, fleet[0]!.id)?.worker.id, fleet[0]!.id);
+    assert.equal(workerSnapshotFromEvents(events, "no-such-task"), null);
   } finally {
     store.close();
   }

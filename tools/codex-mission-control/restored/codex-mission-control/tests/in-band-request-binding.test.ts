@@ -23,6 +23,7 @@ import {
   inBandRequestRoutePrefix,
   inBandRequestStep,
 } from "../lib/in-band-request-binding";
+import { ProviderDecisionCopier } from "../lib/provider-decision-copier";
 import type { AppendEnvelope, CanonicalDecisionEnvelope, StoredEvent } from "../lib/schema";
 import { EventStore } from "../lib/store";
 import { WORK_MODEL_ROUTING_POLICY_BASE_COMMIT, WORK_MODEL_ROUTING_POLICY_REF } from "../lib/work-execution-profile";
@@ -56,7 +57,7 @@ function evidence(store: EventStore, id: string, summary: string, refs: string[]
   } }, at, { id: producerId, kind: "COLLECTOR", workerScopes: [worker], taskScopes: ["*"] });
 }
 
-function fixture() {
+function fixture({ expiresAt = time("30.000") } = {}) {
   const store = new EventStore(":memory:");
   append(store, "owner-source", {
     type: "owner_source_recorded", worker, receipt_id: "owner-source-1", owner_request_id: "owner-request-1", canonical_locator: "synthetic-owner-source",
@@ -84,7 +85,7 @@ function fixture() {
     githubReceipt: { repository: policy.repository, issueNumber: 53, stageIssueNumber: 61 },
     factualPacket: { taskId: "task-1", evidenceRefs: ["https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5744485891"] },
     executionContext: { task_id: "task-1", run_id: "run-1", family_id: "family-1", round: 0 },
-    queuedAt: time("00.000"), expiresAt: time("30.000"),
+    queuedAt: time("00.000"), expiresAt,
   };
   append(store, "supervision-request-v6", {
     type: "worker_message_recorded", worker, message_id: "message-v6", thread_id: "thread-v6", message_kind: "QUESTION",
@@ -411,6 +412,115 @@ test("V6 admits one exact post-completion browser-DOM recovery readback and reje
     lateReadback.occurredAt = time("32.000");
     assert.throws(() => buildGitHubDecisionReceiptEnvelope(afterExpiry, afterExpiryCandidate, policy, time("33.000"), { submissionAuthorityState: f.authority }),
       /post-expiry transport copy requires current app-owned completion evidence/);
+  } finally { f.store.close(); }
+});
+
+test("V6 admits the copier's own order: browser-DOM readback, then its publication, then ingestion", () => {
+  const readbackRefs = (body: string) => [
+    "status:COMPLETE", `machine_block_sha256:${sha256(body)}`, `provider_prompt_sha256:${promptSha256}`,
+    `conversation_url:${conversation}`, "thread_surface:chatgpt", "browser_target_id_sha256:" + "7".repeat(64),
+    "source_reader_app:GitHub", "source_reader_mode:READ_ONLY",
+    "browser_capture_surface:EXISTING_BOUND_CONVERSATION_DOM",
+    "assistant_message_selection:UNIQUE_CANONICAL_BLOCK", "semantic_authority:false",
+    `readback_method:${inBandBrowserDomReadbackMethod}`,
+  ];
+  const posted = (f: ReturnType<typeof fixture>, createdAt: string, commentId = 5744000110) => ({ ...f.candidate, commentId, createdAt,
+    immutableUrl: `https://github.com/${policy.repository}/issues/53#issuecomment-${commentId}` });
+  const withReadback = (at: string) => {
+    const f = fixture();
+    const readback = evidence(f.store, "browser-dom-readback", inBandBrowserDomReadbackSummary, readbackRefs(f.candidate.body), at,
+      inBandBrowserDomReadbackProducerId);
+    return { f, events: [...f.events, readback] };
+  };
+  const ingest = (h: ReturnType<typeof withReadback>, createdAt: string, ingestedAt: string) =>
+    buildGitHubDecisionReceiptEnvelope(h.events, posted(h.f, createdAt), policy, ingestedAt, { submissionAuthorityState: h.f.authority });
+
+  const ordinary = withReadback(time("07.000"));
+  try {
+    assert.equal(ingest(ordinary, time("09.000"), time("10.000")).data.type, "github_decision_receipt_ingested",
+      "a comment posted after the readback is admitted");
+    assert.equal(ingest(ordinary, time("06.000"), time("10.000")).data.type, "github_decision_receipt_ingested",
+      "a comment that was already there is admitted too");
+    assert.throws(() => ingest(ordinary, time("09.000"), time("08.000")), /timing is invalid or stale/,
+      "ingestion can't come before the comment it ingests");
+    assert.throws(() => ingest(ordinary, time("31.000"), time("32.000")), /post-expiry transport copy requires current app-owned completion evidence/,
+      "a comment created after the window still needs app-owned evidence");
+  } finally { ordinary.f.store.close(); }
+
+  const reordered = withReadback(time("07.000"));
+  try {
+    // Recorded after the relay's completion in the ledger, whatever the hosts' clocks say; one recorded before it fails.
+    const complete = reordered.events.find((event) => event.eventId === "evidence:stage-complete")!;
+    const early = structuredClone(reordered.events);
+    early.find((event) => event.data.type === "evidence_receipt_recorded" && event.data.summary === inBandBrowserDomReadbackSummary)!
+      .sequence = complete.sequence - 1;
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(early, posted(reordered.f, time("09.000")), policy, time("10.000"),
+      { submissionAuthorityState: reordered.f.authority }), /timing is invalid or stale/, "the readback follows the relay's completion");
+    const skewed = withReadback(time("04.500"));
+    try {
+      assert.equal(ingest(skewed, time("09.000"), time("10.000")).data.type, "github_decision_receipt_ingested",
+        "a readback stamped by a clock behind the relay's still follows its completion in the ledger");
+    } finally { skewed.f.store.close(); }
+    assert.throws(() => ingest(reordered, time("04.000"), time("10.000")), /timing is invalid or stale/,
+      "a comment created before the relay's completion is refused");
+  } finally { reordered.f.store.close(); }
+
+  const afterWindow = withReadback(time("30.500"));
+  try {
+    assert.throws(() => ingest(afterWindow, time("09.000"), time("31.000")), /timing is invalid or stale/,
+      "a readback after the window can't carry the decision");
+  } finally { afterWindow.f.store.close(); }
+});
+
+test("Mission Control's copier publishes a fresh decision and ingests it under the V6 rule", async () => {
+  // The copier keeps new posts two minutes clear of the window's end, so this request's window is ten minutes.
+  const f = fixture({ expiresAt: "2026-09-19T00:10:00.000Z" });
+  try {
+    const comments: Array<Record<string, unknown>> = [];
+    let clock = time("10.000");
+    let posts = 0;
+    const locator = (id: number) => `https://github.com/${policy.repository}/issues/53#issuecomment-${id}`;
+    const reply = (value: unknown) => new Response(JSON.stringify(value), { status: 200, headers: { "content-type": "application/json" } });
+    const fetchImpl = async (value: string | URL | Request, init?: RequestInit) => {
+      const href = String(value);
+      if (new URL(href).searchParams.get("page")) return reply(comments);
+      if (href.endsWith("/comments") && init?.method === "POST") {
+        posts += 1;
+        clock = time("13.000"); // discovery and the write take time
+        const created = { id: 5744000202, body: JSON.parse(String(init.body)).body, html_url: locator(5744000202),
+          created_at: "2026-09-19T00:00:12Z", user: { login: "u-dont-existDOTcom" } };
+        comments.push(created);
+        return reply(created);
+      }
+      const id = href.match(/\/issues\/comments\/(\d+)$/)?.[1];
+      if (id) return reply(comments.find((item) => item.id === Number(id)));
+      throw new Error(`Unexpected URL ${href}`);
+    };
+    const copier = new ProviderDecisionCopier({
+      store: f.store, policy, tokenProvider: async () => "installation-token", eventHistory: () => f.store.allEvents(),
+      fetchImpl: fetchImpl as typeof fetch, now: () => clock,
+      // The real V6 rule; the in-memory store carries no central submission-authority state, so the fixture's is passed,
+      // and an accepted request's exact replay is a duplicate, as in ingestGitHubSupervisionCandidate.
+      ingestCandidate: ((store: EventStore, candidate: GitHubDecisionCandidate, receiptPolicy: GitHubReceiptPolicy, at: string, history: StoredEvent[]) =>
+        history.some((event) => event.data.type === "github_decision_receipt_ingested" && event.data.request_id === requestId) ? []
+          : [store.append(buildGitHubDecisionReceiptEnvelope(history, candidate, receiptPolicy, at, { submissionAuthorityState: f.authority }) as AppendEnvelope, at)]) as never,
+    });
+    const copyInput = {
+      requestId, supervisorId: supervisor, providerSessionId: session, workerId: worker, conversationUrl: conversation,
+      providerPromptSha256: promptSha256, canonicalBody: f.candidate.body, canonicalBodySha256: sha256(f.candidate.body),
+      browserTargetIdSha256: "7".repeat(64), userTurnKeySha256: "1".repeat(64), assistantTurnKeySha256: "2".repeat(64),
+      sourceReaderApp: "GitHub",
+    };
+    const relayProducer = { id: relayId, kind: "COLLECTOR" as const, workerScopes: [worker], taskScopes: ["*"] };
+    const copied = await copier.copy(copyInput, relayProducer);
+    assert.equal(copied.status, "INGESTED");
+    assert.equal(copied.ingestedAt, time("13.000"));
+    assert.equal(posts, 1);
+    const readback = f.store.allEvents().find((event) => event.data.type === "evidence_receipt_recorded"
+      && event.data.summary === inBandBrowserDomReadbackSummary);
+    assert.equal(readback?.occurredAt, time("10.000"), "the readback was recorded before the comment existed");
+    assert.equal((await copier.copy(copyInput, relayProducer)).duplicate, true);
+    assert.equal(posts, 1);
   } finally { f.store.close(); }
 });
 
