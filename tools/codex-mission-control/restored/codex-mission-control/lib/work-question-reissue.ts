@@ -534,14 +534,15 @@ export async function resendSentWorkQuestion(
   const kinds = ["UNSENT", "AFTER_SEND"] as const;
   const recorded = recordedWorkQuestionReissue(store.workerEvents(worker), worker, requestId, kinds);
   if (recorded) return already(recorded);
-  // A discard first lets a GitHub reconciliation take in a reply already posted (the build below then finds the question
-  // answered); a repeat of a recorded re-send is answered above without waiting for it.
-  if (input.discardFinishedReply === true) {
-    if (!beforeDiscard) throw new DiscardReconciliationError("A discard needs a GitHub reconciliation first, and none was given.");
-    await beforeDiscard();
+  if (input.discardFinishedReply === true && !beforeDiscard) {
+    throw new DiscardReconciliationError("A discard needs a GitHub reconciliation first, and none was given.");
   }
   const proof = await proveRequestSendSettled(requestId);
-  // Another call may have reissued it while the proof was read.
+  // Before a discard, one GitHub reconciliation takes in a reply already posted (the build below then finds the
+  // question answered). It is the last await before the retirement, which is built and appended synchronously after it;
+  // a repeat of a recorded re-send was answered above without waiting for it.
+  if (input.discardFinishedReply === true) await beforeDiscard!();
+  // Another call may have reissued it while the proof or the reconciliation was read.
   const raced = recordedWorkQuestionReissue(store.workerEvents(worker), worker, requestId, kinds);
   if (raced) return already(raced);
   const built = buildSentWorkQuestionResend(store.workerEvents(worker),

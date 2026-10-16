@@ -634,13 +634,15 @@ test("the owner's discard goes through the async re-send once, and a readback al
   await assert.rejects(resendSentWorkQuestion(unreconciled.store as never, { ...input, discardFinishedReply: true }, unreconciled.prove, policy(),
     () => later, async () => { throw new DiscardReconciliationError("reconciliation failed"); }), DiscardReconciliationError);
   assert.equal(unreconciled.batches.length, 0, "nothing is retired when the reconciliation before a discard fails");
-  assert.deepEqual(unreconciled.proved, []);
+  assert.deepEqual(unreconciled.proved, [requestId], "the reconciliation is the last await, after the send proof");
 
   const owner = harness(finished);
   let reconciled = 0;
-  const reconcile = async () => { reconciled += 1; };
+  const order: string[] = [];
+  const reconcile = async () => { reconciled += 1; order.push(`reconcile after ${owner.proved.length} proof(s)`); };
   const first = await resendSentWorkQuestion(owner.store as never, { ...input, discardFinishedReply: true }, owner.prove, policy(), () => later, reconcile);
   assert.equal(reconciled, 1);
+  assert.deepEqual(order, ["reconcile after 1 proof(s)"]);
   assert.equal(first.status, "WORK_QUESTION_RESENT");
   assert.equal(first.finishedReplyDiscarded, true);
   assert.equal(owner.batches.length, 1);
