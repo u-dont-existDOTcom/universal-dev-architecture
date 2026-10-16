@@ -630,15 +630,26 @@ test("the owner's discard goes through the async re-send once, and a readback al
   await assert.rejects(resendSentWorkQuestion(refused.store as never, input, refused.prove, policy(), () => later), /finished or was read back/);
   assert.equal(refused.batches.length, 0);
 
+  const unreconciled = harness(finished);
+  await assert.rejects(resendSentWorkQuestion(unreconciled.store as never, { ...input, discardFinishedReply: true }, unreconciled.prove, policy(),
+    () => later, async () => { throw new DiscardReconciliationError("reconciliation failed"); }), DiscardReconciliationError);
+  assert.equal(unreconciled.batches.length, 0, "nothing is retired when the reconciliation before a discard fails");
+  assert.deepEqual(unreconciled.proved, []);
+
   const owner = harness(finished);
-  const first = await resendSentWorkQuestion(owner.store as never, { ...input, discardFinishedReply: true }, owner.prove, policy(), () => later);
+  let reconciled = 0;
+  const reconcile = async () => { reconciled += 1; };
+  const first = await resendSentWorkQuestion(owner.store as never, { ...input, discardFinishedReply: true }, owner.prove, policy(), () => later, reconcile);
+  assert.equal(reconciled, 1);
   assert.equal(first.status, "WORK_QUESTION_RESENT");
   assert.equal(first.finishedReplyDiscarded, true);
   assert.equal(owner.batches.length, 1);
   const retirement = owner.history().find((event) => event.eventId === first.retirementEventId)!;
   assert.ok((retirement.data as { refs: string[] }).refs.includes("finished_reply:DISCARDED_BY_OWNER"));
   assert.deepEqual(pendingDecisionRequests(owner.history()).map((request) => request.requestId), [first.requestId]);
-  const repeat = await resendSentWorkQuestion(owner.store as never, { ...input, discardFinishedReply: true }, owner.prove, policy(), () => later);
+  // A repeat of the recorded re-send is answered without waiting for reconciliation, even when it is unavailable.
+  const repeat = await resendSentWorkQuestion(owner.store as never, { ...input, discardFinishedReply: true }, owner.prove, policy(), () => later,
+    async () => { throw new DiscardReconciliationError("reconciliation unavailable"); });
   assert.equal(repeat.status, "WORK_QUESTION_ALREADY_REISSUED");
   assert.equal(repeat.requestId, first.requestId);
   assert.equal(repeat.finishedReplyDiscarded, null, "a repeat only reports the earlier re-send");
@@ -646,8 +657,12 @@ test("the owner's discard goes through the async re-send once, and a readback al
   assert.deepEqual(owner.proved, [requestId]);
 
   const readBackOnly = harness([...events, evidence("app-readback", "MISSION_CONTROL_PROVIDER_SESSION_APP_READBACK_V1", ["status:COMPLETE"])]);
-  await assert.rejects(resendSentWorkQuestion(readBackOnly.store as never, { ...input, discardFinishedReply: true }, readBackOnly.prove, policy(), () => later),
-    /was read back; it may still be accepted, so it is not discarded/);
+  await assert.rejects(resendSentWorkQuestion(readBackOnly.store as never, { ...input, discardFinishedReply: true }, readBackOnly.prove, policy(), () => later,
+    reconcile), /was read back; it may still be accepted, so it is not discarded/);
+  const noReconciliation = harness(finished);
+  await assert.rejects(resendSentWorkQuestion(noReconciliation.store as never, { ...input, discardFinishedReply: true }, noReconciliation.prove, policy(),
+    () => later), /needs a GitHub reconciliation first/);
+  assert.equal(noReconciliation.batches.length, 0);
   assert.equal(readBackOnly.batches.length, 0);
 });
 

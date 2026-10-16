@@ -142,8 +142,8 @@ export function buildExpiredWorkQuestionReissue(
  * A reply the relay saw finish refuses the re-send, because the app-owned readback could still carry it in. When no
  * readback route can reach it, the owner may discard it explicitly (`discardFinishedReply`): the retirement records
  * `finished_reply:DISCARDED_BY_OWNER`, and the reply can then never be taken in. A readback or digest-only transform of
- * the reply always refuses the re-send. The daemon runs one GitHub reconciliation first ({@link reconcileBeforeDiscard}),
- * so a reply already posted is taken in rather than discarded.
+ * the reply always refuses the re-send. Before a discard, {@link resendSentWorkQuestion} awaits the daemon's GitHub
+ * reconciliation ({@link reconcileBeforeDiscard}), so a reply already posted is taken in rather than discarded.
  */
 export function buildSentWorkQuestionResend(
   events: readonly StoredEvent[],
@@ -522,6 +522,7 @@ export async function resendSentWorkQuestion(
   proveRequestSendSettled: (requestId: string) => Promise<SettledSendSubmissionState>,
   policy: GitHubReceiptPolicy | null,
   now: () => string = () => new Date().toISOString(),
+  beforeDiscard: (() => Promise<void>) | null = null,
 ): Promise<WorkQuestionResendResult> {
   const { worker, requestId, authorizedBy } = input;
   if (!WORK_QUESTION_REQUEST_ID.test(requestId)) throw new Error("A re-send requires one exact work-question request ID.");
@@ -533,6 +534,12 @@ export async function resendSentWorkQuestion(
   const kinds = ["UNSENT", "AFTER_SEND"] as const;
   const recorded = recordedWorkQuestionReissue(store.workerEvents(worker), worker, requestId, kinds);
   if (recorded) return already(recorded);
+  // A discard first lets a GitHub reconciliation take in a reply already posted (the build below then finds the question
+  // answered); a repeat of a recorded re-send is answered above without waiting for it.
+  if (input.discardFinishedReply === true) {
+    if (!beforeDiscard) throw new DiscardReconciliationError("A discard needs a GitHub reconciliation first, and none was given.");
+    await beforeDiscard();
+  }
   const proof = await proveRequestSendSettled(requestId);
   // Another call may have reissued it while the proof was read.
   const raced = recordedWorkQuestionReissue(store.workerEvents(worker), worker, requestId, kinds);

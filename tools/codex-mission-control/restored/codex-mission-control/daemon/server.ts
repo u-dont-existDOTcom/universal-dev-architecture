@@ -27,7 +27,7 @@ import {
   type ReasoningReplacementReasonCode,
 } from "../lib/github-decision-receipts";
 import { SubmissionAuthorityDisabledError, SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
-import { reconcileBeforeDiscard, reissueExpiredWorkQuestion, resendSentWorkQuestion } from "../lib/work-question-reissue";
+import { DiscardReconciliationError, reconcileBeforeDiscard, reissueExpiredWorkQuestion, resendSentWorkQuestion } from "../lib/work-question-reissue";
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
 import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
 import { GitHubReconciliationCoordinator } from "../lib/github-reconciliation-coordinator";
@@ -268,22 +268,18 @@ const server = http.createServer(async (request, response) => {
       if (body.discard_finished_reply !== undefined && typeof body.discard_finished_reply !== "boolean") {
         return json(response, 400, { error: "discard_finished_reply is true or false." });
       }
-      if (body.discard_finished_reply === true) {
-        // A reply already posted is taken in before anything is discarded.
-        try {
-          await reconcileBeforeDiscard(githubReconciliationCoordinator);
-        } catch (error) {
-          return json(response, 503, { error: error instanceof Error ? error.message : "The reconciliation before the discard failed." });
-        }
-      }
       try {
+        // Before a discard (not before a repeat of a recorded re-send), one GitHub reconciliation takes in a reply that
+        // is already posted.
         const result = await resendSentWorkQuestion(store, {
           worker, requestId: body.request_id, authorizedBy: producer.id, discardFinishedReply: body.discard_finished_reply === true,
-        }, (requestId) => submissionAuthority.proveRequestSendSettled(requestId), githubPolicy);
+        }, (requestId) => submissionAuthority.proveRequestSendSettled(requestId), githubPolicy, undefined,
+        () => reconcileBeforeDiscard(githubReconciliationCoordinator));
         if (!result.duplicate) notifications.emit("event", { type: "work_question_resent", worker, requestId: result.requestId });
         return json(response, result.duplicate ? 200 : 201, result);
       } catch (error) {
         if (error instanceof SubmissionAuthorityDisabledError) return json(response, 503, { error: error.message });
+        if (error instanceof DiscardReconciliationError) return json(response, 503, { error: error.message });
         return json(response, 409, { error: error instanceof Error ? error.message : "The Work question re-send was rejected." });
       }
     }
