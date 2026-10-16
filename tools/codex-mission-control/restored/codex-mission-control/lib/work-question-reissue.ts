@@ -138,18 +138,24 @@ export function buildExpiredWorkQuestionReissue(
  * supervisor and Work thread, a fresh window of the same length, and today's decision channel. The successor is a
  * second provider send of the same question, so it needs the owner's explicit authorization, and the submission
  * authority's record that the question has send records and that none of its sends is still open.
+ *
+ * A reply the relay saw finish refuses the re-send, because the app-owned readback could still carry it in. When no
+ * readback route can reach it, the owner may discard it explicitly (`discardFinishedReply`): the retirement records
+ * `finished_reply:DISCARDED_BY_OWNER`, and the reply can then never be taken in. A readback or digest-only transform of
+ * the reply always refuses the re-send. Before a discard, {@link resendSentWorkQuestion} awaits the daemon's GitHub
+ * reconciliation ({@link reconcileBeforeDiscard}), so a reply already posted is taken in rather than discarded.
  */
 export function buildSentWorkQuestionResend(
   events: readonly StoredEvent[],
-  input: { worker: string; requestId: string; recordedAt: string; authorizedBy: string },
+  input: { worker: string; requestId: string; recordedAt: string; authorizedBy: string; discardFinishedReply?: boolean },
   sendProof: SettledSendSubmissionState | undefined,
   policy: GitHubReceiptPolicy | null,
-): ExpiredWorkQuestionReissue {
+): ExpiredWorkQuestionReissue & { finishedReplyDiscarded: boolean } {
   const basis = reissueBasis(events, input, policy, "SENT", () => {
     if (!validSettledSendProof(sendProof, input.requestId)) {
       throw new Error("Submission authority did not show the Work question sent with no send of it still open.");
     }
-  });
+  }, { discardFinishedReply: input.discardFinishedReply });
   // The daemon's producer-identity pattern.
   if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,179}$/.test(input.authorizedBy)) {
     throw new Error("The re-send needs the authorizing owner identity.");
@@ -191,6 +197,7 @@ export function buildSentWorkQuestionResend(
         "authorization:OWNER_EXPLICIT_ONE_RESEND",
         `authorized_by:${input.authorizedBy}`,
         "historical_request_preserved:true",
+        ...(basis.finishedReplyDiscarded ? ["finished_reply:DISCARDED_BY_OWNER", "finished_reply_readback:NONE"] : []),
       ],
       verified: true,
       changed_path_manifest: null,
@@ -199,6 +206,7 @@ export function buildSentWorkQuestionResend(
   return {
     taskId: basis.pending.taskId, retiredRequestId: requestId, requestId: successor.requestId,
     queuedAt: recordedAt, expiresAt: successor.expiresAt, retirement, route: successor.route, provenance: successor.provenance,
+    finishedReplyDiscarded: basis.finishedReplyDiscarded,
   };
 }
 
@@ -209,6 +217,8 @@ interface ReissueBasis {
   provenanceData: Extract<MissionControlEvent, { type: "evidence_receipt_recorded" }>;
   root: Record<string, any>;
   windowMs: number;
+  /** The relay saw a reply finish, nothing read it back, and the owner chose to discard it with this re-send. */
+  finishedReplyDiscarded: boolean;
 }
 
 /**
@@ -224,6 +234,7 @@ function reissueBasis(
   policy: GitHubReceiptPolicy | null,
   kind: "UNSENT" | "SENT",
   checkSubmissionProof: () => void,
+  options: { discardFinishedReply?: boolean } = {},
 ): ReissueBasis {
   if (!policy?.requestBound?.enabled) {
     throw new Error("Reissuing a Work question requires the configured in-band request-bound relay policy.");
@@ -272,10 +283,15 @@ function reissueBasis(
     if (lifecycle.length > 0) {
       throw new Error("The Work question has send, delivery, response, decision or retirement evidence and cannot be reissued.");
     }
-  } else if (history.some((event) => answerMayStillBeAccepted(event, requestId))) {
-    // A reply the relay saw finish, or one already read back, can still be accepted after the window; retiring the
-    // question would throw that answer away.
-    throw new Error("A reply to the Work question finished or was read back; it may still be accepted, so it is not re-sent.");
+  }
+  // A reply the relay saw finish, or one already read back, can still be accepted after the window; retiring the
+  // question would throw that answer away. The owner may discard a finished reply that nothing read back (for example
+  // when no readback route can reach it); a readback, which can still carry the answer in, always stops the re-send.
+  const finished = kind === "SENT" ? history.filter((event) => answerMayStillBeAccepted(event, requestId)) : [];
+  if (finished.length > 0 && (options.discardFinishedReply !== true || finished.some(isReadback))) {
+    throw new Error(options.discardFinishedReply === true
+      ? "A reply to the Work question was read back; it may still be accepted, so it is not discarded or re-sent."
+      : "A reply to the Work question finished or was read back; it may still be accepted, so it is not re-sent.");
   }
 
   const newerWork = history.filter((event) => event.sequence > source.sequence
@@ -300,6 +316,7 @@ function reissueBasis(
   }
   return {
     pending, sourceEventId: source.eventId, threadId: source.data.thread_id, provenanceData: provenance.data, root, windowMs,
+    finishedReplyDiscarded: finished.length > 0,
   };
 }
 
@@ -486,6 +503,9 @@ export interface WorkQuestionResendResult {
   duplicate: boolean;
   /** What the submission authority recorded of the original's send; null when the call only reports an earlier one. */
   originalSendBoundary: "CROSSED" | "NOT_PROVEN_UNSENT" | null;
+  /** True when this call discarded a finished reply that nothing read back, at the owner's explicit choice; null when the
+   * call only reports an earlier re-send. */
+  finishedReplyDiscarded: boolean | null;
 }
 
 /**
@@ -494,30 +514,39 @@ export interface WorkQuestionResendResult {
  * store after it, and the retirement, the successor route and its provenance are appended in one transaction. Nothing
  * is sent here: the relay sends the successor as a new question. A repeat, or a question already reissued unsent,
  * reports the recorded successor and appends nothing. It refuses a question whose reply finished or was read back,
- * since that answer can still be accepted.
+ * since that answer can still be accepted, unless the owner discards a finished reply that nothing read back.
  */
 export async function resendSentWorkQuestion(
   store: Pick<EventStore, "workerEvents" | "appendMany">,
-  input: { worker: string; requestId: string; authorizedBy: string },
+  input: { worker: string; requestId: string; authorizedBy: string; discardFinishedReply?: boolean },
   proveRequestSendSettled: (requestId: string) => Promise<SettledSendSubmissionState>,
   policy: GitHubReceiptPolicy | null,
   now: () => string = () => new Date().toISOString(),
+  beforeDiscard: (() => Promise<void>) | null = null,
 ): Promise<WorkQuestionResendResult> {
   const { worker, requestId, authorizedBy } = input;
   if (!WORK_QUESTION_REQUEST_ID.test(requestId)) throw new Error("A re-send requires one exact work-question request ID.");
   const already = (recorded: { retirementEventId: string; requestId: string }): WorkQuestionResendResult => ({
     status: "WORK_QUESTION_ALREADY_REISSUED", worker, retiredRequestId: requestId, requestId: recorded.requestId,
     expiresAt: null, retirementEventId: recorded.retirementEventId, routeEventId: requestRouteEventId(recorded.requestId, 6),
-    duplicate: true, originalSendBoundary: null,
+    duplicate: true, originalSendBoundary: null, finishedReplyDiscarded: null,
   });
   const kinds = ["UNSENT", "AFTER_SEND"] as const;
   const recorded = recordedWorkQuestionReissue(store.workerEvents(worker), worker, requestId, kinds);
   if (recorded) return already(recorded);
+  if (input.discardFinishedReply === true && !beforeDiscard) {
+    throw new DiscardReconciliationError("A discard needs a GitHub reconciliation first, and none was given.");
+  }
   const proof = await proveRequestSendSettled(requestId);
-  // Another call may have reissued it while the proof was read.
+  // Before a discard, one GitHub reconciliation takes in a reply already posted (the build below then finds the
+  // question answered). It is the last await before the retirement, which is built and appended synchronously after it;
+  // a repeat of a recorded re-send was answered above without waiting for it.
+  if (input.discardFinishedReply === true) await beforeDiscard!();
+  // Another call may have reissued it while the proof or the reconciliation was read.
   const raced = recordedWorkQuestionReissue(store.workerEvents(worker), worker, requestId, kinds);
   if (raced) return already(raced);
-  const built = buildSentWorkQuestionResend(store.workerEvents(worker), { worker, requestId, recordedAt: now(), authorizedBy }, proof, policy);
+  const built = buildSentWorkQuestionResend(store.workerEvents(worker),
+    { worker, requestId, recordedAt: now(), authorizedBy, discardFinishedReply: input.discardFinishedReply === true }, proof, policy);
   const producers = workQuestionReissueProducers(worker, built.taskId);
   const [retirement, route] = store.appendMany([
     { event: built.retirement, producer: producers.retirement },
@@ -528,15 +557,86 @@ export async function resendSentWorkQuestion(
     status: "WORK_QUESTION_RESENT", worker, retiredRequestId: requestId, requestId: built.requestId,
     expiresAt: built.expiresAt, retirementEventId: retirement!.eventId, routeEventId: route!.eventId,
     duplicate: false, originalSendBoundary: proof.crossedAdmissionCount > 0 ? "CROSSED" : "NOT_PROVEN_UNSENT",
+    finishedReplyDiscarded: built.finishedReplyDiscarded,
   };
+}
+
+export class DiscardReconciliationError extends Error {}
+
+/**
+ * Before the owner's discard: one completed GitHub reconciliation pass, so a reply another writer already posted is
+ * taken in rather than thrown away (the discard then finds the question answered, not pending). A pass already running
+ * may have started before that reply was posted, so it waits for one of its own. No reconciliation, a failed pass or one
+ * that stays busy stops the discard; nothing is retired.
+ */
+export async function reconcileBeforeDiscard(
+  coordinator: { run: (trigger: "OWNER_RECOVERY") => Promise<{ status: "COMPLETED" | "ALREADY_RUNNING" }> } | null,
+  wait: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  attempts = 20,
+): Promise<void> {
+  if (!coordinator) throw new DiscardReconciliationError("A discard needs a GitHub reconciliation first, and reconciliation is not configured.");
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    let result: { status: "COMPLETED" | "ALREADY_RUNNING" };
+    try {
+      result = await coordinator.run("OWNER_RECOVERY");
+    } catch {
+      throw new DiscardReconciliationError("The GitHub reconciliation before the discard failed, so nothing was discarded.");
+    }
+    if (result.status === "COMPLETED") return;
+    await wait(3_000);
+  }
+  throw new DiscardReconciliationError("GitHub reconciliation stayed busy, so nothing was discarded; try again in a minute.");
+}
+
+/**
+ * The discard's last step before the retirement: read the decision issue itself and refuse when any comment there names
+ * the question. Reconciliation may have read the issue before a reply was posted, and once the question is retired no
+ * reply to it can be taken in, so a reply already on GitHub always stops the discard (reconciliation takes it in).
+ */
+export async function assertNoDecisionCommentFor(options: {
+  repository: string;
+  decisionIssueNumber: number;
+  requestId: string;
+  since: string | null;
+  tokenProvider: (() => Promise<string | undefined>) | null;
+  fetchImpl?: typeof fetch;
+  maxPages?: number;
+}): Promise<void> {
+  const token = options.tokenProvider ? await options.tokenProvider() : undefined;
+  if (!token) throw new DiscardReconciliationError("A discard needs to read the decision issue on GitHub first, and no GitHub reader is configured.");
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const since = options.since && Number.isFinite(Date.parse(options.since)) ? `&since=${encodeURIComponent(options.since)}` : "";
+  const headers = {
+    accept: "application/vnd.github+json", authorization: `Bearer ${token}`,
+    "user-agent": "mission-control-discard-check", "x-github-api-version": "2022-11-28",
+  };
+  for (let page = 1; page <= (options.maxPages ?? 50); page += 1) {
+    const response = await fetchImpl(`https://api.github.com/repos/${options.repository}/issues/${options.decisionIssueNumber}/comments?per_page=100${since}&page=${page}`,
+      { headers, signal: AbortSignal.timeout(30_000) }).catch(() => null);
+    if (!response?.ok) throw new DiscardReconciliationError("The decision issue could not be read on GitHub, so nothing was discarded.");
+    const comments = await response.json().catch(() => null) as unknown;
+    if (!Array.isArray(comments)) throw new DiscardReconciliationError("The decision issue could not be read on GitHub, so nothing was discarded.");
+    if (comments.some((comment) => typeof (comment as { body?: unknown })?.body === "string"
+      && ((comment as { body: string }).body).includes(options.requestId))) {
+      throw new DiscardReconciliationError("A comment on the decision issue names this question, so its reply is not discarded; reconciliation can take it in.");
+    }
+    if (comments.length < 100) return;
+  }
+  throw new DiscardReconciliationError("The decision issue has too many comments to check, so nothing was discarded.");
+}
+
+/** The readbacks and the digest-only transform of a reply: evidence that can still carry the answer in. */
+const READBACK_SUMMARIES: readonly string[] = [inBandAppReadbackSummary, inBandBrowserDomReadbackSummary, inBandMachineTransformSummary];
+
+function isReadback(event: StoredEvent): boolean {
+  return event.data.type === "evidence_receipt_recorded" && READBACK_SUMMARIES.includes(event.data.summary);
 }
 
 /** Any record that the reply to this question finished or was read back: the relay's completion, or a readback. */
 function answerMayStillBeAccepted(event: StoredEvent, requestId: string): boolean {
   const data = event.data;
   if (data.type !== "evidence_receipt_recorded" || !data.refs.includes(`request:${requestId}`)) return false;
-  return [inBandAppReadbackSummary, inBandBrowserDomReadbackSummary, inBandMachineTransformSummary].includes(data.summary)
-    || data.refs.includes("generation_state:COMPLETE") || data.refs.includes("lifecycle_status:COMPLETE");
+  return isReadback(event) || data.refs.includes("generation_state:COMPLETE") || data.refs.includes("lifecycle_status:COMPLETE");
 }
 
 function routeRoot(body: string): Record<string, any> | null {

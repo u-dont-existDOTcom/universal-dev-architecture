@@ -130,6 +130,31 @@ test("work-question reissue posts only the worker and, when named, the exact req
   });
 });
 
+test("work-question re-send posts the exact request id, and the discard only when the owner says yes", async () => {
+  await withServer(async (base, seen) => {
+    const requestId = `work-question:${"e".repeat(32)}`;
+    const plain = await run(["work-question-resend", "--worker", "mission-control-development", "--request", requestId], env(base));
+    assert.equal(plain.code, 0, plain.stderr);
+    const discard = await run(["work-question-resend", "--worker", "mission-control-development", "--request", requestId,
+      "--discard-finished-reply", "yes"], env(base));
+    assert.equal(discard.code, 0, discard.stderr);
+    assert.deepEqual(seen.map((s) => `${s.method} ${s.url}`), [
+      "POST /workers/mission-control-development/work-questions/resend-sent",
+      "POST /workers/mission-control-development/work-questions/resend-sent",
+    ]);
+    assert.deepEqual(JSON.parse(seen[0].body), { request_id: requestId });
+    assert.deepEqual(JSON.parse(seen[1].body), { request_id: requestId, discard_finished_reply: true });
+    for (const request of seen) assert.equal(request.headers["x-mission-control-producer-kind"], "OWNER_AUTHORITY");
+    for (const args of [["work-question-resend", "--worker", "w", "--request", requestId, "--discard-finished-reply", "no"],
+      ["work-question-resend", "--worker", "w", "--request", requestId, "--discard-finished-reply"],
+      ["work-question-resend", "--worker", "w", "--request", requestId, "--discard-finished-reply", "true"]]) {
+      const refused = await run(args, env(base));
+      assert.equal(refused.code, 2, `${args.join(" ")}: ${refused.stderr}`);
+    }
+    assert.equal(seen.length, 2);
+  });
+});
+
 test("there is no action that forwards caller-supplied content under the owner credential", async () => {
   await withServer(async (base, seen) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "owner-action-"));

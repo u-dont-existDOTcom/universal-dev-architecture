@@ -27,7 +27,9 @@ import {
   type ReasoningReplacementReasonCode,
 } from "../lib/github-decision-receipts";
 import { SubmissionAuthorityDisabledError, SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
-import { reissueExpiredWorkQuestion, resendSentWorkQuestion } from "../lib/work-question-reissue";
+import {
+  assertNoDecisionCommentFor, DiscardReconciliationError, reconcileBeforeDiscard, reissueExpiredWorkQuestion, resendSentWorkQuestion,
+} from "../lib/work-question-reissue";
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
 import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
 import { GitHubReconciliationCoordinator } from "../lib/github-reconciliation-coordinator";
@@ -265,13 +267,35 @@ const server = http.createServer(async (request, response) => {
       if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,179}$/.test(worker)) return json(response, 400, { error: "The worker is not a stable Mission Control identifier." });
       const body = await readJson(request) as Record<string, unknown>;
       if (typeof body.request_id !== "string") return json(response, 400, { error: "request_id names the one Work question to re-send." });
+      if (body.discard_finished_reply !== undefined && typeof body.discard_finished_reply !== "boolean") {
+        return json(response, 400, { error: "discard_finished_reply is true or false." });
+      }
       try {
-        const result = await resendSentWorkQuestion(store, { worker, requestId: body.request_id, authorizedBy: producer.id },
-          (requestId) => submissionAuthority.proveRequestSendSettled(requestId), githubPolicy);
+        // Before a discard (not before a repeat of a recorded re-send), one GitHub reconciliation takes in a reply that
+        // is already posted, and then, as the last step before the retirement, the decision issue itself is read: any
+        // comment there naming the question stops the discard.
+        const requestId = body.request_id;
+        // A discard runs with no decision copy in flight, so Mission Control's own copier can't post a reply to the
+        // question after it is retired.
+        const exclusive = <T>(section: () => Promise<T>) => body.discard_finished_reply === true && providerDecisionCopier
+          ? providerDecisionCopier.exclusive(section) : section();
+        const result = await exclusive(() => resendSentWorkQuestion(store, {
+          worker, requestId, authorizedBy: producer.id, discardFinishedReply: body.discard_finished_reply === true,
+        }, (id) => submissionAuthority.proveRequestSendSettled(id), githubPolicy, undefined, async () => {
+          await reconcileBeforeDiscard(githubReconciliationCoordinator);
+          if (!githubPolicy) throw new DiscardReconciliationError("A discard needs the GitHub decision channel, and none is configured.");
+          const queuedAt = pendingDecisionRequests(store.workerEvents(worker)).find((pending) => pending.requestId === requestId)?.queuedAt;
+          await assertNoDecisionCommentFor({
+            repository: githubPolicy.repository, decisionIssueNumber: githubPolicy.decisionIssueNumber, requestId,
+            since: queuedAt ? new Date(Date.parse(queuedAt) - 10 * 60_000).toISOString() : null,
+            tokenProvider: githubReconciliationTokenProvider,
+          });
+        }));
         if (!result.duplicate) notifications.emit("event", { type: "work_question_resent", worker, requestId: result.requestId });
         return json(response, result.duplicate ? 200 : 201, result);
       } catch (error) {
         if (error instanceof SubmissionAuthorityDisabledError) return json(response, 503, { error: error.message });
+        if (error instanceof DiscardReconciliationError) return json(response, 503, { error: error.message });
         return json(response, 409, { error: error instanceof Error ? error.message : "The Work question re-send was rejected." });
       }
     }

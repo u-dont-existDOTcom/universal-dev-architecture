@@ -25,8 +25,13 @@ const USAGE = `Usage: owner-action <action> [options]
                                                       retire one proven-unsent stale request and queue one current evidence-bound review
   work-question-reissue --worker W [--request R]      reissue one Work question that expired before anything sent it
                                                       (R, or the worker's only expired one) with a fresh answer window
-  work-question-resend --worker W --request R         re-send Work question R once: it was sent, but its answer window
-                                                      closed with no accepted answer; the supervisor is asked again
+  work-question-resend --worker W --request R [--discard-finished-reply yes]
+                                                      re-send Work question R once: it was sent, but its answer window
+                                                      closed with no accepted answer; the supervisor is asked again.
+                                                      With --discard-finished-reply yes, a reply the relay saw finish but
+                                                      nothing read back is discarded for good (a readback still stops it);
+                                                      Mission Control first runs one GitHub reconciliation, so a reply
+                                                      already posted is taken in instead
   reconcile-github                                    run one GitHub decision-receipt reconciliation pass`;
 
 // Deliberately absent: any action that forwards caller-supplied semantic content (such as a source-review
@@ -154,14 +159,16 @@ export async function runOwnerAction(argv: string[]): Promise<{ status: number; 
       }));
     }
     case "work-question-resend": {
-      const opts = options(rest, ["worker", "request"]);
+      const opts = options(rest, ["worker", "request", "discard-finished-reply"]);
       const worker = required(opts, "worker");
       if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,179}$/.test(worker)) throw new UsageError("--worker must be one exact worker ID.");
       const requestId = required(opts, "request");
       if (!/^work-question:[a-f0-9]{32}$/.test(requestId)) throw new UsageError("--request must be one exact work-question request ID.");
+      const discard = opts["discard-finished-reply"];
+      if (discard !== undefined && discard !== "yes") throw new UsageError("--discard-finished-reply takes only yes.");
       return jsonResult(await daemonFetch(`/workers/${encodeURIComponent(worker)}/work-questions/resend-sent`, {
         method: "POST", headers: daemonMutationHeaders(owner(), { "content-type": "application/json" }),
-        body: JSON.stringify({ request_id: requestId }),
+        body: JSON.stringify(discard === "yes" ? { request_id: requestId, discard_finished_reply: true } : { request_id: requestId }),
       }));
     }
     case "reconcile-github": {
