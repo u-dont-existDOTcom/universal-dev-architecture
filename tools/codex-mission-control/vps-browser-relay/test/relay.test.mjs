@@ -1049,6 +1049,7 @@ class FakeBrowser {
     this.submitCalls = 0; this.waitCalls = 0; this.freshChatCalls = 0; this.createdTargetCalls = 0; this.listTargetsCalls = 0; this.controlChecks = []; this.targets = []; this.closedTargets = []; this.lastSubmittedBody = null;
     this.selectAppsCalls = []; this.appSelectionEvidence = []; this.selectedApps = []; this.lastDoctorOptions = null;
     this.recoveryCalls = 0; this.recoveryObservation = null;
+    this.deferAnchor = false; this.trailingRecoveryTurns = [];
   }
   async doctor(options = {}) { this.lastDoctorOptions = structuredClone(options); return { browser: 'Fake', automationWindowId: this.automationWindowId, automationOwnedTabCount: 1, automationOwnedTargetIdsSha256: this.automationOwnedTargetIdsSha256, targetCount: this.targets.length, managedChatGptTabCount: this.targets.filter((target) => target.url.startsWith('https://chatgpt.com/')).length }; }
   async listTargets() { this.listTargetsCalls += 1; return structuredClone(this.targets); }
@@ -1095,10 +1096,16 @@ class FakeBrowser {
       status: 'GENERATION_STARTED', generationStarted: true, startSignal: 'STOP_CONTROL_VISIBLE',
       startedAtObserved: `2026-09-02T00:00:0${this.submitCalls}.000Z`, bodySha256: input.bodySha256,
       conversationUrl: target.url, targetId: target.id,
-      submittedUserTurnAnchor: {
-        key: 'user-turn', keySource: 'data-turn-key', structureKind: 'CHATGPT_DATA_TURN_KEY_V1',
-        role: 'user', messageOrdinal: 1, mentionBindingVerified: true,
-      },
+      ...(this.deferAnchor ? {
+        submittedUserTurnAnchor: null, submittedUserTurnAnchorApplies: true, submittedUserTurnAnchorDeferred: true,
+        anchorObservation: '(last read: 0 user turn(s); mention binding not verified; provisional link swap not seen)',
+      } : {
+        submittedUserTurnAnchor: {
+          key: 'user-turn', keySource: 'data-turn-key', structureKind: 'CHATGPT_DATA_TURN_KEY_V1',
+          role: 'user', messageOrdinal: 1, mentionBindingVerified: true,
+        },
+        submittedUserTurnAnchorApplies: true, submittedUserTurnAnchorDeferred: false, anchorObservation: null,
+      }),
     };
   }
   async waitForGenerationComplete(target) {
@@ -1138,6 +1145,7 @@ class FakeBrowser {
     return { urlMismatch: false, structureAmbiguous: false, structureKind: 'CHATGPT_DATA_TURN_KEY_V1', currentUrl: target.url, turns: [
       { key: 'user-turn', keySource: 'data-turn-key', role: 'user', text: `GitHub\n${this.lastSubmittedBody}`, mentionBinding: { count: 1, exactCount: 1, exact: true }, contentRootCount: 1 },
       { key: 'assistant-turn', keySource: 'data-content-search-unit-key', role: 'assistant', text: `MISSION_CONTROL_CANONICAL_DECISION_V1\n${JSON.stringify(decision)}`, contentRootCount: 1 },
+      ...structuredClone(this.trailingRecoveryTurns),
     ] };
   }
 }
@@ -1824,6 +1832,87 @@ test('V6 pre-anchor compound recovery preserves an attested WEB-to-stable conver
   assert.equal(browser.recoveryCalls, 1);
   assert.equal(mc.copyCalls.length, 1);
   assert.equal(store.state.deliveries['request:r-1'].turnBindingMode, 'BOUND_SINGLE_TURN_COMPOUND_ANCHOR');
+});
+
+test('V6 send whose user turn was not recognisable at start stays started and later recovers with the strict two-turn binding', async () => {
+  const { store, mc, browser, runtime } = inBandRequestFixture();
+  browser.deferAnchor = true;
+  const started = await runtime.cycle();
+  assert.equal(started.status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED', JSON.stringify(started));
+  const delivery = store.state.deliveries['request:r-1'];
+  const session = store.state.providerSessions[delivery.providerSessionId];
+  assert.equal(delivery.generationStarted, true);
+  assert.equal(typeof delivery.generationStartedAt, 'string');
+  assert.equal(delivery.submittedUserTurnAnchor, null);
+  assert.equal(delivery.submittedUserTurnAnchorDeferred, true);
+  assert.equal(delivery.generationStart.anchorObservation, '(last read: 0 user turn(s); mention binding not verified; provisional link swap not seen)');
+  assert.equal(session.submittedUserTurnAnchor, null);
+  assert.equal(store.state.health.pausedReason ?? null, null);
+  assert.ok(mc.recordedEvidence.some((entry) => entry.refs.includes('generation_state:STARTED')));
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  runtime.config.runtime.submitEnabled = false;
+  const recovered = await runtime.cycle();
+  assert.equal(recovered.status, 'DECISION_RECEIPT_INGESTED',
+    store.state.deliveries['request:r-1']?.recoveryError ?? JSON.stringify(recovered));
+  assert.equal(store.state.deliveries['request:r-1'].turnBindingMode, 'BOUND_SINGLE_TURN_COMPOUND_ANCHOR');
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(browser.recoveryCalls, 1);
+  assert.equal(mc.copyCalls.length, 1);
+});
+
+test('a deferred anchor never recovers a decision from a chat with a later user turn, and never resends', async () => {
+  const { store, mc, browser, runtime } = inBandRequestFixture();
+  browser.deferAnchor = true;
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  browser.trailingRecoveryTurns = [{
+    key: 'later-user-turn', keySource: 'data-turn-key', role: 'user', text: 'continue',
+    mentionBinding: { count: 0, exactCount: 0, exact: false }, contentRootCount: 1,
+  }];
+  runtime.config.runtime.submitEnabled = false;
+  const blocked = await runtime.cycle();
+  assert.equal(blocked.status, 'IN_BAND_REQUEST_DECISION_RECOVERY_BLOCKED', JSON.stringify(blocked));
+  assert.equal(blocked.recoveryClassification, 'READBACK_UNRESOLVED');
+  assert.match(store.state.deliveries['request:r-1'].recoveryError, /uniquely ordered, structurally bound user\/assistant turn pair/);
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(mc.copyCalls.length, 0);
+});
+
+test('a deferred send whose chat still shows no turns at readback is blocked for the owner and never resent', async () => {
+  const { store, mc, browser, runtime } = inBandRequestFixture();
+  browser.deferAnchor = true;
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  const delivery = store.state.deliveries['request:r-1'];
+  browser.recoveryObservation = {
+    urlMismatch: false, structureAmbiguous: false, structureKind: 'CHATGPT_DATA_TURN_KEY_V1',
+    currentUrl: delivery.conversationUrl, turns: [],
+  };
+  runtime.config.runtime.submitEnabled = false;
+  const blocked = await runtime.cycle();
+  assert.equal(blocked.status, 'IN_BAND_REQUEST_DECISION_RECOVERY_BLOCKED', JSON.stringify(blocked));
+  assert.equal(blocked.recoveryClassification, 'READBACK_UNRESOLVED');
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(mc.copyCalls.length, 0);
+});
+
+test('a deferred start anchor that state later pairs with a captured key fails closed at readback', async () => {
+  const { store, mc, browser, runtime } = inBandRequestFixture();
+  browser.deferAnchor = true;
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+  assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_COMPLETE_PENDING_COPY');
+  const delivery = store.state.deliveries['request:r-1'];
+  store.state.providerSessions[delivery.providerSessionId].submittedUserTurnAnchor = {
+    key: 'user-turn', keySource: 'data-turn-key', structureKind: 'CHATGPT_DATA_TURN_KEY_V1',
+    role: 'user', messageOrdinal: 1, mentionBindingVerified: true,
+  };
+  runtime.config.runtime.submitEnabled = false;
+  const blocked = await runtime.cycle();
+  assert.equal(blocked.status, 'IN_BAND_REQUEST_DECISION_RECOVERY_BLOCKED', JSON.stringify(blocked));
+  assert.match(store.state.deliveries['request:r-1'].recoveryError, /deferred start anchor cannot also carry a captured user-turn key/);
+  assert.equal(browser.recoveryCalls, 0);
+  assert.equal(browser.submitCalls, 1);
+  assert.equal(mc.copyCalls.length, 0);
 });
 
 test('V5 actual relay cycle sends one real request with MC and GitHub, never a preload', async () => {
