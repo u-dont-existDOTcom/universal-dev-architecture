@@ -483,7 +483,7 @@ test("the owner re-sends a sent Work question whose window closed, once, as the 
 
 test("the re-send refuses anything but one expired, settled, current Work question named by the owner", () => {
   const { events, requestId } = sentEvents();
-  const build = (history: StoredEvent[], overrides: Partial<ReturnType<typeof resendInput>> = {},
+  const build = (history: StoredEvent[], overrides: Partial<ReturnType<typeof resendInput> & { discardFinishedReply: boolean }> = {},
     submission: SettledSendSubmissionState | undefined = settledSend(overrides.requestId ?? requestId), receiptPolicy = policy()) =>
     buildSentWorkQuestionResend(history, { ...resendInput(requestId), ...overrides }, submission, receiptPolicy);
 
@@ -511,6 +511,28 @@ test("the re-send refuses anything but one expired, settled, current Work questi
     assert.throws(() => build(finished), /finished or was read back/);
   }
   assert.equal(build(completion(["generation_state:STARTED"], "MISSION_CONTROL_RELAY_STAGE_V1")).retiredRequestId, requestId);
+
+  // The owner may discard a finished reply that nothing read back; a readback, which can still carry it in, stops it.
+  for (const finished of [completion(["generation_state:COMPLETE"], "MISSION_CONTROL_RELAY_STAGE_V1"),
+    completion(["lifecycle_status:COMPLETE"], "MISSION_CONTROL_PROVIDER_SESSION_V1")]) {
+    const discarded = build(finished, { discardFinishedReply: true });
+    assert.equal(discarded.finishedReplyDiscarded, true);
+    const refs = (discarded.retirement.data as { refs: string[] }).refs;
+    for (const ref of ["finished_reply:DISCARDED_BY_OWNER", "finished_reply_readback:NONE", "authorization:OWNER_EXPLICIT_ONE_RESEND"]) {
+      assert.ok(refs.includes(ref), ref);
+    }
+    assert.ok(retiredAfterSendRequests(applied(finished, discarded)).has(requestId), "the discarding retirement still counts");
+    assert.deepEqual(pendingDecisionRequests(applied(finished, discarded)).map((request) => request.requestId), [discarded.requestId]);
+  }
+  for (const readBack of [completion(["status:COMPLETE"], "MISSION_CONTROL_PROVIDER_SESSION_APP_READBACK_V1"),
+    completion(["status:COMPLETE"], "MISSION_CONTROL_PROVIDER_SESSION_BROWSER_DOM_READBACK_V1"),
+    completion(["status:COMPLETE"], "MISSION_CONTROL_PROVIDER_SESSION_MACHINE_TRANSFORM_V1")]) {
+    const both = [...completion(["generation_state:COMPLETE"], "MISSION_CONTROL_RELAY_STAGE_V1"), readBack.at(-1)!];
+    assert.throws(() => build(both, { discardFinishedReply: true }), /was read back; it may still be accepted, so it is not discarded/);
+  }
+  const plain = build(events, { discardFinishedReply: true });
+  assert.equal(plain.finishedReplyDiscarded, false, "nothing to discard: an ordinary re-send");
+  assert.ok(!(plain.retirement.data as { refs: string[] }).refs.some((ref) => ref.startsWith("finished_reply")));
   assert.throws(() => build(events, { requestId: "fleet-review:" + "1".repeat(32) }), /exact work-question/);
   assert.throws(() => build(events, {}, settledSend(requestId), { ...policy(), requestBound: { enabled: false, relayProducerIds: [] } }), /request-bound/);
 

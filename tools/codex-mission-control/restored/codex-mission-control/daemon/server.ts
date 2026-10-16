@@ -265,9 +265,13 @@ const server = http.createServer(async (request, response) => {
       if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,179}$/.test(worker)) return json(response, 400, { error: "The worker is not a stable Mission Control identifier." });
       const body = await readJson(request) as Record<string, unknown>;
       if (typeof body.request_id !== "string") return json(response, 400, { error: "request_id names the one Work question to re-send." });
+      if (body.discard_finished_reply !== undefined && typeof body.discard_finished_reply !== "boolean") {
+        return json(response, 400, { error: "discard_finished_reply is true or false." });
+      }
       try {
-        const result = await resendSentWorkQuestion(store, { worker, requestId: body.request_id, authorizedBy: producer.id },
-          (requestId) => submissionAuthority.proveRequestSendSettled(requestId), githubPolicy);
+        const result = await resendSentWorkQuestion(store, {
+          worker, requestId: body.request_id, authorizedBy: producer.id, discardFinishedReply: body.discard_finished_reply === true,
+        }, (requestId) => submissionAuthority.proveRequestSendSettled(requestId), githubPolicy);
         if (!result.duplicate) notifications.emit("event", { type: "work_question_resent", worker, requestId: result.requestId });
         return json(response, result.duplicate ? 200 : 201, result);
       } catch (error) {

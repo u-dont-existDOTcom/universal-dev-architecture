@@ -141,15 +141,15 @@ export function buildExpiredWorkQuestionReissue(
  */
 export function buildSentWorkQuestionResend(
   events: readonly StoredEvent[],
-  input: { worker: string; requestId: string; recordedAt: string; authorizedBy: string },
+  input: { worker: string; requestId: string; recordedAt: string; authorizedBy: string; discardFinishedReply?: boolean },
   sendProof: SettledSendSubmissionState | undefined,
   policy: GitHubReceiptPolicy | null,
-): ExpiredWorkQuestionReissue {
+): ExpiredWorkQuestionReissue & { finishedReplyDiscarded: boolean } {
   const basis = reissueBasis(events, input, policy, "SENT", () => {
     if (!validSettledSendProof(sendProof, input.requestId)) {
       throw new Error("Submission authority did not show the Work question sent with no send of it still open.");
     }
-  });
+  }, { discardFinishedReply: input.discardFinishedReply });
   // The daemon's producer-identity pattern.
   if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,179}$/.test(input.authorizedBy)) {
     throw new Error("The re-send needs the authorizing owner identity.");
@@ -191,6 +191,7 @@ export function buildSentWorkQuestionResend(
         "authorization:OWNER_EXPLICIT_ONE_RESEND",
         `authorized_by:${input.authorizedBy}`,
         "historical_request_preserved:true",
+        ...(basis.finishedReplyDiscarded ? ["finished_reply:DISCARDED_BY_OWNER", "finished_reply_readback:NONE"] : []),
       ],
       verified: true,
       changed_path_manifest: null,
@@ -199,6 +200,7 @@ export function buildSentWorkQuestionResend(
   return {
     taskId: basis.pending.taskId, retiredRequestId: requestId, requestId: successor.requestId,
     queuedAt: recordedAt, expiresAt: successor.expiresAt, retirement, route: successor.route, provenance: successor.provenance,
+    finishedReplyDiscarded: basis.finishedReplyDiscarded,
   };
 }
 
@@ -209,6 +211,8 @@ interface ReissueBasis {
   provenanceData: Extract<MissionControlEvent, { type: "evidence_receipt_recorded" }>;
   root: Record<string, any>;
   windowMs: number;
+  /** The relay saw a reply finish, nothing read it back, and the owner chose to discard it with this re-send. */
+  finishedReplyDiscarded: boolean;
 }
 
 /**
@@ -224,6 +228,7 @@ function reissueBasis(
   policy: GitHubReceiptPolicy | null,
   kind: "UNSENT" | "SENT",
   checkSubmissionProof: () => void,
+  options: { discardFinishedReply?: boolean } = {},
 ): ReissueBasis {
   if (!policy?.requestBound?.enabled) {
     throw new Error("Reissuing a Work question requires the configured in-band request-bound relay policy.");
@@ -272,10 +277,15 @@ function reissueBasis(
     if (lifecycle.length > 0) {
       throw new Error("The Work question has send, delivery, response, decision or retirement evidence and cannot be reissued.");
     }
-  } else if (history.some((event) => answerMayStillBeAccepted(event, requestId))) {
-    // A reply the relay saw finish, or one already read back, can still be accepted after the window; retiring the
-    // question would throw that answer away.
-    throw new Error("A reply to the Work question finished or was read back; it may still be accepted, so it is not re-sent.");
+  }
+  // A reply the relay saw finish, or one already read back, can still be accepted after the window; retiring the
+  // question would throw that answer away. The owner may discard a finished reply that nothing read back (for example
+  // when no readback route can reach it); a readback, which can still carry the answer in, always stops the re-send.
+  const finished = kind === "SENT" ? history.filter((event) => answerMayStillBeAccepted(event, requestId)) : [];
+  if (finished.length > 0 && (options.discardFinishedReply !== true || finished.some(isReadback))) {
+    throw new Error(options.discardFinishedReply === true
+      ? "A reply to the Work question was read back; it may still be accepted, so it is not discarded or re-sent."
+      : "A reply to the Work question finished or was read back; it may still be accepted, so it is not re-sent.");
   }
 
   const newerWork = history.filter((event) => event.sequence > source.sequence
@@ -300,6 +310,7 @@ function reissueBasis(
   }
   return {
     pending, sourceEventId: source.eventId, threadId: source.data.thread_id, provenanceData: provenance.data, root, windowMs,
+    finishedReplyDiscarded: finished.length > 0,
   };
 }
 
@@ -486,6 +497,8 @@ export interface WorkQuestionResendResult {
   duplicate: boolean;
   /** What the submission authority recorded of the original's send; null when the call only reports an earlier one. */
   originalSendBoundary: "CROSSED" | "NOT_PROVEN_UNSENT" | null;
+  /** True when this call discarded a finished reply that nothing read back, at the owner's explicit choice. */
+  finishedReplyDiscarded: boolean;
 }
 
 /**
@@ -498,7 +511,7 @@ export interface WorkQuestionResendResult {
  */
 export async function resendSentWorkQuestion(
   store: Pick<EventStore, "workerEvents" | "appendMany">,
-  input: { worker: string; requestId: string; authorizedBy: string },
+  input: { worker: string; requestId: string; authorizedBy: string; discardFinishedReply?: boolean },
   proveRequestSendSettled: (requestId: string) => Promise<SettledSendSubmissionState>,
   policy: GitHubReceiptPolicy | null,
   now: () => string = () => new Date().toISOString(),
@@ -508,7 +521,7 @@ export async function resendSentWorkQuestion(
   const already = (recorded: { retirementEventId: string; requestId: string }): WorkQuestionResendResult => ({
     status: "WORK_QUESTION_ALREADY_REISSUED", worker, retiredRequestId: requestId, requestId: recorded.requestId,
     expiresAt: null, retirementEventId: recorded.retirementEventId, routeEventId: requestRouteEventId(recorded.requestId, 6),
-    duplicate: true, originalSendBoundary: null,
+    duplicate: true, originalSendBoundary: null, finishedReplyDiscarded: false,
   });
   const kinds = ["UNSENT", "AFTER_SEND"] as const;
   const recorded = recordedWorkQuestionReissue(store.workerEvents(worker), worker, requestId, kinds);
@@ -517,7 +530,8 @@ export async function resendSentWorkQuestion(
   // Another call may have reissued it while the proof was read.
   const raced = recordedWorkQuestionReissue(store.workerEvents(worker), worker, requestId, kinds);
   if (raced) return already(raced);
-  const built = buildSentWorkQuestionResend(store.workerEvents(worker), { worker, requestId, recordedAt: now(), authorizedBy }, proof, policy);
+  const built = buildSentWorkQuestionResend(store.workerEvents(worker),
+    { worker, requestId, recordedAt: now(), authorizedBy, discardFinishedReply: input.discardFinishedReply === true }, proof, policy);
   const producers = workQuestionReissueProducers(worker, built.taskId);
   const [retirement, route] = store.appendMany([
     { event: built.retirement, producer: producers.retirement },
@@ -528,10 +542,17 @@ export async function resendSentWorkQuestion(
     status: "WORK_QUESTION_RESENT", worker, retiredRequestId: requestId, requestId: built.requestId,
     expiresAt: built.expiresAt, retirementEventId: retirement!.eventId, routeEventId: route!.eventId,
     duplicate: false, originalSendBoundary: proof.crossedAdmissionCount > 0 ? "CROSSED" : "NOT_PROVEN_UNSENT",
+    finishedReplyDiscarded: built.finishedReplyDiscarded,
   };
 }
 
 /** Any record that the reply to this question finished or was read back: the relay's completion, or a readback. */
+/** A readback or digest-only transform of the reply: evidence that can still carry the answer in. */
+function isReadback(event: StoredEvent): boolean {
+  return event.data.type === "evidence_receipt_recorded"
+    && [inBandAppReadbackSummary, inBandBrowserDomReadbackSummary, inBandMachineTransformSummary].includes(event.data.summary);
+}
+
 function answerMayStillBeAccepted(event: StoredEvent, requestId: string): boolean {
   const data = event.data;
   if (data.type !== "evidence_receipt_recorded" || !data.refs.includes(`request:${requestId}`)) return false;
