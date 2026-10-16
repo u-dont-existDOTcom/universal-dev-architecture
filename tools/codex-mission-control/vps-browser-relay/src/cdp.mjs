@@ -1776,25 +1776,52 @@ export class ChromeDevtoolsBrowser {
         // The result still reports the bound link, so the generation wait sees and records the swap as before.
         let anchorUrl = boundConversationUrl;
         let lastAnchor = null;
-        let submittedUserTurnAnchor;
-        try {
-          submittedUserTurnAnchor = await waitFor(async () => {
-            const anchor = await client.callFunction(SUBMITTED_USER_TURN_ANCHOR_FN, [anchorUrl, composerMentions[0] ?? null]);
-            lastAnchor = anchor;
-            if (anchor?.urlMismatch) {
-              const swapped = provisionalConversationUrlSwap(anchorUrl, anchor.currentUrl);
-              if (swapped) anchorUrl = swapped;
-              return false;
+        let lastAnchorReadFailed = false;
+        let submittedUserTurnAnchor = null;
+        let anchorObservation = null;
+        // The anchor identifies a new chat's first message (the read below needs exactly one user turn). A send into an
+        // existing chat (a continue nudge, a registered chat's check, a controller or journal continuation) has no such
+        // anchor, so it returns once generation has started, as it did before the anchor existed.
+        const anchorApplies = normalized === 'https://chatgpt.com/';
+        if (anchorApplies) {
+          try {
+            submittedUserTurnAnchor = await waitFor(async () => {
+              let anchor;
+              try {
+                anchor = await client.callFunction(SUBMITTED_USER_TURN_ANCHOR_FN, [anchorUrl, composerMentions[0] ?? null]);
+              } catch (error) {
+                lastAnchorReadFailed = true;
+                throw error;
+              }
+              lastAnchorReadFailed = false;
+              lastAnchor = anchor;
+              if (anchor?.urlMismatch) {
+                const swapped = provisionalConversationUrlSwap(anchorUrl, anchor.currentUrl);
+                if (swapped) anchorUrl = swapped;
+                return false;
+              }
+              if (anchor?.structureAmbiguous || anchor?.candidateCount !== 1
+                || typeof anchor?.key !== 'string' || !anchor.key || anchor.role !== 'user'
+                || anchor.messageOrdinal !== 1 || anchor.mentionBindingVerified !== true) return false;
+              return anchor;
+            }, this.pageReadyTimeoutMs, 200, 'Submitted user-turn structural anchor was not recoverable after generation start.');
+          } catch (error) {
+            anchorObservation = describeAnchorObservation(lastAnchor, anchorUrl !== boundConversationUrl);
+            // The anchor is evidence for a later readback only; the send itself was verified above. When the last read is
+            // at the bound conversation and shows no user turn at all (what the page showed while the reply generated on
+            // 14 and 15 October), the anchor is deferred instead of turning a started send into an ambiguous one; a later
+            // readback must then use the strict two-turn binding. Anything else (another link, a failed last read, mixed
+            // page structure, more than one user turn, an unverified mention) still stops here as before.
+            const noUserTurnShown = !lastAnchorReadFailed && lastAnchor !== null && typeof lastAnchor === 'object'
+              && lastAnchor.urlMismatch !== true && lastAnchor.structureAmbiguous !== true && lastAnchor.candidateCount === 0;
+            if (!noUserTurnShown) {
+              error.message = `${error.message} ${anchorObservation}`;
+              throw error;
             }
-            if (anchor?.structureAmbiguous || anchor?.candidateCount !== 1
-              || typeof anchor?.key !== 'string' || !anchor.key || anchor.role !== 'user'
-              || anchor.messageOrdinal !== 1 || anchor.mentionBindingVerified !== true) return false;
-            return anchor;
-          }, this.pageReadyTimeoutMs, 200, 'Submitted user-turn structural anchor was not recoverable after generation start.');
-        } catch (error) {
-          error.message = `${error.message} ${describeAnchorObservation(lastAnchor, anchorUrl !== boundConversationUrl)}`;
-          throw error;
+            submittedUserTurnAnchor = null;
+          }
         }
+        const anchorDeferred = anchorApplies && submittedUserTurnAnchor === null;
         return {
           status: 'GENERATION_STARTED',
           targetId: target.id,
@@ -1806,7 +1833,7 @@ export class ChromeDevtoolsBrowser {
           startSignal: started.startSignal,
           startedAtObserved: new Date().toISOString(),
           anchorReadAfterLinkSwap: anchorUrl !== boundConversationUrl,
-          submittedUserTurnAnchor: {
+          submittedUserTurnAnchor: submittedUserTurnAnchor === null ? null : {
             key: submittedUserTurnAnchor.key,
             keySource: submittedUserTurnAnchor.keySource,
             structureKind: submittedUserTurnAnchor.structureKind,
@@ -1814,11 +1841,15 @@ export class ChromeDevtoolsBrowser {
             messageOrdinal: submittedUserTurnAnchor.messageOrdinal,
             mentionBindingVerified: submittedUserTurnAnchor.mentionBindingVerified,
           },
+          submittedUserTurnAnchorApplies: anchorApplies,
+          submittedUserTurnAnchorDeferred: anchorDeferred,
+          anchorObservation: anchorDeferred ? anchorObservation : null,
           providerSourceTime: null,
           inspectedAssistantOutput: false,
           limitations: [
             'The relay observed only composer/model/generation controls; it did not read or extract conversation message content.',
             'startedAtObserved is a relay UI observation time, not a provider-issued source timestamp.',
+            ...(anchorDeferred ? ['The submitted user turn was not structurally recognisable while the reply generated; its anchor is deferred, so a later readback must use the strict single-turn binding.'] : []),
           ],
         };
       });

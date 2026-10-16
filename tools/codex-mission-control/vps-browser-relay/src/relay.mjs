@@ -1272,6 +1272,8 @@ export class RelayRuntime {
         generationStartedAt: start.startedAtObserved,
         generationStart: start,
         submittedUserTurnAnchor: start.submittedUserTurnAnchor,
+        // A deferred anchor leaves any later readback to the strict two-turn binding (providerTurnBindingForRecovery).
+        submittedUserTurnAnchorDeferred: start.submittedUserTurnAnchorDeferred === true,
         conversationUrl: session.conversationUrl,
       };
       state = await this.stateStore.write(state);
@@ -1686,6 +1688,9 @@ function providerTurnBindingForRecovery({ route, prior, session, target, promptS
   };
   const captured = prior.submittedUserTurnAnchor ?? prior.generationStart?.submittedUserTurnAnchor
     ?? session.submittedUserTurnAnchor ?? null;
+  const deferred = prior.submittedUserTurnAnchorDeferred === true || prior.generationStart?.submittedUserTurnAnchorDeferred === true;
+  // A send whose anchor was deferred at the start has no captured key: only the strict two-turn binding below applies.
+  if (deferred && captured) fail('a deferred start anchor cannot also carry a captured user-turn key');
   if (captured) {
     if (typeof captured.key !== 'string' || !captured.key
       || typeof captured.keySource !== 'string' || !captured.keySource

@@ -94,10 +94,18 @@ completed MC binding preload -> exact origin target -> #61 exact OWNER-byte arti
 GitHub is the handoff between stages. Conversation history is never required for
 an external-tool operation. Legacy stage routes never read assistant response
 text. Route-schema-v6 is the one narrow exception: after generation completion,
-the relay binds the exact submitted user turn by its frozen prompt hash, requires
-one following assistant turn, extracts one terminal canonical machine block, and
-sends those exact LF-normalized bytes to Mission Control's deterministic copier.
-It never selects a response by recency and never semantically rewrites the block.
+the relay binds the exact submitted user turn, requires one following assistant
+turn, extracts one terminal canonical machine block, and sends those exact
+LF-normalized bytes to Mission Control's deterministic copier. It never selects
+a response by recency and never semantically rewrites the block. The user turn
+is bound by the page key the relay records right after a verified generation
+start in a new chat. If the page then shows no user turn at all at the bound
+chat (seen while replies generated in October 2026; why is not known), the send
+is still recorded as started, with the key deferred, rather than marked
+ambiguous; the readback then accepts only a chat holding exactly one keyed user
+turn followed by one assistant turn. A send into an existing chat (a continue
+nudge, a check in a registered chat, a controller or journal continuation) has
+no first-message key and returns once generation starts.
 
 ## InnerSignal journal work runner
 
