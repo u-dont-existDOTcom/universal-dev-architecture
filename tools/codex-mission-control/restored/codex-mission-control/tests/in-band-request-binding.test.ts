@@ -57,7 +57,7 @@ function evidence(store: EventStore, id: string, summary: string, refs: string[]
   } }, at, { id: producerId, kind: "COLLECTOR", workerScopes: [worker], taskScopes: ["*"] });
 }
 
-function fixture() {
+function fixture({ expiresAt = time("30.000") } = {}) {
   const store = new EventStore(":memory:");
   append(store, "owner-source", {
     type: "owner_source_recorded", worker, receipt_id: "owner-source-1", owner_request_id: "owner-request-1", canonical_locator: "synthetic-owner-source",
@@ -85,7 +85,7 @@ function fixture() {
     githubReceipt: { repository: policy.repository, issueNumber: 53, stageIssueNumber: 61 },
     factualPacket: { taskId: "task-1", evidenceRefs: ["https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/53#issuecomment-5744485891"] },
     executionContext: { task_id: "task-1", run_id: "run-1", family_id: "family-1", round: 0 },
-    queuedAt: time("00.000"), expiresAt: time("30.000"),
+    queuedAt: time("00.000"), expiresAt,
   };
   append(store, "supervision-request-v6", {
     type: "worker_message_recorded", worker, message_id: "message-v6", thread_id: "thread-v6", message_kind: "QUESTION",
@@ -447,11 +447,23 @@ test("V6 admits the copier's own order: browser-DOM readback, then its publicati
       "a comment created after the window still needs app-owned evidence");
   } finally { ordinary.f.store.close(); }
 
-  const beforeCompletion = withReadback(time("04.500"));
+  const reordered = withReadback(time("07.000"));
   try {
-    assert.throws(() => ingest(beforeCompletion, time("06.000"), time("07.000")), /timing is invalid or stale/,
-      "the readback follows the relay's completion");
-  } finally { beforeCompletion.f.store.close(); }
+    // Recorded after the relay's completion in the ledger, whatever the hosts' clocks say; one recorded before it fails.
+    const complete = reordered.events.find((event) => event.eventId === "evidence:stage-complete")!;
+    const early = structuredClone(reordered.events);
+    early.find((event) => event.data.type === "evidence_receipt_recorded" && event.data.summary === inBandBrowserDomReadbackSummary)!
+      .sequence = complete.sequence - 1;
+    assert.throws(() => buildGitHubDecisionReceiptEnvelope(early, posted(reordered.f, time("09.000")), policy, time("10.000"),
+      { submissionAuthorityState: reordered.f.authority }), /timing is invalid or stale/, "the readback follows the relay's completion");
+    const skewed = withReadback(time("04.500"));
+    try {
+      assert.equal(ingest(skewed, time("09.000"), time("10.000")).data.type, "github_decision_receipt_ingested",
+        "a readback stamped by a clock behind the relay's still follows its completion in the ledger");
+    } finally { skewed.f.store.close(); }
+    assert.throws(() => ingest(reordered, time("04.000"), time("10.000")), /timing is invalid or stale/,
+      "a comment created before the relay's completion is refused");
+  } finally { reordered.f.store.close(); }
 
   const afterWindow = withReadback(time("30.500"));
   try {
@@ -461,7 +473,8 @@ test("V6 admits the copier's own order: browser-DOM readback, then its publicati
 });
 
 test("Mission Control's copier publishes a fresh decision and ingests it under the V6 rule", async () => {
-  const f = fixture();
+  // The copier keeps new posts two minutes clear of the window's end, so this request's window is ten minutes.
+  const f = fixture({ expiresAt: "2026-09-19T00:10:00.000Z" });
   try {
     const comments: Array<Record<string, unknown>> = [];
     let clock = time("10.000");

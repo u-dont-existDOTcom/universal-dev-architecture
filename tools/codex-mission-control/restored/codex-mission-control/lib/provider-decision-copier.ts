@@ -23,6 +23,13 @@ const githubApiVersion = '2022-11-28';
 /** Discovery reads comments updated from this long before the request was queued; an exact or conflicting comment for
  * the request can't be older (ingestion refuses one created before the request), and the margin absorbs clock skew. */
 const discoveryMarginMs = 10 * 60_000;
+/** A new readback or post needs this much of the request window left: the post may take its full 30-second timeout and
+ * GitHub's clock may differ from ours, and a comment GitHub dates after the window can never be taken in. */
+const publicationMarginMs = 2 * 60_000;
+
+function windowTooShort(now: string, request: PendingDecisionRequest): boolean {
+  return Date.parse(now) + publicationMarginMs > Date.parse(request.expiresAt);
+}
 const readbackProducer: AuthenticatedProducer = {
   id: inBandBrowserDomReadbackProducerId,
   kind: 'COLLECTOR',
@@ -121,15 +128,22 @@ export class ProviderDecisionCopier {
     const already = events.find((event) => event.data.type === 'github_decision_receipt_ingested'
       && event.data.request_id === input.requestId
       && event.data.provider_session_id === input.providerSessionId);
-    if (pending.length !== 1 && !already) throw new Error(`Expected one pending provider decision request; found ${pending.length}.`);
-    if (pending[0] && (pending[0].supervisorId !== input.supervisorId || pending[0].worker !== input.workerId)) {
+    // A repeat of an accepted decision is answered from the ledger, without GitHub.
+    if (already?.data.type === 'github_decision_receipt_ingested') return alreadyIngested(input, already);
+    if (pending.length !== 1) throw new Error(`Expected one pending provider decision request; found ${pending.length}.`);
+    const request = pending[0]!;
+    if (request.supervisorId !== input.supervisorId || request.worker !== input.workerId) {
       throw new Error('Provider decision copy request/supervisor/worker binding mismatch.');
     }
+    // The readback is recorded only right before this copier's own post. Without one, and without time left to post,
+    // nothing can come of a GitHub round trip, so none is made.
+    if (!this.readbackRecorded(input) && windowTooShort(this.now(), request)) {
+      throw new Error('Too little of the request window is left to record the relay readback and post the decision; only app-owned completion evidence can carry it now.');
+    }
 
-    this.ensureReadbackEvidence(input, this.now(), pending[0]);
     const token = await this.options.tokenProvider();
     if (!token) throw new Error('GitHub write authentication is not configured.');
-    const candidate = await this.findOrPublishExactComment(input, token, pending[0]);
+    const candidate = await this.findOrPublishExactComment(input, token, request);
     // Ingestion is timed after the comment's immutable readback, never before the comment existed.
     const ingestedAt = this.now();
     const beforeIngest = this.options.eventHistory();
@@ -181,16 +195,15 @@ export class ProviderDecisionCopier {
     return this.options.now?.() ?? new Date().toISOString();
   }
 
-  private ensureReadbackEvidence(input: ProviderDecisionCopyInput, occurredAt: string, request: PendingDecisionRequest | undefined) {
-    const receiptId = `provider-browser-dom-readback:${sha256(`${input.requestId}\0${input.providerSessionId}\0${input.canonicalBodySha256}`)}`;
-    const existing = this.options.eventHistory().find((event) => event.data.type === 'evidence_receipt_recorded'
+  private readbackRecorded(input: ProviderDecisionCopyInput): boolean {
+    const receiptId = readbackReceiptId(input);
+    return this.options.eventHistory().some((event) => event.data.type === 'evidence_receipt_recorded'
       && event.data.receipt_id === receiptId);
-    if (existing) return;
-    // A readback recorded after the window can't carry the decision, and it would make the app-owned readback, the only
-    // route left after the window, ambiguous.
-    if (request && Date.parse(occurredAt) > Date.parse(request.expiresAt)) {
-      throw new Error('The request window closed before the relay readback was recorded; only app-owned completion evidence can carry this decision now.');
-    }
+  }
+
+  private ensureReadbackEvidence(input: ProviderDecisionCopyInput, occurredAt: string) {
+    if (this.readbackRecorded(input)) return;
+    const receiptId = readbackReceiptId(input);
     const envelope: AppendEnvelope = {
       schema_version: 2,
       event_id: `evidence:${sha256(`${readbackProducer.id}:${receiptId}`).slice(0, 32)}`,
@@ -220,7 +233,7 @@ export class ProviderDecisionCopier {
     this.options.onAppended?.([appended]);
   }
 
-  private async findOrPublishExactComment(input: ProviderDecisionCopyInput, token: string, request: PendingDecisionRequest | undefined): Promise<GitHubDecisionCandidate> {
+  private async findOrPublishExactComment(input: ProviderDecisionCopyInput, token: string, request: PendingDecisionRequest): Promise<GitHubDecisionCandidate> {
     const fetchImpl = this.options.fetchImpl ?? fetch;
     const [owner, repository] = this.options.policy.repository.split('/');
     const issue = this.options.policy.decisionIssueNumber;
@@ -229,9 +242,10 @@ export class ProviderDecisionCopier {
       'content-type': 'application/json', 'user-agent': 'mission-control-provider-decision-copier',
       'x-github-api-version': githubApiVersion,
     };
-    const matches: Array<Record<string, unknown>> = [];
-    const conflicts: Array<Record<string, unknown>> = [];
-    const queuedAt = request ? Date.parse(request.queuedAt) : Number.NaN;
+    // Keyed by comment id: a comment edited while pages are read can move between pages and be listed twice.
+    const matches = new Map<unknown, Record<string, unknown>>();
+    const conflicts = new Map<unknown, Record<string, unknown>>();
+    const queuedAt = Date.parse(request.queuedAt);
     const since = Number.isFinite(queuedAt) ? `&since=${encodeURIComponent(new Date(queuedAt - discoveryMarginMs).toISOString())}` : '';
     for (let page = 1; ; page += 1) {
       const response = await fetchImpl(`https://api.github.com/repos/${owner}/${repository}/issues/${issue}/comments?per_page=100${since}&page=${page}`, {
@@ -246,14 +260,14 @@ export class ProviderDecisionCopier {
         let parsed;
         try { parsed = parseCanonicalDecisionComment(comment.body); } catch { continue; }
         if (parsed.schema_version === 5 && parsed.request_id === input.requestId && parsed.provider_session_id === input.providerSessionId) {
-          (comment.body === input.canonicalBody ? matches : conflicts).push(comment);
+          (comment.body === input.canonicalBody ? matches : conflicts).set(comment.id, comment);
         }
       }
       if (comments.length < 100) break;
     }
-    if (conflicts.length) throw new Error('A conflicting GitHub decision already exists for the exact request/provider session.');
-    if (matches.length > 1) throw new Error('Multiple exact GitHub decision comments exist for the exact request/provider session.');
-    let comment = matches[0];
+    if (conflicts.size) throw new Error('A conflicting GitHub decision already exists for the exact request/provider session.');
+    if (matches.size > 1) throw new Error('Multiple exact GitHub decision comments exist for the exact request/provider session.');
+    let comment = [...matches.values()][0];
     if (!comment) {
       // Token acquisition and discovery yield to owner updates and request replacement.
       // Revalidate synchronously at the last controllable boundary before the write.
@@ -261,7 +275,7 @@ export class ProviderDecisionCopier {
       const current = (this.options.pendingRequests ?? pendingDecisionRequests)(events)
         .filter((candidate) => candidate.requestId === input.requestId);
       if (current.length !== 1) throw new Error(`Expected one current pending provider decision request; found ${current.length}.`);
-      if (!request || canonicalJson(current[0]) !== canonicalJson(request)) {
+      if (canonicalJson(current[0]) !== canonicalJson(request)) {
         throw new Error('Provider decision request binding changed before GitHub publication.');
       }
       const outcome = [...events].reverse().find((event) => event.worker === request.worker
@@ -272,10 +286,14 @@ export class ProviderDecisionCopier {
         || outcome.owner_outcome_sha256 !== request.ownerOutcome.sha256) {
         throw new Error('Provider decision publication is stale against the current owner-outcome epoch.');
       }
-      // A comment posted after the window needs app-owned evidence, which can't stand beside this relay readback.
-      if (Date.parse(this.now()) > Date.parse(request.expiresAt)) {
-        throw new Error('The request window closed before the decision was posted; it is not posted now.');
+      // A comment GitHub dates after the window needs app-owned evidence, which can't stand beside this relay readback,
+      // so a post that could land after the window is not started.
+      if (windowTooShort(this.now(), request)) {
+        throw new Error('Too little of the request window is left to post the decision; it is not posted.');
       }
+      // The relay's readback is recorded right before the write, so a reconciliation can take in the comment even if
+      // the post's answer is lost.
+      this.ensureReadbackEvidence(input, this.now());
       const response = await fetchImpl(`https://api.github.com/repos/${owner}/${repository}/issues/${issue}/comments`, {
         method: 'POST', headers, body: JSON.stringify({ body: input.canonicalBody }), signal: AbortSignal.timeout(30_000),
       });
@@ -300,6 +318,27 @@ export class ProviderDecisionCopier {
       deliveryId: null, body: exact.body as string, ingestionMethod: 'RECONCILIATION_POLL',
     };
   }
+}
+
+function readbackReceiptId(input: ProviderDecisionCopyInput): string {
+  return `provider-browser-dom-readback:${sha256(`${input.requestId}\0${input.providerSessionId}\0${input.canonicalBodySha256}`)}`;
+}
+
+function alreadyIngested(input: ProviderDecisionCopyInput, ingested: StoredEvent): ProviderDecisionCopyResult {
+  if (ingested.data.type !== 'github_decision_receipt_ingested') throw new Error('Unexpected accepted-decision event.');
+  if (ingested.data.canonical_envelope_sha256 !== sha256(canonicalJson(parseCanonicalDecisionComment(input.canonicalBody)))) {
+    throw new Error('A different decision was already accepted for the exact request/provider session.');
+  }
+  const receipt = ingested.data.github_receipt;
+  return {
+    status: 'INGESTED', requestId: input.requestId, providerSessionId: input.providerSessionId,
+    canonicalBodySha256: input.canonicalBodySha256, ingestedEventId: ingested.eventId,
+    ingestedAt: ingested.data.ingested_at, duplicate: true,
+    githubReceipt: {
+      repository: receipt.repository, issueNumber: receipt.issue_number,
+      commentId: receipt.comment_id, immutableUrl: receipt.immutable_url,
+    },
+  };
 }
 
 function copyKey(rawInput: unknown, caller: AuthenticatedProducer): string | null {
