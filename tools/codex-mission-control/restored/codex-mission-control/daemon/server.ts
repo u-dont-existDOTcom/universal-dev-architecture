@@ -27,7 +27,9 @@ import {
   type ReasoningReplacementReasonCode,
 } from "../lib/github-decision-receipts";
 import { SubmissionAuthorityDisabledError, SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
-import { DiscardReconciliationError, reconcileBeforeDiscard, reissueExpiredWorkQuestion, resendSentWorkQuestion } from "../lib/work-question-reissue";
+import {
+  assertNoDecisionCommentFor, DiscardReconciliationError, reconcileBeforeDiscard, reissueExpiredWorkQuestion, resendSentWorkQuestion,
+} from "../lib/work-question-reissue";
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
 import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
 import { GitHubReconciliationCoordinator } from "../lib/github-reconciliation-coordinator";
@@ -270,11 +272,21 @@ const server = http.createServer(async (request, response) => {
       }
       try {
         // Before a discard (not before a repeat of a recorded re-send), one GitHub reconciliation takes in a reply that
-        // is already posted.
+        // is already posted, and then, as the last step before the retirement, the decision issue itself is read: any
+        // comment there naming the question stops the discard.
+        const requestId = body.request_id;
         const result = await resendSentWorkQuestion(store, {
-          worker, requestId: body.request_id, authorizedBy: producer.id, discardFinishedReply: body.discard_finished_reply === true,
-        }, (requestId) => submissionAuthority.proveRequestSendSettled(requestId), githubPolicy, undefined,
-        () => reconcileBeforeDiscard(githubReconciliationCoordinator));
+          worker, requestId, authorizedBy: producer.id, discardFinishedReply: body.discard_finished_reply === true,
+        }, (id) => submissionAuthority.proveRequestSendSettled(id), githubPolicy, undefined, async () => {
+          await reconcileBeforeDiscard(githubReconciliationCoordinator);
+          if (!githubPolicy) throw new DiscardReconciliationError("A discard needs the GitHub decision channel, and none is configured.");
+          const queuedAt = pendingDecisionRequests(store.workerEvents(worker)).find((pending) => pending.requestId === requestId)?.queuedAt;
+          await assertNoDecisionCommentFor({
+            repository: githubPolicy.repository, decisionIssueNumber: githubPolicy.decisionIssueNumber, requestId,
+            since: queuedAt ? new Date(Date.parse(queuedAt) - 10 * 60_000).toISOString() : null,
+            tokenProvider: githubReconciliationTokenProvider,
+          });
+        });
         if (!result.duplicate) notifications.emit("event", { type: "work_question_resent", worker, requestId: result.requestId });
         return json(response, result.duplicate ? 200 : 201, result);
       } catch (error) {

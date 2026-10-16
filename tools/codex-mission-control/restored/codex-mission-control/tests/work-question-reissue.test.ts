@@ -28,6 +28,7 @@ import {
   type SettledSendSubmissionState,
 } from "../lib/unsent-request-proof";
 import {
+  assertNoDecisionCommentFor,
   buildExpiredWorkQuestionReissue,
   buildSentWorkQuestionResend,
   DiscardReconciliationError,
@@ -690,6 +691,31 @@ test("a discard waits for one completed GitHub reconciliation of its own, and st
   const alwaysBusy = coordinator([]);
   await assert.rejects(reconcileBeforeDiscard(alwaysBusy, wait, 4), /stayed busy, so nothing was discarded/);
   assert.equal(alwaysBusy.calls.length, 4);
+});
+
+test("the discard's last step reads the decision issue and stops on any comment naming the question", async () => {
+  const requestId = "work-question:" + "c".repeat(32);
+  const seen: string[] = [];
+  const pages = (bodies: string[][], status = 200) => (async (url: string | URL | Request) => {
+    seen.push(String(url));
+    const page = Number(new URL(String(url)).searchParams.get("page"));
+    return new Response(JSON.stringify((bodies[page - 1] ?? []).map((body, index) => ({ id: page * 1000 + index, body }))), { status });
+  }) as typeof fetch;
+  const options = (fetchImpl: typeof fetch, overrides: Record<string, unknown> = {}) => ({
+    repository: "owner/decisions", decisionIssueNumber: 4, requestId, since: "2026-10-16T16:28:00.000Z",
+    tokenProvider: async () => "token", fetchImpl, ...overrides,
+  });
+  const unrelated = Array.from({ length: 100 }, (_, index) => `Unrelated ${index}`);
+  await assertNoDecisionCommentFor(options(pages([unrelated, ["Another unrelated comment"]])));
+  assert.equal(seen.length, 2);
+  assert.equal(new URL(seen[0]!).searchParams.get("since"), "2026-10-16T16:28:00.000Z");
+  await assert.rejects(assertNoDecisionCommentFor(options(pages([unrelated, [`MISSION_CONTROL_CANONICAL_DECISION_V1\n{"request_id":"${requestId}"}`]]))),
+    /names this question, so its reply is not discarded/);
+  await assert.rejects(assertNoDecisionCommentFor(options(pages([[]], 502))), /could not be read on GitHub, so nothing was discarded/);
+  await assert.rejects(assertNoDecisionCommentFor(options(pages([[]]), { tokenProvider: null })), /no GitHub reader is configured/);
+  await assert.rejects(assertNoDecisionCommentFor(options(pages([unrelated, unrelated, unrelated]), { maxPages: 2 })), /too many comments/);
+  await assert.rejects(assertNoDecisionCommentFor(options((async () => { throw new Error("network down"); }) as typeof fetch)),
+    DiscardReconciliationError);
 });
 
 test("a re-send retirement counts only from the Work-question verifier with the owner's one-time authorization", () => {

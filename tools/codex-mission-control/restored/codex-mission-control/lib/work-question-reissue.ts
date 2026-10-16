@@ -588,6 +588,43 @@ export async function reconcileBeforeDiscard(
   throw new DiscardReconciliationError("GitHub reconciliation stayed busy, so nothing was discarded; try again in a minute.");
 }
 
+/**
+ * The discard's last step before the retirement: read the decision issue itself and refuse when any comment there names
+ * the question. Reconciliation may have read the issue before a reply was posted, and once the question is retired no
+ * reply to it can be taken in, so a reply already on GitHub always stops the discard (reconciliation takes it in).
+ */
+export async function assertNoDecisionCommentFor(options: {
+  repository: string;
+  decisionIssueNumber: number;
+  requestId: string;
+  since: string | null;
+  tokenProvider: (() => Promise<string | undefined>) | null;
+  fetchImpl?: typeof fetch;
+  maxPages?: number;
+}): Promise<void> {
+  const token = options.tokenProvider ? await options.tokenProvider() : undefined;
+  if (!token) throw new DiscardReconciliationError("A discard needs to read the decision issue on GitHub first, and no GitHub reader is configured.");
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const since = options.since && Number.isFinite(Date.parse(options.since)) ? `&since=${encodeURIComponent(options.since)}` : "";
+  const headers = {
+    accept: "application/vnd.github+json", authorization: `Bearer ${token}`,
+    "user-agent": "mission-control-discard-check", "x-github-api-version": "2022-11-28",
+  };
+  for (let page = 1; page <= (options.maxPages ?? 50); page += 1) {
+    const response = await fetchImpl(`https://api.github.com/repos/${options.repository}/issues/${options.decisionIssueNumber}/comments?per_page=100${since}&page=${page}`,
+      { headers, signal: AbortSignal.timeout(30_000) }).catch(() => null);
+    if (!response?.ok) throw new DiscardReconciliationError("The decision issue could not be read on GitHub, so nothing was discarded.");
+    const comments = await response.json().catch(() => null) as unknown;
+    if (!Array.isArray(comments)) throw new DiscardReconciliationError("The decision issue could not be read on GitHub, so nothing was discarded.");
+    if (comments.some((comment) => typeof (comment as { body?: unknown })?.body === "string"
+      && ((comment as { body: string }).body).includes(options.requestId))) {
+      throw new DiscardReconciliationError("A comment on the decision issue names this question, so its reply is not discarded; reconciliation can take it in.");
+    }
+    if (comments.length < 100) return;
+  }
+  throw new DiscardReconciliationError("The decision issue has too many comments to check, so nothing was discarded.");
+}
+
 /** The readbacks and the digest-only transform of a reply: evidence that can still carry the answer in. */
 const READBACK_SUMMARIES: readonly string[] = [inBandAppReadbackSummary, inBandBrowserDomReadbackSummary, inBandMachineTransformSummary];
 
