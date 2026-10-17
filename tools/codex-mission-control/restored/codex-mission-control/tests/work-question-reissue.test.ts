@@ -809,6 +809,10 @@ test("a discard sets aside readbacks of exactly the refused reply, and nothing e
   assert.ok(retiredAfterSendRequests(applied(history, built)).has(requestId), "the discarding retirement still counts");
   assert.deepEqual(pendingDecisionRequests(applied(history, built)).map((request) => request.requestId), [built.requestId]);
 
+  // An app-owned readback of exactly the refused bytes is set aside too.
+  const appRefused = evidence("app-refused", "MISSION_CONTROL_PROVIDER_SESSION_APP_READBACK_V1",
+    ["status:COMPLETE", `machine_block_sha256:${refused}`], events.length + 3);
+  assert.equal(discard([refused], [appRefused]).refusedReplyDiscarded, true);
   // Another readback of different bytes, a digest-only transform, or a readback naming two digests still stops it.
   const appOther = evidence("app-readback", "MISSION_CONTROL_PROVIDER_SESSION_APP_READBACK_V1",
     ["status:COMPLETE", `machine_block_sha256:${"e".repeat(64)}`], events.length + 3);
@@ -838,6 +842,18 @@ test("the daemon runs a discard in Mission Control's decision-copy queue, with i
   assert.match(route, /await reconcileBeforeDiscard\(githubReconciliationCoordinator\);/);
   assert.match(route, /return \{ refusedReplySha256s: await checkDecisionIssueBeforeDiscard\(\{/);
   assert.match(route, /error instanceof DiscardReconciliationError\) return json\(response, 503/);
+});
+
+test("Mission Control's Work question routes carry the two markers the relay recognizes", () => {
+  const { events, requestId } = sentEvents();
+  const original = events.find((event) => event.data.type === "worker_message_recorded"
+    && (event.data as { body: string }).body.startsWith(inBandRequestRoutePrefix) && rootOf(event).requestId === requestId)!;
+  const resent = buildSentWorkQuestionResend(events, resendInput(requestId), settledSend(requestId), policy()).route;
+  // The relay names owner_action in the message for a route with both (vps-browser-relay isWorkSupervisorQuestion).
+  for (const root of [rootOf(original), rootOf(resent)]) {
+    assert.equal(root.producerId, "system:work-supervisor-question-router");
+    assert.equal(JSON.parse(root.factualPacket.exactFactualState).review_kind, "WORK_SUPERVISOR_QUESTION");
+  }
 });
 
 test("a re-send retirement counts only from the Work-question verifier with the owner's one-time authorization", () => {

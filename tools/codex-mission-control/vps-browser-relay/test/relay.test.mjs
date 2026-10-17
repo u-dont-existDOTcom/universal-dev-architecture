@@ -1553,6 +1553,32 @@ test('V6 operator-authorized proven-unsent retry re-enters the same one-send con
   assert.equal(store.state.deliveries['request:r-1'].providerSessionId, 'provider-session:v6-unsent');
 });
 
+test('a retried Work question keeps the body its first attempt prepared, including one from before the owner_action line', async () => {
+  const admissions = [
+    { admitted: true, admissionId: 'send-admission:v6:first', queueItemId: 'send-queue-item:v6', admittedAt: '2026-09-02T00:00:00.500Z', expiresAt: '2026-09-02T00:02:00.000Z' },
+    { admitted: true, admissionId: 'send-admission:v6:retry', queueItemId: 'send-queue-item:v6', admittedAt: '2026-09-02T00:03:00.500Z', expiresAt: '2026-09-02T00:05:00.000Z' },
+  ];
+  for (const fromEarlierRelay of [false, true]) {
+    const { store, browser, runtime } = inBandRequestFixture({ admissions, confirmPreBoundaryAbort: true, workQuestion: true });
+    browser.submitErrorStage = 'PREPARING';
+    assert.equal((await runtime.cycle()).status, 'SUBMISSION_FAILED_RETRYABLE');
+    const current = browser.lastSubmittedBody;
+    assert.match(current, /top-level owner_action/);
+    const earlier = current.split('\n').filter((line) => !line.startsWith('This is a Work supervisor question')).join('\n');
+    if (fromEarlierRelay) {
+      // As if the relay before this change had prepared the first attempt.
+      const delivery = store.state.deliveries['request:r-1'];
+      delivery.promptSha256 = sha256(earlier);
+      delivery.bodySha256 = sha256(earlier);
+    }
+    browser.submitErrorStage = null;
+    assert.equal((await runtime.resolve('request:r-1', 'retry')).status, 'AMBIGUITY_RESOLVED');
+    assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
+    assert.equal(browser.lastSubmittedBody, fromEarlierRelay ? earlier : current);
+    assert.equal(store.state.deliveries['request:r-1'].promptSha256, sha256(browser.lastSubmittedBody));
+  }
+});
+
 test('V6 proven-unsent retry emits admission-unique pre-send receipt identities', async () => {
   const admissions = [
     { admitted: true, admissionId: 'send-admission:v6:first', queueItemId: 'send-queue-item:v6', admittedAt: '2026-09-02T00:00:00.500Z', expiresAt: '2026-09-02T00:02:00.000Z' },
@@ -1641,7 +1667,10 @@ test('a Work question names owner_action, and one sent with the earlier message 
   const { store, mc, browser, runtime } = inBandRequestFixture({ workQuestion: true });
   assert.equal((await runtime.cycle()).status, 'IN_BAND_REQUEST_DECISION_GENERATION_STARTED');
   assert.match(browser.lastSubmittedBody, /\nThis is a Work supervisor question, so the canonical JSON must also contain top-level owner_action;/);
-  assert.match(browser.lastSubmittedBody, /owner_action is exactly \{"kind":"NONE"\} and the decision includes one bounded_execution whose execution_surface is "CHATGPT_WORK_CLOUD"/);
+  assert.match(browser.lastSubmittedBody, /owner_action is exactly \{"kind":"NONE"\} and the decision must include one complete bounded_execution whose execution_surface is "CHATGPT_WORK_CLOUD"/);
+  assert.match(browser.lastSubmittedBody, /for this question that requirement replaces the optional bounded_execution rule above/);
+  // It is the last instruction about the decision's fields, after the optional bounded_execution rule.
+  assert.ok(browser.lastSubmittedBody.indexOf('top-level owner_action') > browser.lastSubmittedBody.indexOf('If and only if the accepted decision leaves bounded'));
   assert.match(browser.lastSubmittedBody, /"kind":"DECISION_REQUIRED","decision_id"/);
   // As the relay before this change sent it: the same message without that instruction.
   const earlier = browser.lastSubmittedBody.split('\n').filter((line) => !line.startsWith('This is a Work supervisor question')).join('\n');

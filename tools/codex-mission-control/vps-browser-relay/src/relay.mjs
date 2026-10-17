@@ -1161,7 +1161,12 @@ export class RelayRuntime {
       }
     }
 
-    const prompt = cycleControlPrompt(route, action.step);
+    // A send that already has a body (a retry the owner authorized, or one after a pre-click failure) keeps that exact
+    // body. A first send queued centrally keeps no local digest; the relay update waits for a cycle with no pending
+    // route, so none is waiting across the change that added the Work owner_action line.
+    const prompt = prior?.promptSha256
+      ? frozenCycleControlPrompt(route, action.step, prior.promptSha256)
+      : cycleControlPrompt(route, action.step);
     let model;
     const promptSha256 = sha256(prompt);
     let generationStarted = false;

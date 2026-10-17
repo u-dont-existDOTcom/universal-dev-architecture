@@ -189,26 +189,28 @@ export class ProviderDecisionCopier {
       || !this.options.policy.requestBound.relayProducerIds.includes(caller.id)) {
       throw new Error('Provider decision copy requires an explicitly trusted request-bound relay producer.');
     }
+    let input: ProviderDecisionCopyInput;
+    let decision: ReturnType<typeof parseCanonicalDecisionComment>;
     try {
-      const input = parseInput(rawInput);
-      const decision = parseCanonicalDecisionComment(input.canonicalBody);
+      input = parseInput(rawInput);
+      decision = parseCanonicalDecisionComment(input.canonicalBody);
       if (decision.schema_version !== 5
         || decision.request_id !== input.requestId
         || decision.supervisor_id !== input.supervisorId
         || decision.provider_session_id !== input.providerSessionId) {
         throw new Error('Provider decision copy identity does not match the canonical decision.');
       }
-      // A Work question's answer must keep the Work decision contract, which ingestion checks on the same bytes. It is
-      // refused here, before any readback is recorded or comment posted, so the relay records the answer as invalid
-      // instead of retrying a copy that can never be taken in.
-      if (workQuestionContextForRequest(this.options.eventHistory(), input.workerId, input.requestId)) {
-        const violation = workQuestionDecisionContractViolation(decision);
-        if (violation) throw new Error(violation);
-      }
-      return input;
     } catch (error) {
       throw new ProviderDecisionValidationError(error instanceof Error ? error.message : 'Canonical decision validation failed.');
     }
+    // A Work question's answer must keep the Work decision contract, which ingestion checks on the same bytes. It is
+    // refused here, before any readback is recorded or comment posted, so the relay records the answer as invalid
+    // instead of retrying a copy that can never be taken in. Reading the history is outside the refusal: a failure to
+    // read it says nothing about the answer, so it stays an ordinary error the relay retries.
+    const workQuestion = workQuestionContextForRequest(this.options.eventHistory(), input.workerId, input.requestId);
+    const violation = workQuestion ? workQuestionDecisionContractViolation(decision) : null;
+    if (violation) throw new ProviderDecisionValidationError(violation);
+    return input;
   }
 
   private now(): string {

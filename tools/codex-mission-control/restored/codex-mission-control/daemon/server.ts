@@ -445,11 +445,14 @@ const server = http.createServer(async (request, response) => {
       try {
         return json(response, 200, providerDecisionCopier.validate(await readJson(request), producer));
       } catch (error) {
-        return json(response, 409, {
-          error: error instanceof Error ? error.message : "Provider decision validation was rejected.",
-          code: error instanceof ProviderDecisionValidationError
-            ? error.code
-            : "CANONICAL_SCHEMA_VALIDATION_UNAVAILABLE",
+        // Only a refusal of the decision itself is a 409 the relay records as an invalid answer. Anything else (for
+        // example a failure to read the history) is unavailability, which the relay retries.
+        if (error instanceof ProviderDecisionValidationError) {
+          return json(response, 409, { error: error.message, code: error.code });
+        }
+        return json(response, 503, {
+          error: error instanceof Error ? error.message : "Provider decision validation was unavailable.",
+          code: "CANONICAL_SCHEMA_VALIDATION_UNAVAILABLE",
         });
       }
     }
