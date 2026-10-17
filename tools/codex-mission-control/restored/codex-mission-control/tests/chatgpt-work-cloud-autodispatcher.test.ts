@@ -25,7 +25,7 @@ function profile() {
   };
 }
 
-test("unattended watcher derives and invokes current direct Work controller from durable state", async () => {
+async function runWatcherOnce(allowedWorkersJson: string | undefined) {
   const root = await mkdtemp(path.join(os.tmpdir(), "mc-work-autodispatcher-"));
   const privateRoot = path.join(root, "private");
   await import("node:fs/promises").then(({ mkdir }) => mkdir(privateRoot, { mode: 0o700 }));
@@ -74,11 +74,14 @@ test("unattended watcher derives and invokes current direct Work controller from
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address();
   assert.ok(address && typeof address === "object");
+  const inherited = { ...process.env };
+  delete inherited.MISSION_CONTROL_CHATGPT_WORK_AUTODISPATCH_WORKERS_JSON;
   try {
     const child = spawn(process.execPath, ["--import", "tsx", "scripts/run-chatgpt-work-cloud-autodispatcher.ts", "--once"], {
       cwd: fileURLToPath(new URL("..", import.meta.url)),
       env: {
-        ...process.env,
+        ...inherited,
+        ...(allowedWorkersJson === undefined ? {} : { MISSION_CONTROL_CHATGPT_WORK_AUTODISPATCH_WORKERS_JSON: allowedWorkersJson }),
         MISSION_CONTROL_DAEMON_URL: `http://127.0.0.1:${address.port}`,
         MISSION_CONTROL_INTERNAL_TOKEN: "fixture-secret",
         MISSION_CONTROL_CHATGPT_WORK_AUTODISPATCH_DIR: privateRoot,
@@ -97,19 +100,41 @@ test("unattended watcher derives and invokes current direct Work controller from
       child.once("error", reject);
       child.once("exit", (code) => { clearTimeout(timer); resolve(code); });
     });
-    assert.equal(exitCode, 0, stderr);
-    const output = JSON.parse(stdout.trim());
-    assert.equal(output.status, "DISPATCH_CYCLE");
-    assert.equal(output.worker, worker);
-    assert.equal(output.controllerStatus, "READY");
-    const request = JSON.parse(await readFile(capturePath, "utf8"));
-    assert.equal(request.requestedWorkTitle, "Work — Mission Control Fleet Watch");
-    assert.equal(request.sourceChatUrl, "chatgpt-conversation://abc-123");
-    assert.equal(request.binding.directiveArtifactSha256, sha256(await readFile(request.directiveArtifactPath, "utf8")));
-    assert.match(request.prompt, /EXACT SELF-DEVELOPMENT CANARY DIRECTIVE/);
-    assert.equal((await stat(request.directiveArtifactPath)).mode & 0o077, 0);
-    assert.equal(path.dirname(request.directiveArtifactPath), privateRoot);
+    const controllerCalled = await stat(capturePath).then(() => true, () => false);
+    return { exitCode, stdout, stderr, capturePath, privateRoot, controllerCalled };
   } finally {
     server.close();
+  }
+}
+
+test("unattended watcher derives and invokes current direct Work controller from durable state", async () => {
+  const { exitCode, stdout, stderr, capturePath, privateRoot } = await runWatcherOnce(JSON.stringify(["another-task", worker]));
+  assert.equal(exitCode, 0, stderr);
+  const output = JSON.parse(stdout.trim());
+  assert.equal(output.status, "DISPATCH_CYCLE");
+  assert.equal(output.worker, worker);
+  assert.equal(output.controllerStatus, "READY");
+  const request = JSON.parse(await readFile(capturePath, "utf8"));
+  assert.equal(request.requestedWorkTitle, "Work — Mission Control Fleet Watch");
+  assert.equal(request.sourceChatUrl, "chatgpt-conversation://abc-123");
+  assert.equal(request.binding.directiveArtifactSha256, sha256(await readFile(request.directiveArtifactPath, "utf8")));
+  assert.match(request.prompt, /EXACT SELF-DEVELOPMENT CANARY DIRECTIVE/);
+  assert.equal((await stat(request.directiveArtifactPath)).mode & 0o077, 0);
+  assert.equal(path.dirname(request.directiveArtifactPath), privateRoot);
+});
+
+test("the watcher leaves a worker that isn't on its worker list alone", async () => {
+  const { exitCode, stdout, stderr, controllerCalled } = await runWatcherOnce(JSON.stringify(["another-task"]));
+  assert.equal(exitCode, 0, stderr);
+  assert.equal(JSON.parse(stdout.trim()).status, "IDLE");
+  assert.equal(controllerCalled, false);
+});
+
+test("the watcher refuses to start without its worker list", async () => {
+  for (const workersJson of [undefined, "", "[]", "\"mission-control-development\"", "[\"Mission Control\"]"]) {
+    const { exitCode, stdout, stderr, controllerCalled } = await runWatcherOnce(workersJson);
+    assert.notEqual(exitCode, 0, `${workersJson}: ${stdout}`);
+    assert.match(stderr, /worker list/);
+    assert.equal(controllerCalled, false);
   }
 });

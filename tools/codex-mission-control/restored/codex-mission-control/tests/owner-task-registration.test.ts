@@ -263,11 +263,13 @@ test("only the owner producer may register, and a refused registration records n
   } finally { store.close(); }
 });
 
-test("a registered task can't be enrolled in the fleet watch before its supervisor publishes a work queue", () => {
+test("a registered task is enrolled in the fleet watch under its worker-level task id only", () => {
   const store = seeded();
   try {
     registerOwnerTask(store, input(), owner, store.allEvents(), at);
     assert.throws(() => enrollFleetSupervisorWatch(store, "project:atlas-test", { worker: "atlas-test-pilot", taskId: "contract:atlas-test-pilot", cadenceMs: 86_400_000 }, at), /does not appear/);
+    const { watch } = enrollFleetSupervisorWatch(store, "project:atlas-test", { worker: "atlas-test-pilot", taskId: "task:atlas-test-pilot", cadenceMs: 86_400_000 }, at);
+    assert.equal(watch.taskId, "task:atlas-test-pilot");
   } finally { store.close(); }
 });
 

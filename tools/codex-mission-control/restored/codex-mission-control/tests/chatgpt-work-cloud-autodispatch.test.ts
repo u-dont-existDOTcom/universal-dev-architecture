@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { sha256 } from "../lib/canonical";
-import { discoverDirectWorkCloudDispatches, WORK_CLOUD_EXECUTION_RECEIPT_PREFIX, WORK_CLOUD_SUPERVISOR_HANDOFF_PREFIX } from "../lib/chatgpt-work-cloud-autodispatch";
+import { discoverDirectWorkCloudDispatches, parseWorkCloudAutodispatchWorkers, WORK_CLOUD_EXECUTION_RECEIPT_PREFIX, WORK_CLOUD_SUPERVISOR_HANDOFF_PREFIX } from "../lib/chatgpt-work-cloud-autodispatch";
 import { executionDirectiveArtifactCanonicalJson } from "../lib/github-execution-directive";
 import type { StoredEvent } from "../lib/schema";
 import { WORK_MODEL_ROUTING_POLICY_BASE_COMMIT, WORK_MODEL_ROUTING_POLICY_REF } from "../lib/work-execution-profile";
@@ -63,10 +63,26 @@ function workerEvents(worker: string, sequence = 1): StoredEvent[] {
   ];
 }
 
-function discover(events: StoredEvent[]) {
-  return discoverDirectWorkCloudDispatches({ events, sourceChats, receiptTarget, requestedAt: now,
+function discover(events: StoredEvent[], allowedWorkers: ReadonlySet<string> = new Set(["alpha", "beta"])) {
+  return discoverDirectWorkCloudDispatches({ events, sourceChats, allowedWorkers, receiptTarget, requestedAt: now,
     artifactPathFor: (dispatchId) => `/private/${sha256(dispatchId)}.directive.json` });
 }
+
+test("native Work is dispatched only for the workers on the dispatcher's list", () => {
+  const events = [...workerEvents("alpha", 1), ...workerEvents("beta", 20)];
+  assert.deepEqual(discover(events).map((candidate) => candidate.worker).sort(), ["alpha", "beta"]);
+  assert.deepEqual(discover(events, new Set(["beta"])).map((candidate) => candidate.worker), ["beta"]);
+  assert.equal(discover(events, new Set(["gamma"])).length, 0);
+  assert.equal(discover(events, new Set()).length, 0);
+});
+
+test("the dispatcher's worker list is required, non-empty and exact", () => {
+  assert.deepEqual([...parseWorkCloudAutodispatchWorkers('["alpha", "beta-2"]')], ["alpha", "beta-2"]);
+  for (const raw of [undefined, "", "  ", "[]", "{}", '"alpha"', "alpha", '["alpha", "alpha"]', '["Alpha"]', '[""]',
+    '["alpha beta"]', '["*"]', '[1]', `["${"a".repeat(81)}"]`]) {
+    assert.throws(() => parseWorkCloudAutodispatchWorkers(raw), /worker list/, String(raw));
+  }
+});
 
 test("direct autodispatch derives one exact current-controller request and privacy-safe Work wrapper", () => {
   const candidates = discover(workerEvents("alpha"));

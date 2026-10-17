@@ -113,6 +113,23 @@ test("recording persists columns, canonical fingerprints and allowlisted JSON on
   } finally { store.close(); }
 });
 
+test("a registered task's first supervisor question is scored as routed reasoning, not an owner decision", () => {
+  const store = new EventStore(":memory:");
+  try {
+    const waiting = { ...state, owner_action_kind: "MANUAL_INTERVENTION_REQUIRED" as const, active_directive_present: false, execution_state: "NOT_STARTED" as const };
+    assert.equal(store.recordJevShadowObservation({ source: "LIVE", observedAt: at(0), observation: observation({
+      deterministic_trigger: "FIRST_SUPERVISION_REQUIRED", state: waiting, answers: action("route_reasoning", 0.1) }) }), true);
+    assert.equal(store.recordJevShadowObservation({ source: "LIVE", observedAt: at(1), observation: observation({
+      deterministic_trigger: "OWNER_ACTION_REQUIRED", state: waiting, answers: action("notify_owner", 0.9) }) }), true);
+    const [first, owner] = rows(store) as Array<Record<string, unknown>>;
+    assert.equal(first?.expected_next_action, "route_reasoning");
+    assert.equal(first?.agrees, 1);
+    assert.equal(first?.expected_owner_decision_required, 0);
+    assert.equal(owner?.expected_next_action, "notify_owner");
+    assert.equal(owner?.expected_owner_decision_required, 1, "other open owner actions still expect the owner");
+  } finally { store.close(); }
+});
+
 test("response IDs dedupe across source/time; identical ID-less rows dedupe on fallback identity", () => {
   const store = new EventStore(":memory:");
   try {

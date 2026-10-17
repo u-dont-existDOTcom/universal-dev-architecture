@@ -18,6 +18,9 @@ export const OWNER_TASK_STANDARD_TERMS = {
 // The state of a registered task before its supervisor has recorded anything: nothing is wrong and nothing waits on the
 // owner; the task is waiting for its supervisor.
 export const OWNER_TASK_AWAITING_SUPERVISION_REASON = "OWNER.TASK_REGISTERED_AWAITING_SUPERVISION";
+// The same task when its first supervisor question was sent but no answer came back before the question expired.
+// Nothing asks again by itself, so the owner is told (an alarm), instead of the task waiting quietly.
+export const OWNER_TASK_FIRST_QUESTION_UNANSWERED_REASON = "OWNER.TASK_FIRST_SUPERVISION_UNANSWERED";
 
 // The records that define a task: its owner source, outcome, contract and reconciliation. For a registered task only
 // the registration writes them, so the goal and limits on the dashboard stay the ones the owner typed.

@@ -10,7 +10,7 @@ import { lastSupervisorQuestionSentAt, latestSupervisorConversation } from "@/li
 import { FleetQueue } from "./WorkerChannel";
 import type { WorkQueueItemProjection } from "@/lib/worker-channel";
 import { ownerMutationHeaders } from "@/lib/browser-auth";
-import { readDashboardData, validTaskSnapshot, validOperatorSnapshot, snapshotFailure, orderedOpenQueue, ownerAttention, workerDisposition, awaitingItsSupervisor, type SnapshotFailure } from "@/lib/owner-view";
+import { readDashboardData, validTaskSnapshot, validOperatorSnapshot, snapshotFailure, orderedOpenQueue, ownerAttention, workerDisposition, awaitingItsSupervisor, ownerBlockerOfWaitingTask, type SnapshotFailure } from "@/lib/owner-view";
 import type { LiveHealthState, OperatorStatusProjection } from "@/lib/operator-status-contract";
 
 interface Snapshot {
@@ -113,7 +113,7 @@ export function Dashboard() {
     {!snapshot && loading && !partial && <div role="status" className="loading-panel">Loading your recorded work…</div>}
     {snapshot && <>
       <p className="owner-coverage">{workers.length} task{workers.length === 1 ? "" : "s"} in {knownProjects} project{knownProjects === 1 ? "" : "s"}, as reported to Mission Control; work that doesn't report to it isn't shown. Updated {relativeTime(snapshot.generatedAt)} ({new Date(snapshot.generatedAt).toLocaleString()}).{failures.Tasks && " Task data is last-known; current status needs checking."}</p>
-      <section className="owner-section" aria-labelledby="owner-decisions"><h2 id="owner-decisions">Needs your decision <span>{decisions.length}</span></h2>{decisions.length ? decisions.map(worker => <article className="owner-decision" key={worker.id}><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link><p>{worker.correction.ownerActionText || "Action details not recorded."}</p><OwnerDecisionDetails worker={worker} onRefresh={load} /></article>) : <p className="muted">Nothing needs your decision right now.{partial || streamError ? " Reporting is incomplete, so this may change once it recovers." : ""}</p>}</section>
+      <section className="owner-section" aria-labelledby="owner-decisions"><h2 id="owner-decisions">Needs your decision <span>{decisions.length}</span></h2>{decisions.length ? decisions.map(worker => <article className="owner-decision" key={worker.id}><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link><p>{ownerDecisionLine(worker)}</p><OwnerDecisionDetails worker={worker} onRefresh={load} /></article>) : <p className="muted">Nothing needs your decision right now.{partial || streamError ? " Reporting is incomplete, so this may change once it recovers." : ""}</p>}</section>
       {alarms.length > 0 && <section className="owner-section" aria-labelledby="owner-alarms"><h2 id="owner-alarms">Needs a look <span>{alarms.length}</span></h2><p className="muted">Mission Control raises these itself when a task stops reporting or falls behind. There is nothing to decide; the task's supervisor can tell you more.</p>{alarms.map(({ worker, alarm }) => <article className="owner-alarm" key={worker.id}><Link href={`/worker/${worker.id}`}><h3>{shortName(worker)}</h3></Link><p><strong>{alarm.title}.</strong> {alarm.explanation}</p><SupervisorLink url={worker.supervisorChatUrl} label={worker.supervisorChatLabel} placeholder={worker.supervisorChatIsPlaceholder} workerId={worker.id} activityUrl={latestSupervisorConversation(worker.supervisorActivity)} /></article>)}</section>}
       <section className="owner-section" aria-labelledby="owner-tasks"><h2 id="owner-tasks">Current tasks</h2>{workers.length ? <div className="owner-task-grid">{workers.map(worker => <OwnerTaskCard key={worker.id} worker={worker} />)}</div> : <p className="empty-live-fleet">No known tasks are available in this snapshot. This does not establish that all work is complete; worker reporting may be missing.</p>}</section>
       <section className="owner-section" aria-labelledby="owner-next"><h2 id="owner-next">Recommended next to review</h2><p className="muted">Stored priority P0–P3, then stored queue order. This ordering does not grant permission to start.</p>{recommended.length ? <ol className="owner-next-list">{recommended.map(item => <li key={`${item.worker}:${item.queueRevisionId}:${item.itemId}`}><a href="#recorded-queue"><strong>{item.title}</strong></a><span>{item.priority} · {item.status.replaceAll("_", " ").toLowerCase()}</span><small>{item.projectId} · {item.taskId}</small></li>)}</ol> : <p>No unfinished queue items are recorded. Worker reporting may be incomplete.</p>}</section>
@@ -143,10 +143,18 @@ export function OwnerTaskCard({ worker }: { worker: WorkerState }) {
     <Link className="owner-evidence" href={`/worker/${worker.id}`}>Open task and evidence →</Link></article>;
 }
 
+/** A "Needs your decision" entry's text: the decision in its recorded words, or, while a registered task waits for its
+ * first supervision, the blocker that waits on the owner. */
+export function ownerDecisionLine(worker: WorkerState): string {
+  return ownerBlockerOfWaitingTask(worker) ? ownerActionForCard(worker) : worker.correction.ownerActionText || "Action details not recorded.";
+}
+
 /** The card's "Your action": the owner's own decision or action in its recorded words; for an alarm Mission Control
  * raised itself, that there is nothing to decide and what to look into; otherwise none. */
 export function ownerActionForCard(worker: WorkerState, now = new Date()): string {
   const attention = ownerAttention(worker, now);
+  const blocker = ownerBlockerOfWaitingTask(worker);
+  if (blocker) return `${blocker.title}: ${blocker.description}`;
   if (attention?.kind === "decision") return worker.correction.ownerActionText || "Action details not recorded";
   if (attention?.kind === "alarm") return `Nothing to decide. ${attention.explanation}`;
   if (awaitingItsSupervisor(worker)) return "None. It's waiting for its supervisor to be set up.";
