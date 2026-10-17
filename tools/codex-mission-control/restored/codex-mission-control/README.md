@@ -196,7 +196,16 @@ what it may use, what it must never do, and when it is done.
   The rules key on the worker's registration, which nothing else can write.
 - A SYSTEM record sets its connection to `OFFLINE_CONFIGURED`, which shows it on the live dashboard. It shows as
   "Registered · waiting for its supervisor" until the first record that carries an owner action or the first SUPERVISOR
-  record. It joins the fleet watch when its worker publishes its first work queue.
+  record.
+- **Its first supervisor question.** A registered task can join the fleet watch at once, under the worker-level task id
+  `task:<worker>` (the enrollment route accepts that id only for a registered worker). Its first check routes the
+  task's first question to the project-manager supervisor chat (`FIRST_SUPERVISION_REQUIRED`), without notifying the
+  owner. The registered contract is the question's decision boundary, so the supervisor sees the owner's goal, allowed
+  scope, must-never limits and finish line. The question asks for the first bounded step within them, and for native
+  ChatGPT Work only for collection Chat can't do reliably and only where the allowed scope includes it. Later checks
+  while the question is open ask nothing new; the wait ends when the supervisor acts. Native Work then runs only for
+  the workers on the Work dispatcher's list (`MISSION_CONTROL_CHATGPT_WORK_AUTODISPATCH_WORKERS_JSON`, see
+  `docs/CHATGPT-WORK-CLOUD-DISPATCH.md`).
 - Submitting the same answers again records nothing. Other answers for a registered task id are refused, and so is
   any id that already has records, saying what those records are.
 - **Closing a registered task comes next.** Marking it achieved or cancelling it needs the owner, so it will take the

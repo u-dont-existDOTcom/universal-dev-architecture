@@ -1,3 +1,4 @@
+import { workerHasOwnerTaskRegistration } from "./owner-task-source";
 import { ContractInvariantError, type EventStore, type FleetSupervisorWatchRecord } from "./store";
 
 // Owner-authorized enrollment of a project in the daemon-owned fleet supervisor.
@@ -45,6 +46,9 @@ export function enrollFleetSupervisorWatch(store: EventStore, projectId: string,
   }
   const knownTasks = new Set(history.map((event) => (event.data as { task_id?: unknown }).task_id)
     .filter((taskId): taskId is string => typeof taskId === "string"));
+  // A task the owner registered has no task_id records before its supervisor's first decision. It is enrolled under the
+  // worker-level task id its records are scoped to, task:<worker>, which a supervisor route's admission also expects.
+  if (workerHasOwnerTaskRegistration(history)) knownTasks.add(`task:${input.worker}`);
   if (!knownTasks.has(input.taskId)) {
     throw new ContractInvariantError(`Task ${input.taskId} does not appear in worker ${input.worker}'s history.`);
   }

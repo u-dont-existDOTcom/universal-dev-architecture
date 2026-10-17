@@ -14,6 +14,7 @@ import {
 } from "./github-decision-receipts";
 import { inBandRequestRoutePrefix } from "./in-band-request-binding";
 import { evaluateSupervisionAdmission } from "./supervision-admission-runtime";
+import { OWNER_TASK_AWAITING_SUPERVISION_REASON, workerHasOwnerTaskRegistration } from "./owner-task-source";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import { projectWorker } from "./projection";
 import type { StoredEvent } from "./schema";
@@ -31,7 +32,7 @@ export const DEFAULT_FLEET_SUPERVISOR_CADENCE_MS = 3_600_000;
 export type FleetSupervisorTrigger =
   | "HEALTHY_ADVANCING" | "STALLED_OR_REGRESSING" | "REASONING_REVIEW_OVERDUE"
   | "WORKER_DIRECTIVE_CONTINUITY_GAP" | "OWNER_ACTION_REQUIRED" | "BLOCKED_EXTERNAL"
-  | "TERMINAL" | "MECHANICAL_RECOVERY_ELIGIBLE" | "PROJECT_INTEGRITY_FAILURE";
+  | "TERMINAL" | "MECHANICAL_RECOVERY_ELIGIBLE" | "PROJECT_INTEGRITY_FAILURE" | "FIRST_SUPERVISION_REQUIRED";
 
 export interface FleetSupervisorDecision {
   trigger: FleetSupervisorTrigger;
@@ -284,7 +285,9 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
       packetId: `packet:${requestId}`, taskId: watch.taskId,
       exactFactualState: factualState,
       evidenceRefs: [],
-      decisionRequested: "Review the exact current worker state and latest execution receipt. Decide whether the owner outcome is satisfied, whether bounded execution may resume under a new source-bound directive, or whether to stop. Do not replay completed work or weaken frozen experiment gates.",
+      decisionRequested: decision.trigger === "FIRST_SUPERVISION_REQUIRED"
+        ? FIRST_SUPERVISION_DECISION_REQUESTED
+        : "Review the exact current worker state and latest execution receipt. Decide whether the owner outcome is satisfied, whether bounded execution may resume under a new source-bound directive, or whether to stop. Do not replay completed work or weaken frozen experiment gates.",
       supervisoryCycle: cycle,
     },
   }, queuedAt, undefined, null, "IN_BAND_REQUEST_BINDING_V1");
@@ -743,8 +746,21 @@ function reasoningBoundary(events: readonly StoredEvent[]): StoredEvent | null {
     "outcome_progress_recorded", "worker_checkpoint_recorded", "execution_directive_recorded",
     "structured_blocker_recorded", "work_queue_published",
   ]);
-  return events.findLast((event) => boundaryTypes.has(event.data.type) || isReviewBoundaryEvidence(event)) ?? null;
+  // A task the owner registered has none of those before its first supervisor decision; its registered contract is
+  // the boundary the first question is asked at (PR #394's registration; the store keeps that contract unchanged).
+  return events.findLast((event) => boundaryTypes.has(event.data.type) || isReviewBoundaryEvidence(event))
+    ?? (workerHasOwnerTaskRegistration(events) ? events.findLast((event) => event.data.type === "task_contract_recorded") ?? null : null);
 }
+
+/** What the first question to a registered task's supervisor asks: the first bounded step within the owner's contract.
+ * Native ChatGPT Work is requested only for collection Chat can't complete reliably, and only where the contract allows
+ * it (#385: Extra High chats reason and plan; Work and Codex are bounded executors). */
+export const FIRST_SUPERVISION_DECISION_REQUESTED = "This task was registered by its owner and no work has started. The owner's "
+  + "exact goal, allowed scope, must-never limits and finish line are the task contract in the factual state. Decide the "
+  + "first bounded step toward the owner outcome within that allowed scope and those limits, or say what blocks starting. "
+  + "If the step needs browser navigation, collection or extraction that Chat cannot complete reliably, and the contract's "
+  + "allowed scope includes ChatGPT Work, the bounded request requires native ChatGPT Work: set execution_surface to "
+  + "CHATGPT_WORK_CLOUD. Do not weaken the contract, spend money, or publish anything.";
 
 function isReviewBoundaryEvidence(event: StoredEvent) {
   return event.data.type === "evidence_receipt_recorded"
@@ -936,6 +952,10 @@ export function classifyFleetSupervisorTick(
   }
   const worker = projectWorker([...events]);
   const ownerAction = worker.correction.ownerAction;
+  // A task the owner just registered waits for its supervisor's first question, not for the owner: route it, quietly.
+  if (ownerAction.status === "OPEN" && ownerAction.reason_code === OWNER_TASK_AWAITING_SUPERVISION_REASON) {
+    return decision("FIRST_SUPERVISION_REQUIRED", "The owner-registered task's first question was routed to its supervisor.", "ACTIVE", true, false, false, null);
+  }
   if (ownerAction.status === "OPEN"
     && ["DECISION_REQUIRED", "MANUAL_INTERVENTION_REQUIRED"].includes(ownerAction.kind)) {
     return decision("OWNER_ACTION_REQUIRED", "Existing owner-action obligation remains authoritative.", "ACTIVE", false, false, true, ownerAction.exact_text);

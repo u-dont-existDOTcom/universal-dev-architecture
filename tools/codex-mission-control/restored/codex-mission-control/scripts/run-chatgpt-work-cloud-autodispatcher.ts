@@ -6,6 +6,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import {
   discoverDirectWorkCloudDispatches,
+  parseWorkCloudAutodispatchWorkers,
   parseWorkCloudSourceChats,
   selectWorkCloudDispatchCandidate,
   type PreparedDirectWorkCloudDispatch,
@@ -29,6 +30,7 @@ const sourceChats = parseWorkCloudSourceChats(
   process.env.MISSION_CONTROL_CHATGPT_WORK_SOURCE_CHATS_JSON ?? process.env.MISSION_CONTROL_SUPERVISOR_CHATS_JSON,
 );
 if (sourceChats.length === 0) throw new Error("Native Work autodispatch requires at least one registered source supervisor Chat.");
+const allowedWorkers = parseWorkCloudAutodispatchWorkers(process.env.MISSION_CONTROL_CHATGPT_WORK_AUTODISPATCH_WORKERS_JSON);
 
 let stopping = false;
 for (const signal of ["SIGTERM", "SIGINT"] as const) process.on(signal, () => { stopping = true; });
@@ -39,6 +41,7 @@ async function cycle(): Promise<Record<string, unknown>> {
   const candidates = discoverDirectWorkCloudDispatches({
     events,
     sourceChats,
+    allowedWorkers,
     receiptTarget: { repository: policy!.repository, stageIssueNumber: policy!.stageIssueNumber },
     requestedAt: now,
     artifactPathFor: (dispatchId) => path.join(privateRoot, `${sha256(dispatchId)}.directive.json`),

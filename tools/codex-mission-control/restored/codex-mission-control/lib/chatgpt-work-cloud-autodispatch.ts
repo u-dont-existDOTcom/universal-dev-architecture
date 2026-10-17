@@ -78,9 +78,36 @@ export function parseWorkCloudSourceChats(raw: string | undefined): WorkCloudSou
   });
 }
 
+const WORK_AUTODISPATCH_WORKER = /^[a-z0-9][a-z0-9_-]{0,79}$/;
+
+/** The workers this dispatcher may run native Work for (MISSION_CONTROL_CHATGPT_WORK_AUTODISPATCH_WORKERS_JSON, a JSON
+ * array of worker ids). It is required: allowing ChatGPT Work for one task never allows it for every task, and a
+ * dispatcher without the list refuses to start. */
+export function parseWorkCloudAutodispatchWorkers(raw: string | undefined): ReadonlySet<string> {
+  if (!raw?.trim()) {
+    throw new Error("Native Work autodispatch requires its worker list, MISSION_CONTROL_CHATGPT_WORK_AUTODISPATCH_WORKERS_JSON.");
+  }
+  let value: unknown;
+  try { value = JSON.parse(raw); } catch { throw new Error("The native Work autodispatch worker list must be valid JSON."); }
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error("The native Work autodispatch worker list must be a non-empty JSON array of worker ids.");
+  }
+  const workers = new Set<string>();
+  for (const [index, item] of value.entries()) {
+    if (typeof item !== "string" || !WORK_AUTODISPATCH_WORKER.test(item)) {
+      throw new Error(`Native Work autodispatch worker list entry ${index} is not a worker id.`);
+    }
+    if (workers.has(item)) throw new Error(`The native Work autodispatch worker list names ${item} twice.`);
+    workers.add(item);
+  }
+  return workers;
+}
+
 export function discoverDirectWorkCloudDispatches(input: {
   events: StoredEvent[];
   sourceChats: WorkCloudSourceChat[];
+  /** Only these workers' directives are dispatched; any other worker's native Work directive is left alone. */
+  allowedWorkers: ReadonlySet<string>;
   receiptTarget: WorkCloudReceiptTarget;
   requestedAt: string;
   artifactPathFor: (dispatchId: string) => string;
@@ -88,7 +115,9 @@ export function discoverDirectWorkCloudDispatches(input: {
   const sourceBySupervisor = new Map(input.sourceChats.map((item) => [item.supervisorId, item]));
   const latestDirectiveByWorker = new Map<string, StoredEvent>();
   for (const event of input.events) {
-    if (event.data.type === "execution_directive_recorded") latestDirectiveByWorker.set(event.data.worker, event);
+    if (event.data.type === "execution_directive_recorded" && input.allowedWorkers.has(event.data.worker)) {
+      latestDirectiveByWorker.set(event.data.worker, event);
+    }
   }
   const candidates: PreparedDirectWorkCloudDispatch[] = [];
   for (const directiveEvent of latestDirectiveByWorker.values()) {
