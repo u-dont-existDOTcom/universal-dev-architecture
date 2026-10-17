@@ -17,7 +17,7 @@ import { evaluateSupervisionAdmission } from "./supervision-admission-runtime";
 import { OWNER_TASK_AWAITING_SUPERVISION_REASON, workerHasOwnerTaskRegistration } from "./owner-task-source";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import { projectWorker } from "./projection";
-import type { StoredEvent } from "./schema";
+import type { MissionControlEventV2, StoredEvent } from "./schema";
 import type { JevShadowObservation } from "./jev-shadow";
 import { EventStore, type FleetSupervisorWatchRecord, type FleetSupervisorWatchState } from "./store";
 import {
@@ -953,23 +953,28 @@ export function classifyFleetSupervisorTick(
   }
   const worker = projectWorker([...events]);
   const ownerAction = worker.correction.ownerAction;
-  const blocker = events.findLast((event) => event.data.type === "structured_blocker_recorded" && event.data.status === "OPEN")?.data;
+  // Each blocker's latest record decides whether it is open, as the worker channel projects it: one resolved later is
+  // not open.
+  const latestBlockers = new Map<string, { data: Extract<MissionControlEventV2, { type: "structured_blocker_recorded" }>; index: number }>();
+  events.forEach((event, index) => {
+    if (event.data.type === "structured_blocker_recorded") latestBlockers.set(event.data.blocker_id, { data: event.data, index });
+  });
+  const openBlockers = [...latestBlockers.values()].filter((item) => item.data.status === "OPEN")
+    .sort((left, right) => left.index - right.index).map((item) => item.data);
+  const blocker = openBlockers.at(-1);
+  const ownerBlocker = openBlockers.findLast((item) => item.required_actor.kind === "OWNER" || item.needs_owner);
   // A task the owner just registered waits for its supervisor's first question, not for the owner: route it, quietly,
   // unless a blocker waits on the owner. (When its first question went unanswered, the projection reports that to the
   // owner instead, under another reason, and the owner-action rule below applies: nothing is routed again.)
-  if (ownerAction.status === "OPEN" && ownerAction.reason_code === OWNER_TASK_AWAITING_SUPERVISION_REASON
-    && !(blocker?.type === "structured_blocker_recorded" && blocker.required_actor.kind === "OWNER")) {
+  if (ownerAction.status === "OPEN" && ownerAction.reason_code === OWNER_TASK_AWAITING_SUPERVISION_REASON) {
+    if (ownerBlocker) return decision("OWNER_ACTION_REQUIRED", "An unavoidable owner action is required.", "ACTIVE", false, false, true, ownerBlocker.description);
     return decision("FIRST_SUPERVISION_REQUIRED", "The owner-registered task's first question was routed to its supervisor.", "ACTIVE", true, false, false, null);
-  }
-  if (blocker?.type === "structured_blocker_recorded" && blocker.required_actor.kind === "OWNER"
-    && ownerAction.reason_code === OWNER_TASK_AWAITING_SUPERVISION_REASON) {
-    return decision("OWNER_ACTION_REQUIRED", "An unavoidable owner action is required.", "ACTIVE", false, false, true, blocker.description);
   }
   if (ownerAction.status === "OPEN"
     && ["DECISION_REQUIRED", "MANUAL_INTERVENTION_REQUIRED"].includes(ownerAction.kind)) {
     return decision("OWNER_ACTION_REQUIRED", "Existing owner-action obligation remains authoritative.", "ACTIVE", false, false, true, ownerAction.exact_text);
   }
-  if (blocker?.type === "structured_blocker_recorded") {
+  if (blocker) {
     if (blocker.required_actor.kind === "OWNER") return decision("OWNER_ACTION_REQUIRED", "An unavoidable owner action is required.", "ACTIVE", false, false, true, blocker.description);
     if (blocker.required_actor.kind === "EXTERNAL") return decision("BLOCKED_EXTERNAL", "Project remains blocked on an external actor; no unauthorized retry occurred.", "ACTIVE", false, false, false, null);
   }

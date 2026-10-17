@@ -12,6 +12,7 @@ import {
 import { inBandRequestBindingEnvelope, inBandRequestRoutePrefix } from "../lib/in-band-request-binding";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
 import { awaitingItsSupervisor, ownerAttention, workerDisposition } from "../lib/owner-view";
+import { ownerActionForCard } from "../components/Dashboard";
 import { parseOwnerTaskRegistration, registerOwnerTask } from "../lib/owner-task-registration";
 import { OWNER_TASK_AWAITING_SUPERVISION_REASON, OWNER_TASK_FIRST_QUESTION_UNANSWERED_REASON } from "../lib/owner-task-source";
 import { projectWorker } from "../lib/projection";
@@ -196,6 +197,7 @@ test("a first question that was sent but not answered before it expired goes to 
       const attention = ownerAttention(state);
       assert.equal(attention?.kind, "alarm");
       assert.equal(attention?.kind === "alarm" ? attention.title : null, "Its supervisor didn't answer");
+      assert.match(attention?.kind === "alarm" ? attention.explanation : "", /a way to ask again comes in a later update/);
       assert.equal(workerDisposition(state), "Needs a look: its supervisor didn't answer");
 
       const [check] = await runtime.tick(new Date(afterExpiry).toISOString());
@@ -217,14 +219,15 @@ test("a blocker that waits on the owner isn't hidden behind the quiet first ques
     const { watch } = enrollFleetSupervisorWatch(store, "project:atlas-test", { worker, taskId: `task:${worker}`, cadenceMs: 60_000 }, at);
     const history = store.workerEvents(worker);
     const last = history.at(-1)!;
-    const blocker = (requiredActor: "OWNER" | "EXTERNAL"): StoredEvent => ({
-      ...last, eventId: `blocker:${requiredActor}`, sequence: last.sequence + 1, producerKind: "WORKER", producerId: `worker:${worker}`,
+    const blocker = (requiredActor: "OWNER" | "EXTERNAL" | "SUPERVISOR", options: { status?: "OPEN" | "RESOLVED"; needsOwner?: boolean; offset?: number } = {}): StoredEvent => ({
+      ...last, eventId: `blocker:${requiredActor}:${options.status ?? "OPEN"}`, sequence: last.sequence + (options.offset ?? 1),
+      producerKind: "WORKER", producerId: `worker:${worker}`,
       data: {
         type: "structured_blocker_recorded", worker, blocker_id: `blocker:${requiredActor}`, task_id: `task:${worker}`,
-        direction_id: "direction:1", queue_item_id: null, status: "OPEN", severity: "BLOCKING", title: "Needs a login",
+        direction_id: "direction:1", queue_item_id: null, status: options.status ?? "OPEN", severity: "BLOCKING", title: "Needs a login",
         description: "The source needs the owner's own login.", impact: "Collection can't start.", blocking_scope: ["collection"],
         workaround_available: false, workaround: null, required_actor: { kind: requiredActor, id: "actor:1" }, evidence_refs: [],
-        reported_by: `worker:${worker}`, needs_owner: requiredActor === "OWNER", reported_at: at,
+        reported_by: `worker:${worker}`, needs_owner: options.needsOwner ?? requiredActor === "OWNER", reported_at: at,
       } as StoredEvent["data"],
     });
     const owner = classifyFleetSupervisorTick(watch, [...history, blocker("OWNER")], store.verifyChain());
@@ -237,7 +240,15 @@ test("a blocker that waits on the owner isn't hidden behind the quiet first ques
     const blocked = projectWorker([...history, blocker("OWNER")]);
     assert.equal(awaitingItsSupervisor(blocked), false);
     assert.equal(workerDisposition(blocked), "Waiting for your decision");
+    assert.equal(ownerActionForCard(blocked), "Needs a login: The source needs the owner's own login.", "the card names what the owner must do");
     assert.equal(awaitingItsSupervisor(projectWorker([...history, blocker("EXTERNAL")])), true);
+    // A blocker another actor reports as needing the owner counts too.
+    const needsOwner = classifyFleetSupervisorTick(watch, [...history, blocker("SUPERVISOR", { needsOwner: true })], store.verifyChain());
+    assert.equal(needsOwner.trigger, "OWNER_ACTION_REQUIRED");
+    // A blocker resolved later no longer holds back the first question, in the check or on the card.
+    const resolved = [...history, blocker("OWNER"), blocker("OWNER", { status: "RESOLVED", offset: 2 })];
+    assert.equal(classifyFleetSupervisorTick(watch, resolved, store.verifyChain()).trigger, "FIRST_SUPERVISION_REQUIRED");
+    assert.equal(awaitingItsSupervisor(projectWorker(resolved)), true);
   } finally { store.close(); }
 });
 

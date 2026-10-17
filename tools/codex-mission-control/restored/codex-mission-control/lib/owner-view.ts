@@ -69,7 +69,7 @@ const OWNER_ALARMS: Record<string, { title: string; explain: (action: OwnerActio
   },
   [OWNER_TASK_FIRST_QUESTION_UNANSWERED_REASON]: {
     title: "Its supervisor didn't answer",
-    explain: () => "Mission Control sent this new task's first question to its supervisor chat, but no answer came back before the question expired, so no work has started. Mission Control doesn't ask again by itself: check the supervisor chat and the relay, then have the question asked again.",
+    explain: () => "Mission Control sent this new task's first question to its supervisor chat, but no answer came back before the question expired, so no work has started. Mission Control doesn't ask again by itself, and a way to ask again comes in a later update. Meanwhile, check the supervisor chat and the relay.",
   },
   "OWNER.DIRECTIVE_DELIVERY_FAILED_NO_RETRY": {
     title: "An instruction didn't get through",
@@ -108,7 +108,15 @@ export function timeAgo(value: string, now: Date = new Date()): string {
 export function awaitingItsSupervisor(worker: WorkerState): boolean {
   return worker.correction.ownerAction?.reason_code === OWNER_TASK_AWAITING_SUPERVISION_REASON
     && worker.correction.ownerAction.status === "OPEN"
-    && !worker.channel.blockers.some((blocker) => blocker.requiredActor.kind === "OWNER" || blocker.needsOwner);
+    && !ownerBlockerOfWaitingTask(worker);
+}
+
+/** The blocker that waits on the owner while a registered task waits for its first supervision, if there is one: what
+ * the owner must do, in the blocker's own words. */
+export function ownerBlockerOfWaitingTask(worker: WorkerState): WorkerState["channel"]["blockers"][number] | null {
+  if (worker.correction.ownerAction?.reason_code !== OWNER_TASK_AWAITING_SUPERVISION_REASON
+    || worker.correction.ownerAction.status !== "OPEN") return null;
+  return worker.channel.blockers.findLast((blocker) => blocker.requiredActor.kind === "OWNER" || blocker.needsOwner) ?? null;
 }
 
 export function workerDisposition(worker: WorkerState): string {

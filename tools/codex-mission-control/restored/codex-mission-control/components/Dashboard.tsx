@@ -10,7 +10,7 @@ import { lastSupervisorQuestionSentAt, latestSupervisorConversation } from "@/li
 import { FleetQueue } from "./WorkerChannel";
 import type { WorkQueueItemProjection } from "@/lib/worker-channel";
 import { ownerMutationHeaders } from "@/lib/browser-auth";
-import { readDashboardData, validTaskSnapshot, validOperatorSnapshot, snapshotFailure, orderedOpenQueue, ownerAttention, workerDisposition, awaitingItsSupervisor, type SnapshotFailure } from "@/lib/owner-view";
+import { readDashboardData, validTaskSnapshot, validOperatorSnapshot, snapshotFailure, orderedOpenQueue, ownerAttention, workerDisposition, awaitingItsSupervisor, ownerBlockerOfWaitingTask, type SnapshotFailure } from "@/lib/owner-view";
 import type { LiveHealthState, OperatorStatusProjection } from "@/lib/operator-status-contract";
 
 interface Snapshot {
@@ -147,6 +147,8 @@ export function OwnerTaskCard({ worker }: { worker: WorkerState }) {
  * raised itself, that there is nothing to decide and what to look into; otherwise none. */
 export function ownerActionForCard(worker: WorkerState, now = new Date()): string {
   const attention = ownerAttention(worker, now);
+  const blocker = ownerBlockerOfWaitingTask(worker);
+  if (blocker) return `${blocker.title}: ${blocker.description}`;
   if (attention?.kind === "decision") return worker.correction.ownerActionText || "Action details not recorded";
   if (attention?.kind === "alarm") return `Nothing to decide. ${attention.explanation}`;
   if (awaitingItsSupervisor(worker)) return "None. It's waiting for its supervisor to be set up.";
