@@ -6,13 +6,16 @@ import {
   classifyFleetSupervisorTick, FIRST_SUPERVISION_DECISION_REQUESTED, FleetSupervisorRuntime, routeFleetSupervisorReasoning,
 } from "../lib/fleet-supervisor";
 import { enrollFleetSupervisorWatch } from "../lib/fleet-watch-enrollment";
-import { pendingDecisionRequests } from "../lib/github-decision-receipts";
-import { inBandRequestRoutePrefix } from "../lib/in-band-request-binding";
+import {
+  admittedCycleRequests, parseGitHubReceiptPolicy, pendingDecisionRequests, type PendingDecisionRequest,
+} from "../lib/github-decision-receipts";
+import { inBandRequestBindingEnvelope, inBandRequestRoutePrefix } from "../lib/in-band-request-binding";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
+import { awaitingItsSupervisor, ownerAttention, workerDisposition } from "../lib/owner-view";
 import { parseOwnerTaskRegistration, registerOwnerTask } from "../lib/owner-task-registration";
-import { OWNER_TASK_AWAITING_SUPERVISION_REASON } from "../lib/owner-task-source";
+import { OWNER_TASK_AWAITING_SUPERVISION_REASON, OWNER_TASK_FIRST_QUESTION_UNANSWERED_REASON } from "../lib/owner-task-source";
 import { projectWorker } from "../lib/projection";
-import type { StoredEvent } from "../lib/schema";
+import type { AppendEnvelope, StoredEvent } from "../lib/schema";
 import { EventStore } from "../lib/store";
 
 const owner: AuthenticatedProducer = { id: "owner:primary", kind: "OWNER_AUTHORITY", workerScopes: ["*"], taskScopes: ["*"] };
@@ -137,7 +140,7 @@ test("the first check routes the registered task's first question to the project
 test("the first question asks for one bounded step within the owner's contract, and Work only where the contract allows it", () => {
   assert.ok(FIRST_SUPERVISION_DECISION_REQUESTED.length <= 2_000, "fits the factual packet's decision limit");
   for (const phrase of ["first bounded step", "allowed scope", "must-never limits", "includes ChatGPT Work",
-    "CHATGPT_WORK_CLOUD", "Do not weaken the contract, spend money, or publish anything."]) {
+    "CHATGPT_WORK_CLOUD", "don't choose CODEX unless the contract names it", "Do not weaken the contract, spend money, or publish anything."]) {
     assert.ok(FIRST_SUPERVISION_DECISION_REQUESTED.includes(phrase), phrase);
   }
 });
@@ -157,6 +160,87 @@ test("once the supervisor has acted, the registered task leaves the first-questi
   } finally { store.close(); }
 });
 
+test("a first question that was sent but not answered before it expired goes to the owner, and nothing asks again", async (t) => {
+  const firstCheck = Date.parse(at) + 60_000;
+  t.mock.timers.enable({ apis: ["Date"], now: firstCheck });
+  const store = registered();
+  try {
+    await withSupervisorConfiguration(async () => {
+      enrollFleetSupervisorWatch(store, "project:atlas-test", { worker, taskId: `task:${worker}`, cadenceMs: 60_000 }, at);
+      let routed = 0;
+      const notified: string[] = [];
+      const runtime = new FleetSupervisorRuntime(store, {
+        routeReasoning: (current, routedDecision, events) => {
+          routed += 1;
+          return routeFleetSupervisorReasoning(store, current, routedDecision, events);
+        },
+        notifyOwner: (_current, routedDecision) => { notified.push(routedDecision.notificationReason ?? ""); },
+      });
+      await runtime.tick(new Date(firstCheck).toISOString());
+      assert.equal(routed, 1);
+      const request = admittedCycleRequests(store.workerEvents(worker)).admitted.at(-1)!;
+      // The relay sends it (its trusted receipts) and no answer comes back.
+      for (const event of sentByTheRelay(request, new Date(firstCheck + 5 * 60_000).toISOString())) {
+        store.append(event, undefined, relayProducer, store.allEvents());
+      }
+      t.mock.timers.setTime(firstCheck + 10 * 60_000);
+      assert.equal(projectWorker(store.workerEvents(worker)).supervisorActivity.requests[0]?.state, "SENT");
+      assert.ok(awaitingItsSupervisor(projectWorker(store.workerEvents(worker))), "while it may still be answered, the task waits quietly");
+
+      const afterExpiry = firstCheck + 25 * 3_600_000;
+      t.mock.timers.setTime(afterExpiry);
+      const state = projectWorker(store.workerEvents(worker));
+      assert.equal(state.supervisorActivity.requests[0]?.state, "NO_ANSWER");
+      assert.equal(state.correction.ownerAction.reason_code, OWNER_TASK_FIRST_QUESTION_UNANSWERED_REASON);
+      assert.equal(awaitingItsSupervisor(state), false);
+      const attention = ownerAttention(state);
+      assert.equal(attention?.kind, "alarm");
+      assert.equal(attention?.kind === "alarm" ? attention.title : null, "Its supervisor didn't answer");
+      assert.equal(workerDisposition(state), "Needs a look: its supervisor didn't answer");
+
+      const [check] = await runtime.tick(new Date(afterExpiry).toISOString());
+      assert.equal(check?.decision.trigger, "OWNER_ACTION_REQUIRED");
+      assert.equal(check?.committed, true, "the check completes instead of failing on every poll");
+      assert.equal(routed, 1, "nothing is routed again");
+      assert.equal(notified.length, 1);
+      assert.match(notified[0] ?? "", /no answer came back before it expired/);
+      const [again] = await runtime.tick(new Date(afterExpiry + 61_000).toISOString());
+      assert.equal(again?.notificationDisposition, "SUPPRESSED_DUPLICATE");
+      assert.equal(notified.length, 1);
+    });
+  } finally { store.close(); }
+});
+
+test("a blocker that waits on the owner isn't hidden behind the quiet first question", () => {
+  const store = registered();
+  try {
+    const { watch } = enrollFleetSupervisorWatch(store, "project:atlas-test", { worker, taskId: `task:${worker}`, cadenceMs: 60_000 }, at);
+    const history = store.workerEvents(worker);
+    const last = history.at(-1)!;
+    const blocker = (requiredActor: "OWNER" | "EXTERNAL"): StoredEvent => ({
+      ...last, eventId: `blocker:${requiredActor}`, sequence: last.sequence + 1, producerKind: "WORKER", producerId: `worker:${worker}`,
+      data: {
+        type: "structured_blocker_recorded", worker, blocker_id: `blocker:${requiredActor}`, task_id: `task:${worker}`,
+        direction_id: "direction:1", queue_item_id: null, status: "OPEN", severity: "BLOCKING", title: "Needs a login",
+        description: "The source needs the owner's own login.", impact: "Collection can't start.", blocking_scope: ["collection"],
+        workaround_available: false, workaround: null, required_actor: { kind: requiredActor, id: "actor:1" }, evidence_refs: [],
+        reported_by: `worker:${worker}`, needs_owner: requiredActor === "OWNER", reported_at: at,
+      } as StoredEvent["data"],
+    });
+    const owner = classifyFleetSupervisorTick(watch, [...history, blocker("OWNER")], store.verifyChain());
+    assert.equal(owner.trigger, "OWNER_ACTION_REQUIRED");
+    assert.equal(owner.notifyOwner, true);
+    assert.equal(owner.notificationReason, "The source needs the owner's own login.");
+    const external = classifyFleetSupervisorTick(watch, [...history, blocker("EXTERNAL")], store.verifyChain());
+    assert.equal(external.trigger, "FIRST_SUPERVISION_REQUIRED", "a blocker on someone else doesn't stop the first question");
+    // The task card says the owner is needed, not that the task waits quietly for its supervisor.
+    const blocked = projectWorker([...history, blocker("OWNER")]);
+    assert.equal(awaitingItsSupervisor(blocked), false);
+    assert.equal(workerDisposition(blocked), "Waiting for your decision");
+    assert.equal(awaitingItsSupervisor(projectWorker([...history, blocker("EXTERNAL")])), true);
+  } finally { store.close(); }
+});
+
 test("without the registration the old boundary rule stands: no durable boundary, no question", async () => {
   const store = registered();
   try {
@@ -170,6 +254,41 @@ test("without the registration the old boundary rule stands: no durable boundary
     });
   } finally { store.close(); }
 });
+
+const relayProducer: AuthenticatedProducer = { id: "collector:relay", kind: "COLLECTOR", workerScopes: [worker], taskScopes: ["*"] };
+const PROMPT = "d".repeat(64);
+const SESSION_ID = "provider-session:atlas-test-first";
+const CHAT = "https://chatgpt.com/c/atlas-test-first";
+const CONTROLS = ["model_selection_policy:TOP_VISIBLE_SELECTABLE_MODEL", "model_selector_index:0", "thinking_control_label:Thinking effort",
+  "thinking_visible_label:Extra High", "thinking_ordinal:4 of 5", "account_plan_label:Pro", "account_plan_role:PROVENANCE_METADATA_ONLY",
+  "account_plan_is_reasoning_mode:false", "backend_model_identity_claimed:false", "assistant_content_observed:false", "model_ui_label:GPT-6 Sol"];
+
+/** The trusted relay's receipts for sending one V6 question: controls seen, the body committed, the session, the start. */
+function sentByTheRelay(request: PendingDecisionRequest, occurredAt: string): AppendEnvelope[] {
+  const policy = parseGitHubReceiptPolicy(JSON.stringify(receiptPolicy()))!;
+  const envelope = inBandRequestBindingEnvelope(request, SESSION_ID, policy);
+  const receipt = (summary: string, refs: string[]): AppendEnvelope => ({
+    schema_version: 2, event_id: `relay-test:${summary}`, mission_id: "mission-control-live", occurred_at: occurredAt,
+    data: {
+      type: "evidence_receipt_recorded", worker, receipt_id: `relay-test:${summary}`, producer_id: relayProducer.id, producer_role: "COLLECTOR",
+      evidence_class: "ARTIFACT", independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: null, summary,
+      refs: [`request:${request.requestId}`, `supervisor:${request.supervisorId}`, `provider_session:${SESSION_ID}`, ...refs],
+      verified: true, changed_path_manifest: null,
+    },
+  });
+  return [
+    receipt("MISSION_CONTROL_PROVIDER_SESSION_MODEL_UI_V1", ["session_role:IN_BAND_REQUEST_DECISION_SESSION", ...CONTROLS]),
+    receipt("MISSION_CONTROL_IN_BAND_REQUEST_BINDING_PRE_SEND_V1", [`provider_body_sha256:${PROMPT}`, "semantic_authority:false",
+      `trusted_relay_producer:${relayProducer.id}`, "submission_admission:admission-1", "binding_protocol:IN_BAND_REQUEST_BINDING_V1",
+      `binding_schema:${envelope.binding_schema}`, `in_band_binding_sha256:${envelope.in_band_binding_sha256}`,
+      `decision_receipt_target:${envelope.decision_receipt_target.immutable_issue_url}`]),
+    receipt("MISSION_CONTROL_PROVIDER_SESSION_V1", ["session_role:IN_BAND_REQUEST_DECISION_SESSION", "message_ordinal:1",
+      `conversation_url:${CHAT}`, "url_binding_status:EXACT", "lifecycle_status:ACTIVE"]),
+    receipt("MISSION_CONTROL_RELAY_STAGE_V1", ["step:IN_BAND_REQUEST_DECISION", "message_ordinal:1", "first_message:true",
+      `conversation_url:${CHAT}`, "generation_state:STARTED", `prompt_sha256:${PROMPT}`, ...CONTROLS, "selected_app:GitHub",
+      "semantic_authority:false"]),
+  ];
+}
 
 function projectManager() {
   return {

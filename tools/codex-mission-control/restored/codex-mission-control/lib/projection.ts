@@ -1,6 +1,7 @@
 import { isSpecificChatAddress } from "./supervisor-chat-address";
 import {
-  conflictedRelaySessions, supervisorActivity, type SupervisorActivity, type SupervisorRequestAdmission, type SupervisorTransportEvidence,
+  conflictedRelaySessions, supervisorActivity, type SupervisorActivity, type SupervisorRequestAdmission, type SupervisorRequestState,
+  type SupervisorTransportEvidence,
 } from "./supervisor-activity";
 import {
   admittedCycleRequests, parseGitHubReceiptPolicy, retiredUnsentRequests, type GitHubReceiptPolicy, type PendingDecisionRequest,
@@ -23,7 +24,10 @@ import type {
   WorkerHeartbeatEvent,
 } from "./schema";
 import { effectiveSameStrategyContinuationAllowed, effectiveStrategyEfficacy } from "./progress-invariants";
-import { OWNER_TASK_AWAITING_SUPERVISION_REASON, ownerTaskAwaitingFirstSupervision, workerHasOwnerTaskRegistration } from "./owner-task-source";
+import {
+  OWNER_TASK_AWAITING_SUPERVISION_REASON, OWNER_TASK_FIRST_QUESTION_UNANSWERED_REASON, ownerTaskAwaitingFirstSupervision,
+  workerHasOwnerTaskRegistration,
+} from "./owner-task-source";
 import { compareTerminalState, correctionVerificationStale, latestOwnerAction, type TerminalComparison } from "./terminal-comparator";
 import { projectWorkerChannel, type WorkerChannelProjection } from "./worker-channel";
 import { completedWorkRoutingTelemetryCount } from "./work-execution-runtime";
@@ -401,7 +405,9 @@ function projectV2Worker(
     && ["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED"].includes(effectiveStrategyEfficacy(progress, comparison.outcomeAdvancement)));
   const activeFindings = projectFindings(events);
   const primaryFinding = activeFindings[0];
-  const correction = projectCorrection(events, primaryFinding, assessment, progress, comparison, now);
+  const activity = supervisorActivity(events, now, supervisorRequestAdmission(events, now, relay));
+  const correction = projectCorrection(events, primaryFinding, assessment, progress, comparison, now,
+    FIRST_QUESTION_UNANSWERED_STATES.includes(activity.requests[0]?.state ?? "QUEUED"));
   const filesTouched = checkpoint?.files_touched ?? [];
   const commits = events.flatMap((event) => event.data.type === "commit_created"
     ? [{ sha: event.data.sha, message: event.data.message }]
@@ -458,7 +464,7 @@ function projectV2Worker(
     supervisorChatUrl: supervisorUrl,
     supervisorChatLabel: supervisorLabel,
     supervisorChatIsPlaceholder: !isSpecificChatAddress(supervisorUrl),
-    supervisorActivity: supervisorActivity(events, now, supervisorRequestAdmission(events, now, relay)),
+    supervisorActivity: activity,
     status,
     health: comparison.overallTraffic,
     workerToContractAlignment: comparison.workerToContractAlignment,
@@ -658,6 +664,10 @@ function projectFindings(events: StoredEvent[]): FindingProjection[] {
     .sort((left, right) => severityScore(right.severity) - severityScore(left.severity));
 }
 
+// A question that was sent and then expired with no answer: nothing asks again by itself (the fleet check can't prove
+// it unsent), so a registered task waiting for its first question shows an alarm instead (effectiveOwnerAction).
+const FIRST_QUESTION_UNANSWERED_STATES: readonly SupervisorRequestState[] = ["NO_ANSWER", "NO_ANSWER_DUPLICATE_SEND"];
+
 function projectCorrection(
   events: StoredEvent[],
   primaryFinding: FindingProjection | undefined,
@@ -665,6 +675,7 @@ function projectCorrection(
   progress: Extract<MissionControlEventV2, { type: "outcome_progress_recorded" }> | undefined,
   comparison: TerminalComparison,
   now: Date,
+  firstQuestionUnanswered = false,
 ): CorrectionProjection {
   const corrections = events.filter((event) => event.data.type === "correction_lifecycle_recorded");
   const relevant = primaryFinding
@@ -689,7 +700,8 @@ function projectCorrection(
   const activeDirectives = [...latestAttemptEvents.values()].filter((event) => !inactiveStates.includes(event.status));
   const directiveConflict = new Set(activeDirectives.map((event) => event.directive_id)).size > 1;
   const awaitingFirstSupervision = ownerTaskAwaitingFirstSupervision(events);
-  const ownerAction = effectiveOwnerAction(recordedOwnerAction, now, events, latestCorrection, directiveConflict, awaitingFirstSupervision);
+  const ownerAction = effectiveOwnerAction(recordedOwnerAction, now, events, latestCorrection, directiveConflict, awaitingFirstSupervision,
+    firstQuestionUnanswered);
   const recordedContinuationPolicy = latestCorrection?.continuation_policy ?? fallbackFinding?.continuation_policy
     ?? assessment?.continuation_policy ?? unknownContinuationPolicy();
   const continuationPolicy = effectiveContinuationPolicy(recordedContinuationPolicy, now);
@@ -1220,6 +1232,7 @@ function effectiveOwnerAction(
   correction?: Extract<MissionControlEventV2, { type: "correction_lifecycle_recorded" }>,
   directiveConflict = false,
   awaitingFirstSupervision = false,
+  firstQuestionUnanswered = false,
 ): OwnerActionObligation {
   const sourceEventId = events.at(-1)?.eventId ?? "projection:missing-owner-action";
   if (directiveConflict) return {
@@ -1236,6 +1249,17 @@ function effectiveOwnerAction(
   // A task the owner just registered has no supervisor yet, so nothing has reported an owner action. That is the
   // expected start, not missing telemetry: it stays fail-closed (no work starts), but nothing is wrong and nothing
   // waits on the owner (lib/owner-view.ts shows it as waiting for its supervisor).
+  if (!recorded && awaitingFirstSupervision && firstQuestionUnanswered) return {
+    kind: "MANUAL_INTERVENTION_REQUIRED",
+    exact_text: "Registered by the owner. Its first supervisor question was sent, but no answer came back before it expired, so no work has started.",
+    reason_code: OWNER_TASK_FIRST_QUESTION_UNANSWERED_REASON,
+    subject_id: `worker:${events.at(-1)?.worker ?? "unknown"}`,
+    blocking_scope: ["task start"],
+    source_event_ids: [sourceEventId],
+    due_at: null,
+    escalation_at: null,
+    status: "OPEN",
+  };
   if (!recorded && awaitingFirstSupervision) return {
     kind: "MANUAL_INTERVENTION_REQUIRED",
     exact_text: "Registered by the owner. No supervisor has been set up for it yet, so no work has started.",

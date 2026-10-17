@@ -3,7 +3,7 @@ import type { OwnerActionObligation } from "./schema";
 import type { WorkQueueItemProjection } from "./worker-channel";
 import { isSupervisorActivity } from "./supervisor-activity";
 import { isSpecificChatAddress } from "./supervisor-chat-address";
-import { OWNER_TASK_AWAITING_SUPERVISION_REASON } from "./owner-task-source";
+import { OWNER_TASK_AWAITING_SUPERVISION_REASON, OWNER_TASK_FIRST_QUESTION_UNANSWERED_REASON } from "./owner-task-source";
 
 export type SnapshotFailure = { kind: "session" | "network" | "server"; message: string };
 export class SnapshotError extends Error {
@@ -67,6 +67,10 @@ const OWNER_ALARMS: Record<string, { title: string; explain: (action: OwnerActio
     title: "Conflicting instructions",
     explain: () => "Two active instructions to this worker conflict, so its correction waits until one is withdrawn. Ask its supervisor to settle it.",
   },
+  [OWNER_TASK_FIRST_QUESTION_UNANSWERED_REASON]: {
+    title: "Its supervisor didn't answer",
+    explain: () => "Mission Control sent this new task's first question to its supervisor chat, but no answer came back before the question expired, so no work has started. Mission Control doesn't ask again by itself: check the supervisor chat and the relay, then have the question asked again.",
+  },
   "OWNER.DIRECTIVE_DELIVERY_FAILED_NO_RETRY": {
     title: "An instruction didn't get through",
     explain: () => "Mission Control couldn't deliver an instruction to this task's worker, and nothing is set to try again. Ask its supervisor to resend it or change course.",
@@ -99,10 +103,12 @@ export function timeAgo(value: string, now: Date = new Date()): string {
   return `${Math.floor(hours / 24)} days ago`;
 }
 
-/** A task the owner registered that no supervisor has picked up yet (lib/projection.ts effectiveOwnerAction). */
+/** A task the owner registered that no supervisor has picked up yet (lib/projection.ts effectiveOwnerAction). A blocker
+ * that waits on the owner takes precedence: then the task is waiting for the owner, not quietly for its supervisor. */
 export function awaitingItsSupervisor(worker: WorkerState): boolean {
   return worker.correction.ownerAction?.reason_code === OWNER_TASK_AWAITING_SUPERVISION_REASON
-    && worker.correction.ownerAction.status === "OPEN";
+    && worker.correction.ownerAction.status === "OPEN"
+    && !worker.channel.blockers.some((blocker) => blocker.requiredActor.kind === "OWNER" || blocker.needsOwner);
 }
 
 export function workerDisposition(worker: WorkerState): string {

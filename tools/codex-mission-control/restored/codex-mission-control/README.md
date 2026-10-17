@@ -206,6 +206,13 @@ what it may use, what it must never do, and when it is done.
   while the question is open ask nothing new; the wait ends when the supervisor acts. Native Work then runs only for
   the workers on the Work dispatcher's list (`MISSION_CONTROL_CHATGPT_WORK_AUTODISPATCH_WORKERS_JSON`, see
   `docs/CHATGPT-WORK-CLOUD-DISPATCH.md`).
+  - A blocker that waits on the owner takes precedence: the check notifies the owner, and the task shows as waiting
+    for the owner, not for its supervisor.
+  - If the first question was sent but no answer came back before it expired, the task shows an alarm ("Its supervisor
+    didn't answer", `OWNER.TASK_FIRST_SUPERVISION_UNANSWERED`) and the check notifies the owner instead of trying to
+    route it again. A question that was sent can't be proven unsent, so Mission Control doesn't ask again by itself;
+    asking again needs an owner action that comes in a later pull request. A question that expired without being sent
+    is retired and asked again, as for any fleet question.
 - Submitting the same answers again records nothing. Other answers for a registered task id are refused, and so is
   any id that already has records, saying what those records are.
 - **Closing a registered task comes next.** Marking it achieved or cancelling it needs the owner, so it will take the

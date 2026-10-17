@@ -22,6 +22,7 @@ import {
   type WorkCloudDirectiveBinding,
   type WorkCloudDispatchMode,
 } from "../lib/chatgpt-work-cloud-dispatch";
+import { parseWorkCloudAutodispatchWorkers } from "../lib/chatgpt-work-cloud-autodispatch";
 
 const PRODUCER_ID = "system:chatgpt-work-cloud-dispatch";
 
@@ -45,6 +46,12 @@ const requestPath = argument("--request");
 if (!requestPath) throw new Error("Usage: npm run work-cloud:dispatch -- --request <controller-request.json>");
 const absoluteRequestPath = path.resolve(requestPath);
 const request = JSON.parse(fs.readFileSync(absoluteRequestPath, "utf8")) as ControllerRequest;
+// The same worker list as the watcher's (it passes its environment on): native Work runs only for the listed workers,
+// whoever starts the controller, and the check comes before anything is read from or sent to the app.
+const allowedWorkers = parseWorkCloudAutodispatchWorkers(process.env.MISSION_CONTROL_CHATGPT_WORK_AUTODISPATCH_WORKERS_JSON);
+if (!allowedWorkers.has(request.binding?.worker)) {
+  throw new Error("Native Work is not allowed for this request's worker: it isn't on the native Work autodispatch worker list.");
+}
 const requestDirectory = path.dirname(absoluteRequestPath);
 const prompt = exactPrompt(request, requestDirectory);
 verifyDirectiveArtifact(request, requestDirectory);

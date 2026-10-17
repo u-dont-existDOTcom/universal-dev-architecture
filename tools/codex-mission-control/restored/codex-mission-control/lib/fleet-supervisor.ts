@@ -760,7 +760,8 @@ export const FIRST_SUPERVISION_DECISION_REQUESTED = "This task was registered by
   + "first bounded step toward the owner outcome within that allowed scope and those limits, or say what blocks starting. "
   + "If the step needs browser navigation, collection or extraction that Chat cannot complete reliably, and the contract's "
   + "allowed scope includes ChatGPT Work, the bounded request requires native ChatGPT Work: set execution_surface to "
-  + "CHATGPT_WORK_CLOUD. Do not weaken the contract, spend money, or publish anything.";
+  + "CHATGPT_WORK_CLOUD. A task registered on the form may have no Codex executor, so don't choose CODEX unless the "
+  + "contract names it. Do not weaken the contract, spend money, or publish anything.";
 
 function isReviewBoundaryEvidence(event: StoredEvent) {
   return event.data.type === "evidence_receipt_recorded"
@@ -952,15 +953,22 @@ export function classifyFleetSupervisorTick(
   }
   const worker = projectWorker([...events]);
   const ownerAction = worker.correction.ownerAction;
-  // A task the owner just registered waits for its supervisor's first question, not for the owner: route it, quietly.
-  if (ownerAction.status === "OPEN" && ownerAction.reason_code === OWNER_TASK_AWAITING_SUPERVISION_REASON) {
+  const blocker = events.findLast((event) => event.data.type === "structured_blocker_recorded" && event.data.status === "OPEN")?.data;
+  // A task the owner just registered waits for its supervisor's first question, not for the owner: route it, quietly,
+  // unless a blocker waits on the owner. (When its first question went unanswered, the projection reports that to the
+  // owner instead, under another reason, and the owner-action rule below applies: nothing is routed again.)
+  if (ownerAction.status === "OPEN" && ownerAction.reason_code === OWNER_TASK_AWAITING_SUPERVISION_REASON
+    && !(blocker?.type === "structured_blocker_recorded" && blocker.required_actor.kind === "OWNER")) {
     return decision("FIRST_SUPERVISION_REQUIRED", "The owner-registered task's first question was routed to its supervisor.", "ACTIVE", true, false, false, null);
+  }
+  if (blocker?.type === "structured_blocker_recorded" && blocker.required_actor.kind === "OWNER"
+    && ownerAction.reason_code === OWNER_TASK_AWAITING_SUPERVISION_REASON) {
+    return decision("OWNER_ACTION_REQUIRED", "An unavoidable owner action is required.", "ACTIVE", false, false, true, blocker.description);
   }
   if (ownerAction.status === "OPEN"
     && ["DECISION_REQUIRED", "MANUAL_INTERVENTION_REQUIRED"].includes(ownerAction.kind)) {
     return decision("OWNER_ACTION_REQUIRED", "Existing owner-action obligation remains authoritative.", "ACTIVE", false, false, true, ownerAction.exact_text);
   }
-  const blocker = events.findLast((event) => event.data.type === "structured_blocker_recorded" && event.data.status === "OPEN")?.data;
   if (blocker?.type === "structured_blocker_recorded") {
     if (blocker.required_actor.kind === "OWNER") return decision("OWNER_ACTION_REQUIRED", "An unavoidable owner action is required.", "ACTIVE", false, false, true, blocker.description);
     if (blocker.required_actor.kind === "EXTERNAL") return decision("BLOCKED_EXTERNAL", "Project remains blocked on an external actor; no unauthorized retry occurred.", "ACTIVE", false, false, false, null);

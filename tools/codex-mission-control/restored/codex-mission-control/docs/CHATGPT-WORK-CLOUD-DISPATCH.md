@@ -72,7 +72,7 @@ The worker dashboard projects Work-cloud state independently from the existing C
 
 The watcher is fair across workers: a route already `READY`, waiting for product approval, waiting for Work completion, terminal, or ambiguous is not selected again and does not starve another eligible native-Work directive. A request-only/no-intent record remains eligible because it is mechanically unsent. `PENDING_SETUP` remains eligible only for read-only stable-thread resolution.
 
-The watcher dispatches only for the workers named in `MISSION_CONTROL_CHATGPT_WORK_AUTODISPATCH_WORKERS_JSON`, a JSON array of worker ids such as `["example-task"]`. The list is required and must not be empty, so allowing native Work for one task does not allow it for every task; another worker's native-Work directive is left alone and never falls back to Codex.
+The watcher dispatches only for the workers named in `MISSION_CONTROL_CHATGPT_WORK_AUTODISPATCH_WORKERS_JSON`, a JSON array of worker ids such as `["example-task"]`. The list is required and must not be empty, so allowing native Work for one task does not allow it for every task; another worker's native-Work directive is left alone and never falls back to Codex. The direct controller (`npm run work-cloud:dispatch`, which the watcher starts with its own environment) checks the same list before it reads from or sends to the app, so a request for an unlisted worker is refused there too.
 
 Source Chat identity is resolved from a private supervisor/source-chat registry (`MISSION_CONTROL_CHATGPT_WORK_SOURCE_CHATS_JSON`, with the existing private supervisor registry accepted as a deployment fallback). Requested title remains `Work — <originating Chat title>` but title is never identity evidence.
 
