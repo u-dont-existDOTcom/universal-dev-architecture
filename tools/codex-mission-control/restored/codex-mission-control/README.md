@@ -159,6 +159,63 @@ an edited immutable comment identity is rejected; and a WORKER cannot emit the
 equivalent authority event. Existing verified and owner-attested direct-source
 directives remain supported without reinterpretation.
 
+### Registering a task in the owner's own words
+
+A task appears in Mission Control only once it has an owner source, an owner outcome and a task contract, and all
+three are owner-authority records. The owner-action tool deliberately forwards no semantic content. The dashboard's
+**Register a task** page (`/workers/new`) is the way for the owner to add a task in their own words, and the only one
+whose records carry the registration marker below. The owner answers four questions: what the task should achieve,
+what it may use, what it must never do, and when it is done.
+
+- **The registration passphrase is the check.** Signing in to the dashboard takes the owner token, and scripts on the
+  server hold that token too, so a signed-in session alone doesn't show that the owner typed a task. The daemon's
+  `POST /workers` therefore records a task only with the owner's registration passphrase, which it checks against a
+  scrypt verifier stored next to the database.
+  - The owner chooses the passphrase on their own computer with `deploy/set-owner-task-passphrase.sh`. Only the
+    verifier reaches the server, where `scripts/set-owner-task-passphrase.ts` installs it and echoes its fingerprint;
+    the computer checks that the fingerprint matches its own.
+  - The passphrase itself arrives only inside a registration, and nothing of it is recorded or logged.
+  - Wrong attempts are kept next to the database, so a restart doesn't reset them and the verifier may sit on a
+    read-only mount. Five within 15 minutes, or twenty within a day, lock registration until they age out. With no
+    verifier, registration is off.
+  - The form shows when the passphrase was set, its fingerprint and recent wrong attempts
+    (`GET /api/task-registration`), and each registration records the fingerprint, so a replaced verifier shows.
+- The app's `POST /api/workers` takes registrations only from the owner's signed-in session, with the same-origin and
+  CSRF checks, and refuses the owner bearer. That keeps the form the way in; it isn't what shows the owner typed it.
+- **The store keeps registrations intact.** It refuses the registration markers on every other path, `POST /events`
+  included: the event ids and the `mission-control://owner-session/task-registration/` locator. Once a worker is
+  registered, it also refuses any other source, outcome, contract, reconciliation or owner decision for that worker. So
+  no other caller can make a record look like a registration, change a registered task's goal and limits, or cancel it. The worker page marks a
+  registered task's goal and limits as typed on the form; a look-alike written on another path doesn't get that mark.
+- Mission Control records the exact answers, with the standard lines the form shows, as the owner source
+  (`OWNER_REATTESTED`, with the SHA-256 of the canonical submission). It derives the owner outcome, the task contract
+  and the reconciliation from them mechanically: the goal is the outcome and the contract goal, and the other answers
+  become the allowed scope, the forbidden scope and the acceptance criteria, one item per line. Every text in those
+  records is the owner's own answer or one of the standard lines, so the contract matches its source by construction.
+- A registered task is under the current supervision rules from the start, as for owner-outcome epoch 4 and later.
+  The rules key on the worker's registration, which nothing else can write.
+- A SYSTEM record sets its connection to `OFFLINE_CONFIGURED`, which shows it on the live dashboard. It shows as
+  "Registered · waiting for its supervisor" until the first record that carries an owner action or the first SUPERVISOR
+  record. It joins the fleet watch when its worker publishes its first work queue.
+- Submitting the same answers again records nothing. Other answers for a registered task id are refused, and so is
+  any id that already has records, saying what those records are.
+- **Closing a registered task comes next.** Marking it achieved or cancelling it needs the owner, so it will take the
+  passphrase too, in the next pull request. Until then, the terminal comparator holds an achievement claim that is
+  otherwise in order (`OWNER_CLOSURE_PENDING`, yellow) instead of rejecting it: its own evidence must check out, the
+  supervisor's assessment must be current, and nothing else may block it. A registered task can be paused but not
+  cancelled.
+- Not covered:
+  - Anything with direct access to the server's container, database or verifier file can write records directly, as it
+    can for any record. That includes installing its own verifier, which the form's fingerprint would then show.
+  - The passphrase doesn't change between registrations, so anyone who sees it once can use it again. Type it only
+    into the form. Don't let the browser save it, and don't let a browser agent use the page.
+  - Anything holding a token that reaches the daemon (an owner session, the owner bearer or the internal token) can
+    send twenty wrong passphrases and lock registration for about a day. The form shows the attempts and the lock, and
+    setting the passphrase again clears them.
+  - Other owner-authority routes that predate this page still take owner words, such as `POST /events` for
+    owner-authority producers and the owner's messages to a worker, which accept the owner bearer. Records written
+    there don't carry the registration marker, and the marker is what this page guarantees.
+
 ## Native fleet supervisor
 
 The fleet loop has a stall watchdog. It polls every 60 seconds by default and

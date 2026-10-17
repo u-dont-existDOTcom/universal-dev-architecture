@@ -40,6 +40,8 @@ import {
   routeFleetSupervisorReasoning,
 } from "../lib/fleet-supervisor";
 import { enrollFleetSupervisorWatch, parseFleetWatchEnrollment } from "../lib/fleet-watch-enrollment";
+import { parseOwnerTaskRegistration, registerOwnerTask, splitOwnerTaskSubmission } from "../lib/owner-task-registration";
+import { OwnerTaskPassphraseGate } from "../lib/owner-task-passphrase";
 import { observeFleetSupervisorWithJev } from "../lib/jev-shadow";
 import { boundedJevShadowHook, sampleJevShadowOnStateChange } from "../lib/jev-shadow-hook";
 import { FleetSupervisorLoop, fleetSupervisorSlowTickMs, fleetSupervisorStallMs } from "../lib/fleet-supervisor-loop";
@@ -58,6 +60,8 @@ const dashboardProjectionOptions = () => ({
 });
 const notifications = new EventEmitter();
 notifications.setMaxListeners(100);
+// The owner's task-registration passphrase check, with its lock after repeated wrong ones (lib/owner-task-passphrase.ts).
+const ownerTaskPassphraseGate = new OwnerTaskPassphraseGate();
 if (process.env.MISSION_CONTROL_SKIP_SEED !== "1") {
   if ((process.env.MISSION_CONTROL_SEED_PROFILE ?? "ISSUE_47") === "ISSUE_47") seedIssue47Store(store);
   else seedStore(store);
@@ -482,6 +486,44 @@ const server = http.createServer(async (request, response) => {
       return json(response, 200, viewed);
     }
 
+    // The owner registers a new task in their own words (lib/owner-task-registration.ts). The owner token and this
+    // daemon's internal token are both held by scripts, so neither shows that the owner typed it: the daemon itself
+    // checks the owner's registration passphrase against its stored verifier before recording anything.
+    if (request.method === "POST" && url.pathname === "/workers") {
+      const producer = authorizeMutation(request);
+      if (producer.kind !== "OWNER_AUTHORITY") return json(response, 403, { error: "Only the owner may register a task." });
+      let body: unknown;
+      try {
+        body = await readJson(request);
+      } catch {
+        // Not logged: the body carries the passphrase, and a JSON error message quotes part of it.
+        return json(response, 400, { error: "The registration must be a JSON object under 1 MB." });
+      }
+      const submission = splitOwnerTaskSubmission(body);
+      if (typeof submission === "string") return json(response, 400, { error: submission });
+      const input = parseOwnerTaskRegistration(submission.registration);
+      if (typeof input === "string") return json(response, 400, { error: input });
+      const passphrase = await ownerTaskPassphraseGate.check(submission.passphrase);
+      if (!passphrase.ok) {
+        console.log(JSON.stringify({ event: "owner_task_registration_refused", status: passphrase.status, worker: input.worker }));
+        return json(response, passphrase.status, { error: passphrase.error });
+      }
+      // A refusal from the store (an id already in use, say) is a 409 with its reason, through the handler below.
+      const result = registerOwnerTask(store, input, producer, eventHistory(), new Date().toISOString(), passphrase.fingerprint);
+      if (!result.duplicate) notifications.emit("event", result.events.at(-1));
+      return json(response, result.duplicate ? 200 : 201, {
+        status: result.status,
+        worker: result.worker,
+        contractId: result.contractId,
+        sourceSha256: result.sourceSha256,
+        eventIds: result.events.map((event) => event.eventId),
+      });
+    }
+    // What the registration form shows: whether a passphrase is set, when, its fingerprint, recent wrong attempts and
+    // any lock. Nothing secret: the fingerprint is a hash of the verifier, which itself never leaves the server.
+    if (request.method === "GET" && url.pathname === "/owner-task-registration") {
+      return json(response, 200, ownerTaskPassphraseGate.status());
+    }
     const workerMatch = url.pathname.match(/^\/workers\/([^/]+)$/);
     if (request.method === "GET" && workerMatch) {
       const worker = decodeURIComponent(workerMatch[1]);

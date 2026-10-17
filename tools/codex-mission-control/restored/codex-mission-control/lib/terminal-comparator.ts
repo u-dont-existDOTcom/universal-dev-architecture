@@ -13,6 +13,7 @@ import type {
 import { effectiveOutcomeAdvancement, effectiveSameStrategyContinuationAllowed, effectiveStrategyEfficacy } from "./progress-invariants";
 import { decisionRouteStates } from "./reasoning-message-state";
 import { ownerAnswerContinuationRoute } from "./owner-question-route";
+import { currentSupervisionApplies, workerHasOwnerTaskRegistration } from "./owner-task-source";
 
 export type ContractStatus = "VALID" | "CONTRACT_LAUNDERING" | "OUTCOME_AUTHORITY_UNRESOLVED" | "UNKNOWN";
 export type OwnerOutcomeStatus = "MET" | "UNMET" | "UNKNOWN";
@@ -218,7 +219,8 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     progress ? latestStored(events, "outcome_progress_recorded") : undefined]
     .filter((event): event is StoredEvent => Boolean(event)).sort((left, right) => right.sequence - left.sequence)[0];
   const pendingReasoningReview = Boolean(latestReceiptEvent && (!latestReasoningReviewEvent || latestReasoningReviewEvent.sequence < latestReceiptEvent.sequence));
-  const currentSupervisionRequired = Boolean(outcome && outcome.epoch >= 4);
+  // Epoch 4 and later, or a task the owner registered from the dashboard: the current supervision rules apply.
+  const currentSupervisionRequired = currentSupervisionApplies(outcome, events);
 
   const findingStatus = new Map<string, string>();
   const findingRecords = new Map<string, Extract<MissionControlEventV2, { type: "finding_recorded" }>>();
@@ -303,6 +305,23 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     && ownerDecision.owner_outcome_sha256 === outcome.owner_outcome_sha256);
   if (rootCancellationClaimed && !cancellationAuthorized) reasonCodes.push("OWNER_CANCELLATION_AUTHORITY_MISSING");
 
+  // A task the owner registered keeps the goal and limits the owner typed: only the owner's own passphrase-gated step
+  // can close its gap, and that step comes in a follow-up. Until then, an achievement claim that is otherwise in order
+  // waits for the owner (HOLD, yellow) instead of being rejected as if the work had failed (PR #394 third review).
+  const achievementBlockedOtherwise = openMaterialFindingIds.length > 0 || workerToContractAlignment !== "GREEN"
+    || unresolvedOwnerObligation || hardSupervisionAlert || currentSupervisionRequired && (!progress
+      || outcomeAdvancement !== "ADVANCING" || strategyEfficacy !== "VIABLE" || !reasoningReviewFresh || !activeDirectiveCurrent
+      || pendingReasoningReview);
+  // The claim's own evidence must be in order too, and the supervisor's assessment current. The OUTCOME_* evidence codes
+  // are left out: they always fire for a registered task, whose outcome only the owner's closure can mark met.
+  const claimEvidenceInOrder = !reasonCodes.some((code) => [
+    "EVIDENCE_RECEIPT_MISSING", "EVIDENCE_NOT_CURRENT_OR_VERIFIED", "EVIDENCE_NOT_INDEPENDENT", "EXACT_CANDIDATE_MISSING",
+    "EXACT_CANDIDATE_MISMATCH",
+  ].includes(code));
+  const ownerClosurePending = rootAchievementClaimed && gapOpen && ownerOutcomeStatus !== "UNMET"
+    && !achievementBlockedOtherwise && claimEvidenceInOrder && supervisorAssessmentFresh && workerHasOwnerTaskRegistration(events);
+  if (ownerClosurePending) reasonCodes.push("OWNER_CLOSURE_PENDING");
+
   const hardEvidenceFailure = reasonCodes.some((code) => [
     "EVIDENCE_RECEIPT_MISSING", "EVIDENCE_NOT_CURRENT_OR_VERIFIED", "EVIDENCE_NOT_INDEPENDENT",
     "EXACT_CANDIDATE_MISSING", "EXACT_CANDIDATE_MISMATCH", "OUTCOME_DIRECT_EVIDENCE_MISSING",
@@ -321,11 +340,10 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     decision = "REJECT_ROOT_TERMINALIZATION";
   } else if (research && !research.release_permission && terminalAdjacent) {
     decision = "REJECT_ROOT_TERMINALIZATION";
-  } else if (rootAchievementClaimed && (gapOpen || openMaterialFindingIds.length > 0
-    || workerToContractAlignment !== "GREEN" || unresolvedOwnerObligation
-    || hardSupervisionAlert || currentSupervisionRequired && (!progress || outcomeAdvancement !== "ADVANCING" || strategyEfficacy !== "VIABLE"
-      || !reasoningReviewFresh || !activeDirectiveCurrent || pendingReasoningReview))) {
+  } else if (rootAchievementClaimed && (gapOpen && !ownerClosurePending || achievementBlockedOtherwise)) {
     decision = "REJECT_ROOT_TERMINALIZATION";
+  } else if (ownerClosurePending) {
+    decision = "HOLD_COMPLETION_EVIDENCE";
   } else if (rootAchievementClaimed && !supervisorAssessmentFresh) {
     decision = "HOLD_COMPLETION_EVIDENCE";
   } else if (hardEvidenceFailure || (terminalAdjacent && ownerOutcomeStatus === "UNKNOWN")) {
@@ -347,7 +365,7 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
   let overallTraffic: Traffic;
   if (workerToContractAlignment === "RED" || contractToOwnerAlignment === "DIVERGED" || decision === "REJECT_ROOT_TERMINALIZATION"
     || hardSupervisionAlert || outcomeAdvancement === "REGRESSING" || ["FAILED", "EXHAUSTED", "REPLACEMENT_REQUIRED"].includes(strategyEfficacy)
-    || (rootAchievementClaimed && !rootTerminalizationAllowed)) {
+    || (rootAchievementClaimed && !rootTerminalizationAllowed && !ownerClosurePending)) {
     overallTraffic = "RED";
   } else if (contractToOwnerAlignment === "SOURCE_MISSING") {
     overallTraffic = "UNKNOWN";
@@ -357,7 +375,7 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     || ["FLAT", "UNMEASURED", "NOT_YET_MEASURABLE", "BLOCKED_EXTERNAL", "UNKNOWN"].includes(outcomeAdvancement)
     || ["UNCERTAIN", "BLOCKED_EXTERNAL"].includes(strategyEfficacy) || progress?.measurement_freshness === "OVERDUE"
     || unresolvedOwnerObligation || currentSupervisionRequired && (!reasoningReviewFresh || !progress || !activeDirectiveCurrent && !parkedForStrategy)
-    || (terminalAdjacent && !supervisorAssessmentFresh)
+    || (terminalAdjacent && !supervisorAssessmentFresh) || ownerClosurePending
     || research?.scientific_conclusion === "FAIL" || research?.release_adequacy === "FAIL") {
     overallTraffic = "YELLOW";
   } else {

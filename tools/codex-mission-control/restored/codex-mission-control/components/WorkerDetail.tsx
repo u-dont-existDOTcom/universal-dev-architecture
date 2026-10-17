@@ -8,6 +8,7 @@ import { StatusDot } from "./StatusDot";
 import { SupervisorLink } from "./SupervisorLink";
 import { SupervisorActivityPanel } from "./SupervisorActivity";
 import { latestSupervisorConversation } from "@/lib/supervisor-activity";
+import { awaitingItsSupervisor } from "@/lib/owner-view";
 import { WorkerChannel } from "./WorkerChannel";
 
 export function WorkerDetail({ workerId }: { workerId: string }) {
@@ -64,6 +65,7 @@ export function WorkerDetail({ workerId }: { workerId: string }) {
             <Identity label="Outcome" value={worker.ownerOutcome.id ?? "MISSING"} />
             <Identity label="Epoch" value={worker.ownerOutcome.epoch?.toString() ?? "UNKNOWN"} />
             <Identity label="Source" value={worker.sourceReceipt.capability.replaceAll("_", " ")} />
+            {worker.sourceReceipt.registeredOnForm && <Identity label="Goal and limits" value="Typed by you on the Register a task page" />}
             <Identity label="Reconciliation" value={worker.reconciliationId ?? "MISSING"} />
           </div>
           <p className="outcome-result">{worker.ownerOutcome.normalizedResult}</p>
@@ -201,7 +203,7 @@ function DecisionStrip({ worker }: { worker: WorkerState }) {
       {(worker.correction.reopenTriggerEventId || worker.correction.closureBasis) && <DecisionCell label="REOPEN / CLOSURE BASIS" value={worker.correction.reopenTriggerEventId ? `Reopened by ${worker.correction.reopenTriggerEventId}` : worker.correction.closureBasis!.replaceAll("_", " ")} emphasis />}
       <DecisionCell label="CURRENT PATH" value={continuationLabel(worker)} emphasis />
       <DecisionCell label="NEXT VERIFICATION" value={worker.correction.nextReviewTrigger} />
-      <DecisionCell label="OWNER ACTION" value={`${worker.correction.ownerActionType.replaceAll("_", " ")} — ${worker.correction.ownerActionText}`} emphasis />
+      <DecisionCell label="OWNER ACTION" value={awaitingItsSupervisor(worker) ? `NONE YET — ${worker.correction.ownerActionText}` : `${worker.correction.ownerActionType.replaceAll("_", " ")} — ${worker.correction.ownerActionText}`} emphasis />
       <OwnerDecisionDetails worker={worker} />
     </section>
   );
@@ -219,6 +221,7 @@ function OwnerDecisionDetails({ worker }: { worker: WorkerState }) {
 
 function continuationLabel(worker: WorkerState): string {
   const policy = worker.correction.continuationPolicy;
+  if (awaitingItsSupervisor(worker)) return "NOT STARTED — WAITING FOR ITS SUPERVISOR";
   if (policy.mode === "UNKNOWN") return "UNKNOWN — PAUSE AND REPAIR OBSERVABILITY";
   if (policy.mode === "PAUSE_ALL") return "UNSAFE — PAUSE ALL WORK";
   if (policy.mode === "CONTINUE_UNRESTRICTED") return "SAFE — CONTINUE";

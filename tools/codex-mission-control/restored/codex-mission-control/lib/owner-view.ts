@@ -3,6 +3,7 @@ import type { OwnerActionObligation } from "./schema";
 import type { WorkQueueItemProjection } from "./worker-channel";
 import { isSupervisorActivity } from "./supervisor-activity";
 import { isSpecificChatAddress } from "./supervisor-chat-address";
+import { OWNER_TASK_AWAITING_SUPERVISION_REASON } from "./owner-task-source";
 
 export type SnapshotFailure = { kind: "session" | "network" | "server"; message: string };
 export class SnapshotError extends Error {
@@ -81,6 +82,8 @@ export type OwnerAttention = { kind: "decision" } | { kind: "alarm"; title: stri
 export function ownerAttention(worker: WorkerState, now = new Date()): OwnerAttention {
   const action = worker.correction.ownerAction;
   if (worker.correction.ownerActionType === "NONE" || !action || action.status !== "OPEN") return null;
+  // A task the owner just registered waits for its supervisor: neither a decision nor an alarm.
+  if (awaitingItsSupervisor(worker)) return null;
   const alarm = OWNER_ALARMS[action.reason_code];
   return alarm ? { kind: "alarm", title: alarm.title, explanation: alarm.explain(action, now) } : { kind: "decision" };
 }
@@ -96,7 +99,14 @@ export function timeAgo(value: string, now: Date = new Date()): string {
   return `${Math.floor(hours / 24)} days ago`;
 }
 
+/** A task the owner registered that no supervisor has picked up yet (lib/projection.ts effectiveOwnerAction). */
+export function awaitingItsSupervisor(worker: WorkerState): boolean {
+  return worker.correction.ownerAction?.reason_code === OWNER_TASK_AWAITING_SUPERVISION_REASON
+    && worker.correction.ownerAction.status === "OPEN";
+}
+
 export function workerDisposition(worker: WorkerState): string {
+  if (awaitingItsSupervisor(worker)) return "Registered · waiting for its supervisor";
   const attention = ownerAttention(worker);
   if (attention?.kind === "decision") return "Waiting for your decision";
   if (attention?.kind === "alarm") return `Needs a look: ${attention.title.toLowerCase()}`;
