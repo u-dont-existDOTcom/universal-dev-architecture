@@ -509,7 +509,7 @@ const server = http.createServer(async (request, response) => {
         return json(response, passphrase.status, { error: passphrase.error });
       }
       // A refusal from the store (an id already in use, say) is a 409 with its reason, through the handler below.
-      const result = registerOwnerTask(store, input, producer, eventHistory());
+      const result = registerOwnerTask(store, input, producer, eventHistory(), new Date().toISOString(), passphrase.fingerprint);
       if (!result.duplicate) notifications.emit("event", result.events.at(-1));
       return json(response, result.duplicate ? 200 : 201, {
         status: result.status,
@@ -518,6 +518,11 @@ const server = http.createServer(async (request, response) => {
         sourceSha256: result.sourceSha256,
         eventIds: result.events.map((event) => event.eventId),
       });
+    }
+    // What the registration form shows: whether a passphrase is set, when, its fingerprint, recent wrong attempts and
+    // any lock. Nothing secret: the fingerprint is a hash of the verifier, which itself never leaves the server.
+    if (request.method === "GET" && url.pathname === "/owner-task-registration") {
+      return json(response, 200, ownerTaskPassphraseGate.status());
     }
     const workerMatch = url.pathname.match(/^\/workers\/([^/]+)$/);
     if (request.method === "GET" && workerMatch) {

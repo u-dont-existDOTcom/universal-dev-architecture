@@ -6,7 +6,9 @@ import { canonicalJson, sha256 } from "./canonical";
 import { initializeJevShadowTelemetry, jevShadowSummary, recordJevShadowObservation, type JevShadowRecordInput } from "./jev-shadow-telemetry";
 import { trustedTaskCreationEvidence } from "./work-task-creation-evidence";
 import { producerMayEmit } from "./ingestion-auth";
-import { carriesOwnerTaskRegistrationMarker, outcomeUnderCurrentSupervision } from "./owner-task-source";
+import {
+  carriesOwnerTaskRegistrationMarker, currentSupervisionApplies, OWNER_TASK_DEFINITION_TYPES, workerHasOwnerTaskRegistration,
+} from "./owner-task-source";
 import { CorrectionInvariantError, validateCorrectionTransition } from "./correction-lifecycle";
 import { progressInvariantErrors } from "./progress-invariants";
 import { parseRouteContinuation } from "./owner-response-continuation-schema";
@@ -804,6 +806,12 @@ export class EventStore {
     const sources = events.filter((event) => event.data.type === "owner_source_recorded");
     const outcomes = events.filter((event) => event.data.type === "owner_outcome_recorded");
     const contracts = events.filter((event) => event.data.type === "task_contract_recorded");
+    // A task the owner registered keeps the goal and limits the owner typed: only the registration writes its source,
+    // outcome, contract and reconciliation (PR #394 review). Owner-authority producers on other routes can't redefine it.
+    if (this.ownerTaskRegistrationDepth === 0 && OWNER_TASK_DEFINITION_TYPES.includes(data.type)
+      && workerHasOwnerTaskRegistration(events)) {
+      throw new ContractInvariantError(`Task ${worker} was registered by the owner; its goal and limits can't be changed on this path.`);
+    }
 
     if (data.type === "reasoning_message_recorded") {
       if (data.exact_visible_body && sha256(data.exact_visible_body) !== data.body_sha256) {
@@ -1283,14 +1291,8 @@ export class EventStore {
       }
     }
     const currentOutcomeForExecution = outcomes.at(-1)?.data;
-    // Epoch 4 and later, or a task the owner registered: the current supervision rules apply. Looked up only for the
-    // two record types it gates.
-    const currentSupervisionApplies = () => outcomeUnderCurrentSupervision(currentOutcomeForExecution,
-      currentOutcomeForExecution?.type === "owner_outcome_recorded"
-        ? [...events].reverse().find((event) => event.data.type === "owner_source_recorded"
-          && event.data.receipt_id === currentOutcomeForExecution.source_receipt_id)?.data
-        : undefined);
-    if (data.type === "worker_checkpoint_recorded" && currentSupervisionApplies()) {
+    // Epoch 4 and later, or a task the owner registered: the current supervision rules apply.
+    if (data.type === "worker_checkpoint_recorded" && currentSupervisionApplies(currentOutcomeForExecution, events)) {
       const start = [...events].reverse().find((event) => event.data.type === "codex_execution_started")?.data;
       const receiptAfterStart = [...events].reverse().find((event) => event.data.type === "execution_receipt_recorded")?.data;
       if (start?.type !== "codex_execution_started" || start.worker_run_id !== data.worker_run_id
@@ -1298,7 +1300,7 @@ export class EventStore {
         throw new ContractInvariantError("Current-epoch substantive worker checkpoints require an unclosed directive-bound Codex execution start.");
       }
     }
-    if (data.type === "completion_claim_recorded" && currentSupervisionApplies()) {
+    if (data.type === "completion_claim_recorded" && currentSupervisionApplies(currentOutcomeForExecution, events)) {
       const start = [...events].reverse().find((event) => event.data.type === "codex_execution_started")?.data;
       const receipt = [...events].reverse().find((event) => event.data.type === "execution_receipt_recorded")?.data;
       if (start?.type !== "codex_execution_started"

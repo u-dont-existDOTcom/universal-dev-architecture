@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ownerMutationHeaders } from "@/lib/browser-auth";
 import { OWNER_TASK_STANDARD_TERMS } from "@/lib/owner-task-source";
+
+interface PassphraseStatus { passphraseSet: boolean; setAt: string | null; fingerprint: string | null; wrongAttempts: number; lockedUntil: string | null }
 
 // The owner's own words for a new task. Mission Control records them exactly as typed, with the standard lines shown
 // below; the task's outcome and contract are copies of them, so nothing here should be written by anyone but the owner.
@@ -18,6 +20,17 @@ export function RegisterTask() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [registered, setRegistered] = useState<{ worker: string; contractId: string } | null>(null);
+  const [status, setStatus] = useState<PassphraseStatus | null>(null);
+
+  async function loadStatus() {
+    try {
+      const response = await fetch("/api/task-registration", { cache: "no-store" });
+      if (response.ok) setStatus(await response.json() as PassphraseStatus);
+    } catch {
+      setStatus(null);
+    }
+  }
+  useEffect(() => { void loadStatus(); }, []);
 
   async function submit() {
     if (sending) return;
@@ -35,6 +48,7 @@ export function RegisterTask() {
       setRegistered({ worker: result.worker, contractId: result.contractId });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The task could not be registered.");
+      void loadStatus();
     } finally {
       setSending(false);
     }
@@ -53,7 +67,8 @@ export function RegisterTask() {
     );
   }
 
-  const complete = worker.trim() && name.trim() && goal.trim() && mayUse.trim() && mustNever.trim() && doneWhen.trim() && passphrase;
+  const complete = worker.trim() && name.trim() && goal.trim() && mayUse.trim() && mustNever.trim() && doneWhen.trim() && passphrase
+    && status?.passphraseSet !== false;
   return (
     <main className="register-shell">
       <section className="register-panel owner-composer">
@@ -82,7 +97,8 @@ export function RegisterTask() {
         </div>
         <label htmlFor="register-passphrase">Your registration passphrase</label>
         <input id="register-passphrase" type="password" value={passphrase} onChange={(event) => setPassphrase(event.target.value)} maxLength={1024} autoComplete="off" />
-        <p className="register-hint">The one you chose for registering tasks. Type it only here; no chat will ever ask you for it.</p>
+        <p className="register-hint">The one you chose for registering tasks. Type it only here; no chat will ever ask you for it. Don&apos;t let your browser save it, and don&apos;t let a browser agent use this page.</p>
+        {status && <PassphraseStatusLine status={status} />}
         {error && <p className="composer-error">{error}</p>}
         <div>
           <span>Recorded exactly as typed</span>
@@ -92,5 +108,20 @@ export function RegisterTask() {
         </div>
       </section>
     </main>
+  );
+}
+
+/** When the passphrase was set and its fingerprint (the setup command prints the same one), and any wrong attempts. */
+function PassphraseStatusLine({ status }: { status: PassphraseStatus }) {
+  if (!status.passphraseSet) {
+    return <p className="register-hint register-warning">No registration passphrase is set yet, so registering is off. The setup command on your laptop sets it.</p>;
+  }
+  const set = status.setAt ? new Date(status.setAt).toLocaleString() : "at an unrecorded time";
+  return (
+    <p className={`register-hint${status.wrongAttempts > 0 || status.lockedUntil ? " register-warning" : ""}`}>
+      Passphrase set {set}, fingerprint <code>{status.fingerprint}</code>.
+      {status.wrongAttempts > 0 && ` ${status.wrongAttempts} wrong attempt${status.wrongAttempts === 1 ? "" : "s"} since the last right one, in the last day.`}
+      {status.lockedUntil && ` Locked until ${new Date(status.lockedUntil).toLocaleTimeString()}.`}
+    </p>
   );
 }

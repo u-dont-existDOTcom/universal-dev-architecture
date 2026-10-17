@@ -97,7 +97,7 @@ export function ownerTaskSourceDocument(input: OwnerTaskRegistrationInput): stri
   });
 }
 
-export function ownerTaskRegistrationEvents(input: OwnerTaskRegistrationInput, occurredAt: string): Array<{
+export function ownerTaskRegistrationEvents(input: OwnerTaskRegistrationInput, occurredAt: string, verifierFingerprint?: string): Array<{
   schema_version: 2; event_id: string; mission_id: string; occurred_at: string; data: MissionControlEventV2;
 }> {
   const worker = input.worker;
@@ -167,7 +167,7 @@ export function ownerTaskRegistrationEvents(input: OwnerTaskRegistrationInput, o
       comparison: "MATCH",
       freshness: "CURRENT",
       limitations: [
-        "Submitted from the owner's signed-in Mission Control session with the owner's registration passphrase, which the daemon checked against its stored verifier.",
+        `Submitted from the owner's signed-in Mission Control session with the owner's registration passphrase, which the daemon checked against its stored verifier${verifierFingerprint ? ` (fingerprint ${verifierFingerprint})` : ""}.`,
         "Every text is the owner's own answer or a standard line the form showed; the contract copies them without interpretation.",
       ],
     } as MissionControlEventV2),
@@ -207,6 +207,7 @@ export function registerOwnerTask(
   producer: AuthenticatedProducer,
   history: readonly StoredEvent[],
   occurredAt = new Date().toISOString(),
+  verifierFingerprint?: string,
 ): OwnerTaskRegistrationResult {
   if (producer.kind !== "OWNER_AUTHORITY") throw new ContractInvariantError("Only the owner may register a task.");
   const sourceSha256 = sha256(ownerTaskSourceDocument(input));
@@ -230,7 +231,7 @@ export function registerOwnerTask(
     const shown = types.slice(0, 3).join(", ") + (types.length > 3 ? ` and ${types.length - 3} more kinds` : "");
     throw new ContractInvariantError(`The task id ${input.worker} is already used by ${existing.length} Mission Control record${existing.length === 1 ? "" : "s"} (${shown}); choose another task id.`);
   }
-  const envelopes = ownerTaskRegistrationEvents(input, occurredAt);
+  const envelopes = ownerTaskRegistrationEvents(input, occurredAt, verifierFingerprint);
   for (const envelope of envelopes) {
     if (!producerMayEmit(producer, envelope.data)) {
       throw new ContractInvariantError(`The owner producer cannot record ${envelope.data.type}.`);

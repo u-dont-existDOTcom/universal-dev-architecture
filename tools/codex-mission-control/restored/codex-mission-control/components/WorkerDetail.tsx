@@ -65,6 +65,7 @@ export function WorkerDetail({ workerId }: { workerId: string }) {
             <Identity label="Outcome" value={worker.ownerOutcome.id ?? "MISSING"} />
             <Identity label="Epoch" value={worker.ownerOutcome.epoch?.toString() ?? "UNKNOWN"} />
             <Identity label="Source" value={worker.sourceReceipt.capability.replaceAll("_", " ")} />
+            {worker.sourceReceipt.registeredOnForm && <Identity label="Goal and limits" value="Typed by you on the Register a task page" />}
             <Identity label="Reconciliation" value={worker.reconciliationId ?? "MISSING"} />
           </div>
           <p className="outcome-result">{worker.ownerOutcome.normalizedResult}</p>
@@ -202,7 +203,7 @@ function DecisionStrip({ worker }: { worker: WorkerState }) {
       {(worker.correction.reopenTriggerEventId || worker.correction.closureBasis) && <DecisionCell label="REOPEN / CLOSURE BASIS" value={worker.correction.reopenTriggerEventId ? `Reopened by ${worker.correction.reopenTriggerEventId}` : worker.correction.closureBasis!.replaceAll("_", " ")} emphasis />}
       <DecisionCell label="CURRENT PATH" value={continuationLabel(worker)} emphasis />
       <DecisionCell label="NEXT VERIFICATION" value={worker.correction.nextReviewTrigger} />
-      <DecisionCell label="OWNER ACTION" value={`${worker.correction.ownerActionType.replaceAll("_", " ")} — ${worker.correction.ownerActionText}`} emphasis />
+      <DecisionCell label="OWNER ACTION" value={awaitingItsSupervisor(worker) ? `NONE YET — ${worker.correction.ownerActionText}` : `${worker.correction.ownerActionType.replaceAll("_", " ")} — ${worker.correction.ownerActionText}`} emphasis />
       <OwnerDecisionDetails worker={worker} />
     </section>
   );

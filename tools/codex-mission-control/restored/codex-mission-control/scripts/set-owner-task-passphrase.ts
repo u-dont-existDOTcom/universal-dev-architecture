@@ -1,11 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ownerTaskPassphraseFile, parseOwnerTaskPassphraseVerifier } from "../lib/owner-task-passphrase";
+import { ownerTaskPassphraseFile, ownerTaskPassphraseFingerprint, parseOwnerTaskPassphraseVerifier } from "../lib/owner-task-passphrase";
 
 // Installs the owner's task-registration passphrase verifier (lib/owner-task-passphrase.ts). It reads one verifier line
 // from standard input, made on the owner's own computer from the passphrase the owner typed there (only the scrypt
 // verifier comes here, never the passphrase), checks its format, and writes it next to the database, readable by this
-// user only. The daemon reads it on each registration, so no restart is needed. Running it again replaces the passphrase.
+// user only. The daemon reads it on each registration, so no restart is needed. Running it again replaces the passphrase
+// and clears the wrong attempts counted against the old one. It prints the verifier's fingerprint, which the owner's
+// computer compares with its own and the registration form shows.
 async function main() {
   const chunks: Buffer[] = [];
   let length = 0;
@@ -25,7 +27,8 @@ async function main() {
   } finally {
     fs.rmSync(temporary, { force: true });
   }
-  process.stdout.write("OWNER_TASK_PASSPHRASE_SET\n");
+  fs.rmSync(`${file}.attempts.json`, { force: true });
+  process.stdout.write(`OWNER_TASK_PASSPHRASE_SET ${ownerTaskPassphraseFingerprint(verifier)}\n`);
 }
 
 function fail(message: string): void {

@@ -13,7 +13,7 @@ import type {
 import { effectiveOutcomeAdvancement, effectiveSameStrategyContinuationAllowed, effectiveStrategyEfficacy } from "./progress-invariants";
 import { decisionRouteStates } from "./reasoning-message-state";
 import { ownerAnswerContinuationRoute } from "./owner-question-route";
-import { outcomeUnderCurrentSupervision } from "./owner-task-source";
+import { currentSupervisionApplies } from "./owner-task-source";
 
 export type ContractStatus = "VALID" | "CONTRACT_LAUNDERING" | "OUTCOME_AUTHORITY_UNRESOLVED" | "UNKNOWN";
 export type OwnerOutcomeStatus = "MET" | "UNMET" | "UNKNOWN";
@@ -220,7 +220,7 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     .filter((event): event is StoredEvent => Boolean(event)).sort((left, right) => right.sequence - left.sequence)[0];
   const pendingReasoningReview = Boolean(latestReceiptEvent && (!latestReasoningReviewEvent || latestReasoningReviewEvent.sequence < latestReceiptEvent.sequence));
   // Epoch 4 and later, or a task the owner registered from the dashboard: the current supervision rules apply.
-  const currentSupervisionRequired = outcomeUnderCurrentSupervision(outcome, source);
+  const currentSupervisionRequired = currentSupervisionApplies(outcome, events);
 
   const findingStatus = new Map<string, string>();
   const findingRecords = new Map<string, Extract<MissionControlEventV2, { type: "finding_recorded" }>>();

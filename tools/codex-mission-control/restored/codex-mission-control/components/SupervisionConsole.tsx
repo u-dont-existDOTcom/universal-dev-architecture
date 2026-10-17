@@ -8,7 +8,7 @@ import { formatMessageTimestamp } from "@/lib/message-time";
 import { StatusDot } from "./StatusDot";
 import type { OperatorStatusProjection, OperatorSupervisorStatus } from "@/lib/operator-status-contract";
 import { isPendingSupervisorRequest, isSupervisorActivity, latestSupervisorConversation, type SupervisorRequestState } from "@/lib/supervisor-activity";
-import { validOperatorSnapshot, validSupervisionSnapshot } from "@/lib/owner-view";
+import { awaitingItsSupervisor, validOperatorSnapshot, validSupervisionSnapshot } from "@/lib/owner-view";
 import { isSpecificChatAddress } from "@/lib/supervisor-chat-address";
 import { SUPERVISOR_REQUEST_STATE, supervisorStatusLine } from "./SupervisorActivity";
 
@@ -352,6 +352,8 @@ export function pendingRoute(row: Pick<RouteRow, "state">): boolean {
 
 export function workflowState(worker: WorkerState, hasPendingRoute: boolean): string {
   if (worker.status === "done") return "FINISHED";
+  // A task the owner just registered waits for its supervisor, not for the owner.
+  if (awaitingItsSupervisor(worker)) return "WAITING FOR ITS SUPERVISOR";
   if (worker.correction.ownerActionType !== "NONE") return "WAITING FOR JOEL";
   if (hasPendingRoute || worker.executionSupervision.pendingReasoningReview) return "WAITING FOR SUPERVISOR";
   if (worker.correction.evidenceSubmitted && !worker.correction.correctionVerified) return "AWAITING EVIDENCE REVIEW";

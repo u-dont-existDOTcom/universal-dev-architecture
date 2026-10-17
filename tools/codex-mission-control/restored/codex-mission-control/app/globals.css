@@ -781,3 +781,4 @@ code { font-family: var(--mono); color: #b9d5cc; font-size: .92em; }
 .register-terms p { margin: 0 0 6px; }
 .register-terms ul { margin: 0; padding-left: 18px; }
 .register-panel > p.register-hint { margin: 6px 0 0; font-size: 11px; }
+.register-panel > p.register-warning { color: var(--yellow); }

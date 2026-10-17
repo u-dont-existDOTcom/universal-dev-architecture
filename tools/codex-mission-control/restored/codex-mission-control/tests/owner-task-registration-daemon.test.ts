@@ -8,6 +8,9 @@ import { join } from "node:path";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
+import { ownerTaskPassphraseFingerprint } from "../lib/owner-task-passphrase";
+import { ownerTaskRegistrationEvents, parseOwnerTaskRegistration } from "../lib/owner-task-registration";
+
 // The real daemon's registration route (PR #394 review, P2): only the owner producer with the owner's registration
 // passphrase registers a task; a registration can't be forged through POST /events; and the install script writes
 // the verifier the daemon reads. A test-only verifier and its passphrase (the laptop script's method, lowest cost):
@@ -56,6 +59,10 @@ test("the daemon registers a task only for the owner with the registration passp
     assert.equal((await register({ ...registration, worker: "Bad Id", passphrase })).status, 400);
     const unset = await status(await register({ ...registration, passphrase }));
     assert.deepEqual(unset, { status: 503, body: { error: "Registering tasks is off until the owner sets a registration passphrase." } });
+    const passphraseStatus = async () => await (await fetch(`${origin}/owner-task-registration`)).json() as {
+      passphraseSet: boolean; setAt: string | null; fingerprint: string | null; wrongAttempts: number; lockedUntil: string | null;
+    };
+    assert.deepEqual(await passphraseStatus(), { passphraseSet: false, setAt: null, fingerprint: null, wrongAttempts: 0, lockedUntil: null });
 
     // The install script: a malformed verifier changes nothing; a well-formed one is written for this user only.
     const install = (input: string) => spawnSync(process.execPath, ["--import", "tsx", "scripts/set-owner-task-passphrase.ts"], {
@@ -68,9 +75,13 @@ test("the daemon registers a task only for the owner with the registration passp
     assert.equal(existsSync(file), false);
     const installed = install(`${verifier}\n`);
     assert.equal(installed.status, 0, installed.stderr);
-    assert.equal(installed.stdout, "OWNER_TASK_PASSPHRASE_SET\n");
+    const fingerprint = ownerTaskPassphraseFingerprint(verifier);
+    assert.equal(installed.stdout, `OWNER_TASK_PASSPHRASE_SET ${fingerprint}\n`);
     assert.equal(readFileSync(file, "utf8"), `${verifier}\n`);
     assert.equal(statSync(file).mode & 0o777, 0o600);
+    const afterInstall = await passphraseStatus();
+    assert.equal(afterInstall.passphraseSet, true);
+    assert.equal(afterInstall.fingerprint, fingerprint);
 
     assert.equal((await status(await register(registration))).status, 400, "no passphrase");
     const wrong = await status(await register({ ...registration, passphrase: "a guess" }));
@@ -82,8 +93,10 @@ test("the daemon registers a task only for the owner with the registration passp
     assert.equal(created.body.status, "TASK_REGISTERED");
     const shown = await fetch(`${origin}/workers/${registration.worker}`);
     assert.equal(shown.status, 200);
-    const worker = (await shown.json() as { worker: { correction: { ownerAction: { reason_code: string } } } }).worker;
+    const worker = (await shown.json() as { worker: { correction: { ownerAction: { reason_code: string } }; sourceReceipt: { limitations: string[]; registeredOnForm: boolean } } }).worker;
     assert.equal(worker.correction.ownerAction.reason_code, "OWNER.TASK_REGISTERED_AWAITING_SUPERVISION");
+    assert.equal(worker.sourceReceipt.registeredOnForm, true);
+    assert.match(worker.sourceReceipt.limitations.join(" "), new RegExp(`fingerprint ${fingerprint}`), "the registration records which verifier checked it");
     const again = await status(await register({ ...registration, passphrase }));
     assert.deepEqual([again.status, again.body.status], [200, "TASK_ALREADY_REGISTERED"]);
     const changed = await status(await register({ ...registration, goal: "Something else.", passphrase }));
@@ -109,6 +122,13 @@ test("the daemon registers a task only for the owner with the registration passp
       data: { ...forged.data, canonical_locator: "https://example.invalid/source" },
     }) });
     assert.equal(byId.status, 409);
+    // Nor can it redefine the registered task: a new outcome for it is refused.
+    const injected = parseOwnerTaskRegistration({ ...registration, goal: "Words the owner never typed." });
+    assert.ok(typeof injected !== "string");
+    const outcome = ownerTaskRegistrationEvents(injected, new Date().toISOString())[1];
+    const redefined = await fetch(`${origin}/events`, { method: "POST", headers: headers("OWNER_AUTHORITY"), body: JSON.stringify({ ...outcome, event_id: "injected:outcome" }) });
+    assert.equal(redefined.status, 409);
+    assert.match(String((await redefined.json() as { error: string }).error), /registered by the owner; its goal and limits can't be changed/);
 
     // Five wrong passphrases lock registration for a while, the right one included.
     for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -117,6 +137,10 @@ test("the daemon registers a task only for the owner with the registration passp
     const locked = await status(await register({ ...registration, worker: "atlas-other", passphrase }));
     assert.equal(locked.status, 429);
     assert.match(String(locked.body.error), /Too many wrong passphrases/);
+    const lockedStatus = await passphraseStatus();
+    assert.equal(lockedStatus.wrongAttempts, 5);
+    assert.ok(lockedStatus.lockedUntil, "the form can show the lock");
+    assert.equal(statSync(`${file}.attempts.json`).mode & 0o777, 0o600);
   } finally {
     child.kill("SIGTERM");
     if (child.exitCode === null) await once(child, "exit");

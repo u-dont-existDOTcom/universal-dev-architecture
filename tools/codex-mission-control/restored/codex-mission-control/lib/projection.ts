@@ -23,7 +23,7 @@ import type {
   WorkerHeartbeatEvent,
 } from "./schema";
 import { effectiveSameStrategyContinuationAllowed, effectiveStrategyEfficacy } from "./progress-invariants";
-import { OWNER_TASK_AWAITING_SUPERVISION_REASON, ownerTaskAwaitingFirstSupervision } from "./owner-task-source";
+import { OWNER_TASK_AWAITING_SUPERVISION_REASON, ownerTaskAwaitingFirstSupervision, workerHasOwnerTaskRegistration } from "./owner-task-source";
 import { compareTerminalState, correctionVerificationStale, latestOwnerAction, type TerminalComparison } from "./terminal-comparator";
 import { projectWorkerChannel, type WorkerChannelProjection } from "./worker-channel";
 import { completedWorkRoutingTelemetryCount } from "./work-execution-runtime";
@@ -155,6 +155,9 @@ export interface WorkerState {
     comparison: string;
     freshness: string;
     limitations: string[];
+    // The goal and limits were typed by the owner on the Register a task page (a marked registration, which nothing
+    // else can write); a look-alike source written on another path is false here.
+    registeredOnForm: boolean;
   };
   ownerOutcome: {
     id: string | null;
@@ -499,6 +502,7 @@ function projectV2Worker(
       comparison: source?.comparison ?? "UNKNOWN",
       freshness: source?.freshness ?? "UNKNOWN",
       limitations: source?.limitations ?? [],
+      registeredOnForm: workerHasOwnerTaskRegistration(events),
     },
     ownerOutcome: {
       id: outcome?.owner_outcome_id ?? null,
@@ -684,12 +688,7 @@ function projectCorrection(
   const inactiveStates: CorrectionStatus[] = ["CORRECTION_RESOLVED", "CORRECTION_FAILED", "DIRECTIVE_SUPERSEDED", "DIRECTIVE_WITHDRAWN"];
   const activeDirectives = [...latestAttemptEvents.values()].filter((event) => !inactiveStates.includes(event.status));
   const directiveConflict = new Set(activeDirectives.map((event) => event.directive_id)).size > 1;
-  const registeredOutcome = latest(events, "owner_outcome_recorded");
-  const registeredSource = registeredOutcome
-    ? [...events].reverse().find((event) => event.data.type === "owner_source_recorded"
-      && event.data.receipt_id === registeredOutcome.source_receipt_id)?.data
-    : undefined;
-  const awaitingFirstSupervision = ownerTaskAwaitingFirstSupervision(events, registeredSource);
+  const awaitingFirstSupervision = ownerTaskAwaitingFirstSupervision(events);
   const ownerAction = effectiveOwnerAction(recordedOwnerAction, now, events, latestCorrection, directiveConflict, awaitingFirstSupervision);
   const recordedContinuationPolicy = latestCorrection?.continuation_policy ?? fallbackFinding?.continuation_policy
     ?? assessment?.continuation_policy ?? unknownContinuationPolicy();
@@ -953,7 +952,7 @@ function projectLegacyWorker(events: StoredEvent[], now: Date, config: DriftConf
       reviewAfter: verdict?.review_after ?? "after authority migration",
       assessmentFresh: false,
     },
-    sourceReceipt: { receiptId: null, capability: "UNKNOWN", comparison: "UNKNOWN", freshness: "UNKNOWN", limitations: ["Legacy event has no independent owner-source receipt."] },
+    sourceReceipt: { receiptId: null, capability: "UNKNOWN", comparison: "UNKNOWN", freshness: "UNKNOWN", limitations: ["Legacy event has no independent owner-source receipt."], registeredOnForm: false },
     ownerOutcome: { id: null, epoch: null, sha256: null, normalizedResult: "Owner outcome unavailable in legacy schema.", currentGap: terminal.currentGap, requiredOutcomes: [] },
     reconciliationId: null,
     terminal,
