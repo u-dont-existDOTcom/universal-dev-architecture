@@ -30,6 +30,8 @@ import {
   defaultState,
   extractQueuedRoutes,
   freshChatTargetPlan,
+  frozenCycleControlPrompt,
+  isWorkSupervisorQuestion,
   managedChatGptTabTelemetry,
   mcpReadPreflightPrompt,
   newProviderSessionId,
@@ -207,6 +209,30 @@ test('binding preload and every mandatory GitHub write use distinct fresh first-
   assert.match(direct, /write MISSION_CONTROL_CANONICAL_DECISION_V1/);
   assert.doesNotMatch(direct, /get_supervisory_request_binding|get_stage_liveness_state/);
   assert.throws(() => cycleControlPrompt({ ...directRouteFixture(), providerSessionId: 'provider-session:binding' }, 'EXTRA_HIGH_DIRECT'), /distinct/);
+});
+
+test('only a Work supervisor question is told the machine shape of owner_action, and recovery rebuilds the message as sent', () => {
+  const plain = { ...routeFixture('v6-request', 'EXTRA_HIGH_DIRECT', 'provider-session:v6', 6), bindingProviderSessionId: 'provider-session:v6' };
+  const work = { ...plain, packet: { ...plain.packet, producerId: 'system:work-supervisor-question-router', factualPacket: {
+    ...plain.packet.factualPacket, exactFactualState: JSON.stringify({ review_kind: 'WORK_SUPERVISOR_QUESTION', question_id: 'q-1' }) } } };
+  assert.equal(isWorkSupervisorQuestion(plain), false);
+  assert.equal(isWorkSupervisorQuestion(work), true);
+  // Both markers Mission Control uses are needed: the Work-question router, and the Work question's factual state.
+  assert.equal(isWorkSupervisorQuestion({ ...work, packet: { ...work.packet, producerId: 'system:fleet-supervisor' } }), false);
+  for (const exactFactualState of ['{"review_kind":"SOURCE_REVIEW"}', 'not json', undefined]) {
+    assert.equal(isWorkSupervisorQuestion({ ...work, packet: { ...work.packet, factualPacket: { ...work.packet.factualPacket, exactFactualState } } }), false);
+  }
+  const prompt = cycleControlPrompt(work, IN_BAND_REQUEST_STEP);
+  const earlier = cycleControlPrompt(work, IN_BAND_REQUEST_STEP, { workQuestionOwnerAction: false });
+  assert.match(prompt, /must also contain top-level owner_action/);
+  assert.doesNotMatch(earlier, /owner_action/);
+  assert.equal(earlier, prompt.split('\n').filter((line) => !line.includes('top-level owner_action')).join('\n'));
+  assert.doesNotMatch(cycleControlPrompt(plain, IN_BAND_REQUEST_STEP), /owner_action/);
+  assert.equal(cycleControlPrompt(plain, IN_BAND_REQUEST_STEP, { workQuestionOwnerAction: false }), cycleControlPrompt(plain, IN_BAND_REQUEST_STEP));
+  assert.equal(frozenCycleControlPrompt(work, IN_BAND_REQUEST_STEP, sha256(prompt)), prompt);
+  assert.equal(frozenCycleControlPrompt(work, IN_BAND_REQUEST_STEP, sha256(earlier)), earlier);
+  assert.equal(frozenCycleControlPrompt(work, IN_BAND_REQUEST_STEP, 'f'.repeat(64)), prompt, 'an unknown digest still fails recovery');
+  assert.equal(frozenCycleControlPrompt(plain, IN_BAND_REQUEST_STEP, sha256(earlier)), cycleControlPrompt(plain, IN_BAND_REQUEST_STEP));
 });
 
 test('V6 carries exact request authority in-band and selects GitHub without any Mission Control or MCP step', () => {

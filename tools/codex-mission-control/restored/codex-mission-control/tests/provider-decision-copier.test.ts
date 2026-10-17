@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { canonicalJson, sha256 } from '../lib/canonical';
 import { canonicalDecisionCommentPrefix, parseCanonicalDecisionComment, type GitHubReceiptPolicy, type PendingDecisionRequest } from '../lib/github-decision-receipts';
-import { ProviderDecisionCopier, type ProviderDecisionCopyInput } from '../lib/provider-decision-copier';
+import { inBandRequestRoutePrefix } from '../lib/in-band-request-binding';
+import { WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID } from '../lib/owner-question-route';
+import { ProviderDecisionCopier, ProviderDecisionValidationError, type ProviderDecisionCopyInput } from '../lib/provider-decision-copier';
 import type { AppendEnvelope, StoredEvent } from '../lib/schema';
 import type { EventStore } from '../lib/store';
 
@@ -56,6 +59,7 @@ class FakeStore {
 function fixture({ readbackBody = canonicalBody, conflictBody = null as string | null, pending = true,
   initialComments = [] as Array<Record<string, unknown>>, failPage = null as number | null, ambiguousPost = false, failPost = false,
   pendingRequests = () => pending ? [request] : [], now = (): string => '2026-10-06T00:10:00.000Z', tokenDelay = null as Promise<void> | null,
+  history = [] as StoredEvent[], historyError = null as Error | null,
   onToken = (_store: FakeStore) => {}, onDiscovery = (_store: FakeStore) => {} } = {}) {
   const store = new FakeStore();
   const ownerOutcome = {
@@ -96,7 +100,8 @@ function fixture({ readbackBody = canonicalBody, conflictBody = null as string |
     store: store as unknown as EventStore, policy, tokenProvider: async () => {
       tokenCalls += 1; onToken(store); if (tokenDelay) await tokenDelay; return 'installation-token';
     },
-    eventHistory: () => [ownerOutcome, ...store.events], fetchImpl: fetchImpl as typeof fetch,
+    eventHistory: () => { if (historyError) throw historyError; return [ownerOutcome, ...history, ...store.events]; },
+    fetchImpl: fetchImpl as typeof fetch,
     now, pendingRequests,
     ingestCandidate: ((eventStore: EventStore, candidate: any, _policy: any, at: string) => {
       if (store.events.some((event) => event.data.type === 'github_decision_receipt_ingested'
@@ -235,6 +240,92 @@ test('an exclusive section runs after the copy in flight and holds later copies 
   assert.equal(f.sideEffects().posts, 1);
   await assert.rejects(f.copier.exclusive(async () => { throw new Error('section failed'); }), /section failed/);
   assert.equal((await f.copier.copy(input, relay)).duplicate, true, 'a failed section does not stop later copies');
+});
+
+function workHistory(workRequestId: string, dispatchStatus = 'READY'): StoredEvent[] {
+  const routeBody = inBandRequestRoutePrefix + canonicalJson({
+    schemaVersion: 6, requestId: workRequestId, producerId: WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID,
+    factualPacket: { exactFactualState: canonicalJson({ review_kind: 'WORK_SUPERVISOR_QUESTION', source_work_dispatch_id: 'dispatch-1',
+      question_id: 'question-1', exact_question_sha256: '9'.repeat(64) }) },
+  });
+  return [
+    { eventId: 'work-route', worker: request.worker, sequence: 1,
+      data: { type: 'worker_message_recorded', worker: request.worker, body: routeBody } },
+    { eventId: 'work-dispatch', worker: request.worker, sequence: 2,
+      data: { type: 'chatgpt_work_cloud_dispatch_recorded', worker: request.worker, dispatch_id: 'dispatch-1', status: dispatchStatus,
+        surface_verification: 'VERIFIED_NATIVE_WORK', work_thread_id: 'work-thread-1' } },
+  ] as unknown as StoredEvent[];
+}
+
+function workInputFor(workRequestId: string, extra: Record<string, unknown> = {}): ProviderDecisionCopyInput {
+  const decision = JSON.parse(canonicalBody.slice(canonicalDecisionCommentPrefix.length));
+  const body = canonicalDecisionCommentPrefix + JSON.stringify({ ...decision, request_id: workRequestId, ...extra });
+  return { ...input, requestId: workRequestId, canonicalBody: body, canonicalBodySha256: sha256(body) };
+}
+
+test('validation holds an owner-answer continuation to the Work contract, and a question with no READY Work thread is not', () => {
+  const continuationId = 'work-owner-continuation:' + '8'.repeat(32);
+  assert.throws(() => fixture({ history: workHistory(continuationId) }).copier.validate(workInputFor(continuationId), relay),
+    (error: unknown) => error instanceof ProviderDecisionValidationError && /explicit owner_action classification/.test(error.message));
+  // Ingestion applies the Work contract only with a READY native Work thread; validation does the same.
+  const questionId = 'work-question:' + '7'.repeat(32);
+  assert.equal(fixture({ history: workHistory(questionId, 'FAILED') }).copier.validate(workInputFor(questionId), relay).status, 'VALIDATED');
+});
+
+test('a failure to read the history is not a refusal of the answer', () => {
+  const f = fixture({ historyError: new Error('event cache refresh failed') });
+  assert.throws(() => f.copier.validate(input, relay),
+    (error: unknown) => !(error instanceof ProviderDecisionValidationError) && /event cache refresh failed/.test(String(error)));
+  // An answer that is itself invalid is still refused as invalid, before the history is read.
+  assert.throws(() => f.copier.validate({ ...input, requestId: 'fleet-review:other' }, relay), ProviderDecisionValidationError);
+});
+
+test('the daemon answers 409 only for a refused answer and 503 when validation is unavailable', () => {
+  const server = readFileSync('daemon/server.ts', 'utf8');
+  const start = server.indexOf('url.pathname === "/github/decision-receipts/validate"');
+  const route = server.slice(start, server.indexOf('url.pathname === "/github/decision-receipts"', start + 10));
+  assert.match(route, /if \(error instanceof ProviderDecisionValidationError\) \{\s*return json\(response, 409, \{ error: error\.message, code: error\.code \}\);/);
+  assert.match(route, /return json\(response, 503, \{[^}]*code: "CANONICAL_SCHEMA_VALIDATION_UNAVAILABLE"/);
+});
+
+test('a Work answer that breaks the Work decision contract is refused before any readback, token, read or post', async () => {
+  const workRequestId = 'work-question:' + '9'.repeat(32);
+  const routeBody = inBandRequestRoutePrefix + canonicalJson({
+    schemaVersion: 6, requestId: workRequestId, producerId: WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID,
+    factualPacket: { exactFactualState: canonicalJson({ review_kind: 'WORK_SUPERVISOR_QUESTION', source_work_dispatch_id: 'dispatch-1',
+      question_id: 'question-1', exact_question_sha256: '9'.repeat(64) }) },
+  });
+  const history = [
+    { eventId: 'work-route', worker: request.worker, sequence: 1,
+      data: { type: 'worker_message_recorded', worker: request.worker, body: routeBody } },
+    { eventId: 'work-dispatch', worker: request.worker, sequence: 2,
+      data: { type: 'chatgpt_work_cloud_dispatch_recorded', worker: request.worker, dispatch_id: 'dispatch-1', status: 'READY',
+        surface_verification: 'VERIFIED_NATIVE_WORK', work_thread_id: 'work-thread-1' } },
+  ] as unknown as StoredEvent[];
+  const decision = JSON.parse(canonicalBody.slice(canonicalDecisionCommentPrefix.length));
+  const workInput = (extra: Record<string, unknown> = {}): ProviderDecisionCopyInput => {
+    const body = canonicalDecisionCommentPrefix + JSON.stringify({ ...decision, request_id: workRequestId, ...extra });
+    return { ...input, requestId: workRequestId, canonicalBody: body, canonicalBodySha256: sha256(body) };
+  };
+  const f = fixture({ history, pendingRequests: () => [{ ...request, requestId: workRequestId }] });
+  const missing = workInput();
+  assert.throws(() => f.copier.validate(missing, relay),
+    (error: unknown) => error instanceof ProviderDecisionValidationError && /explicit owner_action classification/.test(error.message));
+  await assert.rejects(f.copier.copy(missing, relay), /explicit owner_action classification/);
+  assert.deepEqual(f.sideEffects(), { events: 0, tokenCalls: 0, posts: 0, gets: 0 }, 'no readback, token, read or post');
+  assert.equal(f.discoveries.length, 0);
+  assert.throws(() => f.copier.validate(workInput({ owner_action: { kind: 'NONE' } }), relay), /CHATGPT_WORK_CLOUD bounded continuation/);
+  const ownerRequired = {
+    kind: 'DECISION_REQUIRED', decision_id: 'decision:owner-1', question: 'Which repair goes first?', context: 'Two repairs compete.',
+    options: [
+      { option_id: 'guard', label: 'Guard first', benefits: ['Safer'], drawbacks: ['Slower'], downstream_consequences: ['Retry later'] },
+      { option_id: 'retry', label: 'Retry first', benefits: ['Faster'], drawbacks: ['Riskier'], downstream_consequences: ['Guard later'] },
+    ],
+    recommendation_option_id: 'guard', recommendation_reasoning: 'The guard protects the retry.', default_if_no_decision: 'Guard first.',
+  };
+  assert.equal(f.copier.validate(workInput({ owner_action: ownerRequired }), relay).status, 'VALIDATED');
+  // An answer to a request that isn't a Work question is not held to the Work contract.
+  assert.equal(fixture().copier.validate(input, relay).status, 'VALIDATED');
 });
 
 test('discovery reads the decision issue only from just before the request was queued', async () => {

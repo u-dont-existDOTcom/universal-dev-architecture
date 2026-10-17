@@ -352,6 +352,9 @@ test("dashboard owner answer remains retryable until a matching supervisor conti
   assert.equal(continuationPacket.continuationOwnerResponseExactText, "A");
   assert.equal(continuationPacket.continuationBinding.path, "DIRECT");
   assert.equal(continuationPacket.continuationBinding.decision_request_id, packet.requestId);
+  // The relay names owner_action in the message for a route with these two markers (isWorkSupervisorQuestion).
+  assert.equal(continuationPacket.producerId, "system:work-supervisor-question-router");
+  assert.equal(JSON.parse(continuationPacket.factualPacket.exactFactualState).review_kind, "WORK_SUPERVISOR_QUESTION");
   const queued = { ...stored(11, continuation.event_id, continuation.data, WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID, "SYSTEM"),
     occurredAt: continuation.occurred_at };
   assert.equal(latestOwnerAction([...answered, queued])?.status, "COMPLETED");

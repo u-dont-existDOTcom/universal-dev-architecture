@@ -806,7 +806,36 @@ export function appSelectionForMessage(chat, step) {
   return { knownLabels, requiredLabels, referencedLabels };
 }
 
-export function cycleControlPrompt(route, step, { omitContinuationOwnerExactText = false } = {}) {
+// Mission Control's Work-question router and the factual state it writes; Mission Control holds a request with both to
+// the Work decision contract (lib/owner-question-route.ts workQuestionContextForRequest).
+const WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID = 'system:work-supervisor-question-router';
+
+/** True for a Work supervisor question (an original, a re-send or an owner-answer continuation of one). */
+export function isWorkSupervisorQuestion(route) {
+  const packet = route?.packet;
+  if (packet?.producerId !== WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID
+    || typeof packet.factualPacket?.exactFactualState !== 'string') return false;
+  try { return JSON.parse(packet.factualPacket.exactFactualState)?.review_kind === 'WORK_SUPERVISOR_QUESTION'; }
+  catch { return false; }
+}
+
+// The machine shape of owner_action, which Mission Control requires in every Work answer. The Work question's text asks
+// for it, but a supervisor following only the field list above left it out (16 October), and the answer was refused.
+const WORK_QUESTION_OWNER_ACTION_INSTRUCTION = 'This is a Work supervisor question, so the canonical JSON must also contain top-level owner_action; without it Mission Control refuses the decision. When existing authority determines the answer, owner_action is exactly {"kind":"NONE"} and the decision must include one complete bounded_execution whose execution_surface is "CHATGPT_WORK_CLOUD", continuing the existing Work thread; for this question that requirement replaces the optional bounded_execution rule above. Only when a genuine owner tradeoff remains, owner_action is {"kind":"DECISION_REQUIRED","decision_id":<id>,"question":<text>,"context":<text>,"options":[2 to 8 objects {"option_id":<id>,"label":<text>,"benefits":[<text>],"drawbacks":[<text>],"downstream_consequences":[<text>]}],"recommendation_option_id":<one listed option_id>,"recommendation_reasoning":<text>,"default_if_no_decision":<text>} with no other keys, every <id> matching ^[A-Za-z0-9][A-Za-z0-9._:/-]*$, and bounded_execution is omitted.';
+
+/**
+ * The control prompt as it was sent (or first prepared), from its frozen digest: a Work question sent or prepared
+ * before the owner_action instruction existed has it without that line. Recovery rebuilds it to check the readback, and
+ * a retry of a send that already has a body keeps that body, since its admission and pre-send receipts name its digest.
+ */
+export function frozenCycleControlPrompt(route, step, promptSha256) {
+  const current = cycleControlPrompt(route, step);
+  if (sha256(current) === promptSha256 || !isWorkSupervisorQuestion(route)) return current;
+  const earlier = cycleControlPrompt(route, step, { workQuestionOwnerAction: false });
+  return sha256(earlier) === promptSha256 ? earlier : current;
+}
+
+export function cycleControlPrompt(route, step, { omitContinuationOwnerExactText = false, workQuestionOwnerAction = true } = {}) {
   if (route.routeKind !== 'SUPERVISORY_CYCLE') throw new Error('Control prompts require a supervisory-cycle route.');
   const requestId = route.requestId;
   const location = `${route.packet.githubReceipt.repository}#${route.packet.githubReceipt.issueNumber}`;
@@ -829,6 +858,7 @@ export function cycleControlPrompt(route, step, { omitContinuationOwnerExactText
       'Return MISSION_CONTROL_CANONICAL_DECISION_V1 followed by a newline and strict JSON with schema_version 5, envelope_kind MISSION_CONTROL_CANONICAL_DECISION, request_id, supervisor_id, provider_session_id, nonce, in_band_binding_sha256, execution_provenance IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED, evidence_capsule, owner_outcome, reasoning_lane, decision_block {decision_id,exact_text,sha256}, pro_decision_block, and writer_contract {mode:EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY,reinterpretation_allowed:false}. The canonical block must be the final content in the response; a mandatory visible timestamp may precede it, but nothing may follow the JSON.',
       'For EXTRA_HIGH_DIRECT use pro_decision_block {used:false,model_mode:null,exact_text:null,sha256:null}. For PRO_ESCALATED use {used:true,model_mode:PRO,exact_text:<the same decision bytes>,sha256:<the same digest>}. Compute exact SHA-256 values; never guess.',
       boundedExecutionResidueInstruction(route).trimStart(),
+      workQuestionOwnerAction && isWorkSupervisorQuestion(route) ? WORK_QUESTION_OWNER_ACTION_INSTRUCTION : '',
       'Read only the bound evidence, reason only on the bounded request, return one canonical decision block, then stop. If any binding, evidence-read, hash, or expiry check fails, fail closed. Do not attempt a GitHub write, answer with substitute prose, delegate to Work, call paid model APIs, Continue, Retry, or create another provider request.',
     ].filter(Boolean).join('\n');
   }
