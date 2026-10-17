@@ -23,6 +23,7 @@ import type {
   WorkerHeartbeatEvent,
 } from "./schema";
 import { effectiveSameStrategyContinuationAllowed, effectiveStrategyEfficacy } from "./progress-invariants";
+import { OWNER_TASK_AWAITING_SUPERVISION_REASON, ownerTaskAwaitingFirstSupervision } from "./owner-task-source";
 import { compareTerminalState, correctionVerificationStale, latestOwnerAction, type TerminalComparison } from "./terminal-comparator";
 import { projectWorkerChannel, type WorkerChannelProjection } from "./worker-channel";
 import { completedWorkRoutingTelemetryCount } from "./work-execution-runtime";
@@ -683,7 +684,13 @@ function projectCorrection(
   const inactiveStates: CorrectionStatus[] = ["CORRECTION_RESOLVED", "CORRECTION_FAILED", "DIRECTIVE_SUPERSEDED", "DIRECTIVE_WITHDRAWN"];
   const activeDirectives = [...latestAttemptEvents.values()].filter((event) => !inactiveStates.includes(event.status));
   const directiveConflict = new Set(activeDirectives.map((event) => event.directive_id)).size > 1;
-  const ownerAction = effectiveOwnerAction(recordedOwnerAction, now, events, latestCorrection, directiveConflict);
+  const registeredOutcome = latest(events, "owner_outcome_recorded");
+  const registeredSource = registeredOutcome
+    ? [...events].reverse().find((event) => event.data.type === "owner_source_recorded"
+      && event.data.receipt_id === registeredOutcome.source_receipt_id)?.data
+    : undefined;
+  const awaitingFirstSupervision = ownerTaskAwaitingFirstSupervision(events, registeredSource);
+  const ownerAction = effectiveOwnerAction(recordedOwnerAction, now, events, latestCorrection, directiveConflict, awaitingFirstSupervision);
   const recordedContinuationPolicy = latestCorrection?.continuation_policy ?? fallbackFinding?.continuation_policy
     ?? assessment?.continuation_policy ?? unknownContinuationPolicy();
   const continuationPolicy = effectiveContinuationPolicy(recordedContinuationPolicy, now);
@@ -1213,6 +1220,7 @@ function effectiveOwnerAction(
   events: StoredEvent[],
   correction?: Extract<MissionControlEventV2, { type: "correction_lifecycle_recorded" }>,
   directiveConflict = false,
+  awaitingFirstSupervision = false,
 ): OwnerActionObligation {
   const sourceEventId = events.at(-1)?.eventId ?? "projection:missing-owner-action";
   if (directiveConflict) return {
@@ -1221,6 +1229,20 @@ function effectiveOwnerAction(
     reason_code: "OWNER.ACTIVE_DIRECTIVE_CONFLICT",
     subject_id: `worker:${events.at(-1)?.worker ?? "unknown"}`,
     blocking_scope: ["correction execution"],
+    source_event_ids: [sourceEventId],
+    due_at: null,
+    escalation_at: null,
+    status: "OPEN",
+  };
+  // A task the owner just registered has no supervisor yet, so nothing has reported an owner action. That is the
+  // expected start, not missing telemetry: it stays fail-closed (no work starts), but nothing is wrong and nothing
+  // waits on the owner (lib/owner-view.ts shows it as waiting for its supervisor).
+  if (!recorded && awaitingFirstSupervision) return {
+    kind: "MANUAL_INTERVENTION_REQUIRED",
+    exact_text: "Registered by the owner. No supervisor has been set up for it yet, so no work has started.",
+    reason_code: OWNER_TASK_AWAITING_SUPERVISION_REASON,
+    subject_id: `worker:${events.at(-1)?.worker ?? "unknown"}`,
+    blocking_scope: ["task start"],
     source_event_ids: [sourceEventId],
     due_at: null,
     escalation_at: null,

@@ -10,7 +10,7 @@ import { lastSupervisorQuestionSentAt, latestSupervisorConversation } from "@/li
 import { FleetQueue } from "./WorkerChannel";
 import type { WorkQueueItemProjection } from "@/lib/worker-channel";
 import { ownerMutationHeaders } from "@/lib/browser-auth";
-import { readDashboardData, validTaskSnapshot, validOperatorSnapshot, snapshotFailure, orderedOpenQueue, ownerAttention, workerDisposition, type SnapshotFailure } from "@/lib/owner-view";
+import { readDashboardData, validTaskSnapshot, validOperatorSnapshot, snapshotFailure, orderedOpenQueue, ownerAttention, workerDisposition, awaitingItsSupervisor, type SnapshotFailure } from "@/lib/owner-view";
 import type { LiveHealthState, OperatorStatusProjection } from "@/lib/operator-status-contract";
 
 interface Snapshot {
@@ -149,6 +149,7 @@ export function ownerActionForCard(worker: WorkerState, now = new Date()): strin
   const attention = ownerAttention(worker, now);
   if (attention?.kind === "decision") return worker.correction.ownerActionText || "Action details not recorded";
   if (attention?.kind === "alarm") return `Nothing to decide. ${attention.explanation}`;
+  if (awaitingItsSupervisor(worker)) return "None. It's waiting for its supervisor to be set up.";
   return "None recorded";
 }
 
@@ -472,6 +473,7 @@ function OwnerDecisionDetails({ worker, onRefresh }: { worker: WorkerState; onRe
 
 function continuationLabel(worker: WorkerState): string {
   const policy = worker.correction.continuationPolicy;
+  if (awaitingItsSupervisor(worker)) return "NOT STARTED — WAITING FOR ITS SUPERVISOR";
   if (policy.mode === "UNKNOWN") return "UNKNOWN — PAUSE AND REPAIR OBSERVABILITY";
   if (policy.mode === "PAUSE_ALL") return "UNSAFE — PAUSE ALL WORK";
   if (policy.mode === "CONTINUE_UNRESTRICTED") return "SAFE — CONTINUE";

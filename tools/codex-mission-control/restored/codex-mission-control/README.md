@@ -166,21 +166,31 @@ three are owner-authority records. The owner-action tool deliberately forwards n
 **Register a task** page (`/workers/new`) is the one way to add a task. The owner answers four questions in their own
 words: what the task should achieve, what it may use, what it must never do, and when it is done.
 
-- `POST /api/workers` accepts only the owner's signed-in browser session, with the same-origin and CSRF checks. The
-  owner bearer token is refused there, and the daemon's `POST /workers` takes only the owner producer with the app's
-  session marker. Anything that holds the owner bearer runs commands others write, so it must not be able to put words
-  in the owner's mouth.
-- Mission Control records the exact answers as the owner source (`OWNER_REATTESTED`, with a
-  `mission-control://owner-session/task-registration/` locator and the SHA-256 of the canonical answers). It then
-  derives the owner outcome, the task contract and the reconciliation from them mechanically: the goal is the outcome
-  and the contract goal, the other answers become the allowed scope, the forbidden scope and the acceptance criteria,
-  one item per line. Nothing is interpreted, so the contract matches its source by construction.
-- A SYSTEM record then sets the task's connection to `OFFLINE_CONFIGURED`, which shows it on the live dashboard. No
-  worker is connected yet.
-- Submitting the same answers again records nothing. Other answers for an existing task id, or any existing worker's
-  id, are refused.
-- The task's contract id (`contract:<task id>`) can be enrolled in the fleet watch with the owner-action tool's
-  `watch-enroll`. Enrollment still cannot invent a worker or a task.
+- **The registration passphrase is the check.** Signing in to the dashboard takes the owner token, and scripts on the
+  server hold that token too, so a signed-in session alone doesn't show that the owner typed a task. The daemon's
+  `POST /workers` therefore records a task only with the owner's registration passphrase, which it checks against a
+  scrypt verifier stored next to the database. The owner chooses the passphrase on their own computer, and only the
+  verifier reaches the server (`scripts/set-owner-task-passphrase.ts` installs it). The passphrase itself arrives only
+  inside a registration, and nothing of it is recorded or logged. Five wrong passphrases lock registration for 15
+  minutes. Without a verifier, registration is off.
+- The app's `POST /api/workers` takes registrations only from the owner's signed-in session, with the same-origin and
+  CSRF checks, and refuses the owner bearer. That keeps the form the one way in; it isn't what shows the owner typed it.
+- The store refuses the registration's markers (its event ids and the
+  `mission-control://owner-session/task-registration/` locator) on every other path, `POST /events` included, so no
+  other caller can make a record look like a registration.
+- Mission Control records the exact answers, with the standard lines the form shows, as the owner source
+  (`OWNER_REATTESTED`, with the SHA-256 of the canonical submission). It derives the owner outcome, the task contract
+  and the reconciliation from them mechanically: the goal is the outcome and the contract goal, and the other answers
+  become the allowed scope, the forbidden scope and the acceptance criteria, one item per line. Every text in those
+  records is the owner's own answer or one of the standard lines, so the contract matches its source by construction.
+- A registered task is under the current supervision rules from the start, as for owner-outcome epoch 4 and later. A
+  SYSTEM record sets its connection to `OFFLINE_CONFIGURED`, which shows it on the live dashboard as "Registered ·
+  waiting for its supervisor" until a supervisor records something for it. It joins the fleet watch when its
+  supervisor publishes its first work queue.
+- Submitting the same answers again records nothing. Other answers for a registered task id are refused, and so is
+  any id that already has records, saying what those records are.
+- Not covered: anything with direct access to the server's container, database or verifier file can write records
+  directly, as it can for any record; and a passphrase typed anywhere but the form.
 
 ## Native fleet supervisor
 

@@ -8,6 +8,7 @@ import { StatusDot } from "./StatusDot";
 import { SupervisorLink } from "./SupervisorLink";
 import { SupervisorActivityPanel } from "./SupervisorActivity";
 import { latestSupervisorConversation } from "@/lib/supervisor-activity";
+import { awaitingItsSupervisor } from "@/lib/owner-view";
 import { WorkerChannel } from "./WorkerChannel";
 
 export function WorkerDetail({ workerId }: { workerId: string }) {
@@ -219,6 +220,7 @@ function OwnerDecisionDetails({ worker }: { worker: WorkerState }) {
 
 function continuationLabel(worker: WorkerState): string {
   const policy = worker.correction.continuationPolicy;
+  if (awaitingItsSupervisor(worker)) return "NOT STARTED — WAITING FOR ITS SUPERVISOR";
   if (policy.mode === "UNKNOWN") return "UNKNOWN — PAUSE AND REPAIR OBSERVABILITY";
   if (policy.mode === "PAUSE_ALL") return "UNSAFE — PAUSE ALL WORK";
   if (policy.mode === "CONTINUE_UNRESTRICTED") return "SAFE — CONTINUE";

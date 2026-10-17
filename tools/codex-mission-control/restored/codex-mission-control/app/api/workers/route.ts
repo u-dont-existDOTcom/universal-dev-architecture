@@ -10,9 +10,10 @@ export async function GET(request: Request) {
   return relayJson(timeline === "recent" ? "/snapshot?timeline=recent" : "/snapshot");
 }
 
-// Registering a task carries the owner's own words, so only the owner's signed-in browser session may do it (with its
-// same-origin and CSRF checks). The owner bearer token is refused here: anything holding it, such as the owner-action
-// tool, runs commands others write, and must not be able to put words in the owner's mouth.
+// Registering a task carries the owner's own words. The form is the way to do it, so the app takes it only from the
+// owner's signed-in dashboard session (same origin, CSRF proof) and refuses the owner bearer. That alone doesn't show the
+// owner typed it: signing in takes the owner token, which scripts on the server hold too. The daemon decides, with the
+// owner's registration passphrase in the body, which this route passes on unread (lib/owner-task-passphrase.ts).
 export async function POST(request: Request) {
   const authentication = authenticateOwnerRequest(request, true);
   if (!authentication.ok) return ownerAuthFailure(authentication);
@@ -21,10 +22,7 @@ export async function POST(request: Request) {
   }
   return relayJson("/workers", {
     method: "POST",
-    headers: daemonMutationHeaders(authentication.principal, {
-      "content-type": "application/json",
-      "x-mission-control-owner-auth-mode": "SESSION",
-    }),
+    headers: daemonMutationHeaders(authentication.principal, { "content-type": "application/json" }),
     body: await request.text(),
   });
 }

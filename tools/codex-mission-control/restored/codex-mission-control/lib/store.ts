@@ -6,6 +6,7 @@ import { canonicalJson, sha256 } from "./canonical";
 import { initializeJevShadowTelemetry, jevShadowSummary, recordJevShadowObservation, type JevShadowRecordInput } from "./jev-shadow-telemetry";
 import { trustedTaskCreationEvidence } from "./work-task-creation-evidence";
 import { producerMayEmit } from "./ingestion-auth";
+import { carriesOwnerTaskRegistrationMarker, outcomeUnderCurrentSupervision } from "./owner-task-source";
 import { CorrectionInvariantError, validateCorrectionTransition } from "./correction-lifecycle";
 import { progressInvariantErrors } from "./progress-invariants";
 import { parseRouteContinuation } from "./owner-response-continuation-schema";
@@ -69,6 +70,8 @@ interface SubmissionAuthorityLedgerVerificationCache {
 
 export class EventStore {
   private readonly db: DatabaseSync;
+  // Set only while appendOwnerTaskRegistration runs: the one path allowed to write task-registration markers.
+  private ownerTaskRegistrationDepth = 0;
   private chainVerificationCache: ChainVerificationCache = { sequence: 0, eventHash: null, errors: [] };
   private readonly submissionAuthorityLedgerVerificationCaches = new Map<string, SubmissionAuthorityLedgerVerificationCache>();
 
@@ -205,6 +208,11 @@ export class EventStore {
     validationHistory?: readonly StoredEvent[],
   ): StoredEvent {
     const envelope = parseAppendEnvelope(input);
+    // A task the owner registers carries these markers, and the dashboard treats it as the owner's own words. Refusing
+    // them on every other route (POST /events included) means no other caller can make a record look like one.
+    if (this.ownerTaskRegistrationDepth === 0 && carriesOwnerTaskRegistrationMarker(envelope.event_id, envelope.data)) {
+      throw new ContractInvariantError("Task-registration records come only from the owner's registration.");
+    }
     const trustedSystemBoundaryTypes = new Set<MissionControlEventV2["type"]>([
       "work_task_creation_selection_applied",
       "chatgpt_work_cloud_dispatch_requested",
@@ -282,6 +290,19 @@ export class EventStore {
     } catch (error) {
       this.db.exec("ROLLBACK");
       throw error;
+    }
+  }
+
+  /** The owner's task registration (lib/owner-task-registration.ts), the only caller allowed its markers. */
+  appendOwnerTaskRegistration(
+    items: Array<{ event: unknown; receivedAt?: string; producer?: AuthenticatedProducer }>,
+    validationHistory?: readonly StoredEvent[],
+  ): StoredEvent[] {
+    this.ownerTaskRegistrationDepth += 1;
+    try {
+      return this.appendMany(items, validationHistory);
+    } finally {
+      this.ownerTaskRegistrationDepth -= 1;
     }
   }
 
@@ -1262,8 +1283,14 @@ export class EventStore {
       }
     }
     const currentOutcomeForExecution = outcomes.at(-1)?.data;
-    if (data.type === "worker_checkpoint_recorded" && currentOutcomeForExecution?.type === "owner_outcome_recorded"
-      && currentOutcomeForExecution.epoch >= 4) {
+    // Epoch 4 and later, or a task the owner registered: the current supervision rules apply. Looked up only for the
+    // two record types it gates.
+    const currentSupervisionApplies = () => outcomeUnderCurrentSupervision(currentOutcomeForExecution,
+      currentOutcomeForExecution?.type === "owner_outcome_recorded"
+        ? [...events].reverse().find((event) => event.data.type === "owner_source_recorded"
+          && event.data.receipt_id === currentOutcomeForExecution.source_receipt_id)?.data
+        : undefined);
+    if (data.type === "worker_checkpoint_recorded" && currentSupervisionApplies()) {
       const start = [...events].reverse().find((event) => event.data.type === "codex_execution_started")?.data;
       const receiptAfterStart = [...events].reverse().find((event) => event.data.type === "execution_receipt_recorded")?.data;
       if (start?.type !== "codex_execution_started" || start.worker_run_id !== data.worker_run_id
@@ -1271,8 +1298,7 @@ export class EventStore {
         throw new ContractInvariantError("Current-epoch substantive worker checkpoints require an unclosed directive-bound Codex execution start.");
       }
     }
-    if (data.type === "completion_claim_recorded" && currentOutcomeForExecution?.type === "owner_outcome_recorded"
-      && currentOutcomeForExecution.epoch >= 4) {
+    if (data.type === "completion_claim_recorded" && currentSupervisionApplies()) {
       const start = [...events].reverse().find((event) => event.data.type === "codex_execution_started")?.data;
       const receipt = [...events].reverse().find((event) => event.data.type === "execution_receipt_recorded")?.data;
       if (start?.type !== "codex_execution_started"
