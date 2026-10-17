@@ -12,7 +12,7 @@ import {
 import { inBandRequestBindingEnvelope, inBandRequestRoutePrefix } from "../lib/in-band-request-binding";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
 import { awaitingItsSupervisor, ownerAttention, workerDisposition } from "../lib/owner-view";
-import { ownerActionForCard } from "../components/Dashboard";
+import { ownerActionForCard, ownerDecisionLine } from "../components/Dashboard";
 import { parseOwnerTaskRegistration, registerOwnerTask } from "../lib/owner-task-registration";
 import { OWNER_TASK_AWAITING_SUPERVISION_REASON, OWNER_TASK_FIRST_QUESTION_UNANSWERED_REASON } from "../lib/owner-task-source";
 import { projectWorker } from "../lib/projection";
@@ -241,6 +241,7 @@ test("a blocker that waits on the owner isn't hidden behind the quiet first ques
     assert.equal(awaitingItsSupervisor(blocked), false);
     assert.equal(workerDisposition(blocked), "Waiting for your decision");
     assert.equal(ownerActionForCard(blocked), "Needs a login: The source needs the owner's own login.", "the card names what the owner must do");
+    assert.equal(ownerDecisionLine(blocked), "Needs a login: The source needs the owner's own login.", "so does the decision list");
     assert.equal(awaitingItsSupervisor(projectWorker([...history, blocker("EXTERNAL")])), true);
     // A blocker another actor reports as needing the owner counts too.
     const needsOwner = classifyFleetSupervisorTick(watch, [...history, blocker("SUPERVISOR", { needsOwner: true })], store.verifyChain());
