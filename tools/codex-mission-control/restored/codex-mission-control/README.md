@@ -159,6 +159,29 @@ an edited immutable comment identity is rejected; and a WORKER cannot emit the
 equivalent authority event. Existing verified and owner-attested direct-source
 directives remain supported without reinterpretation.
 
+### Registering a task in the owner's own words
+
+A task appears in Mission Control only once it has an owner source, an owner outcome and a task contract, and all
+three are owner-authority records. The owner-action tool deliberately forwards no semantic content, so the dashboard's
+**Register a task** page (`/workers/new`) is the one way to add a task. The owner answers four questions in their own
+words: what the task should achieve, what it may use, what it must never do, and when it is done.
+
+- `POST /api/workers` accepts only the owner's signed-in browser session, with the same-origin and CSRF checks. The
+  owner bearer token is refused there, and the daemon's `POST /workers` takes only the owner producer with the app's
+  session marker. Anything that holds the owner bearer runs commands others write, so it must not be able to put words
+  in the owner's mouth.
+- Mission Control records the exact answers as the owner source (`OWNER_REATTESTED`, with a
+  `mission-control://owner-session/task-registration/` locator and the SHA-256 of the canonical answers). It then
+  derives the owner outcome, the task contract and the reconciliation from them mechanically: the goal is the outcome
+  and the contract goal, the other answers become the allowed scope, the forbidden scope and the acceptance criteria,
+  one item per line. Nothing is interpreted, so the contract matches its source by construction.
+- A SYSTEM record then sets the task's connection to `OFFLINE_CONFIGURED`, which shows it on the live dashboard. No
+  worker is connected yet.
+- Submitting the same answers again records nothing. Other answers for an existing task id, or any existing worker's
+  id, are refused.
+- The task's contract id (`contract:<task id>`) can be enrolled in the fleet watch with the owner-action tool's
+  `watch-enroll`. Enrollment still cannot invent a worker or a task.
+
 ## Native fleet supervisor
 
 The fleet loop has a stall watchdog. It polls every 60 seconds by default and

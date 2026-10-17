@@ -106,7 +106,7 @@ export function Dashboard() {
   ]).size : 0;
   const partial = Object.keys(failures).length > 0;
   return <main className="shell mission-shell owner-shell">
-    <header className="topbar"><div className="brand-row"><div className="brand-mark">MC</div><div><p className="eyebrow">YOUR WORK, IN VIEW</p><h1>Mission Control</h1></div></div><button className="owner-retry" onClick={() => void load()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</button></header>
+    <header className="topbar"><div className="brand-row"><div className="brand-mark">MC</div><div><p className="eyebrow">YOUR WORK, IN VIEW</p><h1>Mission Control</h1></div></div><div className="topbar-actions"><a className="register-link" href="/workers/new">Register a task</a><button className="owner-retry" onClick={() => void load()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</button></div></header>
     <DashboardNotice failures={failures} hasSnapshot={Boolean(snapshot)} loading={loading} onRetry={() => void load()} />
     {streamError && <div role="status" className="error-banner">Live updates are reconnecting. Displayed information may be stale; use Refresh to check.</div>}
     {!failures.Infrastructure && <SupervisionHealthLine status={operatorStatus} lastQuestionAt={supervisionHistory(snapshot, Boolean(failures.Tasks))} />}

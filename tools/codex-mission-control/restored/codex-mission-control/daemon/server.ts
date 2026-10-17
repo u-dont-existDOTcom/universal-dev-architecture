@@ -40,6 +40,7 @@ import {
   routeFleetSupervisorReasoning,
 } from "../lib/fleet-supervisor";
 import { enrollFleetSupervisorWatch, parseFleetWatchEnrollment } from "../lib/fleet-watch-enrollment";
+import { parseOwnerTaskRegistration, registerOwnerTask } from "../lib/owner-task-registration";
 import { observeFleetSupervisorWithJev } from "../lib/jev-shadow";
 import { boundedJevShadowHook, sampleJevShadowOnStateChange } from "../lib/jev-shadow-hook";
 import { FleetSupervisorLoop, fleetSupervisorSlowTickMs, fleetSupervisorStallMs } from "../lib/fleet-supervisor-loop";
@@ -482,6 +483,30 @@ const server = http.createServer(async (request, response) => {
       return json(response, 200, viewed);
     }
 
+    // The owner registers a new task in their own words. It takes semantic owner content, so it accepts only the owner's
+    // signed-in dashboard session, relayed by the app with the session marker; the owner bearer (and so the owner-action
+    // tool) cannot reach it.
+    if (request.method === "POST" && url.pathname === "/workers") {
+      const producer = authorizeMutation(request);
+      if (producer.kind !== "OWNER_AUTHORITY" || request.headers["x-mission-control-owner-auth-mode"] !== "SESSION") {
+        return json(response, 403, { error: "Only the owner's signed-in dashboard session may register a task." });
+      }
+      const input = parseOwnerTaskRegistration(await readJson(request));
+      if (typeof input === "string") return json(response, 400, { error: input });
+      try {
+        const result = registerOwnerTask(store, input, producer, eventHistory());
+        if (!result.duplicate) notifications.emit("event", result.events.at(-1));
+        return json(response, result.duplicate ? 200 : 201, {
+          status: result.status,
+          worker: result.worker,
+          contractId: result.contractId,
+          sourceSha256: result.sourceSha256,
+          eventIds: result.events.map((event) => event.eventId),
+        });
+      } catch (error) {
+        return json(response, 409, { error: error instanceof Error ? error.message : "The task registration was rejected." });
+      }
+    }
     const workerMatch = url.pathname.match(/^\/workers\/([^/]+)$/);
     if (request.method === "GET" && workerMatch) {
       const worker = decodeURIComponent(workerMatch[1]);

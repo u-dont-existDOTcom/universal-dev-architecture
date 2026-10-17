@@ -764,3 +764,16 @@ code { font-family: var(--mono); color: #b9d5cc; font-size: .92em; }
 .supervisor-request-times { color: var(--muted); font-size: 12px; }
 .supervisor-request-answer { padding: 8px 10px; background: var(--panel-2); }
 .supervisor-request .supervisor-link { justify-self: start; }
+
+/* Register a task: the owner's own words for a new task. */
+.register-shell { display: grid; min-height: 100vh; place-items: start center; padding: 32px 16px; }
+.register-panel { width: min(640px, 100%); padding: 24px; border: 1px solid var(--line); border-top: 3px solid var(--cyan); background: linear-gradient(145deg, rgba(18,30,27,.98), rgba(9,17,15,.98)); }
+.register-panel h1 { margin: 5px 0 10px; }
+.register-panel > p:not(.eyebrow) { margin: 0 0 18px; color: var(--muted); line-height: 1.6; font-size: 12px; }
+.register-panel label { margin-top: 14px; }
+.register-panel input { width: 100%; padding: 9px 11px; border: 1px solid #315249; background: var(--bg); color: var(--text); font: 12px var(--sans); outline: none; }
+.register-panel input:focus { border-color: var(--cyan); }
+.register-panel textarea { min-height: 76px; }
+.register-panel a { color: var(--cyan); }
+.topbar-actions { display: flex; align-items: center; gap: 10px; }
+.register-link { color: var(--cyan); font: 700 9px var(--mono); text-transform: uppercase; text-decoration: none; }

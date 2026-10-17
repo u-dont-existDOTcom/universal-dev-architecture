@@ -43,8 +43,15 @@ export function enrollFleetSupervisorWatch(store: EventStore, projectId: string,
   if (history.length === 0) {
     throw new ContractInvariantError(`Worker ${input.worker} has no Mission Control history; enrollment cannot invent a worker.`);
   }
-  const knownTasks = new Set(history.map((event) => (event.data as { task_id?: unknown }).task_id)
-    .filter((taskId): taskId is string => typeof taskId === "string"));
+  // A task is known when an event names it, or when it is the id of the worker's own task contract (a task the owner
+  // registered has a contract before any worker event names a task).
+  const knownTasks = new Set(history.flatMap((event) => {
+    const data = event.data as { type?: string; task_id?: unknown; contract_id?: unknown };
+    const ids: string[] = [];
+    if (typeof data.task_id === "string") ids.push(data.task_id);
+    if (data.type === "task_contract_recorded" && typeof data.contract_id === "string") ids.push(data.contract_id);
+    return ids;
+  }));
   if (!knownTasks.has(input.taskId)) {
     throw new ContractInvariantError(`Task ${input.taskId} does not appear in worker ${input.worker}'s history.`);
   }
