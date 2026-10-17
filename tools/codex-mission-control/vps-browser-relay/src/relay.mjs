@@ -30,6 +30,7 @@ import {
   deriveBindingCapsule,
   deriveInBandRequestBinding,
   extractQueuedRoutes,
+  frozenCycleControlPrompt,
   mcpReadPreflightPrompt,
   managedChatGptTabTelemetry,
   newProviderSessionId,
@@ -1053,7 +1054,7 @@ export class RelayRuntime {
     }
 
     if (action.type === 'RECOVER_AND_PUBLISH') {
-      const prompt = cycleControlPrompt(route, action.step);
+      const prompt = frozenCycleControlPrompt(route, action.step, prior.promptSha256);
       const binding = deriveInBandRequestBinding(route, session.providerSessionId);
       let recovered;
       try {

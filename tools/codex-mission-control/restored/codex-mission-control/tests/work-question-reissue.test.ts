@@ -5,6 +5,7 @@ import test from "node:test";
 import { canonicalJson, sha256 } from "../lib/canonical";
 import { workerTransportSnapshotFromEvents } from "../lib/dashboard-data";
 import {
+  canonicalDecisionCommentPrefix,
   pendingDecisionRequests,
   retiredAfterSendRequests,
   retiredUnsentRequests,
@@ -29,9 +30,9 @@ import {
   type SettledSendSubmissionState,
 } from "../lib/unsent-request-proof";
 import {
-  assertNoDecisionCommentFor,
   buildExpiredWorkQuestionReissue,
   buildSentWorkQuestionResend,
+  checkDecisionIssueBeforeDiscard,
   DiscardReconciliationError,
   expiredPendingWorkQuestions,
   reconcileBeforeDiscard,
@@ -647,6 +648,7 @@ test("the owner's discard goes through the async re-send once, and a readback al
   assert.deepEqual(order, ["reconcile after 1 proof(s)"]);
   assert.equal(first.status, "WORK_QUESTION_RESENT");
   assert.equal(first.finishedReplyDiscarded, true);
+  assert.equal(first.refusedReplyDiscarded, false);
   assert.equal(owner.batches.length, 1);
   const retirement = owner.history().find((event) => event.eventId === first.retirementEventId)!;
   assert.ok((retirement.data as { refs: string[] }).refs.includes("finished_reply:DISCARDED_BY_OWNER"));
@@ -657,6 +659,7 @@ test("the owner's discard goes through the async re-send once, and a readback al
   assert.equal(repeat.status, "WORK_QUESTION_ALREADY_REISSUED");
   assert.equal(repeat.requestId, first.requestId);
   assert.equal(repeat.finishedReplyDiscarded, null, "a repeat only reports the earlier re-send");
+  assert.equal(repeat.refusedReplyDiscarded, null);
   assert.equal(owner.batches.length, 1);
   assert.deepEqual(owner.proved, [requestId]);
 
@@ -670,6 +673,19 @@ test("the owner's discard goes through the async re-send once, and a readback al
     async () => { copying.add(evidence("dom-readback", "MISSION_CONTROL_PROVIDER_SESSION_BROWSER_DOM_READBACK_V1", ["status:COMPLETE"])); }),
   /was read back; it may still be accepted, so it is not discarded/);
   assert.equal(copying.batches.length, 0);
+  // A readback of exactly the reply the discard's own read found refused on the decision issue is set aside.
+  const refusedBody = decisionComment(requestId);
+  const refusedRead = harness([...finished, evidence("dom-refused", "MISSION_CONTROL_PROVIDER_SESSION_BROWSER_DOM_READBACK_V1",
+    ["status:COMPLETE", `machine_block_sha256:${sha256(refusedBody)}`])]);
+  const resent = await resendSentWorkQuestion(refusedRead.store as never, { ...input, discardFinishedReply: true }, refusedRead.prove,
+    policy(), () => later, async () => ({ refusedReplySha256s: [sha256(refusedBody)] }));
+  assert.equal(resent.status, "WORK_QUESTION_RESENT");
+  assert.equal(resent.refusedReplyDiscarded, true);
+  assert.equal(refusedRead.batches.length, 1);
+  const refusedRepeat = await resendSentWorkQuestion(refusedRead.store as never, { ...input, discardFinishedReply: true }, refusedRead.prove,
+    policy(), () => later, async () => { throw new Error("a repeat reads nothing"); });
+  assert.equal(refusedRepeat.status, "WORK_QUESTION_ALREADY_REISSUED");
+  assert.equal(refusedRepeat.refusedReplyDiscarded, null);
   const noReconciliation = harness(finished);
   await assert.rejects(resendSentWorkQuestion(noReconciliation.store as never, { ...input, discardFinishedReply: true }, noReconciliation.prove, policy(),
     () => later), /needs a GitHub reconciliation first/);
@@ -701,7 +717,30 @@ test("a discard waits for one completed GitHub reconciliation of its own, and st
   assert.equal(alwaysBusy.calls.length, 4);
 });
 
-test("the discard's last step reads the decision issue and stops on any comment naming the question", async () => {
+/** A canonical decision comment for one request, as Mission Control's copier posts it. */
+function decisionComment(requestId: string, extra: Record<string, unknown> = {}): string {
+  const exact = "Continue the Work thread.";
+  return canonicalDecisionCommentPrefix + JSON.stringify({
+    schema_version: 5, envelope_kind: "MISSION_CONTROL_CANONICAL_DECISION", request_id: requestId, supervisor_id: supervisorId,
+    provider_session_id: "provider-session:alpha", nonce: "work-question-nonce:alpha", in_band_binding_sha256: "a".repeat(64),
+    execution_provenance: "IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED", evidence_capsule: { id: "capsule:alpha", sha256: "b".repeat(64) },
+    owner_outcome: { id: "outcome:alpha", epoch: 2, sha256: outcomeSha }, reasoning_lane: "EXTRA_HIGH_DIRECT",
+    decision_block: { decision_id: "decision:alpha", exact_text: exact, sha256: sha256(exact) },
+    pro_decision_block: { used: false, model_mode: null, exact_text: null, sha256: null },
+    writer_contract: { mode: "EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", reinterpretation_allowed: false }, ...extra,
+  });
+}
+
+const ownerDecision = {
+  kind: "DECISION_REQUIRED", decision_id: "decision:owner-alpha", question: "Which repair goes first?", context: "Two repairs compete.",
+  options: [
+    { option_id: "guard", label: "Guard first", benefits: ["Safer"], drawbacks: ["Slower"], downstream_consequences: ["Retry later"] },
+    { option_id: "retry", label: "Retry first", benefits: ["Faster"], drawbacks: ["Riskier"], downstream_consequences: ["Guard later"] },
+  ],
+  recommendation_option_id: "guard", recommendation_reasoning: "The guard protects the retry.", default_if_no_decision: "Guard first.",
+};
+
+test("the discard's last step reads the decision issue: a refused Work answer is set aside, anything else naming the question stops it", async () => {
   const requestId = "work-question:" + "c".repeat(32);
   const seen: string[] = [];
   const pages = (bodies: string[][], status = 200) => (async (url: string | URL | Request) => {
@@ -714,16 +753,78 @@ test("the discard's last step reads the decision issue and stops on any comment 
     tokenProvider: async () => "token", fetchImpl, ...overrides,
   });
   const unrelated = Array.from({ length: 100 }, (_, index) => `Unrelated ${index}`);
-  await assertNoDecisionCommentFor(options(pages([unrelated, ["Another unrelated comment"]])));
+  assert.deepEqual(await checkDecisionIssueBeforeDiscard(options(pages([unrelated, ["Another unrelated comment"]]))), []);
   assert.equal(seen.length, 2);
   assert.equal(new URL(seen[0]!).searchParams.get("since"), "2026-10-16T16:28:00.000Z");
-  await assert.rejects(assertNoDecisionCommentFor(options(pages([unrelated, [`MISSION_CONTROL_CANONICAL_DECISION_V1\n{"request_id":"${requestId}"}`]]))),
-    /names this question, so its reply is not discarded/);
-  await assert.rejects(assertNoDecisionCommentFor(options(pages([[]], 502))), /could not be read on GitHub, so nothing was discarded/);
-  await assert.rejects(assertNoDecisionCommentFor(options(pages([[]]), { tokenProvider: null })), /no GitHub reader is configured/);
-  await assert.rejects(assertNoDecisionCommentFor(options(pages([unrelated, unrelated, unrelated]), { maxPages: 2 })), /too many comments/);
-  await assert.rejects(assertNoDecisionCommentFor(options((async () => { throw new Error("network down"); }) as typeof fetch)),
+
+  // Answers Mission Control can never take in for a Work question: no owner_action, or NONE with no Work continuation.
+  const noOwnerAction = decisionComment(requestId);
+  const noneWithoutContinuation = decisionComment(requestId, { owner_action: { kind: "NONE" } });
+  assert.deepEqual(await checkDecisionIssueBeforeDiscard(options(pages([unrelated, [noOwnerAction, noneWithoutContinuation]]))),
+    [sha256(noOwnerAction), sha256(noneWithoutContinuation)].sort());
+
+  // Anything that may still be taken in, or isn't exactly a decision for this question, stops the discard.
+  for (const body of [
+    decisionComment(requestId, { owner_action: ownerDecision }),
+    `MISSION_CONTROL_CANONICAL_DECISION_V1\n{"request_id":"${requestId}"}`,
+    decisionComment("work-question:" + "d".repeat(32), { decision_block: { decision_id: "decision:other", exact_text: requestId, sha256: sha256(requestId) } }),
+    `A note about ${requestId}`,
+  ]) {
+    await assert.rejects(checkDecisionIssueBeforeDiscard(options(pages([[noOwnerAction, body]]))),
+      /names this question, so its reply is not discarded/);
+  }
+  await assert.rejects(checkDecisionIssueBeforeDiscard(options(pages([[]], 502))), /could not be read on GitHub, so nothing was discarded/);
+  await assert.rejects(checkDecisionIssueBeforeDiscard(options(pages([[]]), { tokenProvider: null })), /no GitHub reader is configured/);
+  await assert.rejects(checkDecisionIssueBeforeDiscard(options(pages([unrelated, unrelated, unrelated]), { maxPages: 2 })), /too many comments/);
+  await assert.rejects(checkDecisionIssueBeforeDiscard(options((async () => { throw new Error("network down"); }) as typeof fetch)),
     DiscardReconciliationError);
+});
+
+test("a discard sets aside readbacks of exactly the refused reply, and nothing else", () => {
+  const { events, requestId } = sentEvents();
+  const refusedBody = decisionComment(requestId);
+  const refused = sha256(refusedBody);
+  const evidence = (id: string, summary: string, refs: string[], at = events.length + 1) => stored(at, id, {
+    type: "evidence_receipt_recorded", worker, receipt_id: id, producer_id: "collector:relay", producer_role: "COLLECTOR",
+    evidence_class: "ARTIFACT", independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: null,
+    summary, refs: [`request:${requestId}`, ...refs], verified: true, changed_path_manifest: null,
+  }, "collector:relay", "COLLECTOR", "2026-10-08T12:20:00.000Z");
+  const complete = evidence("stage-complete", "MISSION_CONTROL_RELAY_STAGE_V1", ["generation_state:COMPLETE"]);
+  const domReadback = evidence("dom-readback", "MISSION_CONTROL_PROVIDER_SESSION_BROWSER_DOM_READBACK_V1",
+    ["status:COMPLETE", `machine_block_sha256:${refused}`], events.length + 2);
+  const history = [...events, complete, domReadback];
+  const discard = (refusedReplySha256s: string[], extra: StoredEvent[] = []) => buildSentWorkQuestionResend([...history, ...extra],
+    { ...resendInput(requestId), discardFinishedReply: true, refusedReplySha256s }, settledSend(requestId), policy());
+
+  assert.throws(() => discard([]), /was read back; it may still be accepted, so it is not discarded/);
+  assert.throws(() => discard(["e".repeat(64)]), /was read back/);
+  const built = discard([refused]);
+  assert.equal(built.finishedReplyDiscarded, true);
+  assert.equal(built.refusedReplyDiscarded, true);
+  const refs = (built.retirement.data as { refs: string[] }).refs;
+  for (const ref of ["finished_reply:DISCARDED_BY_OWNER", "finished_reply_readback:REFUSED_BY_MISSION_CONTROL", `refused_reply_sha256:${refused}`]) {
+    assert.ok(refs.includes(ref), ref);
+  }
+  assert.ok(!refs.includes("finished_reply_readback:NONE"));
+  assert.ok(retiredAfterSendRequests(applied(history, built)).has(requestId), "the discarding retirement still counts");
+  assert.deepEqual(pendingDecisionRequests(applied(history, built)).map((request) => request.requestId), [built.requestId]);
+
+  // Another readback of different bytes, a digest-only transform, or a readback naming two digests still stops it.
+  const appOther = evidence("app-readback", "MISSION_CONTROL_PROVIDER_SESSION_APP_READBACK_V1",
+    ["status:COMPLETE", `machine_block_sha256:${"e".repeat(64)}`], events.length + 3);
+  const transform = evidence("transform", "MISSION_CONTROL_PROVIDER_SESSION_MACHINE_TRANSFORM_V1",
+    [`machine_block_sha256:${refused}`], events.length + 3);
+  const twoDigests = evidence("dom-readback-2", "MISSION_CONTROL_PROVIDER_SESSION_BROWSER_DOM_READBACK_V1",
+    [`machine_block_sha256:${refused}`, `machine_block_sha256:${"e".repeat(64)}`], events.length + 3);
+  for (const extra of [appOther, transform, twoDigests]) assert.throws(() => discard([refused], [extra]), /was read back/);
+  // The refused replies count only with the owner's discard.
+  assert.throws(() => buildSentWorkQuestionResend(history, { ...resendInput(requestId), refusedReplySha256s: [refused] },
+    settledSend(requestId), policy()), /finished or was read back; it may still be accepted, so it is not re-sent/);
+  // With nothing read back, the discard is as before.
+  const unread = buildSentWorkQuestionResend([...events, complete], { ...resendInput(requestId), discardFinishedReply: true },
+    settledSend(requestId), policy());
+  assert.equal(unread.refusedReplyDiscarded, false);
+  assert.ok((unread.retirement.data as { refs: string[] }).refs.includes("finished_reply_readback:NONE"));
 });
 
 test("the daemon runs a discard in Mission Control's decision-copy queue, with its reconciliation and final read", () => {
@@ -735,7 +836,7 @@ test("the daemon runs a discard in Mission Control's decision-copy queue, with i
   assert.match(route, /body\.discard_finished_reply === true && providerDecisionCopier\s*\? providerDecisionCopier\.exclusive\(section\) : section\(\)/);
   assert.match(route, /await exclusive\(\(\) => resendSentWorkQuestion\(store,/);
   assert.match(route, /await reconcileBeforeDiscard\(githubReconciliationCoordinator\);/);
-  assert.match(route, /await assertNoDecisionCommentFor\(\{/);
+  assert.match(route, /return \{ refusedReplySha256s: await checkDecisionIssueBeforeDiscard\(\{/);
   assert.match(route, /error instanceof DiscardReconciliationError\) return json\(response, 503/);
 });
 

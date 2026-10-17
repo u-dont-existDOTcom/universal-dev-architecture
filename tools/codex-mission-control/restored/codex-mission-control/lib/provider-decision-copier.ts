@@ -4,6 +4,7 @@ import {
   ingestGitHubSupervisionCandidate,
   parseCanonicalDecisionComment,
   pendingDecisionRequests,
+  workQuestionDecisionContractViolation,
   type GitHubDecisionCandidate,
   type GitHubReceiptPolicy,
   type PendingDecisionRequest,
@@ -14,6 +15,7 @@ import {
   inBandBrowserDomReadbackSummary,
 } from './in-band-request-binding';
 import type { AuthenticatedProducer } from './ingestion-auth';
+import { workQuestionContextForRequest } from './owner-question-route';
 import type { AppendEnvelope, StoredEvent } from './schema';
 import type { EventStore } from './store';
 import type { GitHubReconciliationTokenProvider } from './github-app-auth';
@@ -195,6 +197,13 @@ export class ProviderDecisionCopier {
         || decision.supervisor_id !== input.supervisorId
         || decision.provider_session_id !== input.providerSessionId) {
         throw new Error('Provider decision copy identity does not match the canonical decision.');
+      }
+      // A Work question's answer must keep the Work decision contract, which ingestion checks on the same bytes. It is
+      // refused here, before any readback is recorded or comment posted, so the relay records the answer as invalid
+      // instead of retrying a copy that can never be taken in.
+      if (workQuestionContextForRequest(this.options.eventHistory(), input.workerId, input.requestId)) {
+        const violation = workQuestionDecisionContractViolation(decision);
+        if (violation) throw new Error(violation);
       }
       return input;
     } catch (error) {

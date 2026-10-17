@@ -288,6 +288,27 @@ export function githubDecisionCandidateFromWebhook(payload: unknown, deliveryId:
   };
 }
 
+/**
+ * The decision contract of a Work supervisor question, read from the decision's own bytes: the supervisor classifies
+ * owner_action; NONE continues the Work thread through one CHATGPT_WORK_CLOUD bounded execution, and an owner-required
+ * answer authorizes no continuation. Returns why a decision breaks it, or null when it keeps it. The same bytes always
+ * give the same answer, so a decision that breaks it can never be taken in for a Work question.
+ */
+export function workQuestionDecisionContractViolation(decision: CanonicalDecisionEnvelope): string | null {
+  if (!("owner_action" in decision) || !decision.owner_action) {
+    return "Work supervisor-question decisions require an explicit owner_action classification.";
+  }
+  const boundedExecution = "bounded_execution" in decision ? decision.bounded_execution : undefined;
+  if (decision.owner_action.kind === "NONE") {
+    if (!boundedExecution || boundedExecution.execution_surface !== "CHATGPT_WORK_CLOUD") {
+      return "A supervisor-resolved Work question must authorize one CHATGPT_WORK_CLOUD bounded continuation.";
+    }
+  } else if (boundedExecution) {
+    return "An owner-required Work question cannot authorize Work continuation before the owner answers.";
+  }
+  return null;
+}
+
 export function parseCanonicalDecisionComment(body: string): CanonicalDecisionEnvelope {
   if (!body.startsWith(canonicalDecisionCommentPrefix)) throw new Error("GitHub comment does not contain the canonical Mission Control decision prefix.");
   let parsed: unknown;
@@ -1025,17 +1046,8 @@ export function buildGitHubDecisionReceiptEnvelope(
   }
   const workQuestionContext = workQuestionContextForRequest(events, request.worker, request.requestId);
   if (workQuestionContext) {
-    if (!decision.owner_action) {
-      throw new Error("Work supervisor-question decisions require an explicit owner_action classification.");
-    }
-    if (decision.owner_action.kind === "NONE") {
-      if (!("bounded_execution" in decision) || !decision.bounded_execution
-        || decision.bounded_execution.execution_surface !== "CHATGPT_WORK_CLOUD") {
-        throw new Error("A supervisor-resolved Work question must authorize one CHATGPT_WORK_CLOUD bounded continuation.");
-      }
-    } else if ("bounded_execution" in decision && decision.bounded_execution) {
-      throw new Error("An owner-required Work question cannot authorize Work continuation before the owner answers.");
-    }
+    const violation = workQuestionDecisionContractViolation(decision);
+    if (violation) throw new Error(violation);
   }
   assertEqual(candidate.repository.toLowerCase(), policy.repository.toLowerCase(), "GitHub repository");
   assertEqual(candidate.issueNumber, policy.decisionIssueNumber, "GitHub issue number");

@@ -28,7 +28,7 @@ import {
 } from "../lib/github-decision-receipts";
 import { SubmissionAuthorityDisabledError, SubmissionAuthorityRuntime, SubmissionSchedulerError } from "../lib/submission-authority-runtime";
 import {
-  assertNoDecisionCommentFor, DiscardReconciliationError, reconcileBeforeDiscard, reissueExpiredWorkQuestion, resendSentWorkQuestion,
+  checkDecisionIssueBeforeDiscard, DiscardReconciliationError, reconcileBeforeDiscard, reissueExpiredWorkQuestion, resendSentWorkQuestion,
 } from "../lib/work-question-reissue";
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
 import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
@@ -273,7 +273,7 @@ const server = http.createServer(async (request, response) => {
       try {
         // Before a discard (not before a repeat of a recorded re-send), one GitHub reconciliation takes in a reply that
         // is already posted, and then, as the last step before the retirement, the decision issue itself is read: any
-        // comment there naming the question stops the discard.
+        // comment there naming the question stops the discard, unless it is a Work answer Mission Control refuses.
         const requestId = body.request_id;
         // A discard runs with no decision copy in flight, so Mission Control's own copier can't post a reply to the
         // question after it is retired.
@@ -285,11 +285,11 @@ const server = http.createServer(async (request, response) => {
           await reconcileBeforeDiscard(githubReconciliationCoordinator);
           if (!githubPolicy) throw new DiscardReconciliationError("A discard needs the GitHub decision channel, and none is configured.");
           const queuedAt = pendingDecisionRequests(store.workerEvents(worker)).find((pending) => pending.requestId === requestId)?.queuedAt;
-          await assertNoDecisionCommentFor({
+          return { refusedReplySha256s: await checkDecisionIssueBeforeDiscard({
             repository: githubPolicy.repository, decisionIssueNumber: githubPolicy.decisionIssueNumber, requestId,
             since: queuedAt ? new Date(Date.parse(queuedAt) - 10 * 60_000).toISOString() : null,
             tokenProvider: githubReconciliationTokenProvider,
-          });
+          }) };
         }));
         if (!result.duplicate) notifications.emit("event", { type: "work_question_resent", worker, requestId: result.requestId });
         return json(response, result.duplicate ? 200 : 201, result);
