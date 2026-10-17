@@ -201,7 +201,8 @@ what it may use, what it must never do, and when it is done.
   any id that already has records, saying what those records are.
 - **Closing a registered task comes next.** Marking it achieved or cancelling it needs the owner, so it will take the
   passphrase too, in the next pull request. Until then, the terminal comparator holds an achievement claim that is
-  otherwise in order (`OWNER_CLOSURE_PENDING`, yellow) instead of rejecting it. A registered task can be paused but not
+  otherwise in order (`OWNER_CLOSURE_PENDING`, yellow) instead of rejecting it: its own evidence must check out, the
+  supervisor's assessment must be current, and nothing else may block it. A registered task can be paused but not
   cancelled.
 - Not covered:
   - Anything with direct access to the server's container, database or verifier file can write records directly, as it

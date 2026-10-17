@@ -89,7 +89,7 @@ class OwnerTaskPassphraseSetupTests(unittest.TestCase):
         code, output = self.run_script([passphrase, unicodedata.normalize("NFD", passphrase)], mode="banner")
         self.assertEqual(code, 0, output)
         state = json.loads(self.state.read_text())
-        self.assertEqual(state["args"], ["-o", "ClearAllForwardings=yes", "mc-host",
+        self.assertEqual(state["args"], ["-a", "-x", "-o", "ClearAllForwardings=yes", "mc-host",
                                          "sudo -n docker exec -i mc-live tsx scripts/set-owner-task-passphrase.ts"])
         line = state["stdin"].strip()
         match = VERIFIER.match(line)

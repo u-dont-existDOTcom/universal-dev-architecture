@@ -312,8 +312,14 @@ export function compareTerminalState(events: StoredEvent[]): TerminalComparison 
     || unresolvedOwnerObligation || hardSupervisionAlert || currentSupervisionRequired && (!progress
       || outcomeAdvancement !== "ADVANCING" || strategyEfficacy !== "VIABLE" || !reasoningReviewFresh || !activeDirectiveCurrent
       || pendingReasoningReview);
+  // The claim's own evidence must be in order too, and the supervisor's assessment current. The OUTCOME_* evidence codes
+  // are left out: they always fire for a registered task, whose outcome only the owner's closure can mark met.
+  const claimEvidenceInOrder = !reasonCodes.some((code) => [
+    "EVIDENCE_RECEIPT_MISSING", "EVIDENCE_NOT_CURRENT_OR_VERIFIED", "EVIDENCE_NOT_INDEPENDENT", "EXACT_CANDIDATE_MISSING",
+    "EXACT_CANDIDATE_MISMATCH",
+  ].includes(code));
   const ownerClosurePending = rootAchievementClaimed && gapOpen && ownerOutcomeStatus !== "UNMET"
-    && !achievementBlockedOtherwise && workerHasOwnerTaskRegistration(events);
+    && !achievementBlockedOtherwise && claimEvidenceInOrder && supervisorAssessmentFresh && workerHasOwnerTaskRegistration(events);
   if (ownerClosurePending) reasonCodes.push("OWNER_CLOSURE_PENDING");
 
   const hardEvidenceFailure = reasonCodes.some((code) => [

@@ -31,7 +31,8 @@ PY
 ) || exit 1
 FINGERPRINT=$(printf '%s' "$VERIFIER" | python3 -I -c 'import hashlib, sys; print(hashlib.sha256(sys.stdin.read().strip().encode()).hexdigest()[:12])')
 ERR=$(mktemp); trap 'rm -f "$ERR"' EXIT
-OUT=$(printf '%s\n' "$VERIFIER" | ssh -o ClearAllForwardings=yes "$HOST" \
+# -a and -x turn off agent and X11 forwarding, which ClearAllForwardings (ports only) leaves to the ssh config.
+OUT=$(printf '%s\n' "$VERIFIER" | ssh -a -x -o ClearAllForwardings=yes "$HOST" \
   "sudo -n docker exec -i $CONTAINER tsx scripts/set-owner-task-passphrase.ts" 2>"$ERR")
 unset VERIFIER
 if [ "$OUT" = "OWNER_TASK_PASSPHRASE_SET $FINGERPRINT" ]; then

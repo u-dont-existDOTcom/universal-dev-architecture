@@ -963,6 +963,24 @@ test("a registered task's achievement claim waits for the owner's closure instea
   assert.equal(unregistered.decision, "REJECT_ROOT_TERMINALIZATION");
   assert.equal(unregistered.overallTraffic, "RED");
   assert.ok(!unregistered.reasonCodes.includes("OWNER_CLOSURE_PENDING"));
+  // A registered task's claim whose own evidence isn't in order, or whose supervisor assessment is stale, is rejected too.
+  const registeredLocator = `${OWNER_TASK_SOURCE_LOCATOR_PREFIX}auth/0000000000000000`;
+  replaceLatest(events, "owner_source_recorded", (source) => ({ ...source, canonical_locator: registeredLocator }));
+  for (const [label, change] of [
+    ["no evidence", (claim: Extract<MissionControlEventV2, { type: "completion_claim_recorded" }>) => ({ ...claim, evidence_receipt_ids: [], exact_candidate_sha256: null })],
+    ["evidence for another candidate", (claim: Extract<MissionControlEventV2, { type: "completion_claim_recorded" }>) => ({ ...claim, exact_candidate_sha256: sha256("auth:other-candidate") })],
+  ] as const) {
+    const variant = cloneEvents(events);
+    replaceLatest(variant, "completion_claim_recorded", change);
+    replaceLatest(variant, "supervisor_assessment_recorded", (assessment) => ({ ...assessment, reviewed_state_vector_sha256: authorityStateVectorHash(variant) }));
+    const result = compareTerminalState(variant);
+    assert.equal(result.decision, "REJECT_ROOT_TERMINALIZATION", label);
+    assert.equal(result.overallTraffic, "RED", label);
+    assert.ok(!result.reasonCodes.includes("OWNER_CLOSURE_PENDING"), label);
+  }
+  const stale = cloneEvents(events);
+  replaceLatest(stale, "supervisor_assessment_recorded", (assessment) => ({ ...assessment, reviewed_state_vector_sha256: "0".repeat(64) }));
+  assert.ok(!compareTerminalState(stale).reasonCodes.includes("OWNER_CLOSURE_PENDING"), "a stale assessment");
   // And a registered task's claim with another problem is still rejected: here a material finding is open.
   const withFinding = cloneEvents(events);
   pushV2(withFinding, "finding:auth:registered-open", {
