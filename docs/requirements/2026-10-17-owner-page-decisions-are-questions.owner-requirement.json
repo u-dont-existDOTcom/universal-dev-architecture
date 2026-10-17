@@ -1,0 +1,47 @@
+{
+  "requirement_id": "2026-10-17-owner-page-decisions-are-questions",
+  "date": "2026-10-17",
+  "source": "Owner message on 2026-10-17 at 02:07 UTC to the Claude Code session doing the community article work, about its owner questions page.",
+  "owner_statement": "now you say for me to do (no decision needed) then ask me to make 2 decisions, emrging and accepting changes, funny.",
+  "problem": "The page's section \"For you to do (no decision needed)\", named as this pattern named it, asked the owner to merge the work and to say \"accept 13 and 14\" or what to change. A merge is his OK on the work and an acceptance is a decision, so the heading said the opposite of what the items asked.",
+  "required_behavior": [
+    "The section is \"For you to do\": actions only the owner can take, with no claim that nothing needs deciding.",
+    "A decision is never listed there: accepting finished work, choosing between options, or saying what to change is a numbered open question with options."
+  ],
+  "basis": [
+    "The owner's statement above.",
+    "The community lane's page of 2026-10-17 01:47 UTC, whose \"For you to do (no decision needed)\" held the merge and the acceptance."
+  ],
+  "scope": "Rule 3 of patterns/owner-questions-page.md, this record, and the tests that quote the section's name.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "The page's headings say truly what each item asks of the owner.",
+    "notes": "The check that enforces it in the community lane is that repository's own (candidate/tools/questions_lint.py); this record changes only the shared wording."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/owner-questions-page.md, reached through LESSON-INDEX.md and docs/INDEX.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "The community article lane's owner questions page (u-dont-existDOTcom/joel-articles)",
+      "disposition": "PROJECTED",
+      "note": "Renamed and checked by its lint on 2026-10-17."
+    },
+    {
+      "surface": "Other workstreams' owner questions pages",
+      "disposition": "QUEUED",
+      "reason": "Each workstream's own session renames the section when it next updates its page."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "A merge stays a to-do: it is an action only the owner can take, listed without a claim that it needs no decision.",
+    "No repository rule can force a session that never loaded UDA."
+  ]
+}

@@ -110,7 +110,7 @@ class AgentCompletableMergeGatesTests(unittest.TestCase):
         self.assertIn(f"`{RELATIVE}`", section_six)
         questions = read("patterns/owner-questions-page.md")
         for phrase in (
-            "**For you to do (no decision needed).**",
+            "**For you to do.**",
             "an exact link to every target",
             "group them into one step",
             "it becomes one open question about removing or automating it",
