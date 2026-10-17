@@ -13,6 +13,8 @@ umask 077
 HOST=${1:-}; CONTAINER=${2:-}
 [[ "$HOST" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ && "$CONTAINER" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] \
   || { echo "usage: set-owner-task-passphrase.sh <ssh host> <container>"; exit 2; }
+python3 -I -c 'import hashlib; hashlib.scrypt' 2>/dev/null \
+  || { echo "This computer's python3 has no scrypt (hashlib.scrypt), which the passphrase needs. Nothing was changed."; exit 1; }
 echo "Choose the passphrase you'll type on Mission Control's Register a task page. Type it only there; no chat will ask for it."
 VERIFIER=$(python3 -I - <<'PY'
 import base64, getpass, hashlib, os, sys, unicodedata

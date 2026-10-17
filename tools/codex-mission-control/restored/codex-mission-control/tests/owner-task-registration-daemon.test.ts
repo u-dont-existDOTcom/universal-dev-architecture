@@ -140,7 +140,7 @@ test("the daemon registers a task only for the owner with the registration passp
     const lockedStatus = await passphraseStatus();
     assert.equal(lockedStatus.wrongAttempts, 5);
     assert.ok(lockedStatus.lockedUntil, "the form can show the lock");
-    assert.equal(statSync(`${file}.attempts.json`).mode & 0o777, 0o600);
+    assert.equal(statSync(join(directory, "owner-task-passphrase.attempts.json")).mode & 0o777, 0o600);
   } finally {
     child.kill("SIGTERM");
     if (child.exitCode === null) await once(child, "exit");

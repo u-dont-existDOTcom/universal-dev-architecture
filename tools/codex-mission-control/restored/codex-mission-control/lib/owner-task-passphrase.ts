@@ -9,8 +9,9 @@ import path from "node:path";
 // passphrase itself reaches the server only inside a registration, and is never recorded or logged.
 //
 // Verifier format: mc-task-passphrase:v1:scrypt:<log2 N>:<r>:<p>:<salt, base64url>:<32-byte key, base64url>.
-// Wrong attempts are kept in a file next to the verifier, so a restart doesn't reset them: five within 15 minutes, or
-// twenty within a day, lock registration until they age out. The form shows the count, when the passphrase was set and
+// Wrong attempts are kept in a file next to the database (the verifier may sit on a read-only mount; this folder is
+// always writable), so a restart doesn't reset them: five within 15 minutes, or twenty within a day, lock registration
+// until they age out. The form shows the count, when the passphrase was set and
 // its fingerprint, and each registration records the fingerprint, so a replaced verifier shows.
 
 const VERIFIER = /^mc-task-passphrase:v1:scrypt:(\d{2}):(\d{1,2}):(\d):([A-Za-z0-9_-]{22,86}):([A-Za-z0-9_-]{43})$/;
@@ -51,8 +52,16 @@ export function ownerTaskPassphraseFingerprint(verifierLine: string): string {
 /** Where the verifier lives: next to the database unless MISSION_CONTROL_OWNER_TASK_PASSPHRASE_FILE names a file. */
 export function ownerTaskPassphraseFile(env: Record<string, string | undefined> = process.env): string {
   if (env.MISSION_CONTROL_OWNER_TASK_PASSPHRASE_FILE) return env.MISSION_CONTROL_OWNER_TASK_PASSPHRASE_FILE;
-  const database = env.MISSION_CONTROL_DB ?? path.join(process.cwd(), "data", "mission-control.db");
-  return path.join(path.dirname(database), "owner-task-passphrase.verifier");
+  return path.join(databaseFolder(env), "owner-task-passphrase.verifier");
+}
+
+/** Where wrong attempts are kept: always next to the database, whose folder Mission Control can write. */
+export function ownerTaskPassphraseAttemptsFile(env: Record<string, string | undefined> = process.env): string {
+  return path.join(databaseFolder(env), "owner-task-passphrase.attempts.json");
+}
+
+function databaseFolder(env: Record<string, string | undefined>): string {
+  return path.dirname(env.MISSION_CONTROL_DB ?? path.join(process.cwd(), "data", "mission-control.db"));
 }
 
 export function deriveOwnerTaskPassphraseKey(passphrase: string, verifier: Omit<OwnerTaskPassphraseVerifier, "key">): Promise<Buffer> {
@@ -65,10 +74,14 @@ export function deriveOwnerTaskPassphraseKey(passphrase: string, verifier: Omit<
 
 /** Checks a submitted passphrase against the stored verifier, with a lock after repeated wrong ones. One per daemon. */
 export class OwnerTaskPassphraseGate {
+  private readonly file: string;
   private readonly attemptsFile: string;
+  private readonly now: () => number;
 
-  constructor(private readonly file = ownerTaskPassphraseFile(), private readonly now: () => number = Date.now) {
-    this.attemptsFile = `${file}.attempts.json`;
+  constructor(options: { file?: string; attemptsFile?: string; now?: () => number } = {}) {
+    this.file = options.file ?? ownerTaskPassphraseFile();
+    this.attemptsFile = options.attemptsFile ?? ownerTaskPassphraseAttemptsFile();
+    this.now = options.now ?? Date.now;
   }
 
   status(): OwnerTaskPassphraseStatus {

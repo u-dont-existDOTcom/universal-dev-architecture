@@ -56,8 +56,17 @@ export function currentSupervisionApplies(outcome: OutcomeLike | undefined | nul
   return (typeof outcome.epoch === "number" && outcome.epoch >= 4) || workerHasOwnerTaskRegistration(workerEvents);
 }
 
+// Records that show supervision has started whoever records them: the live supervisor path records decisions and
+// directives as SYSTEM (lib/github-decision-receipts.ts), and a Codex start follows a directive.
+const SUPERVISION_STARTED_TYPES: readonly string[] = [
+  "github_decision_receipt_ingested", "execution_directive_recorded", "reasoning_supervision_recorded", "codex_execution_started",
+  "supervisor_assessment_recorded", "outcome_progress_recorded", "supervision_route_recorded",
+];
+
 /** A registered task that no supervisor has recorded anything for yet. The projection uses it only while nothing has
- * recorded an owner action for the task, so the state ends with the first owner action or the first SUPERVISOR record. */
+ * recorded an owner action for the task, so the state ends with the first owner action, the first SUPERVISOR record or
+ * the first record that shows supervision has started. */
 export function ownerTaskAwaitingFirstSupervision(workerEvents: readonly EventLike[]): boolean {
-  return workerHasOwnerTaskRegistration(workerEvents) && !workerEvents.some((event) => event.producerKind === "SUPERVISOR");
+  return workerHasOwnerTaskRegistration(workerEvents) && !workerEvents.some((event) =>
+    event.producerKind === "SUPERVISOR" || SUPERVISION_STARTED_TYPES.includes(event.data.type));
 }

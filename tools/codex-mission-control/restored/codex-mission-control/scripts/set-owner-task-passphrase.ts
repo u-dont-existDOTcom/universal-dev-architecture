@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ownerTaskPassphraseFile, ownerTaskPassphraseFingerprint, parseOwnerTaskPassphraseVerifier } from "../lib/owner-task-passphrase";
+import {
+  ownerTaskPassphraseAttemptsFile, ownerTaskPassphraseFile, ownerTaskPassphraseFingerprint, parseOwnerTaskPassphraseVerifier,
+} from "../lib/owner-task-passphrase";
 
 // Installs the owner's task-registration passphrase verifier (lib/owner-task-passphrase.ts). It reads one verifier line
 // from standard input, made on the owner's own computer from the passphrase the owner typed there (only the scrypt
@@ -27,7 +29,7 @@ async function main() {
   } finally {
     fs.rmSync(temporary, { force: true });
   }
-  fs.rmSync(`${file}.attempts.json`, { force: true });
+  fs.rmSync(ownerTaskPassphraseAttemptsFile(), { force: true });
   process.stdout.write(`OWNER_TASK_PASSPHRASE_SET ${ownerTaskPassphraseFingerprint(verifier)}\n`);
 }
 

@@ -175,16 +175,17 @@ what it may use, what it must never do, and when it is done.
     verifier reaches the server, where `scripts/set-owner-task-passphrase.ts` installs it and echoes its fingerprint;
     the computer checks that the fingerprint matches its own.
   - The passphrase itself arrives only inside a registration, and nothing of it is recorded or logged.
-  - Wrong attempts are kept next to the verifier, so a restart doesn't reset them. Five within 15 minutes, or twenty
-    within a day, lock registration until they age out. With no verifier, registration is off.
+  - Wrong attempts are kept next to the database, so a restart doesn't reset them and the verifier may sit on a
+    read-only mount. Five within 15 minutes, or twenty within a day, lock registration until they age out. With no
+    verifier, registration is off.
   - The form shows when the passphrase was set, its fingerprint and recent wrong attempts
     (`GET /api/task-registration`), and each registration records the fingerprint, so a replaced verifier shows.
 - The app's `POST /api/workers` takes registrations only from the owner's signed-in session, with the same-origin and
   CSRF checks, and refuses the owner bearer. That keeps the form the way in; it isn't what shows the owner typed it.
 - **The store keeps registrations intact.** It refuses the registration markers on every other path, `POST /events`
   included: the event ids and the `mission-control://owner-session/task-registration/` locator. Once a worker is
-  registered, it also refuses any other source, outcome, contract or reconciliation for that worker. So no other caller
-  can make a record look like a registration, or change a registered task's goal and limits. The worker page marks a
+  registered, it also refuses any other source, outcome, contract, reconciliation or owner decision for that worker. So
+  no other caller can make a record look like a registration, change a registered task's goal and limits, or cancel it. The worker page marks a
   registered task's goal and limits as typed on the form; a look-alike written on another path doesn't get that mark.
 - Mission Control records the exact answers, with the standard lines the form shows, as the owner source
   (`OWNER_REATTESTED`, with the SHA-256 of the canonical submission). It derives the owner outcome, the task contract
@@ -198,11 +199,18 @@ what it may use, what it must never do, and when it is done.
   record. It joins the fleet watch when its worker publishes its first work queue.
 - Submitting the same answers again records nothing. Other answers for a registered task id are refused, and so is
   any id that already has records, saying what those records are.
+- **Closing a registered task comes next.** Marking it achieved or cancelling it needs the owner, so it will take the
+  passphrase too, in the next pull request. Until then, the terminal comparator holds an achievement claim that is
+  otherwise in order (`OWNER_CLOSURE_PENDING`, yellow) instead of rejecting it. A registered task can be paused but not
+  cancelled.
 - Not covered:
   - Anything with direct access to the server's container, database or verifier file can write records directly, as it
     can for any record. That includes installing its own verifier, which the form's fingerprint would then show.
   - The passphrase doesn't change between registrations, so anyone who sees it once can use it again. Type it only
     into the form. Don't let the browser save it, and don't let a browser agent use the page.
+  - Anything holding a token that reaches the daemon (an owner session, the owner bearer or the internal token) can
+    send twenty wrong passphrases and lock registration for about a day. The form shows the attempts and the lock, and
+    setting the passphrase again clears them.
   - Other owner-authority routes that predate this page still take owner words, such as `POST /events` for
     owner-authority producers and the owner's messages to a worker, which accept the owner bearer. Records written
     there don't carry the registration marker, and the marker is what this page guarantees.

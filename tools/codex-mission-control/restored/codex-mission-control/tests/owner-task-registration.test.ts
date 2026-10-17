@@ -11,8 +11,8 @@ import { enrollFleetSupervisorWatch } from "../lib/fleet-watch-enrollment";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
 import { ownerAttention, workerDisposition } from "../lib/owner-view";
 import {
-  OwnerTaskPassphraseGate, OWNER_TASK_PASSPHRASE_DAILY_LIMIT, OWNER_TASK_PASSPHRASE_SHORT_LIMIT, ownerTaskPassphraseFile,
-  ownerTaskPassphraseFingerprint, parseOwnerTaskPassphraseVerifier,
+  OwnerTaskPassphraseGate, OWNER_TASK_PASSPHRASE_DAILY_LIMIT, OWNER_TASK_PASSPHRASE_SHORT_LIMIT, ownerTaskPassphraseAttemptsFile,
+  ownerTaskPassphraseFile, ownerTaskPassphraseFingerprint, parseOwnerTaskPassphraseVerifier,
 } from "../lib/owner-task-passphrase";
 import {
   OWNER_TASK_SOURCE_LOCATOR_PREFIX, ownerTaskRegistrationEvents, ownerTaskSourceDocument, parseOwnerTaskRegistration, registerOwnerTask,
@@ -143,6 +143,11 @@ test("a registered task shows as waiting for its supervisor, not as an alarm or 
     const history = store.allEvents().filter((event) => event.worker === "atlas-test-pilot");
     assert.equal(ownerTaskAwaitingFirstSupervision(history), true);
     assert.equal(ownerTaskAwaitingFirstSupervision([...history, { ...history.at(-1)!, eventId: "supervisor:1", producerKind: "SUPERVISOR" }]), false);
+    // The live supervisor path records its directives as SYSTEM, and a Codex start follows one: either ends it too.
+    for (const type of ["execution_directive_recorded", "github_decision_receipt_ingested", "codex_execution_started", "reasoning_supervision_recorded"]) {
+      const started = { ...history.at(-1)!, eventId: `started:${type}`, producerKind: "SYSTEM" as const, data: { ...history.at(-1)!.data, type } as never };
+      assert.equal(ownerTaskAwaitingFirstSupervision([...history, started]), false, type);
+    }
     assert.equal(ownerTaskAwaitingFirstSupervision(history.filter((event) => event.data.type !== "owner_source_recorded")), false, "only a registered task waits");
   } finally { store.close(); }
 });
@@ -189,12 +194,26 @@ test("a registered task's goal and limits can't be redefined on any other path",
         /registered by the owner; its goal and limits can't be changed on this path/, event.data.type);
     }
     assert.equal(store.allEvents().length, count);
-    // An unregistered task's definition still takes owner records as before.
+    // Nor can another path record an owner decision for it, such as cancelling it.
+    const outcome = store.allEvents().find((event) => event.worker === "atlas-test-pilot" && event.data.type === "owner_outcome_recorded")!.data;
+    assert.ok(outcome.type === "owner_outcome_recorded");
+    const cancel = (worker: string, decided: typeof outcome) => ({ schema_version: 2, event_id: `cancel:${worker}`, mission_id: "mission-control", occurred_at: at, data: {
+      type: "owner_decision_recorded", worker, owner_decision_id: `decision:cancel:${worker}`, decision_kind: "CANCEL_OUTCOME",
+      owner_outcome_id: decided.owner_outcome_id, owner_outcome_epoch: decided.epoch, owner_outcome_sha256: decided.owner_outcome_sha256,
+      source_receipt_id: decided.source_receipt_id, exact_text: "Cancel this task.", authorized_by: owner.id, decision_sha256: sha256("Cancel this task."),
+    } });
+    assert.throws(() => store.append(cancel("atlas-test-pilot", outcome), undefined, owner, store.allEvents()),
+      /an owner decision for it, such as cancelling it, needs the owner's passphrase/);
+    assert.equal(store.allEvents().length, count);
+    // An unregistered task's definition and decisions still take owner records as before.
     const unregistered = ownerTaskRegistrationEvents({ ...other, worker: "plain-task" }, at).slice(0, 4).map((event, index) => ({
       ...event, event_id: `plain:${index}`,
       data: event.data.type === "owner_source_recorded" ? { ...event.data, canonical_locator: "https://example.invalid/owner-note" } : event.data,
     }));
     store.appendMany(unregistered.map((event) => ({ event, producer: owner })), store.allEvents());
+    const plainOutcome = store.allEvents().find((event) => event.worker === "plain-task" && event.data.type === "owner_outcome_recorded")!.data;
+    assert.ok(plainOutcome.type === "owner_outcome_recorded");
+    store.append(cancel("plain-task", plainOutcome), undefined, owner, store.allEvents());
   } finally { store.close(); }
 });
 
@@ -264,8 +283,11 @@ test("the passphrase verifier format is bounded, and the gate checks it, normali
     const file = path.join(directory, "owner-task-passphrase.verifier");
     assert.equal(ownerTaskPassphraseFile({ MISSION_CONTROL_DB: path.join(directory, "events.db") }), file);
     assert.equal(ownerTaskPassphraseFile({ MISSION_CONTROL_DB: path.join(directory, "events.db"), MISSION_CONTROL_OWNER_TASK_PASSPHRASE_FILE: "/elsewhere" }), "/elsewhere");
+    assert.equal(ownerTaskPassphraseAttemptsFile({ MISSION_CONTROL_DB: path.join(directory, "events.db"), MISSION_CONTROL_OWNER_TASK_PASSPHRASE_FILE: "/read-only/verifier" }),
+      path.join(directory, "owner-task-passphrase.attempts.json"), "wrong attempts stay next to the database even when the verifier is elsewhere");
     let now = Date.parse(at);
-    const gate = new OwnerTaskPassphraseGate(file, () => now);
+    const attemptsFile = path.join(directory, "owner-task-passphrase.attempts.json");
+    const gate = new OwnerTaskPassphraseGate({ file, attemptsFile, now: () => now });
     assert.deepEqual(gate.status(), { passphraseSet: false, setAt: null, fingerprint: null, wrongAttempts: 0, lockedUntil: null });
     assert.deepEqual(await gate.check(testPassphrase), { ok: false, status: 503, error: "Registering tasks is off until the owner sets a registration passphrase." });
     fs.writeFileSync(file, "not a verifier\n");
@@ -288,7 +310,7 @@ test("the passphrase verifier format is bounded, and the gate checks it, normali
     assert.equal(gate.status().wrongAttempts, 5);
     assert.ok(gate.status().lockedUntil);
     // A restart (a new gate on the same files) keeps the count and the lock.
-    const restarted = new OwnerTaskPassphraseGate(file, () => now);
+    const restarted = new OwnerTaskPassphraseGate({ file, attemptsFile, now: () => now });
     assert.equal((await restarted.check(testPassphrase) as { status: number }).status, 429);
     now += OWNER_TASK_PASSPHRASE_SHORT_LIMIT.windowMs;
     assert.deepEqual(await restarted.check(testPassphrase), { ok: true, fingerprint });

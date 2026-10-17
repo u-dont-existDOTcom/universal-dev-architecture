@@ -812,6 +812,11 @@ export class EventStore {
       && workerHasOwnerTaskRegistration(events)) {
       throw new ContractInvariantError(`Task ${worker} was registered by the owner; its goal and limits can't be changed on this path.`);
     }
+    // Nor can another path record an owner decision for it, such as cancelling it: that needs the owner's passphrase,
+    // and the passphrase-gated way to close a registered task comes in a follow-up (PR #394 third review).
+    if (this.ownerTaskRegistrationDepth === 0 && data.type === "owner_decision_recorded" && workerHasOwnerTaskRegistration(events)) {
+      throw new ContractInvariantError(`Task ${worker} was registered by the owner; an owner decision for it, such as cancelling it, needs the owner's passphrase, which this path doesn't check.`);
+    }
 
     if (data.type === "reasoning_message_recorded") {
       if (data.exact_visible_body && sha256(data.exact_visible_body) !== data.body_sha256) {

@@ -23,6 +23,7 @@ import { ContractInvariantError, EventStore, IdempotencyConflictError, WriterLoc
 import { adaptSymphonyState, SYMPHONY_UPSTREAM_COMMIT } from "../lib/symphony-adapter";
 import { observeLiveWorkerSource } from "../lib/live-worker-source";
 import { authorityStateVectorHash, compareTerminalState } from "../lib/terminal-comparator";
+import { OWNER_TASK_SOURCE_LOCATOR_PREFIX } from "../lib/owner-task-source";
 
 const testRoot = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(testRoot, "..");
@@ -920,6 +921,59 @@ test("root close requires a coherent fresh authority vector and exact outcome-to
   assert.equal(redComparison.workerToContractAlignment, "RED");
   assert.equal(redComparison.rootTerminalizationAllowed, false);
   assert.equal(redComparison.overallTraffic, "RED");
+});
+
+test("a registered task's achievement claim waits for the owner's closure instead of turning red", () => {
+  // The auth fixture reaches a root close once its outcome is met; here its outcome stays as a registration leaves it
+  // (goal UNKNOWN, gap open), because only the owner can close a registered task (PR #394).
+  const events = cloneEvents(workerEvents("auth"));
+  const candidate = sha256("auth:registered-candidate");
+  const receiptId = "evidence:auth:registered-outcome";
+  pushV2(events, "evidence:auth:registered-outcome:event", {
+    type: "evidence_receipt_recorded", worker: "auth", receipt_id: receiptId,
+    producer_id: "verifier:auth", producer_role: "VERIFIER", evidence_class: "ARTIFACT",
+    independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: candidate,
+    summary: "The exact auth candidate satisfies the terminal owner outcome.", refs: ["auth-root-verification"], verified: true,
+    changed_path_manifest: null,
+  }, "2026-08-30T20:05:01.000Z");
+  replaceLatest(events, "owner_outcome_recorded", (outcome) => ({
+    ...outcome, gap_status: "OPEN", required_outcomes: outcome.required_outcomes.map((item) => ({ ...item, status: "UNKNOWN", direct_evidence_receipt_ids: [] })),
+  }));
+  const latestOutcome = events.findLast((event) => event.data.type === "owner_outcome_recorded")!.data as Extract<MissionControlEventV2, { type: "owner_outcome_recorded" }>;
+  const outcomeIds = latestOutcome.required_outcomes.map((item) => item.id);
+  replaceLatest(events, "objective_reconciliation_recorded", (reconciliation) => ({
+    ...reconciliation, gap_status: "OPEN", unmet_owner_outcome_ids: [], unknown_owner_outcome_ids: outcomeIds,
+  }));
+  replaceLatest(events, "completion_claim_recorded", (claim) => ({
+    ...claim, completion_claim_type: "OWNER_OUTCOME_ACHIEVED", proposed_terminal_state: "OWNER_OUTCOME_SATISFIED",
+    exact_candidate_sha256: candidate, evidence_receipt_ids: [receiptId], parent_outcome_remains_open: false,
+  }));
+  const asRegistered = (locator: string) => {
+    replaceLatest(events, "owner_source_recorded", (source) => ({ ...source, canonical_locator: locator, acquisition_mode: "OWNER_REATTESTED" }));
+    replaceLatest(events, "supervisor_assessment_recorded", (assessment) => ({ ...assessment, reviewed_state_vector_sha256: authorityStateVectorHash(events) }));
+    return compareTerminalState(events);
+  };
+  const registered = asRegistered(`${OWNER_TASK_SOURCE_LOCATOR_PREFIX}auth/0000000000000000`);
+  assert.equal(registered.decision, "HOLD_COMPLETION_EVIDENCE");
+  assert.ok(registered.reasonCodes.includes("OWNER_CLOSURE_PENDING"), registered.reasonCodes.join(", "));
+  assert.equal(registered.overallTraffic, "YELLOW");
+  assert.equal(registered.rootTerminalizationAllowed, false);
+  // The same claim on a task that wasn't registered is rejected, as before.
+  const unregistered = asRegistered("fixture://auth");
+  assert.equal(unregistered.decision, "REJECT_ROOT_TERMINALIZATION");
+  assert.equal(unregistered.overallTraffic, "RED");
+  assert.ok(!unregistered.reasonCodes.includes("OWNER_CLOSURE_PENDING"));
+  // And a registered task's claim with another problem is still rejected: here a material finding is open.
+  const withFinding = cloneEvents(events);
+  pushV2(withFinding, "finding:auth:registered-open", {
+    type: "finding_recorded", worker: "auth", finding_id: "finding:auth:registered-open", severity: "MATERIAL",
+    finding_type: "EVIDENCE_GAP", summary: "A material problem is open.", evidence_refs: ["auth-root-verification"],
+    continuation_policy: null,
+  } as never, "2026-08-30T20:06:01.000Z");
+  replaceLatest(withFinding, "owner_source_recorded", (source) => ({ ...source, canonical_locator: `${OWNER_TASK_SOURCE_LOCATOR_PREFIX}auth/0000000000000000` }));
+  const blocked = compareTerminalState(withFinding);
+  assert.equal(blocked.decision, "REJECT_ROOT_TERMINALIZATION");
+  assert.ok(!blocked.reasonCodes.includes("OWNER_CLOSURE_PENDING"));
 });
 
 test("unmet reconciliation, unrelated evidence, and stale review can never authorize a root close", () => {
