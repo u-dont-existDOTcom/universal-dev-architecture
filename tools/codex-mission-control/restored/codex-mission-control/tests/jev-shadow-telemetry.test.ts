@@ -130,6 +130,22 @@ test("a registered task's first supervisor question is scored as routed reasonin
   } finally { store.close(); }
 });
 
+test("a held task's checkpoint review is routed reasoning, and its hold is the owner's to know about", () => {
+  const store = new EventStore(":memory:");
+  try {
+    const held = { ...state, owner_action_kind: "MANUAL_INTERVENTION_REQUIRED" as const, active_directive_present: false, execution_state: "NOT_STARTED" as const };
+    assert.equal(store.recordJevShadowObservation({ source: "LIVE", observedAt: at(0), observation: observation({
+      deterministic_trigger: "CHECKPOINT_REVIEW_REQUIRED", state: held, answers: action("route_reasoning", 0.1) }) }), true);
+    assert.equal(store.recordJevShadowObservation({ source: "LIVE", observedAt: at(1), observation: observation({
+      deterministic_trigger: "SUPERVISOR_HOLD", state: held, answers: action("notify_owner", 0.9) }) }), true);
+    const [review, hold] = rows(store) as Array<Record<string, unknown>>;
+    assert.equal(review?.expected_next_action, "route_reasoning");
+    assert.equal(review?.expected_owner_decision_required, 0, "the review is the supervisor's");
+    assert.equal(hold?.expected_next_action, "notify_owner");
+    assert.equal(hold?.expected_owner_decision_required, 1);
+  } finally { store.close(); }
+});
+
 test("response IDs dedupe across source/time; identical ID-less rows dedupe on fallback identity", () => {
   const store = new EventStore(":memory:");
   try {

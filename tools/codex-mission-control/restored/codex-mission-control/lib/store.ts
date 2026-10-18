@@ -158,6 +158,25 @@ export class EventStore {
     return this.fleetSupervisorWatch(projectId)!;
   }
 
+  /** Makes a worker's active watches due now, for a check that new evidence calls for: a verified checkpoint that a held
+   * task waits for. Every active watch gets a new due time, at or just after now, that no earlier tick of it used and
+   * that differs from its current one, so a tick already running (with the old due time) can't commit and the next poll
+   * checks again with the new evidence. Returns how many watches were brought forward. */
+  bringFleetSupervisorWatchesDue(worker: string, now = new Date().toISOString()): number {
+    const watches = this.db.prepare(`SELECT project_id, next_tick_at FROM fleet_supervisor_watches
+      WHERE worker = ? AND state = 'ACTIVE' AND next_tick_at IS NOT NULL`).all(worker) as Array<{ project_id: string; next_tick_at: string }>;
+    const used = this.db.prepare("SELECT 1 FROM fleet_supervisor_ticks WHERE project_id = ? AND due_at = ?");
+    let changed = 0;
+    for (const { project_id: projectId, next_tick_at: current } of watches) {
+      let dueMs = Date.parse(now);
+      while (new Date(dueMs).toISOString() === current || used.get(projectId, new Date(dueMs).toISOString())) dueMs += 1;
+      const dueAt = new Date(dueMs).toISOString();
+      changed += Number(this.db.prepare(`UPDATE fleet_supervisor_watches SET next_tick_at = ?, updated_at = ?
+        WHERE project_id = ? AND state = 'ACTIVE' AND next_tick_at = ?`).run(dueAt, now, projectId, current).changes);
+    }
+    return changed;
+  }
+
   fleetSupervisorWatch(projectId: string): FleetSupervisorWatchRecord | null {
     const row = this.db.prepare("SELECT * FROM fleet_supervisor_watches WHERE project_id = ?").get(projectId) as Record<string, unknown> | undefined;
     return row ? toFleetSupervisorWatch(row) : null;

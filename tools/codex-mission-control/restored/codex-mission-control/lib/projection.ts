@@ -25,9 +25,10 @@ import type {
 } from "./schema";
 import { effectiveSameStrategyContinuationAllowed, effectiveStrategyEfficacy } from "./progress-invariants";
 import {
-  OWNER_TASK_AWAITING_SUPERVISION_REASON, OWNER_TASK_FIRST_QUESTION_UNANSWERED_REASON, ownerTaskAwaitingFirstSupervision,
-  workerHasOwnerTaskRegistration,
+  OWNER_TASK_AWAITING_SUPERVISION_REASON, OWNER_TASK_FIRST_QUESTION_UNANSWERED_REASON, OWNER_TASK_HELD_BY_SUPERVISOR_REASON,
+  ownerTaskAwaitingFirstSupervision, workerHasOwnerTaskRegistration,
 } from "./owner-task-source";
+import { registeredTaskHold } from "./task-checkpoint";
 import { compareTerminalState, correctionVerificationStale, latestOwnerAction, type TerminalComparison } from "./terminal-comparator";
 import { projectWorkerChannel, type WorkerChannelProjection } from "./worker-channel";
 import { completedWorkRoutingTelemetryCount } from "./work-execution-runtime";
@@ -701,7 +702,7 @@ function projectCorrection(
   const directiveConflict = new Set(activeDirectives.map((event) => event.directive_id)).size > 1;
   const awaitingFirstSupervision = ownerTaskAwaitingFirstSupervision(events);
   const ownerAction = effectiveOwnerAction(recordedOwnerAction, now, events, latestCorrection, directiveConflict, awaitingFirstSupervision,
-    firstQuestionUnanswered);
+    firstQuestionUnanswered, registeredTaskHold(events) !== null);
   const recordedContinuationPolicy = latestCorrection?.continuation_policy ?? fallbackFinding?.continuation_policy
     ?? assessment?.continuation_policy ?? unknownContinuationPolicy();
   const continuationPolicy = effectiveContinuationPolicy(recordedContinuationPolicy, now);
@@ -1233,6 +1234,7 @@ function effectiveOwnerAction(
   directiveConflict = false,
   awaitingFirstSupervision = false,
   firstQuestionUnanswered = false,
+  heldBySupervisor = false,
 ): OwnerActionObligation {
   const sourceEventId = events.at(-1)?.eventId ?? "projection:missing-owner-action";
   if (directiveConflict) return {
@@ -1264,6 +1266,19 @@ function effectiveOwnerAction(
     kind: "MANUAL_INTERVENTION_REQUIRED",
     exact_text: "Registered by the owner. No supervisor has been set up for it yet, so no work has started.",
     reason_code: OWNER_TASK_AWAITING_SUPERVISION_REASON,
+    subject_id: `worker:${events.at(-1)?.worker ?? "unknown"}`,
+    blocking_scope: ["task start"],
+    source_event_ids: [sourceEventId],
+    due_at: null,
+    escalation_at: null,
+    status: "OPEN",
+  };
+  // A registered task its supervisor held: nothing reports an owner action, because the supervisor's decision started
+  // no step. It stays fail-closed (no work starts) under its own reason, so the owner sees a hold, not missing telemetry.
+  if (!recorded && heldBySupervisor) return {
+    kind: "MANUAL_INTERVENTION_REQUIRED",
+    exact_text: "Held by its supervisor: its latest decision started no work. Mission Control asks the supervisor again once a checkpoint of what that decision asked for is verified.",
+    reason_code: OWNER_TASK_HELD_BY_SUPERVISOR_REASON,
     subject_id: `worker:${events.at(-1)?.worker ?? "unknown"}`,
     blocking_scope: ["task start"],
     source_event_ids: [sourceEventId],

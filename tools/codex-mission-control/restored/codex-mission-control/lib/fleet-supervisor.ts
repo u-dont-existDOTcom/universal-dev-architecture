@@ -14,7 +14,10 @@ import {
 } from "./github-decision-receipts";
 import { inBandRequestRoutePrefix } from "./in-band-request-binding";
 import { evaluateSupervisionAdmission } from "./supervision-admission-runtime";
-import { OWNER_TASK_AWAITING_SUPERVISION_REASON, workerHasOwnerTaskRegistration } from "./owner-task-source";
+import {
+  OWNER_TASK_AWAITING_SUPERVISION_REASON, OWNER_TASK_HELD_BY_SUPERVISOR_REASON, workerHasOwnerTaskRegistration,
+} from "./owner-task-source";
+import { registeredTaskHold, TASK_CHECKPOINT_SUMMARY_PREFIX } from "./task-checkpoint";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import { projectWorker } from "./projection";
 import type { MissionControlEventV2, StoredEvent } from "./schema";
@@ -32,7 +35,8 @@ export const DEFAULT_FLEET_SUPERVISOR_CADENCE_MS = 3_600_000;
 export type FleetSupervisorTrigger =
   | "HEALTHY_ADVANCING" | "STALLED_OR_REGRESSING" | "REASONING_REVIEW_OVERDUE"
   | "WORKER_DIRECTIVE_CONTINUITY_GAP" | "OWNER_ACTION_REQUIRED" | "BLOCKED_EXTERNAL"
-  | "TERMINAL" | "MECHANICAL_RECOVERY_ELIGIBLE" | "PROJECT_INTEGRITY_FAILURE" | "FIRST_SUPERVISION_REQUIRED";
+  | "TERMINAL" | "MECHANICAL_RECOVERY_ELIGIBLE" | "PROJECT_INTEGRITY_FAILURE" | "FIRST_SUPERVISION_REQUIRED"
+  | "SUPERVISOR_HOLD" | "CHECKPOINT_REVIEW_REQUIRED";
 
 export interface FleetSupervisorDecision {
   trigger: FleetSupervisorTrigger;
@@ -287,6 +291,8 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
       evidenceRefs: [],
       decisionRequested: decision.trigger === "FIRST_SUPERVISION_REQUIRED"
         ? FIRST_SUPERVISION_DECISION_REQUESTED
+        : decision.trigger === "CHECKPOINT_REVIEW_REQUIRED"
+        ? CHECKPOINT_REVIEW_DECISION_REQUESTED
         : "Review the exact current worker state and latest execution receipt. Decide whether the owner outcome is satisfied, whether bounded execution may resume under a new source-bound directive, or whether to stop. Do not replay completed work or weaken frozen experiment gates.",
       supervisoryCycle: cycle,
     },
@@ -763,6 +769,18 @@ export const FIRST_SUPERVISION_DECISION_REQUESTED = "This task was registered by
   + "CHATGPT_WORK_CLOUD. A task registered on the form may have no Codex executor, so don't choose CODEX unless the "
   + "contract names it. Do not weaken the contract, spend money, or publish anything.";
 
+/** What the question after a hold asks, once Mission Control has verified a checkpoint (lib/task-checkpoint.ts): review it
+ * against the decision that held the task, then hold again with what is missing or decide the first bounded step. */
+export const CHECKPOINT_REVIEW_DECISION_REQUESTED = "Your latest decision for this task held it until a checkpoint existed; "
+  + "that decision is held_by_decision in the factual state. A checkpoint has since been recorded: it is "
+  + "latest_verified_sealed_evidence. Mission Control read it from the task's private repository at the exact commit "
+  + "named and checked the SHA-256 of the checkpoint and of every file it lists; it did not check what the checkpoint "
+  + "says. Review it against what your decision asked for. If anything is still missing or wrong, say exactly what, and "
+  + "hold again. Otherwise decide the first bounded step toward the owner outcome within the contract's allowed scope "
+  + "and must-never limits. If that step needs browser navigation, collection or extraction that Chat cannot complete "
+  + "reliably, and the contract's allowed scope includes ChatGPT Work, set execution_surface to CHATGPT_WORK_CLOUD. "
+  + "Do not weaken the contract, spend money, or publish anything.";
+
 function isReviewBoundaryEvidence(event: StoredEvent) {
   return event.data.type === "evidence_receipt_recorded"
     && event.data.verified === true
@@ -805,7 +823,35 @@ export function fleetReasoningFactualState(
     });
     if (state.length <= limit) return state;
   }
-  return canonicalJson(facts);
+  return fittedCheckpointReview(facts, limit) ?? canonicalJson(facts);
+}
+
+/**
+ * A checkpoint review that doesn't fit even without a history: its two long texts, the verified checkpoint's summary
+ * and the decision that held the task, are shortened (each to no less than 500 characters) until the state fits.
+ * Nothing else is ever shortened here; a state that still doesn't fit is returned as it is, and admission refuses it.
+ */
+function fittedCheckpointReview(facts: ReturnType<typeof fleetReasoningFacts>, limit: number): string | null {
+  const evidence = facts.execution.latest_verified_sealed_evidence;
+  const checkpoint = evidence?.summary.startsWith(`${TASK_CHECKPOINT_SUMMARY_PREFIX}\n`) ? evidence : null;
+  const held = facts.held_by_decision;
+  if (!checkpoint && !held) return null;
+  let summary = checkpoint?.summary ?? null;
+  let heldText = held?.exact_text ?? null;
+  const render = () => canonicalJson({
+    ...facts,
+    execution: { ...facts.execution, latest_verified_sealed_evidence: checkpoint ? { ...checkpoint, summary } : evidence },
+    ...(held ? { held_by_decision: { ...held, exact_text: heldText } } : {}),
+  });
+  let state = render();
+  for (let round = 0; state.length > limit && round < 20; round += 1) {
+    const over = state.length - limit + 20;
+    if (summary !== null && summary.length > 500) summary = clip(summary, Math.max(500, summary.length - over));
+    else if (heldText !== null && heldText.length > 500) heldText = clip(heldText, Math.max(500, heldText.length - over));
+    else break;
+    state = render();
+  }
+  return state;
 }
 
 /**
@@ -863,9 +909,18 @@ function fleetReasoningFacts(
   const directivePaths = events.flatMap((event) => event.data.type === "execution_directive_recorded"
     ? event.data.allowed_paths
     : []);
+  const hold = decision.trigger === "CHECKPOINT_REVIEW_REQUIRED" ? registeredTaskHold(events) : null;
+  const heldBy = hold?.decision.data.type === "github_decision_receipt_ingested" ? hold.decision.data : null;
   return {
     trigger: decision.trigger,
     trigger_result: decision.result,
+    // The decision a checkpoint review answers, in full up to 2,500 characters (the history below clips it to 600).
+    ...(heldBy ? { held_by_decision: {
+      request_id: heldBy.request_id,
+      decision_id: heldBy.decision_block.decision_id,
+      recorded_at: hold!.decision.occurredAt,
+      exact_text: clip(heldBy.decision_block.exact_text, 2_500),
+    } } : {}),
     decision_boundary: {
       event_id: boundary.eventId,
       event_type: boundary.data.type,
@@ -969,6 +1024,33 @@ export function classifyFleetSupervisorTick(
   if (ownerAction.status === "OPEN" && ownerAction.reason_code === OWNER_TASK_AWAITING_SUPERVISION_REASON) {
     if (ownerBlocker) return decision("OWNER_ACTION_REQUIRED", "An unavoidable owner action is required.", "ACTIVE", false, false, true, ownerBlocker.description);
     return decision("FIRST_SUPERVISION_REQUIRED", "The owner-registered task's first question was routed to its supervisor.", "ACTIVE", true, false, false, null);
+  }
+  // A registered task its supervisor held (its latest decision started no step) waits for a checkpoint, not for the
+  // owner. Once Mission Control has verified one after that decision, the supervisor is asked to review it, quietly; one
+  // review that was sent but went unanswered is the owner's to know about, and nothing asks again.
+  if (ownerAction.status === "OPEN" && ownerAction.reason_code === OWNER_TASK_HELD_BY_SUPERVISOR_REASON) {
+    if (ownerBlocker) return decision("OWNER_ACTION_REQUIRED", "An unavoidable owner action is required.", "ACTIVE", false, false, true, ownerBlocker.description);
+    const hold = registeredTaskHold(events);
+    const checkpoint = hold?.checkpointAfter;
+    if (checkpoint) {
+      const review = worker.supervisorActivity.requests.find((request) => request.origin === "ROUTINE_CHECK"
+        && Date.parse(request.queuedAt) >= Date.parse(checkpoint.occurredAt));
+      if (review && (review.state === "NO_ANSWER" || review.state === "NO_ANSWER_DUPLICATE_SEND")) {
+        return decision("OWNER_ACTION_REQUIRED", "The supervisor's checkpoint review went unanswered; nothing was routed again.", "ACTIVE", false, false, true,
+          "Its supervisor didn't answer the checkpoint review before the question expired, so the task stays held. Only a newly verified checkpoint asks again.");
+      }
+      const reviewDecision = decision("CHECKPOINT_REVIEW_REQUIRED", "A checkpoint verified after the supervisor's hold was routed to the supervisor for review.", "ACTIVE", true, false, false, null);
+      // A review whose state can't fit one question even shortened would fail admission on every poll: tell the owner
+      // once instead, and route nothing.
+      const boundary = reasoningBoundary(events);
+      if (boundary && fleetReasoningFactualState(reviewDecision, events, boundary, watch.taskId).length > FLEET_FACTUAL_STATE_LIMIT) {
+        return decision("OWNER_ACTION_REQUIRED", "The checkpoint review is too long for one supervisor question; nothing was routed.", "ACTIVE", false, false, true,
+          "The task's contract, its held decision and its checkpoint together are too long for one supervisor question, even shortened, so the checkpoint wasn't sent for review.");
+      }
+      return reviewDecision;
+    }
+    return decision("SUPERVISOR_HOLD", "Held by its supervisor; no checkpoint has been verified since its decision, so nothing was routed.", "ACTIVE", false, false, true,
+      "Held by its supervisor: its latest decision started no work, and no checkpoint of what it asked for has been verified since.");
   }
   if (ownerAction.status === "OPEN"
     && ["DECISION_REQUIRED", "MANUAL_INTERVENTION_REQUIRED"].includes(ownerAction.kind)) {

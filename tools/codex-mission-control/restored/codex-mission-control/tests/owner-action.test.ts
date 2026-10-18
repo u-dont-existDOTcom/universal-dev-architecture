@@ -155,6 +155,32 @@ test("work-question re-send posts the exact request id, and the discard only whe
   });
 });
 
+test("checkpoint-verify posts only the exact file, commit and SHA-256 for one worker", async () => {
+  await withServer(async (base, seen) => {
+    const commit = "c".repeat(40);
+    const sha = "d".repeat(64);
+    const ok = await run(["checkpoint-verify", "--worker", "atlas-test-pilot", "--file", "checkpoints/preflight-v1.json",
+      "--commit", commit, "--sha256", sha], env(base));
+    assert.equal(ok.code, 0, ok.stderr);
+    assert.deepEqual(seen.map((s) => `${s.method} ${s.url}`), ["POST /workers/atlas-test-pilot/task-checkpoints/verify"]);
+    assert.deepEqual(JSON.parse(seen[0].body), { path: "checkpoints/preflight-v1.json", commit, sha256: sha });
+    assert.equal(seen[0].headers["x-mission-control-producer-kind"], "OWNER_AUTHORITY");
+    for (const args of [
+      ["checkpoint-verify", "--worker", "atlas-test-pilot", "--file", "/etc/passwd", "--commit", commit, "--sha256", sha],
+      ["checkpoint-verify", "--worker", "atlas-test-pilot", "--file", "a/../b", "--commit", commit, "--sha256", sha],
+      ["checkpoint-verify", "--worker", "atlas-test-pilot", "--file", "a.json", "--commit", "main", "--sha256", sha],
+      ["checkpoint-verify", "--worker", "atlas-test-pilot", "--file", "a.json", "--commit", commit, "--sha256", "D".repeat(64)],
+      ["checkpoint-verify", "--worker", "Atlas", "--file", "a.json", "--commit", commit, "--sha256", sha],
+      ["checkpoint-verify", "--worker", "atlas-test-pilot", "--file", "a.json", "--commit", commit],
+      ["checkpoint-verify", "--worker", "atlas-test-pilot", "--file", "a.json", "--commit", commit, "--sha256", sha, "--repository", "x/y"],
+    ]) {
+      const refused = await run(args, env(base));
+      assert.equal(refused.code, 2, `${args.join(" ")}: ${refused.stderr}`);
+    }
+    assert.equal(seen.length, 1);
+  });
+});
+
 test("there is no action that forwards caller-supplied content under the owner credential", async () => {
   await withServer(async (base, seen) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "owner-action-"));
