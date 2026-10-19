@@ -88,20 +88,20 @@ Managed ChatGPT tabs follow the owner-level 1/2/3 discipline: one in steady stat
 
 ### Model-agnostic stuck-chat recovery
 
-A generic mission-guard `CONTINUE` verdict remains forbidden. Separately, the browser relay may send the exact one-word prompt `continue` as **non-semantic transport recovery** for an already-authorized, tool-free supervisor turn that is observably stuck. Mandatory external-tool stages explicitly disable this path.
+A generic mission-guard `CONTINUE` verdict remains forbidden. Separately, the browser relay may send the exact recovery message `Continue, you got interrupted. Don't redo the work you did.` (`CONTINUE_NUDGE_BODY` in the relay) as **non-semantic transport recovery** for an already-authorized, tool-free supervisor turn that is observably stuck. Mandatory external-tool stages explicitly disable this path.
 
 The browser has two no-content stuck signals:
 
-- **active generation timeout:** the generation UI remains active for the full configured generation timeout (15 minutes by default). The relay invokes the visible Stop-generation control, waits for a safe idle composer, sends `continue` in the same conversation/current model, then resumes waiting;
-- **recoverable idle control:** after the composer returns idle, a visible button/control is exactly labeled `Continue`, `Continue generating`, `Resume`, `Retry`, or `Try again`. The relay sends `continue` in the same conversation/current model instead of treating the turn as semantically complete.
+- **active generation timeout:** the generation UI remains active for the full configured generation timeout (15 minutes by default). The relay invokes the visible Stop-generation control, waits for a safe idle composer, sends the recovery message in the same conversation/current model, then resumes waiting;
+- **recoverable idle control:** after the composer returns idle, a visible button/control is exactly labeled `Continue`, `Continue generating`, `Resume`, `Retry`, or `Try again`. The relay sends the recovery message in the same conversation/current model instead of treating the turn as semantically complete.
 
 The detector uses only composer/generation/recovery controls; it never searches assistant response text. Consecutive transport recoveries are capped (`MC_RELAY_STUCK_RECOVERY_MAX_NUDGES`, default 3, maximum 20), a failed or ambiguous recovery is not automatically replayed, and recovery cannot bypass owner, admission, spend/access, release, safety, or ambiguity gates.
 
-If a new direct decision stage finishes without its required durable #59 receipt, the relay waits through the bounded reconciliation window and then fails the stage. It sends no same-chat `continue` and does not automatically spend a second semantic attempt. Any later retry requires an explicit durable fresh-stage retry authorization and a new decision provider session over identical immutable inputs.
+If a new direct decision stage finishes without its required durable #59 receipt, the relay waits through the bounded reconciliation window and then fails the stage. It sends no same-chat recovery message and does not automatically spend a second semantic attempt. Any later retry requires an explicit durable fresh-stage retry authorization and a new decision provider session over identical immutable inputs.
 
 A visually normal idle turn with no recovery control still does **not** prove semantic stage completion. Mission Control therefore treats browser `GENERATION_COMPLETE` as transport evidence only. Intermediate reasoning stages need explicit durable stage-completion/continue-required receipts to close that remaining liveness gap without assistant-output extraction.
 
-Thus every `continue` described here resumes an existing admitted Chat objective; it is never semantic authorization for Work/Codex or a new Mission Control execution cycle.
+Thus every recovery message described here resumes an existing admitted Chat objective; it is never semantic authorization for Work/Codex or a new Mission Control execution cycle.
 
 ## Chat and Work governance
 

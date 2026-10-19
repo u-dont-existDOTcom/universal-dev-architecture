@@ -273,16 +273,16 @@ Long ChatGPT turns can stop making progress after extended reasoning or many too
 
 The relay uses two non-content UI signals:
 
-1. **active generation stall** — the turn remains continuously in generation state for the full `MC_RELAY_GENERATION_TIMEOUT_MS` interval (default 15 minutes). The relay safely invokes the visible Stop-generation control, waits for the composer to become idle, then sends exactly `continue` in the same conversation and current model;
-2. **recoverable idle control** — the turn returns to an idle composer but a visible control is exactly labeled `Continue`, `Continue generating`, or `Resume`. The relay treats that as unfinished and sends `continue` without changing model.
+1. **active generation stall** — the turn remains continuously in generation state for the full `MC_RELAY_GENERATION_TIMEOUT_MS` interval (default 15 minutes). The relay safely invokes the visible Stop-generation control, waits for the composer to become idle, then sends exactly `Continue, you got interrupted. Don't redo the work you did.` (`CONTINUE_NUDGE_BODY` in `src/core.mjs`) in the same conversation and current model;
+2. **recoverable idle control** — the turn returns to an idle composer but a visible control is exactly labeled `Continue`, `Continue generating`, or `Resume`. The relay treats that as unfinished and sends the same recovery message without changing model.
 
 The relay never searches transcript text to make this determination. It examines only composer/generation controls and exact known recovery-control labels.
 
 Recovery is capped by `MC_RELAY_STUCK_RECOVERY_MAX_NUDGES` (default 3, configurable 1–20) for one continuously stalled turn. This prevents an unbounded quota-burning loop. A failed or ambiguous recovery send is not automatically replayed.
 
 A provider `Retry` / `Try again` control is never handled generically. The
-controller-mediated durable-artifact stages first send exact same-chat
-`continue`. Only when structural, non-content UI evidence binds one Retry
+controller-mediated durable-artifact stages first send the same exact
+same-chat recovery message. Only when structural, non-content UI evidence binds one Retry
 control to that exact failed controller-authored continue turn may the
 controller click it once as transport recovery. Retry-original, unbound Retry,
 another user message, and a repeated Retry loop all fail closed. Continue
@@ -294,7 +294,7 @@ for the reconciliation grace period and may replay the immutable stage only as a
 new first message in a fresh provider conversation. The bounded attempt ceiling
 still applies.
 
-These `continue` messages are transport recovery, **not** Mission Control guard verdicts. They never grant execution authority or bypass owner decisions, admission gates, spend/access boundaries, release/safety gates, or ambiguity states.
+These recovery messages are transport recovery, **not** Mission Control guard verdicts. They never grant execution authority or bypass owner decisions, admission gates, spend/access boundaries, release/safety gates, or ambiguity states.
 
 All recovery nudges pass through the same global submission cooldown as normal supervision and capability testing. A relay restart retains the last successful click/generation-start boundary in `state.json`, so restart cannot create an immediate burst.
 

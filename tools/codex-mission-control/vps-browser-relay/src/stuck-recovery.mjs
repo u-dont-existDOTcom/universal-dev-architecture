@@ -1,4 +1,4 @@
-import { normalizeConversationUrl, sha256 } from './core.mjs';
+import { CONTINUE_NUDGE_BODY, normalizeConversationUrl, sha256 } from './core.mjs';
 
 const STOP_GENERATION_FN = `function(expectedUrl) {
   const normalize = (value) => {
@@ -283,7 +283,7 @@ export function isProgressHeartbeatStall(error) {
 
 async function sendContinue(submitMessage, target, options, logicalWait, index, maxNudges, logger, context) {
   const recoveredAt = new Date().toISOString();
-  const body = 'continue';
+  const body = CONTINUE_NUDGE_BODY;
   const start = await submitMessage(target, {
     expectedUrl: options.expectedUrl,
     body,

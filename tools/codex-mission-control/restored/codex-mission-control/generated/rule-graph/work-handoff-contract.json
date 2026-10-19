@@ -1,6 +1,6 @@
 {
   "catalog_schema_version": 1,
-  "content_sha256": "a593de0619b69ee5634807afa07f429cb532d80a7b8ff6daeb0b46f4ec693607",
+  "content_sha256": "4c51417d2692a4d59efcdd08cc38e503e9506b506173d84266cdf54909a8f82e",
   "direct_evaluations": {
     "uda.active-contract.boundary-binding": "FALSE",
     "uda.bootstrap.live-root": "TRUE",
@@ -3754,9 +3754,9 @@
       "source": {
         "extracted_sha256": "fcbf8b266bcb6900d3f644ca975a17713427c5c35f2ea956eacb941f3367a666",
         "extracted_utf8_bytes": 962,
-        "git_blob_sha1": "92b83434c3fdcf5745777901dc081ec041b4c152",
+        "git_blob_sha1": "ee38450168f86b4dd6b621d9a49e9bd6a34295e5",
         "path": "patterns/chat-work-execution-routing-threshold.md",
-        "repository_revision": "BLOB:92b83434c3fdcf5745777901dc081ec041b4c152"
+        "repository_revision": "BLOB:ee38450168f86b4dd6b621d9a49e9bd6a34295e5"
       },
       "source_text": "Follow `patterns/chat-work-execution-routing-threshold.md` for Chat-first reasoning,\nordinary GitHub work, bounded execution eligibility, and minimum-sufficient Work\nthinking. Chat owns reasoning and ordinary GitHub work; Work/Codex is execution-only;\na Claude session does both.\nBefore Work, discover deferred Chat tools too. If Chat/RDC can perform the bounded\nSSH/VPS/deployment action, keep it in Chat.\nWhen Work is admitted, apply `patterns/work-model-and-effort-routing.md` for the\ncanonical GPT-6.1 Sol (GPT-6 Sol fallback) / GPT-6 Astra model-and-effort ladder and telemetry contract.\nFor controlled supervisory routes also apply\n`patterns/runtime-chat-work-authority-admission-and-internal-routing.md`.\nWorker handoffs follow `patterns/worker-directive-delivery-and-chat-output-budget.md`:\nsame-turn runnable directive; long operational payloads go to `.md`/text artifacts.\nThese references preserve the existing rules rather than creating local copies."
     },

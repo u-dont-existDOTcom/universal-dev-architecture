@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   CAPABILITY_VERIFIED_SUMMARY,
+  CONTINUE_NUDGE_BODY,
   MODE_CAPABILITY_VERIFIED_SUMMARY,
   PROVIDER_SESSION_CYCLE_ROUTE_PREFIX,
   PROVIDER_SESSION_SUMMARY,
@@ -354,7 +355,7 @@ test('origin recovery waits for completion, grace, and a fresh absence check bef
   const recovered = await fixture.runtime.cycle('cycle-1');
   assert.equal(recovered.status, 'WAIT_ORIGIN_ARTIFACT');
   assert.equal(fixture.browser.submits.length, 2);
-  assert.equal(fixture.browser.submits[1].body, 'continue');
+  assert.equal(fixture.browser.submits[1].body, CONTINUE_NUDGE_BODY);
   assert.equal(fixture.browser.submits[1].targetId, 'origin-target');
   assert.equal(fixture.browser.targets.length, 1, 'same-chat continue does not create a fresh conversation target');
   assert.equal(fixture.store.state.controllerCycles['cycle-1'].recoveries.origin.continueAttemptCount, 1);
@@ -383,7 +384,7 @@ test('visible failure of exact continue enters Retry-of-continue and clicks it o
     { status: 'CONTINUE_TURN_COMPLETE_NO_RETRY', assistantContentObserved: false },
   );
   await driveOriginToContinue(fixture);
-  assert.equal(fixture.browser.submits.filter((item) => item.body === 'continue').length, 1);
+  assert.equal(fixture.browser.submits.filter((item) => item.body === CONTINUE_NUDGE_BODY).length, 1);
 
   assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'WAIT_ORIGIN_ARTIFACT');
   assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'RETRY_FAILED_CONTINUE');
@@ -391,7 +392,7 @@ test('visible failure of exact continue enters Retry-of-continue and clicks it o
   fixture.store.state.controllerCycles['cycle-1'].artifactPolling.origin.nextPollAt = '2026-01-01T00:00:00.000Z';
   assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'RETRY_FAILED_CONTINUE');
   assert.equal(fixture.browser.retryClicks.length, 1);
-  assert.equal(fixture.browser.submits.filter((item) => item.body === 'continue').length, 1, 'Retry creates no new user message');
+  assert.equal(fixture.browser.submits.filter((item) => item.body === CONTINUE_NUDGE_BODY).length, 1, 'Retry creates no new user message');
   assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'RETRY_FAILED_CONTINUE');
   assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'WAIT_ORIGIN_ARTIFACT');
   const recovery = fixture.store.state.controllerCycles['cycle-1'].recoveries.origin;
@@ -431,7 +432,7 @@ test('restart cannot duplicate a continue or Retry boundary', async () => {
   cycle.recoveries.origin.attempts.at(-1).status = 'CLICK_BOUNDARY_PERSISTED';
   fixture.store.state.controllerCycles['cycle-1'] = cycle;
   assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'ORIGIN_CONTINUE_SEND_AMBIGUOUS_NO_REPLAY');
-  assert.equal(fixture.browser.submits.filter((item) => item.body === 'continue').length, 1);
+  assert.equal(fixture.browser.submits.filter((item) => item.body === CONTINUE_NUDGE_BODY).length, 1);
 
   cycle = fixture.store.state.controllerCycles['cycle-1'];
   cycle.recoveries.origin.attempts.at(-1).status = 'RETRY_FAILED_CONTINUE';
@@ -452,7 +453,7 @@ test('one recovered origin artifact advances the existing controller state norma
   fixture.store.state.controllerCycles['cycle-1'].artifactPolling.origin.nextPollAt = '2026-01-01T00:00:00.000Z';
   assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'ORIGIN_ARTIFACT_VALIDATED');
   assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'PM_SEND_READY');
-  assert.equal(fixture.browser.submits.filter((item) => item.body === 'continue').length, 1);
+  assert.equal(fixture.browser.submits.filter((item) => item.body === CONTINUE_NUDGE_BODY).length, 1);
 });
 
 test('the same bounded continue mechanism applies to PM and return durable-artifact waits', async () => {
@@ -466,7 +467,7 @@ test('the same bounded continue mechanism applies to PM and return durable-artif
     cycle.artifactPolling.pm.nextPollAt = '2026-01-01T00:00:00.000Z';
     fixture.store.state.controllerCycles['cycle-1'] = cycle;
     assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'WAIT_PM_ARTIFACT');
-    assert.equal(fixture.browser.submits.at(-1).body, 'continue');
+    assert.equal(fixture.browser.submits.at(-1).body, CONTINUE_NUDGE_BODY);
     assert.equal(fixture.browser.submits.at(-1).targetId, 'pm-target');
     assert.equal(fixture.pacer.contexts.at(-1).sendPath, 'CONTROLLER_PM_CONTINUE');
   }
@@ -479,7 +480,7 @@ test('the same bounded continue mechanism applies to PM and return durable-artif
     cycle.recoveries.return.lastObservedCompletionAt = cycle.sends.return.generationCompletedAt;
     fixture.store.state.controllerCycles['cycle-1'] = cycle;
     assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'WAIT_RETURN_ARTIFACT_OR_ACK');
-    assert.equal(fixture.browser.submits.at(-1).body, 'continue');
+    assert.equal(fixture.browser.submits.at(-1).body, CONTINUE_NUDGE_BODY);
     assert.equal(fixture.browser.submits.at(-1).targetId, 'origin-target');
     assert.equal(fixture.pacer.contexts.at(-1).sendPath, 'CONTROLLER_RETURN_CONTINUE');
   }
@@ -498,7 +499,7 @@ test('recovery ceiling stops further continue sends', async () => {
   const result = await fixture.runtime.cycle('cycle-1');
   assert.equal(result.status, 'CONTROLLER_CYCLE_ERROR');
   assert.equal(result.error, 'CONTROLLER_CONTINUE_RECOVERY_CEILING_EXHAUSTED');
-  assert.equal(fixture.browser.submits.filter((item) => item.body === 'continue').length, 1);
+  assert.equal(fixture.browser.submits.filter((item) => item.body === CONTINUE_NUDGE_BODY).length, 1);
 });
 
 test('a crossed Retry-of-continue failure stops without another Retry or continue', async () => {
@@ -515,7 +516,7 @@ test('a crossed Retry-of-continue failure stops without another Retry or continu
   const resumed = await fixture.runtime.cycle('cycle-1');
   assert.equal(resumed.status, 'ORIGIN_CONTINUE_RETRY_SEND_AMBIGUOUS_NO_REPLAY');
   assert.equal(fixture.browser.retryClicks.length, 1);
-  assert.equal(fixture.browser.submits.filter((item) => item.body === 'continue').length, 1);
+  assert.equal(fixture.browser.submits.filter((item) => item.body === CONTINUE_NUDGE_BODY).length, 1);
 });
 
 test('expired WAIT cycle becomes terminal while preserving send and admission evidence', async () => {

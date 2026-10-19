@@ -3,6 +3,7 @@ import {
   PROVIDER_SESSION_MODEL_SUMMARY,
   PROVIDER_SESSION_SUMMARY,
   RELAY_STAGE_SUMMARY,
+  CONTINUE_NUDGE_BODY,
   CONTINUE_NUDGE_DELAY_MS,
   canonicalJson,
   consumerControlRefs,
@@ -28,7 +29,7 @@ const TERMINAL_STEPS = new Set([COMPLETE_STEP, EXPIRED_STEP]);
 const ROOT_URL = 'https://chatgpt.com/';
 const PROJECTION_TIMEOUT_MS = 30_000;
 const ARTIFACT_POLL_INTERVAL_MS = 90_000;
-const CONTINUE_BODY = 'continue';
+const CONTINUE_BODY = CONTINUE_NUDGE_BODY;
 const CONTINUE_BODY_SHA256 = sha256(CONTINUE_BODY);
 
 export class ControllerMediatedPmRuntime {

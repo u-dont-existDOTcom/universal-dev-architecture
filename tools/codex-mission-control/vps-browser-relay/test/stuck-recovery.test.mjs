@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { installStuckRecovery, isConnectionInterrupted, isGenerationStallTimeout, isProgressHeartbeatStall, isSystemsThinkingMoreThanUsual } from '../src/stuck-recovery.mjs';
-import { sha256 } from '../src/core.mjs';
+import { CONTINUE_NUDGE_BODY, sha256 } from '../src/core.mjs';
 import { defaultState } from '../src/core.mjs';
 import { GlobalSubmissionPacer } from '../src/submission-pacing.mjs';
 
@@ -242,7 +242,7 @@ test('exact systems-thinking banner overrides V6 generic recovery ban with Stop 
   });
 
   assert.equal(isSystemsThinkingMoreThanUsual(Object.assign(new Error('x'), { code: 'CHATGPT_SYSTEMS_THINKING_MORE_THAN_USUAL' })), true);
-  assert.deepEqual(steps, ['stop-and-wait-send-control', 'authority-ready', 'submit:continue', 'wait-complete']);
+  assert.deepEqual(steps, ['stop-and-wait-send-control', 'authority-ready', `submit:${CONTINUE_NUDGE_BODY}`, 'wait-complete']);
   assert.equal(result.stuckRecovery.nudgesSent, 1);
   assert.equal(result.stuckRecovery.recoveries[0].source, 'SYSTEMS_THINKING_MORE_THAN_USUAL');
   assert.equal(result.stuckRecovery.recoveries[0].observedControl, 'Our systems are thinking more than usual');
@@ -286,7 +286,7 @@ test('connection-interrupted banner also overrides V6 generic recovery ban with 
   });
 
   assert.equal(isConnectionInterrupted(Object.assign(new Error('x'), { code: 'CHATGPT_CONNECTION_INTERRUPTED' })), true);
-  assert.deepEqual(steps, ['stop-and-wait-send-control', 'authority-ready', 'submit:continue', 'wait-complete']);
+  assert.deepEqual(steps, ['stop-and-wait-send-control', 'authority-ready', `submit:${CONTINUE_NUDGE_BODY}`, 'wait-complete']);
   assert.equal(result.stuckRecovery.nudgesSent, 1);
   assert.equal(result.stuckRecovery.recoveries[0].source, 'CONNECTION_INTERRUPTED');
   assert.equal(result.stuckRecovery.recoveries[0].observedControl, 'Connection interrupted');
@@ -364,7 +364,7 @@ test('structural progress stall uses bounded same-chat Stop then continue when g
     expectedUrl: 'https://chatgpt.com/c/progress-stall',
     generationStarted: true,
   });
-  assert.deepEqual(steps, ['stop', 'submit:continue']);
+  assert.deepEqual(steps, ['stop', `submit:${CONTINUE_NUDGE_BODY}`]);
   assert.equal(result.stuckRecovery.recoveries[0].source, 'PROGRESS_HEARTBEAT_STALLED');
   assert.equal(result.stuckRecovery.inspectedAssistantOutput, false);
 });
@@ -398,8 +398,8 @@ test('any model turn that remains actively generating gets same-chat continue an
 
   assert.equal(waits, 2);
   assert.equal(submissions.length, 1);
-  assert.equal(submissions[0].input.body, 'continue');
-  assert.equal(submissions[0].input.bodySha256, sha256('continue'));
+  assert.equal(submissions[0].input.body, CONTINUE_NUDGE_BODY);
+  assert.equal(submissions[0].input.bodySha256, sha256(CONTINUE_NUDGE_BODY));
   assert.equal(result.stuckRecovery.nudgesSent, 1);
   assert.equal(result.stuckRecovery.recoveries[0].source, 'ACTIVE_GENERATION_TIMEOUT');
   assert.equal(result.stuckRecovery.recoveries[0].modelChanged, false);
@@ -480,7 +480,7 @@ test('idle Continue controls are treated as unfinished without reading assistant
 
   assert.equal(waits, 2);
   assert.equal(submissions.length, 1);
-  assert.equal(submissions[0].input.body, 'continue');
+  assert.equal(submissions[0].input.body, CONTINUE_NUDGE_BODY);
   assert.equal(result.stuckRecovery.recoveries[0].source, 'RECOVERABLE_UI_CONTROL');
   assert.equal(result.stuckRecovery.recoveries[0].observedControl, 'Continue generating');
   assert.equal(result.stuckRecovery.recoveries[0].modelChanged, false);
@@ -808,4 +808,8 @@ test('automatic continue passes item admission into scheduler replays', async ()
     beforeRecoverySend: async () => { admissionChecks += 1; },
   });
   assert.equal(admissionChecks, 2);
+});
+
+test('the continue nudge is the owner\'s exact sentence, not a bare "continue"', () => {
+  assert.equal(CONTINUE_NUDGE_BODY, "Continue, you got interrupted. Don't redo the work you did.");
 });
