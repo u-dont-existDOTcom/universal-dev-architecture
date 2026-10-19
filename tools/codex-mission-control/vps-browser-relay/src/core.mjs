@@ -37,7 +37,7 @@ export const MANAGED_CHATGPT_HARD_CEILING_TABS = 3;
 export const CONTINUE_NUDGE_DELAY_MS = 300_000;
 // The message sent into a stalled chat as same-chat transport recovery. A bare "continue" sometimes made the chat
 // forget the work it had just done and start again, so the nudge says what happened and what not to do (owner's
-// wording, 2026-10-19). It still adds no task content or new direction.
+// wording, 2026-10-19). It adds no task content.
 export const CONTINUE_NUDGE_BODY = "Continue, you got interrupted. Don't redo the work you did.";
 export const STAGE_RECEIPT_GRACE_MS = 360_000;
 export const CURRENT_CONSUMER_CONTROLS = Object.freeze({
