@@ -48,6 +48,9 @@ import { FleetSupervisorLoop, fleetSupervisorSlowTickMs, fleetSupervisorStallMs 
 import { jevShadowSummaryForProducer, jevShadowSummaryTool } from "../lib/jev-shadow-surface";
 import { githubDecisionCopyTokenProviderFromEnv, githubReconciliationTokenProviderFromEnv } from "../lib/github-app-auth";
 import { ProviderDecisionCopier, ProviderDecisionValidationError } from "../lib/provider-decision-copier";
+import { githubRepositoryFileReader } from "../lib/github-repository-files";
+import { parseTaskCheckpointRepositories, type RepositoryFileReader } from "../lib/task-checkpoint";
+import { recordTaskCheckpoint } from "../lib/task-checkpoint-record";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
 const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
@@ -117,6 +120,17 @@ const providerDecisionCopier = githubPolicy && githubDecisionCopyTokenProvider
   })
   : null;
 const submissionAuthority = new SubmissionAuthorityRuntime(store, process.env, Date.now, eventHistory);
+// Each registered task's private checkpoint repository, the only repositories whose files Mission Control reads; a
+// reader (read-only access to that repository's files) is made the first time one is needed.
+const taskCheckpointRepositories = parseTaskCheckpointRepositories(process.env.MISSION_CONTROL_TASK_CHECKPOINT_REPOSITORIES_JSON);
+const taskCheckpointReaders = new Map<string, RepositoryFileReader | null>();
+const taskCheckpointReaderFor = (repository: string): RepositoryFileReader | null => {
+  if (!taskCheckpointReaders.has(repository)) {
+    const provider = githubReconciliationTokenProviderFromEnv({ repository, contentsPermission: "read" });
+    taskCheckpointReaders.set(repository, provider ? githubRepositoryFileReader(provider) : null);
+  }
+  return taskCheckpointReaders.get(repository) ?? null;
+};
 const liveSourceWatcher = process.env.MISSION_CONTROL_LIVE_SOURCE && process.env.MISSION_CONTROL_LIVE_WORKTREE
   ? startLiveWorkerSourceWatcher(store, {
     sourcePath: process.env.MISSION_CONTROL_LIVE_SOURCE,
@@ -529,6 +543,23 @@ const server = http.createServer(async (request, response) => {
       const worker = decodeURIComponent(workerMatch[1]);
       const snapshot = workerSnapshotFromEvents(eventHistory(), worker, dashboardProjectionOptions());
       return snapshot ? json(response, 200, snapshot) : json(response, 404, { error: "Worker not found" });
+    }
+    // The owner names a checkpoint in a registered task's private repository; Mission Control reads it from GitHub,
+    // checks its SHA-256 and every file it lists, and records it as verified review evidence (lib/task-checkpoint.ts).
+    const taskCheckpointMatch = url.pathname.match(/^\/workers\/([^/]+)\/task-checkpoints\/verify$/);
+    if (request.method === "POST" && taskCheckpointMatch) {
+      const producer = authorizeMutation(request);
+      if (producer.kind !== "OWNER_AUTHORITY") return json(response, 403, { error: "Only the owner may name a checkpoint for Mission Control to verify." });
+      const worker = decodeURIComponent(taskCheckpointMatch[1]);
+      if (!/^[a-z0-9][a-z0-9_-]{0,79}$/.test(worker)) return json(response, 400, { error: "The worker is not a Mission Control worker id." });
+      const body = await readJson(request) as Record<string, unknown>;
+      if (typeof body.path !== "string" || typeof body.commit !== "string" || typeof body.sha256 !== "string") {
+        return json(response, 400, { error: "path, commit and sha256 name the one checkpoint to verify." });
+      }
+      const result = await recordTaskCheckpoint(store, { worker, path: body.path, commit: body.commit, sha256: body.sha256 },
+        { repositories: taskCheckpointRepositories, readerFor: taskCheckpointReaderFor });
+      if (result.event) notifications.emit("event", result.event);
+      return json(response, result.status, result.body);
     }
     const workCloudDispatchMatch = url.pathname.match(/^\/workers\/([^/]+)\/work-cloud-dispatches\/([^/]+)$/);
     if (request.method === "GET" && workCloudDispatchMatch) {

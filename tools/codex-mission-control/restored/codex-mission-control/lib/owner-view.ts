@@ -3,7 +3,9 @@ import type { OwnerActionObligation } from "./schema";
 import type { WorkQueueItemProjection } from "./worker-channel";
 import { isSupervisorActivity } from "./supervisor-activity";
 import { isSpecificChatAddress } from "./supervisor-chat-address";
-import { OWNER_TASK_AWAITING_SUPERVISION_REASON, OWNER_TASK_FIRST_QUESTION_UNANSWERED_REASON } from "./owner-task-source";
+import {
+  OWNER_TASK_AWAITING_SUPERVISION_REASON, OWNER_TASK_FIRST_QUESTION_UNANSWERED_REASON, OWNER_TASK_HELD_BY_SUPERVISOR_REASON,
+} from "./owner-task-source";
 
 export type SnapshotFailure = { kind: "session" | "network" | "server"; message: string };
 export class SnapshotError extends Error {
@@ -70,6 +72,10 @@ const OWNER_ALARMS: Record<string, { title: string; explain: (action: OwnerActio
   [OWNER_TASK_FIRST_QUESTION_UNANSWERED_REASON]: {
     title: "Its supervisor didn't answer",
     explain: () => "Mission Control sent this new task's first question to its supervisor chat, but no answer came back before the question expired, so no work has started. Mission Control doesn't ask again by itself, and a way to ask again comes in a later update. Meanwhile, check the supervisor chat and the relay.",
+  },
+  [OWNER_TASK_HELD_BY_SUPERVISOR_REASON]: {
+    title: "Held by its supervisor",
+    explain: () => "Its supervisor's latest decision held this task, so no work runs. The decision says what it waits for. Once a checkpoint of that is in the task's private repository, Mission Control checks it and asks the supervisor again (owner action checkpoint-verify).",
   },
   "OWNER.DIRECTIVE_DELIVERY_FAILED_NO_RETRY": {
     title: "An instruction didn't get through",

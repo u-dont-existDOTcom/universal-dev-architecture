@@ -21,6 +21,8 @@ export interface GitHubAppInstallationTokenProviderOptions {
   privateKeyPem: string;
   repository: string;
   issuesPermission?: 'read' | 'write';
+  /** Ask for read access to the repository's files instead of its issues (a task's checkpoint repository). */
+  contentsPermission?: 'read';
   fetchImpl?: typeof fetch;
   now?: () => number;
 }
@@ -33,6 +35,7 @@ export class GitHubAppInstallationTokenProvider {
   private readonly fetchImpl: typeof fetch;
   private readonly now: () => number;
   private readonly issuesPermission: 'read' | 'write';
+  private readonly contentsPermission: 'read' | null;
   private cached: { token: string; expiresAtMs: number } | null = null;
 
   constructor(options: GitHubAppInstallationTokenProviderOptions) {
@@ -44,6 +47,10 @@ export class GitHubAppInstallationTokenProvider {
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.now = options.now ?? Date.now;
     this.issuesPermission = options.issuesPermission ?? 'read';
+    this.contentsPermission = options.contentsPermission ?? null;
+    if (this.contentsPermission && options.issuesPermission) {
+      throw new Error("A GitHub App token is for a repository's issues or its files, not both.");
+    }
   }
 
   async token(): Promise<string> {
@@ -64,7 +71,7 @@ export class GitHubAppInstallationTokenProvider {
         },
         body: JSON.stringify({
           repositories: [this.repositoryName],
-          permissions: { issues: this.issuesPermission },
+          permissions: this.contentsPermission ? { contents: this.contentsPermission } : { issues: this.issuesPermission },
         }),
         signal: AbortSignal.timeout(30_000),
       },
@@ -104,6 +111,7 @@ export function githubReconciliationTokenProviderFromEnv(options: {
   now?: () => number;
   readFile?: (path: string) => string;
   issuesPermission?: 'read' | 'write';
+  contentsPermission?: 'read';
   authorizedWriterLogins?: readonly string[];
 }): GitHubReconciliationTokenProvider | null {
   const env = options.env ?? process.env;
@@ -138,6 +146,7 @@ export function githubReconciliationTokenProviderFromEnv(options: {
       fetchImpl: options.fetchImpl,
       now: options.now,
       issuesPermission: options.issuesPermission,
+      contentsPermission: options.contentsPermission,
     });
     return () => provider.token();
   }

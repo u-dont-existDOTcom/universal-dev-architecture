@@ -33,6 +33,10 @@ const USAGE = `Usage: owner-action <action> [options]
                                                       unless it read a Work answer Mission Control refuses, found on the
                                                       decision issue); Mission Control first runs one GitHub
                                                       reconciliation, so a reply already posted is taken in instead
+  checkpoint-verify --worker W --file F --commit C --sha256 S
+                                                      Mission Control reads checkpoint F at commit C from task W's configured
+                                                      private repository, checks its SHA-256 S and every file it lists, and
+                                                      records it; a task its supervisor held is then asked to review it
   reconcile-github                                    run one GitHub decision-receipt reconciliation pass`;
 
 // Deliberately absent: any action that forwards caller-supplied semantic content (such as a source-review
@@ -170,6 +174,24 @@ export async function runOwnerAction(argv: string[]): Promise<{ status: number; 
       return jsonResult(await daemonFetch(`/workers/${encodeURIComponent(worker)}/work-questions/resend-sent`, {
         method: "POST", headers: daemonMutationHeaders(owner(), { "content-type": "application/json" }),
         body: JSON.stringify(discard === "yes" ? { request_id: requestId, discard_finished_reply: true } : { request_id: requestId }),
+      }));
+    }
+    case "checkpoint-verify": {
+      // --file names a file inside the task's one configured repository, never a Mission Control route.
+      const opts = options(rest, ["worker", "file", "commit", "sha256"]);
+      const worker = required(opts, "worker");
+      if (!/^[a-z0-9][a-z0-9_-]{0,79}$/.test(worker)) throw new UsageError("--worker must be one exact worker ID.");
+      const file = required(opts, "file");
+      if (file.length > 500 || file.startsWith("/") || file.split("/").some((segment) => !segment || segment === "." || segment === "..")) {
+        throw new UsageError("--file must be a relative file path inside the repository.");
+      }
+      const commit = required(opts, "commit");
+      if (!/^[a-f0-9]{40}$/.test(commit)) throw new UsageError("--commit must be one full 40-character commit SHA.");
+      const sha = required(opts, "sha256");
+      if (!/^[a-f0-9]{64}$/.test(sha)) throw new UsageError("--sha256 must be a lowercase SHA-256 digest.");
+      return jsonResult(await daemonFetch(`/workers/${encodeURIComponent(worker)}/task-checkpoints/verify`, {
+        method: "POST", headers: daemonMutationHeaders(owner(), { "content-type": "application/json" }),
+        body: JSON.stringify({ path: file, commit, sha256: sha }),
       }));
     }
     case "reconcile-github": {

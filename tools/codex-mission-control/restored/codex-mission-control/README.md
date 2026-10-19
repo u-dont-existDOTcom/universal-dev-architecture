@@ -213,6 +213,27 @@ what it may use, what it must never do, and when it is done.
     route it again. A question that was sent can't be proven unsent, so Mission Control doesn't ask again by itself;
     asking again needs an owner action that comes in a later pull request. A question that expired without being sent
     is retired and asked again, as for any fleet question.
+- **When its supervisor holds it, a verified checkpoint asks again.** A supervisor decision that starts no bounded step
+  (no `bounded_execution`) and asks the owner nothing, for a task that has never had a directive, holds the task until
+  what it asks for exists. The task shows "Held by its supervisor" (`OWNER.TASK_HELD_BY_SUPERVISOR`), not missing
+  telemetry, and the check notifies the owner once and routes nothing (`SUPERVISOR_HOLD`). A decision that asks the
+  owner to decide is not a hold.
+  - Whoever executes the task writes the checkpoint into the task's private repository: a JSON file naming `task` (the
+    worker id), `base_commit` and `files_sha256_at_base_commit` (1 to 32 files, path to SHA-256), plus whatever the
+    decision asked for. The repository for each task is configured in `MISSION_CONTROL_TASK_CHECKPOINT_REPOSITORIES_JSON`
+    (worker id to `owner/repository`); no other repository is ever read.
+  - The owner names it: `npm run -s owner:action -- checkpoint-verify --worker W --file F --commit C --sha256 S`, which
+    is refused unless the task is held. Mission Control reads the file from GitHub at that exact commit, with a
+    read-only token for that repository's files (the GitHub App needs Contents: read and access to the repository),
+    checks its SHA-256, then reads every file it lists at its base commit and checks each SHA-256 (up to 32 MB a file,
+    128 MB in all; a file in Git LFS is read as its pointer text). Any mismatch records nothing. It checks hashes, not
+    what the checkpoint says.
+  - A verified checkpoint is recorded as review evidence (`verifier:task-checkpoint`), and a held task's watch checks
+    at once: the supervisor gets one question (`CHECKPOINT_REVIEW_REQUIRED`, quietly) with the decision that held the
+    task (`held_by_decision`, in full up to 2,500 characters) and the checkpoint's statements (up to 4,000 characters).
+    It holds again with what is missing, or decides the first bounded step. If that review is sent but never answered,
+    or the review can't fit one question even shortened, the owner is notified and nothing asks again until a new
+    checkpoint is verified.
 - Submitting the same answers again records nothing. Other answers for a registered task id are refused, and so is
   any id that already has records, saying what those records are.
 - **Closing a registered task comes next.** Marking it achieved or cancelling it needs the owner, so it will take the
