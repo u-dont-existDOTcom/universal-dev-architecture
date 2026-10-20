@@ -51,12 +51,15 @@ export interface ExpiredUnrunWorkDirective {
 
 /**
  * The UNAVAILABLE reason codes the dispatcher records before it makes any Work call, so nothing can have reached Work:
- * no native surface verification, no app executor, or the Codex driver busy (its lock is held before any message is
- * queued). Every other UNAVAILABLE code (a timeout, a missing or invalid tool receipt, a rejected extra mutation, an
+ * no native surface verification, no app executor, the Codex driver busy (its lock is held before any message is
+ * queued), or the directive's deadline reached by the time of the call. Every other UNAVAILABLE code (a timeout, a missing or invalid tool receipt, a rejected extra mutation, an
  * execution error) can follow a call that reached Work, so the job stays ambiguous, never unrun.
  */
 export const PRE_SEND_UNAVAILABLE_CODES: ReadonlySet<string> = new Set([
   "WORK_CLOUD_SURFACE_VERIFICATION_UNAVAILABLE", "WORK_CLOUD_DISPATCH_UNAVAILABLE", "WORK_CLOUD_DRIVER_BUSY",
+  // The deadline was reached by the time of the call (chatgpt-work-cloud-dispatch.ts and the controller check it right
+  // before the Work call).
+  "WORK_CLOUD_DEADLINE_PASSED",
 ]);
 
 function provenUnsent(event: StoredEvent): boolean {

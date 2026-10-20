@@ -45,6 +45,8 @@ export interface PreparedDirectWorkCloudDispatch {
     existingWorkThreadId: string | null;
     prompt: string;
     requestedAt: string;
+    /** The directive's bounded-execution deadline; the controller checks it again right before the Work call. */
+    deadline: string;
   };
   recoveryState: "NEW" | "REQUEST_ONLY_PROVEN_UNSENT" | "PENDING_SETUP_READ_ONLY";
   order: number;
@@ -220,6 +222,7 @@ export function discoverDirectWorkCloudDispatches(input: {
         existingWorkThreadId: workQuestionContext?.workThreadId ?? null,
         prompt: workPrompt,
         requestedAt: request?.type === "chatgpt_work_cloud_dispatch_requested" ? request.requested_at : input.requestedAt,
+        deadline: bounded.deadline,
       },
       recoveryState,
       order: directiveEvent.sequence,

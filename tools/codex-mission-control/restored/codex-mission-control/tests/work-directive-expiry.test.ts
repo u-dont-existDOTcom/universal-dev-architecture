@@ -476,7 +476,8 @@ test("what may have run is never unrun: results other than UNAVAILABLE, and Code
       fake([...base, request, intent], { ...binding, type: "chatgpt_work_cloud_dispatch_recorded", dispatch_id: "work-cloud:1", status, error_code }, `d-${status}-${error_code}`);
     // Only a request, proven unsent: unrun.
     assert.equal(expiredUnrunWorkDirective([...base, request], AFTER)?.dispatchRequests, 1);
-    // Stopped before any Work call: unrun.
+    // Stopped before any Work call: unrun. The deadline reached by the time of the call is one of these.
+    assert.ok(PRE_SEND_UNAVAILABLE_CODES.has("WORK_CLOUD_DEADLINE_PASSED"));
     for (const code of PRE_SEND_UNAVAILABLE_CODES) {
       assert.equal(expiredUnrunWorkDirective([...base, request, intent, result("UNAVAILABLE", code)], AFTER)?.unavailableResults, 1, code);
     }

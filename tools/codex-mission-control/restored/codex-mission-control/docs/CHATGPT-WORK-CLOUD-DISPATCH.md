@@ -64,7 +64,10 @@ Mission Control rejects:
 - a terminal dispatch result overwritten under the same dispatch id;
 - silent Codex fallback after Work dispatch fails or waits for approval;
 - a dispatch request or handoff intent at or after the directive's bounded-execution deadline (the supervisor's
-  authorization ends there; see README, "An authorized Work job that expired before it ran is asked about once").
+  authorization ends there; see README, "An authorized Work job that expired before it ran is asked about once");
+- a Work call (`create_thread`, `send_message_to_thread`) that would start at or after that deadline by the clock at
+  the call itself: the watcher passes the deadline to the controller, and both the dispatch and the controller check it
+  right before the call, recording `UNAVAILABLE` with `WORK_CLOUD_DEADLINE_PASSED`.
 
 The worker dashboard projects Work-cloud state independently from the existing Codex execution/profile state.
 

@@ -12,6 +12,7 @@ import {
   type WorkCloudDispatchInput,
   type WorkCloudExecutorOutcome,
   WorkCloudDispatchAmbiguityError,
+  workCloudDeadlineReached,
 } from "../lib/chatgpt-work-cloud-dispatch";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
 import { projectWorker } from "../lib/projection";
@@ -505,3 +506,26 @@ function currentDirectiveStore(): EventStore {
   });
   return store;
 }
+
+test("the deadline is checked by the clock at the Work call, not the request's time (Codex review of bf56c630)", async () => {
+  const calls: unknown[] = [];
+  const ready = executor({ kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "work-thread-late", hostId: null }, calls);
+  // Requested in time, but the deadline has passed by the time the call would start: nothing is sent.
+  const past = new Date(Date.now() - 1_000).toISOString();
+  const late = await dispatchChatGptWorkCloud(input({ requestedAt: new Date(Date.now() - 60_000).toISOString(), deadline: past }), ready);
+  assert.equal(calls.length, 0);
+  assert.ok(late.result.data.type === "chatgpt_work_cloud_dispatch_recorded");
+  assert.equal(late.result.data.status, "UNAVAILABLE");
+  assert.equal(late.result.data.error_code, "WORK_CLOUD_DEADLINE_PASSED");
+  // Still open: the executor gets the deadline to check again right before its own Work call.
+  const future = new Date(Date.now() + 3_600_000).toISOString();
+  await dispatchChatGptWorkCloud(input({ deadline: future }), ready);
+  await dispatchChatGptWorkCloud(input({ mode: "CONTINUE", existingWorkThreadId: "work-thread-native-9", deadline: future }), ready);
+  assert.deepEqual(calls.map((call) => (call as { deadline?: string }).deadline), [future, future]);
+  // At the deadline itself the call may no longer start; a millisecond before, it may; no deadline never stops it.
+  const deadline = "2026-10-20T00:00:00.000Z";
+  assert.equal(workCloudDeadlineReached(deadline, Date.parse(deadline)), true);
+  assert.equal(workCloudDeadlineReached(deadline, Date.parse(deadline) - 1), false);
+  assert.equal(workCloudDeadlineReached(null), false);
+  assert.equal(workCloudDeadlineReached("not a time"), false);
+});

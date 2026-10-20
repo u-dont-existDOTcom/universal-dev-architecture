@@ -39,6 +39,17 @@ export interface WorkCloudDispatchInput {
   capabilityEvidence: WorkCloudCapabilityEvidence;
   requestedAt: string;
   producerId: string;
+  /** The directive's bounded-execution deadline: no Work call starts at or after it, by the clock at the call itself
+   * (the request may be minutes older than the call; Codex review of bf56c630). */
+  deadline?: string | null;
+}
+
+/** Recorded, before any Work call, when the directive's deadline was reached by the time of the call. */
+export const WORK_CLOUD_DEADLINE_PASSED = "WORK_CLOUD_DEADLINE_PASSED";
+
+/** Whether a Work call may no longer start under this deadline: true at or after it, by the clock now. */
+export function workCloudDeadlineReached(deadline: string | null | undefined, now = Date.now()): boolean {
+  return typeof deadline === "string" && Number.isFinite(Date.parse(deadline)) && now >= Date.parse(deadline);
 }
 
 export type WorkCloudExecutorOutcome =
@@ -55,8 +66,10 @@ export interface WorkCloudAppExecutor {
     prompt: string;
     requestedAt: string;
     target: { type: typeof CHATGPT_WORK_CLOUD_TARGET; projectId?: string };
+    /** Checked again by the executor right before its Work call. */
+    deadline?: string;
   }): Promise<WorkCloudExecutorOutcome>;
-  sendMessageToThread(input: { threadId: string; prompt: string }): Promise<WorkCloudExecutorOutcome>;
+  sendMessageToThread(input: { threadId: string; prompt: string; deadline?: string }): Promise<WorkCloudExecutorOutcome>;
   resolveCreatedThread?(input: {
     clientThreadId: string;
     prompt: string;
@@ -154,6 +167,9 @@ async function executeWorkCloudAppCall(
       ? "WORK_CLOUD_SURFACE_VERIFICATION_UNAVAILABLE" : "WORK_CLOUD_DISPATCH_UNAVAILABLE" };
   }
   if (!capabilityAvailable) return { kind: "PENDING_APPROVAL" };
+  // The deadline by the clock now, not the request's time: nothing is sent at or after it.
+  if (workCloudDeadlineReached(input.deadline)) return { kind: "UNAVAILABLE", reasonCode: WORK_CLOUD_DEADLINE_PASSED };
+  const deadline = input.deadline ? { deadline: input.deadline } : {};
   try {
     return input.mode === "CREATE"
       ? await executor.createThread({
@@ -164,8 +180,9 @@ async function executeWorkCloudAppCall(
           type: CHATGPT_WORK_CLOUD_TARGET,
           ...(input.chatgptProjectId ? { projectId: input.chatgptProjectId } : {}),
         },
+        ...deadline,
       })
-      : await executor.sendMessageToThread({ threadId: input.existingWorkThreadId!, prompt: input.prompt });
+      : await executor.sendMessageToThread({ threadId: input.existingWorkThreadId!, prompt: input.prompt, ...deadline });
   } catch {
     return { kind: "FAILED", reasonCode: "WORK_CLOUD_APP_EXECUTOR_FAILED" };
   }

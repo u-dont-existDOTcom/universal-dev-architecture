@@ -236,7 +236,9 @@ what it may use, what it must never do, and when it is done.
     checkpoint is verified.
 - **An authorized Work job that expired before it ran is asked about once.** A supervisor's bounded execution names a
   deadline, and native ChatGPT Work is never started at or after it, for any worker: the Work dispatcher skips a job not
-  yet sent, and the store refuses its dispatch request and its provider-bound handoff intent. For a registered task,
+  yet sent, the store refuses its dispatch request and its provider-bound handoff intent, and the dispatch and the
+  Work controller check the deadline again by the clock right before the Work call (`WORK_CLOUD_DEADLINE_PASSED`, recorded
+  as `UNAVAILABLE` before any call). For a registered task,
   when the latest directive is a native Work directive whose deadline has passed and nothing crossed the provider
   boundary for it (no handoff intent, or only `UNAVAILABLE` results recorded before any Work call, and no Work or Codex
   record of it running), the
@@ -249,8 +251,9 @@ what it may use, what it must never do, and when it is done.
   - A job that may have started (an intent without a result, a `READY`, `PENDING_SETUP`, `PENDING_APPROVAL` or
     `FAILED` result, an `UNAVAILABLE` one whose code isn't a pre-send code, or a Codex start or receipt for the
     directive) is never treated as unrun. The pre-send codes (`PRE_SEND_UNAVAILABLE_CODES`) are
-    `WORK_CLOUD_SURFACE_VERIFICATION_UNAVAILABLE`, `WORK_CLOUD_DISPATCH_UNAVAILABLE` and `WORK_CLOUD_DRIVER_BUSY`; a
-    timeout, a missing or invalid tool receipt, or any other `UNAVAILABLE` code can follow a call that reached Work.
+    `WORK_CLOUD_SURFACE_VERIFICATION_UNAVAILABLE`, `WORK_CLOUD_DISPATCH_UNAVAILABLE`, `WORK_CLOUD_DRIVER_BUSY` and
+    `WORK_CLOUD_DEADLINE_PASSED`; a timeout, a missing or invalid tool receipt, or any other `UNAVAILABLE` code can
+    follow a call that reached Work.
   - Every recorded owner obligation, any blocker on the owner or an outside actor, and a missing contract source come
     first. The only owner action the question replaces is the projection's placeholder for a task that records none
     (`OWNER.ACTION_TELEMETRY_MISSING`).

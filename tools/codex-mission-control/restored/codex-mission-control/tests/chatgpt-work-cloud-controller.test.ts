@@ -613,3 +613,28 @@ test("unreadable threads are read once per resolution, not re-read on every atte
   assert.deepEqual(reads.calls.filter((call) => call.name === "read_thread").map((call) => call.arguments.threadId), ["r-a", "r-b"]);
   assert.equal(reads.calls.filter((call) => call.name === "list_threads").length, 1);
 });
+
+test("no Work call starts at or after the directive's deadline, by the clock right before the call (Codex review of bf56c630)", async () => {
+  const past = new Date(Date.now() - 1_000).toISOString();
+  const future = new Date(Date.now() + 3_600_000).toISOString();
+  const reads = new FakeReadClient((name, args) => value({ thread: { kind: "chatgpt", id: args.threadId } }));
+  const mutations = new FakeMutationBridge((name, args) => result({ kind: "chatgpt", threadId: String(args.threadId ?? "stable-new") }));
+  const executor = new NativeChatGptWorkCloudExecutor(reads, mutations);
+  assert.deepEqual(await executor.createThread({
+    title: "Work — late", prompt: "exact prompt", requestedAt, target: { type: "chatgptWorkCloud" }, deadline: past,
+  }), { kind: "UNAVAILABLE", reasonCode: "WORK_CLOUD_DEADLINE_PASSED" });
+  // A continuation reads the thread first; the deadline is checked after that read, right before the send.
+  assert.deepEqual(await executor.sendMessageToThread({ threadId: "stable-work-4", prompt: "late", deadline: past }),
+    { kind: "UNAVAILABLE", reasonCode: "WORK_CLOUD_DEADLINE_PASSED" });
+  assert.deepEqual(reads.calls.map((call) => call.name), ["read_thread"]);
+  assert.equal(mutations.calls.length, 0, "nothing reached the Work bridge");
+  // Before the deadline the call goes out, without the deadline in the tool's arguments.
+  const open = new FakeMutationBridge((name, args) => {
+    assert.deepEqual(args, { threadId: "stable-work-5", prompt: "in time" });
+    return result({ kind: "chatgpt", threadId: "stable-work-5" });
+  });
+  const outcome = await new NativeChatGptWorkCloudExecutor(reads, open)
+    .sendMessageToThread({ threadId: "stable-work-5", prompt: "in time", deadline: future });
+  assert.equal(outcome.kind, "READY");
+  assert.equal(open.calls.length, 1);
+});
