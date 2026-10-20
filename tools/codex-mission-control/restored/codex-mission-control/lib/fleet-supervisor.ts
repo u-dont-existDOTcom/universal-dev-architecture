@@ -18,6 +18,10 @@ import {
   OWNER_TASK_AWAITING_SUPERVISION_REASON, OWNER_TASK_HELD_BY_SUPERVISOR_REASON, workerHasOwnerTaskRegistration,
 } from "./owner-task-source";
 import { registeredTaskHold, TASK_CHECKPOINT_SUMMARY_PREFIX } from "./task-checkpoint";
+import {
+  expiredUnrunWorkDirective, isBoundWorkDirectiveExpiry, WORK_DIRECTIVE_EXPIRY_VERIFIER_ID, workDirectiveExpiryEnvelope,
+  workDirectiveExpiryProducer, type ExpiredUnrunWorkDirective,
+} from "./work-directive-expiry";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import { projectWorker } from "./projection";
 import type { MissionControlEventV2, StoredEvent } from "./schema";
@@ -32,11 +36,13 @@ import {
 export type { ProvenUnsentSubmissionState } from "./unsent-request-proof";
 
 export const DEFAULT_FLEET_SUPERVISOR_CADENCE_MS = 3_600_000;
+/** The projection's placeholder owner action for a worker that records none (lib/projection.ts effectiveOwnerAction). */
+const OWNER_ACTION_TELEMETRY_MISSING_REASON = "OWNER.ACTION_TELEMETRY_MISSING";
 export type FleetSupervisorTrigger =
   | "HEALTHY_ADVANCING" | "STALLED_OR_REGRESSING" | "REASONING_REVIEW_OVERDUE"
   | "WORKER_DIRECTIVE_CONTINUITY_GAP" | "OWNER_ACTION_REQUIRED" | "BLOCKED_EXTERNAL"
   | "TERMINAL" | "MECHANICAL_RECOVERY_ELIGIBLE" | "PROJECT_INTEGRITY_FAILURE" | "FIRST_SUPERVISION_REQUIRED"
-  | "SUPERVISOR_HOLD" | "CHECKPOINT_REVIEW_REQUIRED";
+  | "SUPERVISOR_HOLD" | "CHECKPOINT_REVIEW_REQUIRED" | "WORK_DIRECTIVE_EXPIRED_UNRUN";
 
 export interface FleetSupervisorDecision {
   trigger: FleetSupervisorTrigger;
@@ -121,7 +127,7 @@ export class FleetSupervisorRuntime {
         nextStage("verifying_chain"); this.progress.stage = "verifying chain";
         const chain = synchronous(() => this.store.verifyChain());
         nextStage("classifying"); this.progress.stage = "classifying";
-        const decision = synchronous(() => classifyFleetSupervisorTick(watch, events, chain));
+        const decision = synchronous(() => classifyFleetSupervisorTick(watch, events, chain, now));
         if (signal?.aborted) break;
         nextStage("routing_reasoning");
         this.progress.stage = "routing reasoning";
@@ -202,7 +208,13 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
   if (!ownerOutcome || ownerOutcome.type !== "owner_outcome_recorded") {
     throw new Error("Fleet supervision reasoning requires the current owner-outcome identity.");
   }
-  const boundary = reasoningBoundary(history);
+  // An authorized Work job that expired before it ran is checked first, so nothing is recorded for a question that
+  // can't be asked; its record is appended only after an expired earlier question has been retired below.
+  const expiry = decision.trigger === "WORK_DIRECTIVE_EXPIRED_UNRUN" ? expiredUnrunWorkDirective(history, queuedAt) : null;
+  if (decision.trigger === "WORK_DIRECTIVE_EXPIRED_UNRUN" && !expiry) {
+    throw new Error("The expired Work job is no longer expired and unrun; nothing was routed.");
+  }
+  let boundary = reasoningBoundary(history);
   if (!boundary) throw new Error("Fleet supervision reasoning requires a durable decision boundary.");
   if (pending) {
     if (pending.routeSchemaVersion !== 6 || !/^fleet-review:[a-f0-9]{32}$/.test(pending.requestId)
@@ -236,6 +248,13 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
     }, undefined, { id: FLEET_REQUEST_RETIREMENT_PRODUCER_ID, kind: "VERIFIER",
       workerScopes: [watch.worker], taskScopes: [watch.taskId] });
     history = store.workerEvents(watch.worker);
+  }
+  // The expired Work job is recorded once, by Mission Control itself. That record is the boundary the supervisor is
+  // asked at, so the question is a new one, not the answered question before it.
+  if (expiry && !expiry.evidence) {
+    store.append(workDirectiveExpiryEnvelope(expiry, queuedAt), undefined, workDirectiveExpiryProducer(watch.worker, watch.taskId));
+    history = store.workerEvents(watch.worker);
+    boundary = reasoningBoundary(history)!;
   }
   // Persisted retirement identity also makes a retry after a failed successor
   // append deterministic, even when the evidence boundary has not changed.
@@ -293,6 +312,8 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
         ? FIRST_SUPERVISION_DECISION_REQUESTED
         : decision.trigger === "CHECKPOINT_REVIEW_REQUIRED"
         ? CHECKPOINT_REVIEW_DECISION_REQUESTED
+        : decision.trigger === "WORK_DIRECTIVE_EXPIRED_UNRUN"
+        ? WORK_DIRECTIVE_EXPIRED_UNRUN_DECISION_REQUESTED
         : "Review the exact current worker state and latest execution receipt. Decide whether the owner outcome is satisfied, whether bounded execution may resume under a new source-bound directive, or whether to stop. Do not replay completed work or weaken frozen experiment gates.",
       supervisoryCycle: cycle,
     },
@@ -754,7 +775,8 @@ function reasoningBoundary(events: readonly StoredEvent[]): StoredEvent | null {
   ]);
   // A task the owner registered has none of those before its first supervisor decision; its registered contract is
   // the boundary the first question is asked at (PR #394's registration; the store keeps that contract unchanged).
-  return events.findLast((event) => boundaryTypes.has(event.data.type) || isReviewBoundaryEvidence(event))
+  return events.findLast((event) => boundaryTypes.has(event.data.type) || isReviewBoundaryEvidence(event)
+    || isBoundWorkDirectiveExpiry(events, event))
     ?? (workerHasOwnerTaskRegistration(events) ? events.findLast((event) => event.data.type === "task_contract_recorded") ?? null : null);
 }
 
@@ -780,6 +802,17 @@ export const CHECKPOINT_REVIEW_DECISION_REQUESTED = "Your latest decision for th
   + "and must-never limits. If that step needs browser navigation, collection or extraction that Chat cannot complete "
   + "reliably, and the contract's allowed scope includes ChatGPT Work, set execution_surface to CHATGPT_WORK_CLOUD. "
   + "Do not weaken the contract, spend money, or publish anything.";
+
+/** What the question after an authorized Work job expired unrun asks (lib/work-directive-expiry.ts): authorize it again
+ * with a new deadline, change it, or stop. Mission Control's record of the expiry is expired_work_job in the state. */
+export const WORK_DIRECTIVE_EXPIRED_UNRUN_DECISION_REQUESTED = "This task's latest supervisor decision authorized one bounded "
+  + "native ChatGPT Work job. Its deadline passed before the job ran: Mission Control's own record of that is "
+  + "expired_work_job in the factual state, and the job as it was authorized is expired_work_job.authorized_job."
+  + "bounded_execution. Nothing was sent to ChatGPT Work for it, and Mission Control will not start that job now. Decide "
+  + "whether to authorize the same bounded job again with a new deadline, change it, or stop or hold the task; say what "
+  + "blocks it if anything does. Keep every limit of the authorized job unless you say why it changes. If "
+  + "authorized_job.provenance.prompt_clipped is true, the prompt shown was cut to fit this question: write the prompt "
+  + "of any job you authorize out in full. Do not weaken the contract, spend money, or publish anything.";
 
 function isReviewBoundaryEvidence(event: StoredEvent) {
   return event.data.type === "evidence_receipt_recorded"
@@ -822,6 +855,15 @@ export function fleetReasoningFactualState(
       },
     });
     if (state.length <= limit) return state;
+  }
+  const expiredJob = facts.expired_work_job?.authorized_job;
+  if (expiredJob) {
+    // An expired job that doesn't fit, even without a history: its prompt is shortened, to no less than 500 characters.
+    const full = expiredJob.provenance.prompt_length;
+    for (let promptLimit = Math.max(500, full - 500); ; promptLimit = Math.max(500, promptLimit - 500)) {
+      const state = canonicalJson(fleetReasoningFacts(decision, events, boundary, promptLimit));
+      if (state.length <= limit || promptLimit === 500) return state;
+    }
   }
   return fittedCheckpointReview(facts, limit) ?? canonicalJson(facts);
 }
@@ -896,10 +938,37 @@ function clip(text: string | null | undefined, limit: number): string | null {
   return `${cut}…`;
 }
 
+/** The Work job an expiry record names, as its supervisor authorized it: its bounded execution in full, and where it came
+ * from. The prompt travels whole unless the question can't fit; then it is cut (to no less than 500 characters) and
+ * marked so. Every question opens a fresh chat, so this is the only place the supervisor sees the job. */
+function authorizedJob(events: readonly StoredEvent[], expiryEvidence: StoredEvent, promptLimit: number) {
+  if (expiryEvidence.data.type !== "evidence_receipt_recorded") return null;
+  const ref = expiryEvidence.data.refs.find((item) => item.startsWith("directive_event:"));
+  const directive = ref ? events.find((event) => event.eventId === ref.slice("directive_event:".length))?.data : undefined;
+  if (directive?.type !== "execution_directive_recorded") return null;
+  const receipt = events.find((event) => event.eventId === directive.validated_decision_proof?.receipt_event_id)?.data;
+  if (receipt?.type !== "github_decision_receipt_ingested" || !receipt.bounded_execution) return null;
+  const prompt = receipt.bounded_execution.prompt;
+  const clipped = prompt.length > promptLimit;
+  return {
+    // The job exactly as authorized, in the bounded-execution shape, so it can be authorized again as it stands.
+    bounded_execution: { ...receipt.bounded_execution, prompt: clipped ? clip(prompt, promptLimit) : prompt },
+    provenance: {
+      decision_request_id: receipt.request_id,
+      decision_id: receipt.decision_block.decision_id,
+      bounded_execution_sha256: receipt.bounded_execution_sha256 ?? null,
+      prompt_sha256: sha256(prompt),
+      prompt_length: prompt.length,
+      prompt_clipped: clipped,
+    },
+  };
+}
+
 function fleetReasoningFacts(
   decision: FleetSupervisorDecision,
   events: readonly StoredEvent[],
   boundary: StoredEvent,
+  promptLimit = Number.POSITIVE_INFINITY,
 ) {
   const worker = projectWorker([...events]);
   const queue = events.findLast((event) => event.data.type === "work_queue_published")?.data;
@@ -911,9 +980,18 @@ function fleetReasoningFacts(
     : []);
   const hold = decision.trigger === "CHECKPOINT_REVIEW_REQUIRED" ? registeredTaskHold(events) : null;
   const heldBy = hold?.decision.data.type === "github_decision_receipt_ingested" ? hold.decision.data : null;
+  const expiryEvidence = decision.trigger === "WORK_DIRECTIVE_EXPIRED_UNRUN"
+    ? events.findLast((event) => isBoundWorkDirectiveExpiry(events, event)) : undefined;
   return {
     trigger: decision.trigger,
     trigger_result: decision.result,
+    // Mission Control's record that the latest authorized Work job expired before it ran.
+    ...(expiryEvidence?.data.type === "evidence_receipt_recorded" ? { expired_work_job: {
+      receipt_id: expiryEvidence.data.receipt_id,
+      recorded_at: expiryEvidence.occurredAt,
+      refs: expiryEvidence.data.refs,
+      authorized_job: authorizedJob(events, expiryEvidence, promptLimit),
+    } } : {}),
     // The decision a checkpoint review answers, in full up to 2,500 characters (the history below clips it to 600).
     ...(heldBy ? { held_by_decision: {
       request_id: heldBy.request_id,
@@ -999,6 +1077,7 @@ export function classifyFleetSupervisorTick(
   watch: FleetSupervisorWatchRecord,
   events: readonly StoredEvent[],
   chain: { valid: boolean; errors: string[] },
+  now: string = new Date().toISOString(),
 ): FleetSupervisorDecision {
   if (!chain.valid) return decision("PROJECT_INTEGRITY_FAILURE", "Ledger integrity is invalid; automatic continuation stopped.", "ACTIVE", false, false, true, chain.errors.join("; "));
   const queue = events.findLast((event) => event.data.type === "work_queue_published" && event.data.project_id === watch.projectId)?.data;
@@ -1052,17 +1131,64 @@ export function classifyFleetSupervisorTick(
     return decision("SUPERVISOR_HOLD", "Held by its supervisor; no checkpoint has been verified since its decision, so nothing was routed.", "ACTIVE", false, false, true,
       "Held by its supervisor: its latest decision started no work, and no checkpoint of what it asked for has been verified since.");
   }
+  // The latest authorized Work job of a task the owner registered expired before it ran (lib/work-directive-expiry.ts).
+  // Once the supervisor has answered after the expiry was recorded, the expiry has had its one question.
+  const expiry = expiredWorkJobForSupervision(events, now);
+  const answeredAfterExpiry = Boolean(expiry?.evidence && events.some((event) => event.data.type === "github_decision_receipt_ingested"
+    && event.sequence > expiry.evidence!.sequence));
+  const openExpiry = expiry && !answeredAfterExpiry ? expiry : null;
+  // Every recorded owner obligation and every blocker on the owner or an outside actor still comes first. The one owner
+  // action the expiry question replaces is the projection's own placeholder for a task that records none.
   if (ownerAction.status === "OPEN"
-    && ["DECISION_REQUIRED", "MANUAL_INTERVENTION_REQUIRED"].includes(ownerAction.kind)) {
+    && ["DECISION_REQUIRED", "MANUAL_INTERVENTION_REQUIRED"].includes(ownerAction.kind)
+    && !(openExpiry && expiryQuestionReplaces(ownerAction))) {
     return decision("OWNER_ACTION_REQUIRED", "Existing owner-action obligation remains authoritative.", "ACTIVE", false, false, true, ownerAction.exact_text);
   }
   if (blocker) {
     if (blocker.required_actor.kind === "OWNER") return decision("OWNER_ACTION_REQUIRED", "An unavoidable owner action is required.", "ACTIVE", false, false, true, blocker.description);
     if (blocker.required_actor.kind === "EXTERNAL") return decision("BLOCKED_EXTERNAL", "Project remains blocked on an external actor; no unauthorized retry occurred.", "ACTIVE", false, false, false, null);
   }
-  if (worker.contractToOwnerAlignment === "SOURCE_MISSING" || worker.progress.outcomeAdvancement === "UNKNOWN") {
-    return decision("PROJECT_INTEGRITY_FAILURE", "Project validity is indeterminate; automatic continuation stopped.", "ACTIVE", false, false, true, "Project validity or owner-outcome evidence is INDETERMINATE.");
+  // Any open blocker on the owner, not only the latest blocker, holds the expiry question back.
+  if (openExpiry && ownerBlocker) return decision("OWNER_ACTION_REQUIRED", "An unavoidable owner action is required.", "ACTIVE", false, false, true, ownerBlocker.description);
+  const integrityFailure = decision("PROJECT_INTEGRITY_FAILURE", "Project validity is indeterminate; automatic continuation stopped.", "ACTIVE", false, false, true, "Project validity or owner-outcome evidence is INDETERMINATE.");
+  // A task whose contract source is missing stops here. A registered task records no outcome progress yet (its progress
+  // producer is a later pull request), so unknown advancement doesn't hold back the expiry question, as it doesn't hold
+  // back its first question or a checkpoint review.
+  if (worker.contractToOwnerAlignment === "SOURCE_MISSING") return integrityFailure;
+  // The supervisor is asked once, quietly, whether to authorize the expired job again. A second such expiry in a row,
+  // or a question to it that was sent and went unanswered, is the owner's to know about, and nothing asks again.
+  if (openExpiry) {
+    if (openExpiry.priorUnrunExpiries > 0) {
+      return decision("OWNER_ACTION_REQUIRED", "A second authorized Work job in a row expired before it ran; nothing was routed again.", "ACTIVE", false, false, true,
+        "Two authorized ChatGPT Work jobs in a row expired before Mission Control could start them, so its supervisor isn't asked a third time. The Work surface needs a look.");
+    }
+    if (openExpiry.evidence) {
+      const evidenceAt = Date.parse(openExpiry.evidence.occurredAt);
+      const review = worker.supervisorActivity.requests.find((request) => request.origin === "ROUTINE_CHECK"
+        && Date.parse(request.queuedAt) >= evidenceAt);
+      if (review && (review.state === "NO_ANSWER" || review.state === "NO_ANSWER_DUPLICATE_SEND")) {
+        return decision("OWNER_ACTION_REQUIRED", "The supervisor's review of the expired Work job went unanswered; nothing was routed again.", "ACTIVE", false, false, true,
+          "Its authorized ChatGPT Work job expired before it ran, and its supervisor didn't answer the question about that before it expired. Nothing asks again.");
+      }
+    }
+    const pending = pendingDecisionRequests([...events]).at(-1);
+    const pendingState = pending ? worker.supervisorActivity.requests.find((request) => request.requestId === pending.requestId)?.state : undefined;
+    if (pending && Date.parse(pending.expiresAt) <= Date.parse(now) && pendingState !== "EXPIRED_UNSENT" && pendingState !== "EXPIRED") {
+      return decision("OWNER_ACTION_REQUIRED", "An earlier supervisor question was sent and expired unanswered; the expired Work job wasn't routed.", "ACTIVE", false, false, true,
+        "Its authorized ChatGPT Work job expired before it ran, and an earlier question to its supervisor was sent but expired without an answer, so nothing is asked now.");
+    }
+    const routed = decision("WORK_DIRECTIVE_EXPIRED_UNRUN", "An authorized Work job expired before it ran; its supervisor was asked whether to authorize it again.", "ACTIVE", true, false, false, null);
+    // A question that can't fit even with the job's prompt shortened would fail admission on every poll: tell the owner
+    // once instead, and route nothing. The state is measured with the record routing would make.
+    const withRecord = openExpiry.evidence ? events : [...events, expiryRecordAsEvent(openExpiry, events, now)];
+    const boundary = reasoningBoundary(withRecord);
+    if (boundary && fleetReasoningFactualState(routed, withRecord, boundary, watch.taskId).length > FLEET_FACTUAL_STATE_LIMIT) {
+      return decision("OWNER_ACTION_REQUIRED", "The question about the expired Work job is too long for one supervisor question; nothing was routed.", "ACTIVE", false, false, true,
+        "Its authorized ChatGPT Work job expired before it ran, but the job and the task's state together are too long for one supervisor question, even shortened, so the supervisor wasn't asked.");
+    }
+    return routed;
   }
+  if (worker.progress.outcomeAdvancement === "UNKNOWN") return integrityFailure;
   const latestDelivery = events.findLast((event) => event.data.type === "outbound_delivery_lifecycle_recorded")?.data;
   if (latestDelivery?.type === "outbound_delivery_lifecycle_recorded" && latestDelivery.status === "DELIVERY_FAILED"
     && /^(PRE_SEND|PROCESS)_/.test(latestDelivery.error_code ?? "")) {
@@ -1080,6 +1206,30 @@ export function classifyFleetSupervisorTick(
     return decision("WORKER_DIRECTIVE_CONTINUITY_GAP", "The missing directive/worker continuity was routed to reasoning.", "ACTIVE", true, false, false, null);
   }
   return decision("HEALTHY_ADVANCING", "Healthy project tick completed silently.", "ACTIVE", false, false, false, null);
+}
+
+/** Whether the question about an expired Work job takes the place of this open owner action: only the projection's
+ * placeholder for a task that records no owner action does; every recorded obligation stays first. */
+export function expiryQuestionReplaces(ownerAction: { reason_code?: string | null }): boolean {
+  return ownerAction.reason_code === OWNER_ACTION_TELEMETRY_MISSING_REASON;
+}
+
+/** The expired, unrun Work job the fleet check asks about: only for a task the owner registered on the dashboard form,
+ * whose Work the owner set up; other workers' expired directives are left to their own supervision. */
+export function expiredWorkJobForSupervision(events: readonly StoredEvent[], now: string): ExpiredUnrunWorkDirective | null {
+  return workerHasOwnerTaskRegistration(events) ? expiredUnrunWorkDirective(events, now) : null;
+}
+
+/** The expiry record routing would append, as a stored event, to measure the question before it is asked. */
+function expiryRecordAsEvent(expiry: ExpiredUnrunWorkDirective, events: readonly StoredEvent[], now: string): StoredEvent {
+  const envelope = workDirectiveExpiryEnvelope(expiry, now);
+  const last = events.at(-1);
+  return {
+    id: (last?.id ?? 0) + 1, sequence: (last?.sequence ?? 0) + 1, eventId: envelope.event_id, schemaVersion: 2,
+    missionId: envelope.mission_id, worker: expiry.directive.worker, type: envelope.data.type, occurredAt: now,
+    receivedAt: now, previousHash: last?.eventHash ?? null, eventHash: "", producerId: WORK_DIRECTIVE_EXPIRY_VERIFIER_ID,
+    producerKind: "VERIFIER", data: envelope.data as StoredEvent["data"],
+  };
 }
 
 function decision(trigger: FleetSupervisorTrigger, result: string, state: FleetSupervisorWatchState,

@@ -16,6 +16,7 @@ import { validateOwnerResponseContinuation } from "./owner-response-continuation
 import { supervisionHandoffCapsuleSha256 } from "./supervision-handoff";
 import { authorityStateVectorHash } from "./terminal-comparator";
 import { buildExecutionDirectiveFromGitHubDecision } from "./github-execution-directive";
+import { workDirectiveDeadline } from "./work-directive-expiry";
 import {
   evaluateWorkExecutionPreflight,
   failureMayAuthorizeProfileEscalation,
@@ -1031,6 +1032,11 @@ export class EventStore {
         || directive.source_body_sha256 !== data.source_body_sha256) {
         throw new ContractInvariantError("Native Work dispatch must bind the current exact active Chat execution directive and source provenance.");
       }
+      // A supervisor's authorization ends at its bounded deadline: no native Work job is requested at or after it.
+      const deadline = workDirectiveDeadline(events, directive);
+      if (deadline !== null && Date.parse(data.requested_at) >= Date.parse(deadline)) {
+        throw new ContractInvariantError("Native Work dispatch cannot be requested at or after its directive's bounded deadline.");
+      }
       if (data.mode === "CONTINUE") {
         const priorReady = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded"
           && event.data.status === "READY" && event.data.work_thread_id === data.existing_work_thread_id)?.data;
@@ -1077,6 +1083,13 @@ export class EventStore {
         || data.app_tool !== (request.mode === "CREATE" ? "create_thread" : "send_message_to_thread")
         || data.producer_id !== request.producer_id) {
         throw new ContractInvariantError("Native Work handoff intent must bind the exact durable dispatch request before the app boundary.");
+      }
+      // Nothing crosses the provider boundary for a job whose authorization has ended.
+      const intentDirective = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded"
+        && event.data.directive_id === data.directive_id && event.data.directive_revision === data.directive_revision)?.data;
+      const intentDeadline = intentDirective?.type === "execution_directive_recorded" ? workDirectiveDeadline(events, intentDirective) : null;
+      if (intentDeadline !== null && Date.parse(data.intent_at) >= Date.parse(intentDeadline)) {
+        throw new ContractInvariantError("Native Work handoff intent cannot be recorded at or after its directive's bounded deadline.");
       }
       if (events.some((event) => event.data.type === "chatgpt_work_cloud_handoff_intent_recorded"
         && event.data.dispatch_id === data.dispatch_id)) {

@@ -12,6 +12,7 @@ const expectations = {
   REASONING_REVIEW_OVERDUE: "route_reasoning", STALLED_OR_REGRESSING: "route_reasoning",
   WORKER_DIRECTIVE_CONTINUITY_GAP: "route_reasoning", HEALTHY_ADVANCING: "no_action_healthy",
   FIRST_SUPERVISION_REQUIRED: "route_reasoning", CHECKPOINT_REVIEW_REQUIRED: "route_reasoning", SUPERVISOR_HOLD: "notify_owner",
+  WORK_DIRECTIVE_EXPIRED_UNRUN: "route_reasoning",
 } as const;
 
 const stateSchema = z.object({
@@ -100,9 +101,10 @@ export function recordJevShadowObservation(db: DatabaseSync, input: JevShadowRec
   const jevAction = typeof selectedAction === "string" ? selectedAction : actionScores[0]?.[0] ?? null;
   const ownerScore = answers?.owner_decision_required?.noul;
   const jevOwner = typeof ownerScore === "boolean" ? ownerScore : typeof ownerScore === "number" ? ownerScore >= 0.5 : null;
-  // A registered task waiting for its first supervisor question, or for its supervisor's review of a checkpoint, carries
-  // an open owner-action record, but the decision it waits for is the supervisor's, so the owner is not expected to decide.
-  const expectedOwner = state ? !["FIRST_SUPERVISION_REQUIRED", "CHECKPOINT_REVIEW_REQUIRED"].includes(observation.deterministic_trigger)
+  // A registered task waiting for its first supervisor question, for its supervisor's review of a checkpoint, or for
+  // its supervisor's answer about an authorized Work job that expired unrun, can carry an open owner-action record, but
+  // the decision it waits for is the supervisor's, so the owner is not expected to decide.
+  const expectedOwner = state ? !["FIRST_SUPERVISION_REQUIRED", "CHECKPOINT_REVIEW_REQUIRED", "WORK_DIRECTIVE_EXPIRED_UNRUN"].includes(observation.deterministic_trigger)
     && (["DECISION_REQUIRED", "MANUAL_INTERVENTION_REQUIRED"].includes(state.owner_action_kind)
       || state.open_blocker_present && state.blocker_actor_kind === "OWNER"
       || state.correction_owner_action_type === "DECISION_REQUIRED") : null;

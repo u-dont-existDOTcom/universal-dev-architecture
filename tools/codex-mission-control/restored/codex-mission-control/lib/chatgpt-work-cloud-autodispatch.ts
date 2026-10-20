@@ -189,6 +189,9 @@ export function discoverDirectWorkCloudDispatches(input: {
     } else if (!request) recoveryState = "NEW";
     else if (!intent) recoveryState = "REQUEST_ONLY_PROVEN_UNSENT";
     else continue; // provider-bound intent without outcome is ambiguous and never blocks another eligible worker.
+    // The supervisor authorized the job until its bounded deadline: a job not yet sent is never started at or after it
+    // (lib/work-directive-expiry.ts; the fleet watch asks the supervisor again). Checking one already sent stays allowed.
+    if (recoveryState !== "PENDING_SETUP_READ_ONLY" && Date.parse(input.requestedAt) >= Date.parse(bounded.deadline)) continue;
     candidates.push({
       worker: directive.worker,
       dispatchId,
