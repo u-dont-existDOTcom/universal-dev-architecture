@@ -353,6 +353,45 @@ test("once the supervisor answers, a new authorized job replaces the expired one
   } finally { second.close(); }
 });
 
+test("a job that may have started between two expired ones breaks the unrun streak (Codex review of ea4356dd)", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse(AFTER) });
+  const cases: Array<[string, Record<string, unknown> | "codex" | null, number]> = [
+    ["a FAILED result", { status: "FAILED", error_code: "WORK_CLOUD_APP_EXECUTOR_FAILED" }, 0],
+    ["an UNAVAILABLE result after a Work call", { status: "UNAVAILABLE", error_code: "WORK_CLOUD_DRIVER_TIMEOUT" }, 0],
+    ["a READY result", { status: "READY", error_code: null }, 0],
+    ["a handoff intent without a result", null, 0],
+    ["a Codex start", "codex", 0],
+    ["a pre-send UNAVAILABLE result", { status: "UNAVAILABLE", error_code: "WORK_CLOUD_SURFACE_VERIFICATION_UNAVAILABLE" }, 1],
+  ];
+  for (const [label, result, expected] of cases) {
+    const store = registered();
+    try {
+      await withSupervisorConfiguration(async () => {
+        appendDecision(store, "work-1", bounded());
+        const { watch } = enrollFleetSupervisorWatch(store, "project:atlas-test", { worker, taskId: task, cadenceMs: 60_000 }, at);
+        routeFleetSupervisorReasoning(store, watch, classifyFleetSupervisorTick(watch, store.workerEvents(worker), store.verifyChain(), AFTER), []);
+        // The supervisor authorizes a second job; something happens to it, then a third job is authorized and expires.
+        const { directive: second } = appendDecision(store, "work-2", bounded("2026-10-21T00:00:00.000Z", "job-2"), new Date(Date.parse(AFTER) + 60_000).toISOString());
+        assert.ok(second?.data.type === "execution_directive_recorded");
+        const middle = store.workerEvents(worker);
+        const binding = { worker, directive_id: second.data.directive_id, directive_revision: second.data.directive_revision, task_id: task };
+        const intent = fake(middle, { ...binding, type: "chatgpt_work_cloud_handoff_intent_recorded", dispatch_id: "work-cloud:2" }, "i2");
+        const between = result === "codex"
+          ? [fake(middle, { ...binding, type: "codex_execution_started", execution_start_id: "codex:2" }, "c2")]
+          : result
+            ? [intent, fake([...middle, intent], { ...binding, type: "chatgpt_work_cloud_dispatch_recorded", dispatch_id: "work-cloud:2", ...result }, "d2")]
+            : [intent];
+        appendDecision(store, "work-3", bounded("2026-10-22T00:00:00.000Z", "job-3"), new Date(Date.parse(AFTER) + 120_000).toISOString());
+        const after = store.workerEvents(worker);
+        const events = [...middle, ...between, ...after.slice(middle.length)];
+        const expiry = expiredUnrunWorkDirective(events, "2026-10-22T01:00:00.000Z");
+        assert.ok(expiry, label);
+        assert.equal(expiry.priorUnrunExpiries, expected, label);
+      });
+    } finally { store.close(); }
+  }
+});
+
 test("only Mission Control's own verifier makes an expiry record, and each directive expires once", () => {
   const store = registered();
   try {

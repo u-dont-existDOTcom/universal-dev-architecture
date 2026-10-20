@@ -110,12 +110,18 @@ export function expiredUnrunWorkDirective(events: readonly StoredEvent[], now: s
   };
 }
 
-/** Expiry records for earlier directives of the worker made after its last Work job that ran (an execution receipt or a
- * READY dispatch), i.e. the unbroken run of expired authorizations before this one. */
+/** Expiry records for earlier directives of the worker made after its last job that may have started, i.e. the unbroken
+ * run of expired authorizations before this one. "May have started" is the same test as for the directive itself: a
+ * Work or Codex execution receipt, a Codex start, any dispatch result other than a pre-send UNAVAILABLE one (READY,
+ * PENDING_*, FAILED, or an UNAVAILABLE after a Work call), or a handoff intent without a result (Codex review of ea4356dd). */
 function priorUnrunExpiries(events: readonly StoredEvent[], current: StoredEvent): number {
+  const resultIds = new Set(events.filter((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded")
+    .map((event) => (event.data as { dispatch_id: string }).dispatch_id));
   const lastRun = events.findLast((event) => event.data.type === "chatgpt_work_cloud_execution_receipt_recorded"
-    || event.data.type === "execution_receipt_recorded"
-    || (event.data.type === "chatgpt_work_cloud_dispatch_recorded" && event.data.status === "READY"));
+    || event.data.type === "execution_receipt_recorded" || event.data.type === "codex_execution_started"
+    || (event.data.type === "chatgpt_work_cloud_dispatch_recorded" && !provenUnsent(event))
+    || (event.data.type === "chatgpt_work_cloud_handoff_intent_recorded"
+      && !resultIds.has((event.data as { dispatch_id: string }).dispatch_id)));
   const ownId = workDirectiveExpiryEventId(current);
   return events.filter((event) => isBoundWorkDirectiveExpiry(events, event)
     && (!lastRun || event.sequence > lastRun.sequence)

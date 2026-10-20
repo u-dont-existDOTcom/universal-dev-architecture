@@ -255,8 +255,9 @@ what it may use, what it must never do, and when it is done.
     first. The only owner action the question replaces is the projection's placeholder for a task that records none
     (`OWNER.ACTION_TELEMETRY_MISSING`).
   - The owner is notified and nothing is asked when an earlier question was sent and expired unanswered, when the
-    question about the expiry was sent and went unanswered, when a second authorized job in a row also expired unrun,
-    or when the question can't fit even with the prompt shortened.
+    question about the expiry was sent and went unanswered, when a second authorized job in a row also expired unrun
+    (in a row: no job between them may have started, by the same test as above), or when the question can't fit even
+    with the prompt shortened.
   - Once the supervisor answers, the question is settled: a new authorization becomes the latest directive; an answer
     that starts no new step holds the task like any registered task held by its supervisor ("Held by its supervisor",
     then a verified checkpoint asks again).
