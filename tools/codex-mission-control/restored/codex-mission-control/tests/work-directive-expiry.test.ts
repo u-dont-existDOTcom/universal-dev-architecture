@@ -522,6 +522,9 @@ test("every recorded owner obligation and blocker still comes first; only the pl
     // An earlier blocker on the owner isn't hidden by a later one on someone else.
     const hidden = [...history, blocker("OWNER", true, 1), blocker("SUPERVISOR", false, 2)];
     assert.equal(classifyFleetSupervisorTick(watch, hidden, store.verifyChain(), AFTER).trigger, "OWNER_ACTION_REQUIRED");
+    // Nor an earlier blocker on an outside actor (Codex review of 0a800301).
+    const hiddenExternal = [...history, blocker("EXTERNAL", false, 1), blocker("SUPERVISOR", false, 2)];
+    assert.equal(classifyFleetSupervisorTick(watch, hiddenExternal, store.verifyChain(), AFTER).trigger, "BLOCKED_EXTERNAL");
   } finally { store.close(); }
 });
 

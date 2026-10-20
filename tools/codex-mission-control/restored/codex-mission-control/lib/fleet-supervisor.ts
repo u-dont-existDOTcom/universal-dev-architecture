@@ -1148,8 +1148,11 @@ export function classifyFleetSupervisorTick(
     if (blocker.required_actor.kind === "OWNER") return decision("OWNER_ACTION_REQUIRED", "An unavoidable owner action is required.", "ACTIVE", false, false, true, blocker.description);
     if (blocker.required_actor.kind === "EXTERNAL") return decision("BLOCKED_EXTERNAL", "Project remains blocked on an external actor; no unauthorized retry occurred.", "ACTIVE", false, false, false, null);
   }
-  // Any open blocker on the owner, not only the latest blocker, holds the expiry question back.
+  // Any open blocker on the owner or on an outside actor, not only the latest blocker, holds the expiry question back.
   if (openExpiry && ownerBlocker) return decision("OWNER_ACTION_REQUIRED", "An unavoidable owner action is required.", "ACTIVE", false, false, true, ownerBlocker.description);
+  if (openExpiry && openBlockers.some((item) => item.required_actor.kind === "EXTERNAL")) {
+    return decision("BLOCKED_EXTERNAL", "Project remains blocked on an external actor; no unauthorized retry occurred.", "ACTIVE", false, false, false, null);
+  }
   const integrityFailure = decision("PROJECT_INTEGRITY_FAILURE", "Project validity is indeterminate; automatic continuation stopped.", "ACTIVE", false, false, true, "Project validity or owner-outcome evidence is INDETERMINATE.");
   // A task whose contract source is missing stops here. A registered task records no outcome progress yet (its progress
   // producer is a later pull request), so unknown advancement doesn't hold back the expiry question, as it doesn't hold
