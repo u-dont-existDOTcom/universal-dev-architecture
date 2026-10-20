@@ -39,11 +39,11 @@ The systemic gap fits existing logic-map entries: LF-2.1 for unloaded/stale guid
 
 ## Current counts
 
-Inventory entries: 99
+Inventory entries: 100
 
-Indexed patterns: 85
+Indexed patterns: 86
 
-Migration backlog: 78
+Migration backlog: 79
 
 Task-time records: 75, sourced from 13 files, with 2 mechanical and 83 semantic obligations. Corrected slice 2a adds 28 records and extends three continuity records; its 31 records carry 32 semantic behaviors and 281 mapped clause rows.
 
@@ -52,12 +52,12 @@ Task-time records: 75, sourced from 13 files, with 2 mechanical and 83 semantic 
 | STRUCTURED_ENFORCED | 9 |
 | STRUCTURED_PARTIAL | 9 |
 | WORKFLOW_ONLY | 10 |
-| LEGACY_UNSTRUCTURED | 69 |
+| LEGACY_UNSTRUCTURED | 70 |
 | NOT_ACTIVE | 2 |
 
 Six root sections, the two review/merge patterns and exclusive active-task locks are STRUCTURED_ENFORCED. Context-compaction resilience and terminal admission are STRUCTURED_PARTIAL with exact operative remainders, alongside the six earlier partial sources. Slice 2b also makes the owner-outcome invariant STRUCTURED_PARTIAL with exact server and Work-budget remainders. The parent owner outcome remains OPEN for operating-system slice 2c and later priorities.
 
-The immutable baseline pins 84 identities. Corrected backlog falls from 78 before slice 2a to 77: only the task-lock pattern is a complete promotion. Seven baseline identities are removed. The owner-required cross-account continuity pattern adds one exact authorized legacy identity; the baseline pin is unchanged. P1 is 15, P2 is 48 and P3 is 15. The two review/merge identities never belonged to the baseline. The owner explicitly required correcting overstated dispositions; the requirement records that authority and pins partial clause maps without authorizing new baseline identities.
+The immutable baseline pins 84 identities. Corrected backlog falls from 78 before slice 2a to 77: only the task-lock pattern is a complete promotion. Seven baseline identities are removed. The owner-required cross-account continuity and book-research reader-review patterns each add one exact authorized legacy identity; the baseline pin is unchanged. P1 is 15, P2 is 49 and P3 is 15. The two review/merge identities never belonged to the baseline. The owner explicitly required correcting overstated dispositions; the requirement records that authority and pins partial clause maps without authorizing new baseline identities.
 
 ## Kernel slice 1 obligation map
 
@@ -240,7 +240,7 @@ The 2026-10-07 maintainer-handoff addition in `patterns/suggested-fix-queue.md` 
 
 ## Exact migration backlog
 
-P1 retains 15 high-leverage identities; P2 has 47 and P3 has 15. Every P1 entry is behavioral. Corrected partial compaction and terminal-admission coverage stays visible here.
+P1 retains 15 high-leverage identities; P2 has 49 and P3 has 15. Every P1 entry is behavioral. Corrected partial compaction and terminal-admission coverage stays visible here.
 
 Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_TURN, FREQUENT, CONDITIONAL, SPECIALIST; use the id only to break ties. Frequency classes are declared routing estimates, not measured usage. Each entry retains its specific next step. The report uses this same order.
 
@@ -271,6 +271,7 @@ Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_
 | `patterns/test-efficiency-and-verification-budget.md` | P2 | FREQUENT |
 | `patterns/agent-to-agent-consultation.md` | P2 | CONDITIONAL |
 | `patterns/artifact-authority-promotion-and-supersession.md` | P2 | CONDITIONAL |
+| `patterns/book-research-reader-reviews.md` | P2 | CONDITIONAL |
 | `patterns/canonical-design-os-bootstrap.md` | P2 | CONDITIONAL |
 | `patterns/carrying-uda-into-standalone-projects.md` | P2 | CONDITIONAL |
 | `patterns/consilience-and-expected-observability.md` | P2 | CONDITIONAL |
@@ -1212,3 +1213,7 @@ The following table is the inventory's complete obligation_map, including litera
 ## Cross-account continuity integration
 
 `patterns/cross-account-continuity.md` is LEGACY_UNSTRUCTURED with an index trigger and P2 conditional migration priority. Its tests preserve the four rules, owner quotation, privacy exclusions and routes; they do not prove live Git persistence, handoff updates or account continuity. The exact addition is recorded separately from the unchanged baseline identities. No task-time records, source locks or generated contracts change.
+
+## Book research reader-review integration
+
+`patterns/book-research-reader-reviews.md` is LEGACY_UNSTRUCTURED with an index trigger and P2 conditional migration priority. Its tests preserve the owner's two sentences, the trigger, the bounds and the routes; they do not prove that any agent reads reader reviews, checks them against the book or weighs them as the rule says. The exact addition is recorded separately from the unchanged baseline identities. No task-time records, source locks or generated contracts change.

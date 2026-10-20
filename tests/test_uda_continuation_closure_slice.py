@@ -308,7 +308,7 @@ class ContinuationClosureSliceTests(unittest.TestCase):
 
     def test_complete_maps_pins_and_backlog_shrinkage(self):
         report = coverage.report(ROOT)
-        self.assertEqual(78, report["backlog_count"])
+        self.assertEqual(79, report["backlog_count"])
         self.assertEqual(7, len(report["removed_since_baseline"]))
         self.assertIn(SOURCES[2], report["removed_since_baseline"])
         for source, count, disposition in zip(SOURCES, (65, 73, 143), ("STRUCTURED_PARTIAL", "STRUCTURED_PARTIAL", "STRUCTURED_ENFORCED")):
@@ -324,7 +324,7 @@ class ContinuationClosureSliceTests(unittest.TestCase):
         baseline = tt.read_json(ROOT / coverage.BASELINE)
         self.assertEqual(84, len(baseline["backlog_ids"]))
         self.assertEqual(
-            ["patterns/cross-account-continuity.md"],
+            ["patterns/cross-account-continuity.md", "patterns/book-research-reader-reviews.md"],
             [entry["id"] for entry in baseline["owner_authorized_additions"]],
         )
 
