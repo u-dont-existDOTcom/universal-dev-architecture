@@ -41,12 +41,27 @@ export interface ExpiredUnrunWorkDirective {
   deadline: string;
   /** Dispatch requests recorded for the directive (each proven to have stopped before the provider). */
   dispatchRequests: number;
-  /** Dispatch results recorded for it: only UNAVAILABLE ones, where no Work surface was reached. */
+  /** Dispatch results recorded for it: only UNAVAILABLE ones recorded before any Work call (see PRE_SEND_UNAVAILABLE_CODES). */
   unavailableResults: number;
   /** Mission Control's record of this expiry, once the fleet watch has made it. */
   evidence: StoredEvent | null;
   /** Earlier directives of this worker whose jobs also expired unrun, with no Work job run since. */
   priorUnrunExpiries: number;
+}
+
+/**
+ * The UNAVAILABLE reason codes the dispatcher records before it makes any Work call, so nothing can have reached Work:
+ * no native surface verification, no app executor, or the Codex driver busy (its lock is held before any message is
+ * queued). Every other UNAVAILABLE code (a timeout, a missing or invalid tool receipt, a rejected extra mutation, an
+ * execution error) can follow a call that reached Work, so the job stays ambiguous, never unrun.
+ */
+export const PRE_SEND_UNAVAILABLE_CODES: ReadonlySet<string> = new Set([
+  "WORK_CLOUD_SURFACE_VERIFICATION_UNAVAILABLE", "WORK_CLOUD_DISPATCH_UNAVAILABLE", "WORK_CLOUD_DRIVER_BUSY",
+]);
+
+function provenUnsent(event: StoredEvent): boolean {
+  return event.data.type === "chatgpt_work_cloud_dispatch_recorded" && event.data.status === "UNAVAILABLE"
+    && PRE_SEND_UNAVAILABLE_CODES.has(event.data.error_code ?? "");
 }
 
 const dispatchTypes = new Set([
@@ -65,8 +80,9 @@ function forDirective(event: StoredEvent, directive: DirectiveData): boolean {
 /**
  * The worker's latest directive, when it is an active native Work directive whose job never ran and whose deadline has
  * passed at `now`. "Never ran": nothing crossed the provider boundary for it (no handoff intent), or the only results
- * say no Work surface was reachable (UNAVAILABLE), and no Work execution receipt exists. A job that may have started (an
- * intent without a result, or a READY, PENDING_SETUP, PENDING_APPROVAL or FAILED result) is not treated as unrun.
+ * are UNAVAILABLE ones recorded before any Work call (PRE_SEND_UNAVAILABLE_CODES), and no Work execution receipt
+ * exists. A job that may have started (an intent without a result, a READY, PENDING_SETUP, PENDING_APPROVAL or FAILED
+ * result, or an UNAVAILABLE one with any other code, such as a timeout or a missing tool receipt) is not unrun.
  */
 export function expiredUnrunWorkDirective(events: readonly StoredEvent[], now: string): ExpiredUnrunWorkDirective | null {
   const directiveEvent = events.findLast((event) => event.data.type === "execution_directive_recorded");
@@ -79,7 +95,7 @@ export function expiredUnrunWorkDirective(events: readonly StoredEvent[], now: s
   if (related.some((event) => ["chatgpt_work_cloud_execution_receipt_recorded", "codex_execution_started",
     "execution_receipt_recorded"].includes(event.data.type))) return null;
   const results = related.filter((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded");
-  if (results.some((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded" && event.data.status !== "UNAVAILABLE")) return null;
+  if (results.some((event) => !provenUnsent(event))) return null;
   const intents = related.filter((event) => event.data.type === "chatgpt_work_cloud_handoff_intent_recorded");
   const resultIds = new Set(results.map((event) => (event.data as { dispatch_id: string }).dispatch_id));
   if (intents.some((event) => !resultIds.has((event.data as { dispatch_id: string }).dispatch_id))) return null;
@@ -140,7 +156,7 @@ export function workDirectiveExpiryEnvelope(expiry: ExpiredUnrunWorkDirective, r
     ? "Mission Control never started it: no dispatch was requested before the deadline."
     : `Mission Control requested it ${expiry.dispatchRequests} time${expiry.dispatchRequests === 1 ? "" : "s"}; `
       + (expiry.unavailableResults > 0
-        ? `${expiry.unavailableResults} attempt${expiry.unavailableResults === 1 ? "" : "s"} found no reachable ChatGPT Work surface`
+        ? `${expiry.unavailableResults} attempt${expiry.unavailableResults === 1 ? "" : "s"} stopped before any Work call (no usable ChatGPT Work surface)`
         : "none reached the ChatGPT Work provider")
       + ", so nothing was sent to ChatGPT Work for it.";
   const summary = [

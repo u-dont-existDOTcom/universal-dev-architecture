@@ -238,7 +238,8 @@ what it may use, what it must never do, and when it is done.
   deadline, and native ChatGPT Work is never started at or after it, for any worker: the Work dispatcher skips a job not
   yet sent, and the store refuses its dispatch request and its provider-bound handoff intent. For a registered task,
   when the latest directive is a native Work directive whose deadline has passed and nothing crossed the provider
-  boundary for it (no handoff intent, or only `UNAVAILABLE` results, and no Work or Codex record of it running), the
+  boundary for it (no handoff intent, or only `UNAVAILABLE` results recorded before any Work call, and no Work or Codex
+  record of it running), the
   next check records that once, as verified evidence from Mission Control itself (`verifier:work-directive-expiry`,
   `lifecycle_status:EXPIRED_UNRUN`), and asks the project-manager supervisor, quietly, whether to authorize the job
   again with a new deadline, change it, or stop (`WORK_DIRECTIVE_EXPIRED_UNRUN`). The question's state carries the record
@@ -246,7 +247,10 @@ what it may use, what it must never do, and when it is done.
   prompt whole unless the question can't fit, then cut to no less than 500 characters and marked `prompt_clipped`, plus
   the prompt's SHA-256 and length); the record is its boundary. Other workers' expired directives are left to their own supervision.
   - A job that may have started (an intent without a result, a `READY`, `PENDING_SETUP`, `PENDING_APPROVAL` or
-    `FAILED` result, or a Codex start or receipt for the directive) is never treated as unrun.
+    `FAILED` result, an `UNAVAILABLE` one whose code isn't a pre-send code, or a Codex start or receipt for the
+    directive) is never treated as unrun. The pre-send codes (`PRE_SEND_UNAVAILABLE_CODES`) are
+    `WORK_CLOUD_SURFACE_VERIFICATION_UNAVAILABLE`, `WORK_CLOUD_DISPATCH_UNAVAILABLE` and `WORK_CLOUD_DRIVER_BUSY`; a
+    timeout, a missing or invalid tool receipt, or any other `UNAVAILABLE` code can follow a call that reached Work.
   - Every recorded owner obligation, any blocker on the owner or an outside actor, and a missing contract source come
     first. The only owner action the question replaces is the projection's placeholder for a task that records none
     (`OWNER.ACTION_TELEMETRY_MISSING`).

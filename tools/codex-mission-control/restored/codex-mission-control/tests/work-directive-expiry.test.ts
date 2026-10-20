@@ -20,8 +20,8 @@ import type { AppendEnvelope, StoredEvent } from "../lib/schema";
 import { EventStore } from "../lib/store";
 import { WORK_MODEL_ROUTING_POLICY_BASE_COMMIT, WORK_MODEL_ROUTING_POLICY_REF } from "../lib/work-execution-profile";
 import {
-  expiredUnrunWorkDirective, isBoundWorkDirectiveExpiry, isWorkDirectiveExpiryEvidence, WORK_DIRECTIVE_EXPIRED_UNRUN_SUMMARY_PREFIX,
-  WORK_DIRECTIVE_EXPIRY_VERIFIER_ID, workDirectiveDeadline, workDirectiveExpiryEnvelope, workDirectiveExpiryProducer,
+  expiredUnrunWorkDirective, isBoundWorkDirectiveExpiry, isWorkDirectiveExpiryEvidence, PRE_SEND_UNAVAILABLE_CODES,
+  WORK_DIRECTIVE_EXPIRED_UNRUN_SUMMARY_PREFIX, WORK_DIRECTIVE_EXPIRY_VERIFIER_ID, workDirectiveDeadline, workDirectiveExpiryEnvelope, workDirectiveExpiryProducer,
 } from "../lib/work-directive-expiry";
 import { registeredTaskHold } from "../lib/task-checkpoint";
 import { OWNER_TASK_HELD_BY_SUPERVISOR_REASON } from "../lib/owner-task-source";
@@ -433,11 +433,25 @@ test("what may have run is never unrun: results other than UNAVAILABLE, and Code
     const binding = { worker, directive_id: directive.data.directive_id, directive_revision: directive.data.directive_revision, task_id: task };
     const request = fake(base, { ...binding, type: "chatgpt_work_cloud_dispatch_requested", dispatch_id: "work-cloud:1", mode: "CREATE" }, "r1");
     const intent = fake([...base, request], { ...binding, type: "chatgpt_work_cloud_handoff_intent_recorded", dispatch_id: "work-cloud:1" }, "i1");
-    const result = (status: string) => fake([...base, request, intent], { ...binding, type: "chatgpt_work_cloud_dispatch_recorded", dispatch_id: "work-cloud:1", status }, `d-${status}`);
+    const result = (status: string, error_code: string | null = status === "UNAVAILABLE" || status === "FAILED" ? "WORK_CLOUD_SURFACE_VERIFICATION_UNAVAILABLE" : null) =>
+      fake([...base, request, intent], { ...binding, type: "chatgpt_work_cloud_dispatch_recorded", dispatch_id: "work-cloud:1", status, error_code }, `d-${status}-${error_code}`);
     // Only a request, proven unsent: unrun.
     assert.equal(expiredUnrunWorkDirective([...base, request], AFTER)?.dispatchRequests, 1);
-    // No Work surface was reachable: unrun.
-    assert.equal(expiredUnrunWorkDirective([...base, request, intent, result("UNAVAILABLE")], AFTER)?.unavailableResults, 1);
+    // Stopped before any Work call: unrun.
+    for (const code of PRE_SEND_UNAVAILABLE_CODES) {
+      assert.equal(expiredUnrunWorkDirective([...base, request, intent, result("UNAVAILABLE", code)], AFTER)?.unavailableResults, 1, code);
+    }
+    // An UNAVAILABLE result after a Work call may have been made (the driver queued it, then timed out or found no
+    // receipt), or with no code at all: it may have run, so it is never unrun (Codex review of 5a8a8df4).
+    for (const code of ["WORK_CLOUD_DRIVER_TIMEOUT", "WORK_CLOUD_DRIVER_TOOL_RECEIPT_MISSING", "WORK_CLOUD_DRIVER_TOOL_RESULT_INVALID",
+      "WORK_CLOUD_DRIVER_EXECUTION_UNAVAILABLE", "WORK_CLOUD_PRODUCT_TOOL_EXECUTION_UNAVAILABLE", "WORK_CLOUD_PRODUCT_TOOL_RESULT_INVALID",
+      "WORK_CLOUD_EXTRA_MUTATION_REJECTED", "WORK_CLOUD_DRIVER_UNEXPECTED_ACTION", "WORK_CLOUD_DRIVER_ROLLOUT_REWOUND", null]) {
+      assert.equal(expiredUnrunWorkDirective([...base, request, intent, result("UNAVAILABLE", code)], AFTER), null, String(code));
+    }
+    // One proven-unsent attempt and one ambiguous one: ambiguous.
+    const second = fake([...base, request, intent, result("UNAVAILABLE")], { ...binding, type: "chatgpt_work_cloud_dispatch_recorded",
+      dispatch_id: "work-cloud:1", status: "UNAVAILABLE", error_code: "WORK_CLOUD_DRIVER_TIMEOUT" }, "d-late");
+    assert.equal(expiredUnrunWorkDirective([...base, request, intent, result("UNAVAILABLE"), second], AFTER), null);
     for (const status of ["READY", "PENDING_SETUP", "PENDING_APPROVAL", "FAILED"]) {
       assert.equal(expiredUnrunWorkDirective([...base, request, intent, result(status)], AFTER), null, status);
     }
