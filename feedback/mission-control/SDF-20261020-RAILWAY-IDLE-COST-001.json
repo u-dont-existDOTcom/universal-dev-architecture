@@ -10,7 +10,8 @@
     "exactOwnerInstructionSha256": "d574ee010692b7eacf87c46fb5f48b0cf6681d47cab33f48c60bb8571fdc1924",
     "exactOwnerInstructionUtf8Bytes": 87,
     "publicOwnerRequestSummary": "File actionable cost-minimization bug reports for UDA and Mission Control",
-    "sourceQuality": "EXACT_SOURCE_DIGEST__PUBLIC_BOUNDED_SUMMARY"
+    "sourceQuality": "EXACT_SOURCE_DIGEST__PUBLIC_BOUNDED_SUMMARY",
+    "sha256": "d574ee010692b7eacf87c46fb5f48b0cf6681d47cab33f48c60bb8571fdc1924"
   },
   "type": "IMPROVEMENT",
   "category": "RESOURCE_ACCOUNTING",
@@ -63,13 +64,34 @@
     "relatedActivePriorityIssue": 385,
     "ownerRequestedReport": true,
     "requiresPaidSpend": false,
-    "proMetaReviewRequired": "DECIDE_IF_POLICY_BOUNDARY_CHANGES",
-    "reviewPriority": "NON_DISPLACING_TRIAGE",
-    "ownerAuthorizationBoundary": "No new paid resources or live shutdowns; preserve current Atlas priority hold."
+    "proMetaReviewRequired": false,
+    "reviewPriority": "BATCH",
+    "ownerAuthorizationBoundary": "No new paid resources or live shutdowns; preserve current Atlas priority hold.",
+    "extraHighPacketPrepared": false,
+    "sharedProScopeKey": "supervision-architecture/2026-10-20",
+    "proReviewOnSubstantiveSafetyOrAuthorityChange": true
   },
   "status": "OPEN_INTAKE__NOT_IMPLEMENTED",
   "sourceDisclosure": "Public deidentified extract, not conversation transcript",
   "companionUdaFeedback": "feedback/2026-10-20-railway-idle-compute-cost-governance.md",
   "repositoryChangeRefs": [],
-  "testRefs": []
+  "testRefs": [],
+  "taskId": "railway-cost-minimization-owner-report-20261020",
+  "workerUncertainty": "No time-aligned VM-level attribution to task or agent has yet been confirmed. Running status today cannot establish prior-period VM lifecycle or causality.",
+  "decisionThatCanChange": "Mission Control's existing resource lease/sleep reconciliation and per-resource cost visibility, without replacing the authorized Atlas work.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Enable sleepApplication for all Railway services immediately",
+      "rejectedBecause": "May break background work, low-latency owner workflows, volume or health contracts; provider metering and service role must be inspected first."
+    },
+    {
+      "alternative": "Destroy or shut down all VM/server resources immediately",
+      "rejectedBecause": "Could destroy recoverable sessions or interrupt running tasks and violates authorization."
+    },
+    {
+      "alternative": "Only notify owner after invoice arrives",
+      "rejectedBecause": "Does not prevent unattended charges during the billing cycle."
+    }
+  ],
+  "proMetaReview": null
 }
