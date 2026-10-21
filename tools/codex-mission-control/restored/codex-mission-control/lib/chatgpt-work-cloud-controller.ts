@@ -16,6 +16,7 @@ import type {
   WorkCloudEventSink,
   WorkCloudExecutorOutcome,
 } from "./chatgpt-work-cloud-dispatch";
+import { WORK_CLOUD_DEADLINE_PASSED, workCloudDeadlineReached } from "./chatgpt-work-cloud-dispatch";
 
 const REQUIRED_APP_TOOLS = ["create_thread", "send_message_to_thread", "read_thread", "list_threads"] as const;
 const READ_ONLY_APP_TOOLS = ["read_thread", "list_threads"] as const;
@@ -135,7 +136,10 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     prompt: string;
     requestedAt: string;
     target: { type: "chatgptWorkCloud"; projectId?: string };
+    deadline?: string;
   }): Promise<WorkCloudExecutorOutcome> {
+    // Right before the Work call: the directive's deadline by the clock now.
+    if (workCloudDeadlineReached(input.deadline)) return { kind: "UNAVAILABLE", reasonCode: WORK_CLOUD_DEADLINE_PASSED };
     const created = await this.mutate("create_thread", {
       title: input.title,
       prompt: input.prompt,
@@ -158,7 +162,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     });
   }
 
-  async sendMessageToThread(input: { threadId: string; prompt: string }): Promise<WorkCloudExecutorOutcome> {
+  async sendMessageToThread(input: { threadId: string; prompt: string; deadline?: string }): Promise<WorkCloudExecutorOutcome> {
     const before = await this.readExactThread(input.threadId);
     const beforeSurface = surfaceKind(before);
     if (beforeSurface !== "chatgpt") return wrongSurface(beforeSurface);
@@ -166,7 +170,9 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
       return { kind: "FAILED", reasonCode: "WORK_CLOUD_CONTINUATION_THREAD_MISMATCH" };
     }
 
-    const sent = await this.mutate("send_message_to_thread", input);
+    // Right before the Work call (after the read above): the directive's deadline by the clock now.
+    if (workCloudDeadlineReached(input.deadline)) return { kind: "UNAVAILABLE", reasonCode: WORK_CLOUD_DEADLINE_PASSED };
+    const sent = await this.mutate("send_message_to_thread", { threadId: input.threadId, prompt: input.prompt });
     if (isExecutorOutcome(sent)) return sent;
     const sentSurface = surfaceKind(sent);
     if (sentSurface !== "unknown" && sentSurface !== "chatgpt") return wrongSurface(sentSurface);

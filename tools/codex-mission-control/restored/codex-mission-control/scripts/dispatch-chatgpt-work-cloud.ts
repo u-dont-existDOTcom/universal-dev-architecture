@@ -39,6 +39,8 @@ interface ControllerRequest {
   prompt?: string;
   promptFile?: string;
   requestedAt?: string;
+  /** The directive's bounded-execution deadline (from the watcher): no Work call starts at or after it. */
+  deadline?: string;
 }
 
 async function main(): Promise<void> {
@@ -120,6 +122,7 @@ try {
     capabilityEvidence,
     requestedAt: request.requestedAt ?? observedAt,
     producerId: PRODUCER_ID,
+    deadline: request.deadline ?? null,
   }, executor, sink, new Date().toISOString());
   const approvalGate = completed.result.data.type === "chatgpt_work_cloud_dispatch_recorded"
     && completed.result.data.status === "PENDING_APPROVAL"

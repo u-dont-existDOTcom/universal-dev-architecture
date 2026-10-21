@@ -92,6 +92,8 @@ test("direct autodispatch derives one exact current-controller request and priva
   assert.equal(candidate.controllerRequest.requestedWorkTitle, "Work — Mission Control Fleet Watch");
   assert.equal(candidate.controllerRequest.sourceChatUrl, "chatgpt-conversation://abc-123");
   assert.equal(candidate.controllerRequest.binding.directiveArtifactSha256, sha256(candidate.directiveArtifactText));
+  // The controller gets the directive's deadline, to check again right before the Work call (Codex review of bf56c630).
+  assert.ok(Number.isFinite(Date.parse(candidate.controllerRequest.deadline)));
   assert.match(candidate.workPrompt, /EXACT BOUNDED DIRECTIVE FOR alpha/);
   assert.match(candidate.workPrompt, new RegExp(WORK_CLOUD_EXECUTION_RECEIPT_PREFIX.trim()));
   assert.match(candidate.workPrompt, new RegExp(WORK_CLOUD_SUPERVISOR_HANDOFF_PREFIX.trim()));

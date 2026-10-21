@@ -47,7 +47,7 @@ async function runWatcherOnce(allowedWorkersJson: string | undefined) {
     forbidden_actions: ["production deployment"], forbidden_paths: [], forbidden_decisions: ["methodology"],
     required_evidence: ["execution receipt"], required_tests_or_checks: ["focused canary"], stop_and_return_triggers: ["completion"],
     maximum_execution_cycles: 1, execution_capability: { type: "LOCAL_FILESYSTEM_COMMAND" as const }, workspace: "/tmp/mc-selfdev",
-    output_schema: { status: "string" }, prompt: "EXACT SELF-DEVELOPMENT CANARY DIRECTIVE", deadline: "2026-09-22T00:00:00.000Z",
+    output_schema: { status: "string" }, prompt: "EXACT SELF-DEVELOPMENT CANARY DIRECTIVE", deadline: "2099-09-22T00:00:00.000Z",
     work_execution_profile: profile(), execution_surface: "CHATGPT_WORK_CLOUD" as const,
   };
   const sourceDirective = { id: "directive:mc-selfdev", revision: 1, taskId: bounded.task_id,

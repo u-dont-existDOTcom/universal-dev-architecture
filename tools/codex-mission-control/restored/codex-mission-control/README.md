@@ -234,6 +234,36 @@ what it may use, what it must never do, and when it is done.
     It holds again with what is missing, or decides the first bounded step. If that review is sent but never answered,
     or the review can't fit one question even shortened, the owner is notified and nothing asks again until a new
     checkpoint is verified.
+- **An authorized Work job that expired before it ran is asked about once.** A supervisor's bounded execution names a
+  deadline, and native ChatGPT Work is never started at or after it, for any worker: the Work dispatcher skips a job not
+  yet sent, the store refuses its dispatch request and its provider-bound handoff intent, and the dispatch and the
+  Work controller check the deadline again by the clock right before the Work call (`WORK_CLOUD_DEADLINE_PASSED`, recorded
+  as `UNAVAILABLE` before any call). For a registered task,
+  when the latest directive is a native Work directive whose deadline has passed and nothing crossed the provider
+  boundary for it (no handoff intent, or only `UNAVAILABLE` results recorded before any Work call, and no Work or Codex
+  record of it running), the
+  next check records that once, as verified evidence from Mission Control itself (`verifier:work-directive-expiry`,
+  `lifecycle_status:EXPIRED_UNRUN`), and asks the project-manager supervisor, quietly, whether to authorize the job
+  again with a new deadline, change it, or stop (`WORK_DIRECTIVE_EXPIRED_UNRUN`). The question's state carries the record
+  and the job as it was authorized (`expired_work_job.authorized_job`: the bounded execution in its own shape, with the
+  prompt whole unless the question can't fit, then cut to no less than 500 characters and marked `prompt_clipped`, plus
+  the prompt's SHA-256 and length); the record is its boundary. Other workers' expired directives are left to their own supervision.
+  - A job that may have started (an intent without a result, a `READY`, `PENDING_SETUP`, `PENDING_APPROVAL` or
+    `FAILED` result, an `UNAVAILABLE` one whose code isn't a pre-send code, or a Codex start or receipt for the
+    directive) is never treated as unrun. The pre-send codes (`PRE_SEND_UNAVAILABLE_CODES`) are
+    `WORK_CLOUD_SURFACE_VERIFICATION_UNAVAILABLE`, `WORK_CLOUD_DISPATCH_UNAVAILABLE`, `WORK_CLOUD_DRIVER_BUSY` and
+    `WORK_CLOUD_DEADLINE_PASSED`; a timeout, a missing or invalid tool receipt, or any other `UNAVAILABLE` code can
+    follow a call that reached Work.
+  - Every recorded owner obligation, any blocker on the owner or an outside actor, and a missing contract source come
+    first. The only owner action the question replaces is the projection's placeholder for a task that records none
+    (`OWNER.ACTION_TELEMETRY_MISSING`).
+  - The owner is notified and nothing is asked when an earlier question was sent and expired unanswered, when the
+    question about the expiry was sent and went unanswered, when a second authorized job in a row also expired unrun
+    (in a row: no job between them may have started, by the same test as above), or when the question can't fit even
+    with the prompt shortened.
+  - Once the supervisor answers, the question is settled: a new authorization becomes the latest directive; an answer
+    that starts no new step holds the task like any registered task held by its supervisor ("Held by its supervisor",
+    then a verified checkpoint asks again).
 - Submitting the same answers again records nothing. Other answers for a registered task id are refused, and so is
   any id that already has records, saying what those records are.
 - **Closing a registered task comes next.** Marking it achieved or cancelling it needs the owner, so it will take the
