@@ -247,10 +247,11 @@ what it may use, what it must never do, and when it is done.
   again with a new deadline, change it, or stop (`WORK_DIRECTIVE_EXPIRED_UNRUN`). The question's state carries the record
   and the job as it was authorized (`expired_work_job.authorized_job`: the bounded execution in its own shape, with the
   prompt whole unless the question can't fit, then cut to no less than 500 characters and marked `prompt_clipped`, plus
-  the prompt's SHA-256 and length); the record is its boundary. If it still doesn't fit, the job's other long text is
-  shortened to one common length, never below 300 characters, and only then any other long text in the state;
-  identifiers, digests, times and references are never cut, and `clipped_to_fit` names every field shortened. Other
-  workers' expired directives are left to their own supervision.
+  the prompt's SHA-256 and length); the record is its boundary. If it still doesn't fit, all the job's long text, the
+  prompt included, is shortened to one common length (the prompt never below 500 characters, the rest never below
+  300), and only then any other long text in the state. Identifiers, digests, times, references, paths, commands,
+  schemas and the job's and contract's allowed and forbidden lists are never cut, and `clipped_to_fit` names every
+  field shortened. Other workers' expired directives are left to their own supervision.
   - A job that may have started (an intent without a result, a `READY`, `PENDING_SETUP`, `PENDING_APPROVAL` or
     `FAILED` result, an `UNAVAILABLE` one whose code isn't a pre-send code, or a Codex start or receipt for the
     directive) is never treated as unrun. The pre-send codes (`PRE_SEND_UNAVAILABLE_CODES`) are

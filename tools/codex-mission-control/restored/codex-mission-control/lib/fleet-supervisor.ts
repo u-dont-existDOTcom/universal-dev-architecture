@@ -812,8 +812,9 @@ export const WORK_DIRECTIVE_EXPIRED_UNRUN_DECISION_REQUESTED = "This task's late
   + "whether to authorize the same bounded job again with a new deadline, change it, or stop or hold the task; say what "
   + "blocks it if anything does. Keep every limit of the authorized job unless you say why it changes. If "
   + "authorized_job.provenance.prompt_clipped is true, the prompt shown was cut to fit this question: write the prompt "
-  + "of any job you authorize out in full. Any field listed in clipped_to_fit was also cut to fit: write out in full every "
-  + "field of a job you authorize. Do not weaken the contract, spend money, or publish anything.";
+  + "of any job you authorize out in full. Every field listed in clipped_to_fit was also cut to fit this question (a field "
+  + "outside authorized_job only in what is shown here): write out in full every field of a job you authorize. Do not "
+  + "weaken the contract, spend money, or publish anything.";
 
 function isReviewBoundaryEvidence(event: StoredEvent) {
   return event.data.type === "evidence_receipt_recorded"
@@ -862,26 +863,32 @@ export function fleetReasoningFactualState(
     // An expired job that doesn't fit, even without a history: its prompt is shortened first, to no less than 500
     // characters.
     const full = expiredJob.provenance.prompt_length;
-    let shortened = facts;
     for (let promptLimit = Math.max(500, full - 500); ; promptLimit = Math.max(500, promptLimit - 500)) {
-      shortened = fleetReasoningFacts(decision, events, boundary, promptLimit);
-      const state = canonicalJson(shortened);
+      const state = canonicalJson(fleetReasoningFacts(decision, events, boundary, promptLimit));
       if (state.length <= limit) return state;
       if (promptLimit === 500) break;
     }
     // A supervisor's job has many long fields besides its prompt (21 Oct 2026: the Atlas task's job didn't fit with its
-    // prompt shortened, so its supervisor wasn't asked). Then the job's other long text is shortened too, and only then
-    // any other long text in the state; every shortened field is named in clipped_to_fit.
-    return shortenedToFit(shortened, limit, ["expired_work_job", "authorized_job", "bounded_execution"]);
+    // prompt shortened, so its supervisor wasn't asked). Then all the job's long text, its prompt included, is shortened
+    // evenly, and only then any other long text in the state; every shortened field is named in clipped_to_fit.
+    return shortenedToFit(facts, limit, EXPIRED_JOB_PATH, (state, names) => {
+      if (!names.includes([...EXPIRED_JOB_PATH, "prompt"].join("."))) return;
+      const job = (state.expired_work_job as { authorized_job: { provenance: { prompt_clipped: boolean } } }).authorized_job;
+      job.provenance.prompt_clipped = true;
+    });
   }
   return fittedCheckpointReview(facts, limit) ?? canonicalJson(facts);
 }
 
 /** Text the expiry question may shorten is never cut below these lengths: a prompt to 500 characters, anything else to
- * 300. Identifiers, digests, times, references and the trigger are never shortened. */
+ * 300. Identifiers, digests, times, references, paths, commands, schemas and the job's and contract's limits (its
+ * allowed and forbidden lists) are never shortened: the supervisor keeps every limit of the job. */
 const SHORTENED_PROMPT_FLOOR = 500;
 const SHORTENED_TEXT_FLOOR = 300;
-const UNSHORTENED_KEYS = /(^|_)(id|ids|ref|refs|sha256|at|deadline|trigger|trigger_result|schema_version|surface|status|kind|type)$/;
+const UNSHORTENED_KEYS = new RegExp("^(trigger|trigger_result|workspace|output_schema|depends_on|policyRef|routingPolicyBaseCommit)$"
+  + "|(^|_)(id|ids|ref|refs|sha256|at|deadline|schema_version|surface|status|kind|type|path|paths|commands)$"
+  + "|^(allowed|forbidden)_");
+const EXPIRED_JOB_PATH = ["expired_work_job", "authorized_job", "bounded_execution"] as const;
 
 function shortenedFloor(path: readonly (string | number)[]): number {
   return path.at(-1) === "prompt" ? SHORTENED_PROMPT_FLOOR : SHORTENED_TEXT_FLOOR;
@@ -889,10 +896,12 @@ function shortenedFloor(path: readonly (string | number)[]): number {
 
 /** The state, shortened until it fits: first the text within `first` (a path into the state), then any text. Within each
  * scope every text longer than one common cap is cut to that cap (never below its floor), and the cap is the largest
- * that fits, so long fields are shortened evenly rather than one at a time. The state then lists the shortened fields
- * (clipped_to_fit). If the floors don't fit, the state is returned too long, and the caller tells the owner instead of
- * asking. */
-function shortenedToFit(facts: object, limit: number, first: readonly string[]): string {
+ * that fits, so long fields are shortened evenly rather than one at a time. The state then names the shortened fields
+ * in clipped_to_fit (a list's items under the list's name); a field is cut only when that saves more than naming it
+ * costs, so a lower cap never makes the state longer. `marked` records a cut in the state itself (prompt_clipped). If
+ * the floors don't fit, the state is returned too long, and the caller tells the owner instead of asking. */
+function shortenedToFit(facts: object, limit: number, first: readonly string[],
+  marked: (state: Record<string, unknown>, names: readonly string[]) => void): string {
   type Leaf = { path: (string | number)[]; length: number };
   const leaves = (value: unknown, path: (string | number)[], out: Leaf[]): Leaf[] => {
     if (typeof value === "string") {
@@ -904,6 +913,11 @@ function shortenedToFit(facts: object, limit: number, first: readonly string[]):
     }
     return out;
   };
+  // A field's name: its path, or for a list's items the list's path.
+  const nameOf = (path: readonly (string | number)[]) => {
+    const index = path.findIndex((key) => typeof key === "number");
+    return (index < 0 ? path : path.slice(0, index)).join(".");
+  };
   const render = (state: Record<string, unknown>, clipped: readonly string[]) =>
     canonicalJson(clipped.length > 0 ? { ...state, clipped_to_fit: clipped } : state);
   let state = JSON.parse(canonicalJson(facts)) as Record<string, unknown>;
@@ -912,24 +926,34 @@ function shortenedToFit(facts: object, limit: number, first: readonly string[]):
   if (rendered.length <= limit) return rendered;
   const scopes: (readonly string[])[] = [first, []];
   for (const scope of scopes) {
-    const candidates = leaves(state, [], []).filter((leaf) => scope.every((key, index) => leaf.path[index] === key));
-    if (candidates.length === 0) continue;
+    const groups = new Map<string, Leaf[]>();
+    for (const leaf of leaves(state, [], [])) {
+      if (!scope.every((key, index) => leaf.path[index] === key)) continue;
+      const name = nameOf(leaf.path);
+      groups.set(name, [...(groups.get(name) ?? []), leaf]);
+    }
+    if (groups.size === 0) continue;
     const attempt = (cap: number) => {
       const copy = JSON.parse(canonicalJson(state)) as Record<string, unknown>;
       const names = [...clipped];
-      for (const leaf of candidates) {
-        const target = Math.max(shortenedFloor(leaf.path), cap);
-        if (leaf.length <= target) continue;
-        const parent = leaf.path.slice(0, -1).reduce<unknown>((node, key) => (node as Record<string | number, unknown>)[key], copy) as Record<string | number, unknown>;
-        const key = leaf.path.at(-1)!;
-        parent[key] = clip(parent[key] as string, target);
-        const name = leaf.path.join(".");
+      for (const [name, group] of groups) {
+        const saved = group.reduce((sum, leaf) => sum + Math.max(0, leaf.length - Math.max(shortenedFloor(leaf.path), cap)), 0);
+        // A new name costs its quoted length and a comma in the state.
+        if (saved === 0 || (!names.includes(name) && saved <= name.length + 3)) continue;
+        for (const leaf of group) {
+          const target = Math.max(shortenedFloor(leaf.path), cap);
+          if (leaf.length <= target) continue;
+          const parent = leaf.path.slice(0, -1).reduce<unknown>((node, key) => (node as Record<string | number, unknown>)[key], copy) as Record<string | number, unknown>;
+          const key = leaf.path.at(-1)!;
+          parent[key] = clip(parent[key] as string, target);
+        }
         if (!names.includes(name)) names.push(name);
       }
+      if (names.length > clipped.length) marked(copy, names);
       return { copy, names, text: render(copy, names) };
     };
     let low = SHORTENED_TEXT_FLOOR;
-    let high = Math.max(...candidates.map((leaf) => leaf.length));
+    let high = Math.max(...[...groups.values()].flat().map((leaf) => leaf.length));
     let best = attempt(low);
     if (best.text.length > limit) {
       // Even at the floors this scope doesn't fit: keep it there and shorten the next scope too.
@@ -1259,7 +1283,7 @@ export function classifyFleetSupervisorTick(
         "Its authorized ChatGPT Work job expired before it ran, and an earlier question to its supervisor was sent but expired without an answer, so nothing is asked now.");
     }
     const routed = decision("WORK_DIRECTIVE_EXPIRED_UNRUN", "An authorized Work job expired before it ran; its supervisor was asked whether to authorize it again.", "ACTIVE", true, false, false, null);
-    // A question that can't fit even with the job's prompt shortened would fail admission on every poll: tell the owner
+    // A question that can't fit even with every long field shortened would fail admission on every poll: tell the owner
     // once instead, and route nothing. The state is measured with the record routing would make.
     const withRecord = openExpiry.evidence ? events : [...events, expiryRecordAsEvent(openExpiry, events, now)];
     const boundary = reasoningBoundary(withRecord);
