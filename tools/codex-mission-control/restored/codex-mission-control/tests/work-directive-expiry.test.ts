@@ -724,10 +724,62 @@ test("a 6,000-character prompt that fits goes out whole", async (t) => {
   } finally { store.close(); }
 });
 
+test("a job whose long fields besides its prompt don't fit is shortened evenly, and every shortened field is named", async (t) => {
+  // 21 Oct 2026: the Atlas task's authorized job didn't fit one question with only its prompt shortened, so its supervisor
+  // wasn't asked. A supervisor's job has many long fields; then all of them, the prompt included, are shortened to one
+  // common length (the prompt never below 500 characters, the rest never below 300), the question names them, and the
+  // job's limits travel whole.
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse(AFTER) });
+  const store = registered();
+  try {
+    await withSupervisorConfiguration(async () => {
+      const long = ["execution_objective", "reasoning_summary", "strategy_causal_hypothesis", "predicted_outcome_change",
+        "success_threshold", "failure_threshold", "next_decision_changing_evidence", "reviewed_evidence_boundary"] as const;
+      const prompt = `PROMPT ${"q".repeat(8_000)}`;
+      const limit = `never ${"n".repeat(1_000)}`;
+      const job = { ...bounded(), prompt, forbidden_actions: ["spend money", limit] };
+      for (const field of long) job[field] = `${field} ${"w".repeat(2_500)}`;
+      appendDecision(store, "work-1", job);
+      const { watch } = enrollFleetSupervisorWatch(store, "project:atlas-test", { worker, taskId: task, cadenceMs: 60_000 }, at);
+      const decision = classifyFleetSupervisorTick(watch, store.workerEvents(worker), store.verifyChain(), AFTER);
+      assert.equal(decision.trigger, "WORK_DIRECTIVE_EXPIRED_UNRUN");
+      routeFleetSupervisorReasoning(store, watch, decision, []);
+      const root = routeBody(store.workerEvents(worker).findLast((event) => event.data.type === "worker_message_recorded")!);
+      const state = JSON.parse(root.factualPacket.exactFactualState);
+      assert.ok(root.factualPacket.exactFactualState.length <= 12_000);
+      const { bounded_execution: shown, provenance } = state.expired_work_job.authorized_job;
+      const lengths = new Set([...long, "prompt"].map((field) => shown[field].length));
+      assert.equal(lengths.size, 1, "shortened evenly, the prompt included");
+      const length = [...lengths][0] ?? 0;
+      assert.ok(length >= 500 && length < 2_500, String(length));
+      for (const field of [...long, "prompt"] as const) {
+        assert.ok(shown[field].endsWith("…"), field);
+        assert.ok(job[field].startsWith(shown[field].slice(0, -1)), field);
+      }
+      assert.equal(provenance.prompt_clipped, true);
+      assert.equal(provenance.prompt_sha256, sha256(prompt));
+      assert.equal(provenance.prompt_length, prompt.length);
+      assert.deepEqual(state.clipped_to_fit, [...long, "prompt"].sort().map((field) => `expired_work_job.authorized_job.bounded_execution.${field}`));
+      // The job's limits and identifiers travel whole, and nothing outside the job was shortened.
+      assert.deepEqual(shown.forbidden_actions, ["spend money", limit]);
+      assert.deepEqual(shown.allowed_actions, ["read public pages"]);
+      assert.equal(shown.deadline, DEADLINE);
+      assert.equal(shown.job_id, "job-1");
+      assert.deepEqual(shown.inputs, job.inputs);
+      assert.equal(shown.workspace, job.workspace);
+      assert.equal(shown.maximum_execution_cycles, 2);
+      assert.equal(state.task_contract.goal, "Collect public sources on one question and summarize them.");
+      assert.match(root.factualPacket.decisionRequested, /clipped_to_fit was also cut to fit this question/);
+    });
+  } finally { store.close(); }
+});
+
 test("a job that can't fit one question even shortened goes to the owner, and nothing is recorded or asked", () => {
   const store = registered();
   try {
-    appendDecision(store, "work-1", { ...bounded(), success_threshold: `T ${"t".repeat(11_800)}` });
+    // A hundred allowed actions: the job's limits are never cut, and together they don't fit.
+    const actions = Array.from({ length: 100 }, (_, index) => `action ${String(index).padStart(3, "0")} ${"a".repeat(285)}`);
+    appendDecision(store, "work-1", { ...bounded(), allowed_actions: actions });
     const { watch } = enrollFleetSupervisorWatch(store, "project:atlas-test", { worker, taskId: task, cadenceMs: 60_000 }, at);
     const decision = classifyFleetSupervisorTick(watch, store.workerEvents(worker), store.verifyChain(), AFTER);
     assert.equal(decision.trigger, "OWNER_ACTION_REQUIRED");
