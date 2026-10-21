@@ -1597,6 +1597,71 @@
       ]
     },
     {
+      "rule_id": "uda.kernel.say-once",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "AGENTS.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "**Say each thing once:** what an interim message already told the owner in the same turn is not repeated in the final answer;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "the final answer adds only what is new or changed: `patterns/worker-directive-delivery-and-chat-output-budget.md`."
+          }
+        ]
+      },
+      "authority_owner": "current UDA root",
+      "authority_domain": "say-once",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "fact": "governance_required",
+        "eq": true
+      },
+      "obligations": [
+        {
+          "obligation_id": "no-repeat-of-interim-message",
+          "required_behavior": "Keep out of the final answer what an interim owner message in the same turn already said; add only what is new or changed.",
+          "due_phase": "final-delivery",
+          "destination": "owner-visible-final",
+          "acceptance_evidence": "Read against the turn's interim owner messages, the final answer restates none of their content and carries only what is new or changed.",
+          "non_substitutes": [
+            "final answer restating the interim message",
+            "the same steps sent twice in one turn"
+          ],
+          "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner correction 2026-10-21: the same steps were sent in an interim message and again in the final answer",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": [],
+      "refresh_on_facts": [
+        "actor",
+        "governance_required",
+        "envelope.bootstrap",
+        "envelope.legacy_rule_ids",
+        "role"
+      ]
+    },
+    {
       "rule_id": "uda.kernel.continuation",
       "revision": 2,
       "status": "CURRENT",

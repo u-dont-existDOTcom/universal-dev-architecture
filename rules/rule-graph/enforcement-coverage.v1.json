@@ -438,7 +438,8 @@
         "uda.final.timestamp",
         "uda.kernel.clock-cadence",
         "uda.bootstrap.live-root",
-        "uda.kernel.output-budget"
+        "uda.kernel.output-budget",
+        "uda.kernel.say-once"
       ],
       "graph_node": null,
       "evidence": [
@@ -596,6 +597,16 @@
           "sentence": "chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`.",
           "record": "uda.kernel.output-budget",
           "obligation_id": "file-for-long-reusable-output"
+        },
+        {
+          "sentence": "**Say each thing once:** what an interim message already told the owner in the same turn is not repeated in the final answer;",
+          "record": "uda.kernel.say-once",
+          "obligation_id": "no-repeat-of-interim-message"
+        },
+        {
+          "sentence": "the final answer adds only what is new or changed: `patterns/worker-directive-delivery-and-chat-output-budget.md`.",
+          "record": "uda.kernel.say-once",
+          "obligation_id": "no-repeat-of-interim-message"
         }
       ]
     },

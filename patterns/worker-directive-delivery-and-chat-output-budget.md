@@ -147,6 +147,18 @@ Do **not** duplicate the full artifact inline after linking it.
 
 The file is for reusable operational detail. The chat remains the decision and navigation surface.
 
+## Say each thing once (owner, 2026-10-21)
+
+The owner got the same steps twice in one turn. The agent sent them in an interim message while it was still working, then wrote them out again in its final answer. The owner's read: the agent says what matters first, before it has finished, which can be a good thing, and then repeats it when it is done, as if it hadn't noticed it already said it.
+
+Anything sent to the owner before the final answer of the same turn counts as said: a progress note, an early instruction, a mid-task answer.
+
+- The final answer adds only what is new or changed since then. It may point back ("the steps above still stand") but does not restate them.
+- If part of the interim message turned out wrong or changed, the final answer says what changed, not the whole message again.
+- Before writing the final answer, reread what this turn already sent to the owner.
+- Saying something early is fine and often useful. Saying it twice is the failure.
+- This holds on every surface and for every recipient, not only in the chat where it was first noticed.
+
 ## Preserve substantive visibility
 
 Output minimization must not hide consequential decisions.
