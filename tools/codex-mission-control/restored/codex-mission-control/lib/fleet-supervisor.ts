@@ -812,7 +812,8 @@ export const WORK_DIRECTIVE_EXPIRED_UNRUN_DECISION_REQUESTED = "This task's late
   + "whether to authorize the same bounded job again with a new deadline, change it, or stop or hold the task; say what "
   + "blocks it if anything does. Keep every limit of the authorized job unless you say why it changes. If "
   + "authorized_job.provenance.prompt_clipped is true, the prompt shown was cut to fit this question: write the prompt "
-  + "of any job you authorize out in full. Do not weaken the contract, spend money, or publish anything.";
+  + "of any job you authorize out in full. Any field listed in clipped_to_fit was also cut to fit: write out in full every "
+  + "field of a job you authorize. Do not weaken the contract, spend money, or publish anything.";
 
 function isReviewBoundaryEvidence(event: StoredEvent) {
   return event.data.type === "evidence_receipt_recorded"
@@ -858,14 +859,91 @@ export function fleetReasoningFactualState(
   }
   const expiredJob = facts.expired_work_job?.authorized_job;
   if (expiredJob) {
-    // An expired job that doesn't fit, even without a history: its prompt is shortened, to no less than 500 characters.
+    // An expired job that doesn't fit, even without a history: its prompt is shortened first, to no less than 500
+    // characters.
     const full = expiredJob.provenance.prompt_length;
+    let shortened = facts;
     for (let promptLimit = Math.max(500, full - 500); ; promptLimit = Math.max(500, promptLimit - 500)) {
-      const state = canonicalJson(fleetReasoningFacts(decision, events, boundary, promptLimit));
-      if (state.length <= limit || promptLimit === 500) return state;
+      shortened = fleetReasoningFacts(decision, events, boundary, promptLimit);
+      const state = canonicalJson(shortened);
+      if (state.length <= limit) return state;
+      if (promptLimit === 500) break;
     }
+    // A supervisor's job has many long fields besides its prompt (21 Oct 2026: the Atlas task's job didn't fit with its
+    // prompt shortened, so its supervisor wasn't asked). Then the job's other long text is shortened too, and only then
+    // any other long text in the state; every shortened field is named in clipped_to_fit.
+    return shortenedToFit(shortened, limit, ["expired_work_job", "authorized_job", "bounded_execution"]);
   }
   return fittedCheckpointReview(facts, limit) ?? canonicalJson(facts);
+}
+
+/** Text the expiry question may shorten is never cut below these lengths: a prompt to 500 characters, anything else to
+ * 300. Identifiers, digests, times, references and the trigger are never shortened. */
+const SHORTENED_PROMPT_FLOOR = 500;
+const SHORTENED_TEXT_FLOOR = 300;
+const UNSHORTENED_KEYS = /(^|_)(id|ids|ref|refs|sha256|at|deadline|trigger|trigger_result|schema_version|surface|status|kind|type)$/;
+
+function shortenedFloor(path: readonly (string | number)[]): number {
+  return path.at(-1) === "prompt" ? SHORTENED_PROMPT_FLOOR : SHORTENED_TEXT_FLOOR;
+}
+
+/** The state, shortened until it fits: first the text within `first` (a path into the state), then any text. Within each
+ * scope every text longer than one common cap is cut to that cap (never below its floor), and the cap is the largest
+ * that fits, so long fields are shortened evenly rather than one at a time. The state then lists the shortened fields
+ * (clipped_to_fit). If the floors don't fit, the state is returned too long, and the caller tells the owner instead of
+ * asking. */
+function shortenedToFit(facts: object, limit: number, first: readonly string[]): string {
+  type Leaf = { path: (string | number)[]; length: number };
+  const leaves = (value: unknown, path: (string | number)[], out: Leaf[]): Leaf[] => {
+    if (typeof value === "string") {
+      if (value.length > shortenedFloor(path)) out.push({ path, length: value.length });
+    } else if (Array.isArray(value)) {
+      if (!UNSHORTENED_KEYS.test(String(path.at(-1) ?? ""))) value.forEach((item, index) => leaves(item, [...path, index], out));
+    } else if (value && typeof value === "object") {
+      for (const [key, child] of Object.entries(value)) if (!UNSHORTENED_KEYS.test(key)) leaves(child, [...path, key], out);
+    }
+    return out;
+  };
+  const render = (state: Record<string, unknown>, clipped: readonly string[]) =>
+    canonicalJson(clipped.length > 0 ? { ...state, clipped_to_fit: clipped } : state);
+  let state = JSON.parse(canonicalJson(facts)) as Record<string, unknown>;
+  let clipped: string[] = [];
+  let rendered = render(state, clipped);
+  if (rendered.length <= limit) return rendered;
+  const scopes: (readonly string[])[] = [first, []];
+  for (const scope of scopes) {
+    const candidates = leaves(state, [], []).filter((leaf) => scope.every((key, index) => leaf.path[index] === key));
+    if (candidates.length === 0) continue;
+    const attempt = (cap: number) => {
+      const copy = JSON.parse(canonicalJson(state)) as Record<string, unknown>;
+      const names = [...clipped];
+      for (const leaf of candidates) {
+        const target = Math.max(shortenedFloor(leaf.path), cap);
+        if (leaf.length <= target) continue;
+        const parent = leaf.path.slice(0, -1).reduce<unknown>((node, key) => (node as Record<string | number, unknown>)[key], copy) as Record<string | number, unknown>;
+        const key = leaf.path.at(-1)!;
+        parent[key] = clip(parent[key] as string, target);
+        const name = leaf.path.join(".");
+        if (!names.includes(name)) names.push(name);
+      }
+      return { copy, names, text: render(copy, names) };
+    };
+    let low = SHORTENED_TEXT_FLOOR;
+    let high = Math.max(...candidates.map((leaf) => leaf.length));
+    let best = attempt(low);
+    if (best.text.length > limit) {
+      // Even at the floors this scope doesn't fit: keep it there and shorten the next scope too.
+      ({ copy: state, names: clipped, text: rendered } = best);
+      continue;
+    }
+    while (low < high) {
+      const cap = Math.ceil((low + high) / 2);
+      const tried = attempt(cap);
+      if (tried.text.length <= limit) { low = cap; best = tried; } else high = cap - 1;
+    }
+    return best.text;
+  }
+  return rendered;
 }
 
 /**

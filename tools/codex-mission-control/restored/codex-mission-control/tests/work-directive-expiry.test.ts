@@ -724,10 +724,60 @@ test("a 6,000-character prompt that fits goes out whole", async (t) => {
   } finally { store.close(); }
 });
 
+test("a job whose long fields besides its prompt don't fit is shortened evenly, and every shortened field is named", async (t) => {
+  // 21 Oct 2026: the Atlas task's authorized job didn't fit one question with only its prompt shortened, so its supervisor
+  // wasn't asked. A supervisor's job has many long fields; they are shortened too, to one common length, never below 300
+  // characters, and the question lists them.
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse(AFTER) });
+  const store = registered();
+  try {
+    await withSupervisorConfiguration(async () => {
+      const long = ["execution_objective", "reasoning_summary", "strategy_causal_hypothesis", "predicted_outcome_change",
+        "success_threshold", "failure_threshold", "next_decision_changing_evidence", "reviewed_evidence_boundary"] as const;
+      const prompt = `PROMPT ${"q".repeat(8_000)}`;
+      const job = { ...bounded(), prompt };
+      for (const field of long) job[field] = `${field} ${"w".repeat(2_500)}`;
+      appendDecision(store, "work-1", job);
+      const { watch } = enrollFleetSupervisorWatch(store, "project:atlas-test", { worker, taskId: task, cadenceMs: 60_000 }, at);
+      const decision = classifyFleetSupervisorTick(watch, store.workerEvents(worker), store.verifyChain(), AFTER);
+      assert.equal(decision.trigger, "WORK_DIRECTIVE_EXPIRED_UNRUN");
+      routeFleetSupervisorReasoning(store, watch, decision, []);
+      const root = routeBody(store.workerEvents(worker).findLast((event) => event.data.type === "worker_message_recorded")!);
+      const state = JSON.parse(root.factualPacket.exactFactualState);
+      assert.ok(root.factualPacket.exactFactualState.length <= 12_000);
+      const { bounded_execution: shown, provenance } = state.expired_work_job.authorized_job;
+      assert.equal(shown.prompt.length, 500);
+      assert.equal(provenance.prompt_clipped, true);
+      assert.equal(provenance.prompt_sha256, sha256(prompt));
+      const lengths = new Set(long.map((field) => shown[field].length));
+      assert.equal(lengths.size, 1, "shortened evenly");
+      const length = [...lengths][0] ?? 0;
+      assert.ok(length >= 300 && length < 2_500, String(length));
+      for (const field of long) {
+        assert.ok(shown[field].endsWith("…"));
+        assert.ok(job[field].startsWith(shown[field].slice(0, -1)), field);
+      }
+      // The prompt was already shortened to its floor (prompt_clipped); the list names the other fields cut.
+      assert.deepEqual(state.clipped_to_fit, [...long].sort().map((field) => `expired_work_job.authorized_job.bounded_execution.${field}`));
+      // Nothing outside the job was shortened, and the job's limits and identifiers travel whole.
+      assert.ok(state.clipped_to_fit.every((name: string) => name.startsWith("expired_work_job.authorized_job.bounded_execution.")));
+      assert.equal(shown.deadline, DEADLINE);
+      assert.equal(shown.job_id, "job-1");
+      assert.deepEqual(shown.allowed_actions, ["read public pages"]);
+      assert.deepEqual(shown.inputs, job.inputs);
+      assert.equal(shown.maximum_execution_cycles, 2);
+      assert.equal(state.task_contract.goal, "Collect public sources on one question and summarize them.");
+      assert.match(root.factualPacket.decisionRequested, /clipped_to_fit was also cut to fit/);
+    });
+  } finally { store.close(); }
+});
+
 test("a job that can't fit one question even shortened goes to the owner, and nothing is recorded or asked", () => {
   const store = registered();
   try {
-    appendDecision(store, "work-1", { ...bounded(), success_threshold: `T ${"t".repeat(11_800)}` });
+    // A hundred allowed actions of about 300 characters each: none may be cut shorter, and together they don't fit.
+    const actions = Array.from({ length: 100 }, (_, index) => `action ${String(index).padStart(3, "0")} ${"a".repeat(285)}`);
+    appendDecision(store, "work-1", { ...bounded(), allowed_actions: actions });
     const { watch } = enrollFleetSupervisorWatch(store, "project:atlas-test", { worker, taskId: task, cadenceMs: 60_000 }, at);
     const decision = classifyFleetSupervisorTick(watch, store.workerEvents(worker), store.verifyChain(), AFTER);
     assert.equal(decision.trigger, "OWNER_ACTION_REQUIRED");
