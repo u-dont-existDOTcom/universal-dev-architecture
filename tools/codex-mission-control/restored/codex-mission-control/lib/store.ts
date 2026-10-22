@@ -1066,7 +1066,8 @@ export class EventStore {
       }
       this.assertUniqueDomainId(data.worker, data.type, "dispatch_id", data.dispatch_id);
       // A job whose latest start of a new Work thread failed (UNAVAILABLE or FAILED) starts again only as the retry the
-      // owner authorized of that start (lib/chatgpt-work-cloud-retry.ts), never on its own.
+      // owner authorized of that start (lib/chatgpt-work-cloud-retry.ts), never on its own; a job the owner retried
+      // never starts beside its latest start while that one is unresolved.
       if (data.mode === "CREATE") {
         const earlier = events.findLast((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested"
           && event.data.mode === "CREATE" && event.data.directive_id === data.directive_id
@@ -1086,6 +1087,12 @@ export class EventStore {
           if (workDirectiveHasRun(events, data)) {
             throw new ContractInvariantError("A native Work job with a run on record isn't started again by a retry.");
           }
+        } else if (earlier?.type === "chatgpt_work_cloud_dispatch_requested"
+          && events.some((event) => event.data.type === "chatgpt_work_cloud_dispatch_retry_authorized"
+            && event.data.directive_id === data.directive_id && event.data.directive_revision === data.directive_revision)) {
+          // A job the owner retried starts again only as the next authorized retry, after its latest start failed: never
+          // beside a start that is unresolved, ready or waiting (Codex review of 79260e2f).
+          throw new ContractInvariantError("A native Work job the owner retried isn't started again while its latest start is unresolved.");
         }
       }
     }

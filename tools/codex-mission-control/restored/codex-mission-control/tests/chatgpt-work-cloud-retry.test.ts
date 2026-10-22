@@ -178,6 +178,25 @@ test("the owner retries a failed start once, as a new dispatch of the same job, 
   } finally { store.close(); }
 });
 
+test("a retried job isn't started again beside its unresolved retry", async () => {
+  const store = currentDirectiveStore();
+  try {
+    await recordStart(store, {}, { kind: "UNAVAILABLE", reasonCode: PRODUCT_FAILURE });
+    const first = authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: owner }, () => LATER);
+    const retried = await dispatchChatGptWorkCloud(input({ dispatchId: first.retryDispatchId, requestedAt: LATER }),
+      executor({ kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:abc" }));
+    store.append(retried.request, LATER, systemProducer);
+    const other = await dispatchChatGptWorkCloud(input({ dispatchId: "dispatch:auth:work-cloud:other", requestedAt: LATER }),
+      executor({ kind: "UNAVAILABLE", reasonCode: PRODUCT_FAILURE }));
+    // The retry's request is recorded without a result (it may be crossing the app boundary): no other start.
+    assert.throws(() => store.append(other.request, LATER, systemProducer), /while its latest start is unresolved/);
+    store.append(buildWorkCloudHandoffIntentEnvelope(input({ dispatchId: first.retryDispatchId, requestedAt: LATER })), LATER, systemProducer);
+    store.append(retried.result, LATER, systemProducer);
+    // The retry waits for setup: still no other start.
+    assert.throws(() => store.append(other.request, LATER, systemProducer), /while its latest start is unresolved/);
+  } finally { store.close(); }
+});
+
 test("a start that may be running or ran, or that may hold a thread elsewhere, is never retried", async () => {
   const cases: Array<[string, WorkCloudExecutorOutcome, Partial<WorkCloudDispatchInput>, RegExp]> = [
     ["ready", { kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "work-thread-native-1", hostId: null }, {}, /ready or still waiting/],
