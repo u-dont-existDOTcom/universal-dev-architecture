@@ -4,7 +4,7 @@ import { launchSelectionFor } from "./work-execution-profile";
 import type { StoredEvent } from "./schema";
 import { ruleGraphPromptBlock, workHandoffRuleGraphProjection, WORK_PROMPT_BUDGET_LABEL, WORK_PROMPT_MAX_BYTES } from "./rule-graph-contract";
 import { workQuestionContextForRequest } from "./owner-question-route";
-import { currentWorkCloudDispatch } from "./chatgpt-work-cloud-retry";
+import { currentWorkCloudDispatch, workDirectiveHasRun } from "./chatgpt-work-cloud-retry";
 
 export const WORK_CLOUD_EXECUTION_RECEIPT_PREFIX = "MISSION_CONTROL_WORK_CLOUD_EXECUTION_RECEIPT_V1\n";
 export const WORK_CLOUD_SUPERVISOR_HANDOFF_PREFIX = "MISSION_CONTROL_WORK_SUPERVISOR_HANDOFF_V1\n";
@@ -183,6 +183,8 @@ export function discoverDirectWorkCloudDispatches(input: {
     })).slice(0, 32)}`;
     // A start the owner retried after it failed is followed to the retry (lib/chatgpt-work-cloud-retry.ts).
     const { dispatchId, prior } = currentWorkCloudDispatch(input.events, directive.worker, directive, firstDispatchId);
+    // A retry is never started once a run of the job is on record (the store refuses its request too).
+    if (prior && workDirectiveHasRun(input.events.filter((event) => event.worker === directive.worker), directive)) continue;
     const promptFor = (id: string) => buildDirectWorkPrompt({
       dispatchId: id,
       worker: directive.worker,

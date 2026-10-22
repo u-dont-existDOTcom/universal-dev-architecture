@@ -36,6 +36,22 @@ export function retryableWorkCloudResult(result: { status: string; error_code: s
   return result.status === "UNAVAILABLE" || (result.status === "FAILED" && result.error_code === "WORK_CLOUD_APP_EXECUTOR_FAILED");
 }
 
+/** The records that show a directive's job ran or runs (a Work execution receipt, a Codex start or receipt). */
+export const WORK_RUN_RECORD_TYPES: ReadonlySet<string> = new Set([
+  "chatgpt_work_cloud_execution_receipt_recorded", "codex_execution_started", "execution_receipt_recorded",
+]);
+
+/** Whether a run of this directive is on record: its job is then never started again by a retry, checked when the owner
+ * authorizes it, when the dispatcher discovers it and when the store records its request (Codex review of 7f7deeee). */
+export function workDirectiveHasRun(
+  events: readonly StoredEvent[],
+  directive: { directive_id: string; directive_revision: number },
+): boolean {
+  return events.some((event) => WORK_RUN_RECORD_TYPES.has(event.data.type)
+    && (event.data as { directive_id?: string }).directive_id === directive.directive_id
+    && (event.data as { directive_revision?: number }).directive_revision === directive.directive_revision);
+}
+
 /**
  * How long a failed start must have settled before it may be retried (Codex review of e508a5f9, P1): a create call
  * that timed out or lost its answer may still complete late, and a new thread may show in the app's listing late. A
@@ -84,10 +100,7 @@ export function retryableWorkCloudDispatch(events: readonly StoredEvent[], at: s
   const forDirective = (data: StoredEvent["data"]) => (data as { directive_id?: string }).directive_id === directive.directive_id
     && (data as { directive_revision?: number }).directive_revision === directive.directive_revision;
   const related = events.filter((event) => forDirective(event.data));
-  if (related.some((event) => ["chatgpt_work_cloud_execution_receipt_recorded", "codex_execution_started", "execution_receipt_recorded"]
-    .includes(event.data.type))) {
-    return { refusal: "This Work job has a run on record, so it isn't retried." };
-  }
+  if (workDirectiveHasRun(events, directive)) return { refusal: "This Work job has a run on record, so it isn't retried." };
   const results = related.filter((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded")
     .map((event) => event.data as ResultData);
   // Each start's latest result: a start that waited for setup and then failed counts as failed.

@@ -20,6 +20,7 @@ import {
   workCloudRetryAuthorizationId,
   workCloudRetryDispatchId,
   workCloudRetryEnvelope,
+  workDirectiveHasRun,
 } from "../lib/chatgpt-work-cloud-retry";
 import { executionDirectiveArtifactCanonicalJson } from "../lib/github-execution-directive";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
@@ -323,6 +324,12 @@ test("the dispatcher follows the owner's retry to a new dispatch and hands the c
   const moved = discover([...base, ...failedStart(3, "work-cloud:old-source", "e".repeat(64)), authorization(6, "work-cloud:old-source")])[0]!;
   assert.equal(moved.dispatchId, workCloudRetryDispatchId("work-cloud:old-source"));
   assert.equal(moved.controllerRequest.priorAttempt?.dispatchId, "work-cloud:old-source");
+  // A run of the job recorded after the owner's retry ends it: the retry is never started (the store refuses its request too).
+  const ran = [...failed, authorization(6, first.dispatchId),
+    event(7, "alpha", "run:alpha", { type: "codex_execution_started", worker: "alpha", directive_id: "directive:alpha", directive_revision: 1 })];
+  assert.equal(discover(ran).length, 0);
+  assert.equal(workDirectiveHasRun(ran, { directive_id: "directive:alpha", directive_revision: 1 }), true);
+  assert.equal(workDirectiveHasRun(ran, { directive_id: "directive:alpha", directive_revision: 2 }), false);
   // A retry that failed again needs another authorization, naming it.
   const twice = [...failed, authorization(6, first.dispatchId), ...failedStart(7, retry.dispatchId, sha256(retry.workPrompt), BEFORE)];
   assert.equal(discover(twice).length, 0);

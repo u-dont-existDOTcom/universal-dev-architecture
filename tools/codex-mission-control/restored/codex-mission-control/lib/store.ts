@@ -17,7 +17,7 @@ import { supervisionHandoffCapsuleSha256 } from "./supervision-handoff";
 import { authorityStateVectorHash } from "./terminal-comparator";
 import { buildExecutionDirectiveFromGitHubDecision } from "./github-execution-directive";
 import { workDirectiveDeadline } from "./work-directive-expiry";
-import { retryAuthorizationProblem, WORK_CLOUD_RETRYABLE_STATUSES } from "./chatgpt-work-cloud-retry";
+import { retryAuthorizationProblem, WORK_CLOUD_RETRYABLE_STATUSES, workDirectiveHasRun } from "./chatgpt-work-cloud-retry";
 import {
   evaluateWorkExecutionPreflight,
   failureMayAuthorizeProfileEscalation,
@@ -1075,6 +1075,10 @@ export class EventStore {
             && event.data.failed_dispatch_id === earlier.dispatch_id)?.data;
           if (retry?.type !== "chatgpt_work_cloud_dispatch_retry_authorized" || retry.retry_dispatch_id !== data.dispatch_id) {
             throw new ContractInvariantError("A native Work job whose start failed starts again only as the owner's authorized retry of that start.");
+          }
+          // A run recorded after the owner's authorization ends the retry too (Codex review of 7f7deeee).
+          if (workDirectiveHasRun(events, data)) {
+            throw new ContractInvariantError("A native Work job with a run on record isn't started again by a retry.");
           }
         }
       }
