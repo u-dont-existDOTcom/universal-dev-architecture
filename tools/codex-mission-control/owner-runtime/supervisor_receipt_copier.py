@@ -31,6 +31,14 @@ WORK_HANDOFF_PREFIX = "MISSION_CONTROL_WORK_SUPERVISOR_HANDOFF_V1\n"
 PROVIDER_SESSION_SUMMARY = "MISSION_CONTROL_PROVIDER_SESSION_V1"
 IN_BAND_PRE_SEND_SUMMARY = "MISSION_CONTROL_IN_BAND_REQUEST_BINDING_PRE_SEND_V1"
 IN_BAND_PROVENANCE = "IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED"
+# One scan of the app's ChatGPT threads per cycle at most this often; after a scan that couldn't see or read every
+# thread (a rate-limited ChatGPT listing, a failed read), the wait doubles up to SCAN_MAX_BACKOFF_SECONDS. After a
+# complete scan, each waiting decision request's floor moves to the scan's start less SCAN_FLOOR_SKEW_SECONDS, so later
+# scans read only threads updated since: on 22 Oct two copiers re-read every thread updated since an unanswered
+# request's send time each cycle, about 4,000 reads an hour, and ChatGPT refused the account with "Too many requests".
+SCAN_MIN_INTERVAL_SECONDS = 60
+SCAN_MAX_BACKOFF_SECONDS = 15 * 60
+SCAN_FLOOR_SKEW_SECONDS = 5 * 60
 
 
 class CopierError(RuntimeError):
@@ -737,7 +745,9 @@ def read_thread(config: Config, thread_id: str) -> dict[str, Any]:
     return value
 
 
-def list_chatgpt_final_messages(config: Config, updated_after: str) -> list[dict[str, Any]]:
+def scan_chatgpt_final_messages(config: Config, updated_after: str) -> tuple[list[dict[str, Any]], bool]:
+    """The app's ChatGPT threads updated after `updated_after` with their final messages, and whether the scan was
+    complete (every listed thread seen and read; an older lister that doesn't say counts as incomplete)."""
     command = (
         f"cd {shlex.quote(config.remote_app_root)} && set -a; . {shlex.quote(config.remote_env_file)}; set +a; "
         f"node_modules/.bin/tsx scripts/list-chatgpt-thread-final-messages.ts --updated-after {shlex.quote(updated_after)}"
@@ -746,7 +756,61 @@ def list_chatgpt_final_messages(config: Config, updated_after: str) -> list[dict
     threads = value.get("threads") if isinstance(value, dict) else None
     if not isinstance(threads, list):
         raise CopierError("provider thread listing returned invalid JSON")
-    return [item for item in threads if isinstance(item, dict)]
+    return [item for item in threads if isinstance(item, dict)], value.get("complete") is True
+
+
+def list_chatgpt_final_messages(config: Config, updated_after: str) -> list[dict[str, Any]]:
+    return scan_chatgpt_final_messages(config, updated_after)[0]
+
+
+def _iso(moment: dt.datetime) -> str:
+    return moment.astimezone(dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def decision_scan(
+    config: Config, state: dict[str, Any], candidates: list[DecisionCandidate], now: dt.datetime,
+) -> list[dict[str, Any]] | None:
+    """One throttled scan for every waiting decision request (None when it isn't time yet). It reads threads updated
+    after the earliest waiting request's floor: its send time, or after a complete scan that scan's start less the skew.
+    A complete scan moves every waiting request's floor; an incomplete or failed one doubles the wait instead."""
+    scan = state.setdefault("decisionScan", {})
+    keys = [f"decision:{c.request_id}:{c.provider_session_id}" for c in candidates]
+    # Floors of requests no longer waiting (published, or gone from the feed) are dropped.
+    floors = {key: value for key, value in state.get("decisionScanFloors", {}).items() if key in keys}
+    state["decisionScanFloors"] = floors
+    if not candidates:
+        save_state(config, state)
+        return None
+    next_at = scan.get("nextAt")
+    if isinstance(next_at, str) and parse_iso(next_at) > now:
+        return None
+    candidate_floors = []
+    for key, candidate in zip(keys, candidates):
+        floor = parse_iso(candidate.pre_send_at)
+        recorded = floors.get(key)
+        if isinstance(recorded, str) and parse_iso(recorded) > floor:
+            floor = parse_iso(recorded)
+        candidate_floors.append(floor)
+    backoff = scan.get("backoffSeconds")
+    backoff = backoff if isinstance(backoff, (int, float)) and not isinstance(backoff, bool) and backoff > 0 else 0
+    try:
+        threads, complete = scan_chatgpt_final_messages(config, _iso(min(candidate_floors)))
+    except Exception:
+        complete, threads = False, None
+    if complete:
+        moved = now - dt.timedelta(seconds=SCAN_FLOOR_SKEW_SECONDS)
+        for key, floor in zip(keys, candidate_floors):
+            floors[key] = _iso(max(floor, moved))
+        scan["backoffSeconds"] = 0
+        scan["nextAt"] = _iso(now + dt.timedelta(seconds=SCAN_MIN_INTERVAL_SECONDS))
+    else:
+        backoff = min(SCAN_MAX_BACKOFF_SECONDS, max(SCAN_MIN_INTERVAL_SECONDS, backoff * 2))
+        scan["backoffSeconds"] = backoff
+        scan["nextAt"] = _iso(now + dt.timedelta(seconds=backoff))
+    save_state(config, state)
+    if threads is None:
+        raise CopierError("provider thread scan failed; the next scan waits")
+    return threads
 
 
 def _updated_at_iso(value: Any) -> str:
@@ -932,11 +996,13 @@ def process_once(config: Config) -> dict[str, Any]:
     published = state["published"]
     copied: list[dict[str, Any]] = []
 
-    for candidate in discover_decision_candidates(events, min_sequence=config.min_sequence):
+    waiting = [candidate for candidate in discover_decision_candidates(events, min_sequence=config.min_sequence)
+               if f"decision:{candidate.request_id}:{candidate.provider_session_id}" not in published]
+    # One throttled scan serves every waiting request (it returns None when the next scan isn't due yet).
+    scanned = decision_scan(config, state, waiting, dt.datetime.now(dt.timezone.utc)) if waiting else None
+    for candidate in waiting if scanned is not None else []:
         key = f"decision:{candidate.request_id}:{candidate.provider_session_id}"
-        if key in published:
-            continue
-        resolved = resolve_decision_machine_block(config, candidate)
+        resolved = select_decision_machine_block(scanned, candidate)
         if not resolved:
             continue
         validate_decision_block(resolved.publish_block, resolved.payload, candidate)

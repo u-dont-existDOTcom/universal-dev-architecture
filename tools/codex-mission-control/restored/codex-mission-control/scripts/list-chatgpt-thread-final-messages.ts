@@ -56,6 +56,12 @@ async function main() {
   try {
     const listed = parseToolJson(await app.callTool({ name: "list_threads", arguments: { limit: 50 } }));
     const threads = Array.isArray(listed.threads) ? listed.threads : [];
+    // Whether this scan saw every ChatGPT thread it lists (the copier advances its scan floor only then): a thread list,
+    // no thread source reported unavailable (a rate-limited ChatGPT listing shows only other surfaces), and every read
+    // in range succeeded.
+    const unavailable = listed.unavailableSources ?? listed.unavailable_sources;
+    const sourcesUnavailable = Array.isArray(unavailable) ? unavailable.length > 0 : unavailable !== undefined && unavailable !== null;
+    let unreadable = 0;
     const output: Array<{ threadId: string; status: string | null; updatedAt: number; observedAt: string; finalAgentMessage: string | null }> = [];
     for (const summary of threads) {
       if (!summary || typeof summary !== "object" || Array.isArray(summary)) continue;
@@ -74,9 +80,10 @@ async function main() {
           && (thread as { status?: unknown }).status && typeof (thread as { status: { type?: unknown } }).status.type === "string"
           ? String((thread as { status: { type: string } }).status.type) : null;
         output.push({ threadId, status, updatedAt, observedAt: new Date().toISOString(), finalAgentMessage: finalAgentMessage(root) });
-      } catch { /* unreadable candidates cannot satisfy exact binding */ }
+      } catch { unreadable += 1; /* unreadable candidates cannot satisfy exact binding */ }
     }
-    process.stdout.write(`${JSON.stringify({ threads: output })}\n`);
+    const complete = Array.isArray(listed.threads) && !sourcesUnavailable && unreadable === 0;
+    process.stdout.write(`${JSON.stringify({ threads: output, complete, sourcesUnavailable, unreadable })}\n`);
   } finally { await app.close(); }
 }
 main().catch((error: unknown) => { process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`); process.exitCode = 1; });
