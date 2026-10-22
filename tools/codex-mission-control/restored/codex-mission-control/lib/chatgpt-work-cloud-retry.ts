@@ -247,6 +247,34 @@ export function currentWorkCloudDispatch(
   return { dispatchId, prior };
 }
 
+/** The failed start a retry follows, as the ledger records it. */
+export interface WorkCloudRetryPrior {
+  dispatchId: string;
+  requestedAt: string;
+  /** When Mission Control recorded the failed start's latest result (the store's time), or null if none is on record. */
+  resultRecordedAt: string | null;
+  promptSha256: string;
+}
+
+/**
+ * The failed start a dispatch retries, from the ledger alone (Codex review of 10885e69): the owner's authorization naming
+ * the dispatch as its retry, the failed start's own request and its latest result. Null when no authorization names the
+ * dispatch (it isn't a retry); "UNKNOWN" when one does but the failed start's request isn't on record. The controller
+ * takes the retry's search from this, never from its request file, which only carries the prompt text.
+ */
+export function workCloudRetryPrior(events: readonly StoredEvent[], worker: string, dispatchId: string): WorkCloudRetryPrior | null | "UNKNOWN" {
+  const authorization = events.find((event) => event.data.type === "chatgpt_work_cloud_dispatch_retry_authorized"
+    && event.data.worker === worker && event.data.retry_dispatch_id === dispatchId)?.data;
+  if (authorization?.type !== "chatgpt_work_cloud_dispatch_retry_authorized") return null;
+  const failedId = authorization.failed_dispatch_id;
+  const request = events.find((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested"
+    && event.data.worker === worker && event.data.dispatch_id === failedId)?.data;
+  if (request?.type !== "chatgpt_work_cloud_dispatch_requested") return "UNKNOWN";
+  const result = events.findLast((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded"
+    && event.data.worker === worker && event.data.dispatch_id === failedId);
+  return { dispatchId: failedId, requestedAt: request.requested_at, resultRecordedAt: result?.receivedAt ?? null, promptSha256: request.prompt_sha256 };
+}
+
 export interface WorkCloudRetryResult {
   status: "WORK_START_RETRY_AUTHORIZED" | "WORK_START_RETRY_ALREADY_AUTHORIZED";
   worker: string;

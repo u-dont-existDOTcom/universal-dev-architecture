@@ -201,10 +201,13 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
    * b72e68bd). NONE only when the listing has a thread list that reaches back before that (at least one ChatGPT or
    * unknown-kind thread last updated earlier) and every such thread was read with a first message that isn't the
    * prompt. A listing that reports any source unavailable, has no thread list or doesn't reach back, an unreadable or
-   * temporary thread, a rate limit, or more candidates than PRIOR_SEARCH_MAX_READS is INCOMPLETE. The prompt carries the failed start's own dispatch id,
-   * so no project or title narrows the search, and nothing is written.
+   * temporary thread, a rate limit, or more candidates than PRIOR_SEARCH_MAX_READS is INCOMPLETE. A first message
+   * matches when it is the prompt (or the provider's 2,000-character readback of it), or when it holds `marker`, the
+   * failed start's own dispatch id, which its prompt carries and no other prompt does: a surface that reflows or trims
+   * the message still matches. No project or title narrows the search, and nothing is written.
    */
-  async searchForPrompt(input: { prompt: string; requestedAt: string }): Promise<"MATCH" | "NONE" | "INCOMPLETE"> {
+  async searchForPrompt(input: { prompt: string; requestedAt: string; marker?: string }): Promise<"MATCH" | "NONE" | "INCOMPLETE"> {
+    const marker = input.marker !== undefined && input.marker.length >= 16 && input.prompt.includes(input.marker) ? input.marker : null;
     const since = Date.parse(input.requestedAt) - PRIOR_SEARCH_CLOCK_SKEW_MS;
     if (!Number.isFinite(since)) return "INCOMPLETE";
     let listed: unknown;
@@ -233,7 +236,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
       if (directThreadId(read) !== candidate.threadId) return "INCOMPLETE";
       const observed = initialUserPrompt(read);
       if (observed === null) return "INCOMPLETE";
-      if (promptReadbackMatches(input.prompt, observed)) return "MATCH";
+      if (promptReadbackMatches(input.prompt, observed) || (marker !== null && observed.includes(marker))) return "MATCH";
     }
     return "NONE";
   }

@@ -23,7 +23,8 @@ import {
   type WorkCloudDispatchMode,
 } from "../lib/chatgpt-work-cloud-dispatch";
 import { parseWorkCloudAutodispatchWorkers } from "../lib/chatgpt-work-cloud-autodispatch";
-import { WORK_CLOUD_RETRY_SETTLE_MS } from "../lib/chatgpt-work-cloud-retry";
+import { WORK_CLOUD_RETRY_SETTLE_MS, workCloudRetryPrior } from "../lib/chatgpt-work-cloud-retry";
+import type { StoredEvent } from "../lib/schema";
 
 const PRODUCER_ID = "system:chatgpt-work-cloud-dispatch";
 
@@ -50,6 +51,14 @@ interface ControllerRequest {
     promptSha256: string;
     prompt: string | null;
   } | null;
+}
+
+/** Mission Control's ledger, as the watcher reads it (scripts/run-chatgpt-work-cloud-autodispatcher.ts). */
+async function ledgerEvents(baseUrl: string): Promise<StoredEvent[]> {
+  const response = await fetch(`${baseUrl}/events`, { signal: AbortSignal.timeout(15_000) });
+  const body = await response.json() as { events?: StoredEvent[] };
+  if (!response.ok || !Array.isArray(body.events)) throw new Error("Mission Control's ledger couldn't be read.");
+  return body.events;
 }
 
 async function main(): Promise<void> {
@@ -120,22 +129,32 @@ const sink = new HttpWorkCloudEventSink({
 try {
   // Before a retry of a failed start is recorded and makes its Work call: the failed start must have settled
   // (WORK_CLOUD_RETRY_SETTLE_MS after Mission Control recorded its result), and a read-only search of the app for a
-  // thread whose first message is its exact prompt must have read every thread made since it and found none. Otherwise
-  // the retry is held: nothing is recorded or sent, and the watcher tries again later. A retry already recorded (its
-  // search passed then) is never searched again.
-  const prior = request.priorAttempt;
-  if (prior && !(await sink.getWorkCloudDispatch(request.binding.worker, request.dispatchId).catch(() => null))?.request) {
-    const settledAt = prior.resultRecordedAt ? Date.parse(prior.resultRecordedAt) + WORK_CLOUD_RETRY_SETTLE_MS : Number.NaN;
-    const promptKnown = prior.prompt !== null && createHash("sha256").update(prior.prompt).digest("hex") === prior.promptSha256;
-    const reason = !Number.isFinite(settledAt) || Date.now() < settledAt ? "PRIOR_ATTEMPT_NOT_SETTLED"
-      : !promptKnown || prior.prompt === null ? "PRIOR_ATTEMPT_PROMPT_UNKNOWN"
-      : !executor ? "PRIOR_ATTEMPT_SEARCH_INCOMPLETE"
-      : await executor.searchForPrompt({ prompt: prior.prompt, requestedAt: prior.requestedAt })
-        .then((search) => search === "NONE" ? null : search === "MATCH" ? "PRIOR_ATTEMPT_WORK_THREAD_FOUND" : "PRIOR_ATTEMPT_SEARCH_INCOMPLETE")
-        .catch(() => "PRIOR_ATTEMPT_SEARCH_INCOMPLETE");
-    if (reason) {
-      process.stdout.write(`${JSON.stringify({ status: "RETRY_HELD", reason, setupError }, null, 2)}\n`);
-      return;
+  // thread whose first message is its exact prompt must have read every thread made since it and found none. Whether
+  // the dispatch is a retry, of which start, and that start's times and prompt digest come from the ledger, never from
+  // the request file, which only carries the prompt text (Codex review of 10885e69). Otherwise the retry is held:
+  // nothing is recorded or sent, and the watcher tries again later. A dispatch whose request is already recorded (a
+  // retry's search passed then) is never searched again.
+  if (!(await sink.getWorkCloudDispatch(request.binding.worker, request.dispatchId).catch(() => null))?.request) {
+    const events = await ledgerEvents(baseUrl).catch(() => null);
+    const prior = events === null ? "UNKNOWN" as const : workCloudRetryPrior(events, request.binding.worker, request.dispatchId);
+    const filed = request.priorAttempt ?? null;
+    if (prior !== null || filed !== null) {
+      const priorPrompt = prior !== null && prior !== "UNKNOWN" && filed !== null && filed.dispatchId === prior.dispatchId && filed.prompt !== null
+        && createHash("sha256").update(filed.prompt).digest("hex") === prior.promptSha256 ? filed.prompt : null;
+      const settledAt = prior !== null && prior !== "UNKNOWN" && prior.resultRecordedAt
+        ? Date.parse(prior.resultRecordedAt) + WORK_CLOUD_RETRY_SETTLE_MS : Number.NaN;
+      const reason = prior === "UNKNOWN" ? "PRIOR_ATTEMPT_LEDGER_UNREADABLE"
+        : prior === null ? "PRIOR_ATTEMPT_NOT_IN_LEDGER"
+        : !Number.isFinite(settledAt) || Date.now() < settledAt ? "PRIOR_ATTEMPT_NOT_SETTLED"
+        : priorPrompt === null ? "PRIOR_ATTEMPT_PROMPT_UNKNOWN"
+        : !executor ? "PRIOR_ATTEMPT_SEARCH_INCOMPLETE"
+        : await executor.searchForPrompt({ prompt: priorPrompt, requestedAt: prior.requestedAt, marker: prior.dispatchId })
+          .then((search) => search === "NONE" ? null : search === "MATCH" ? "PRIOR_ATTEMPT_WORK_THREAD_FOUND" : "PRIOR_ATTEMPT_SEARCH_INCOMPLETE")
+          .catch(() => "PRIOR_ATTEMPT_SEARCH_INCOMPLETE");
+      if (reason) {
+        process.stdout.write(`${JSON.stringify({ status: "RETRY_HELD", reason, setupError }, null, 2)}\n`);
+        return;
+      }
     }
   }
   const completed = await dispatchAndRecordChatGptWorkCloud({

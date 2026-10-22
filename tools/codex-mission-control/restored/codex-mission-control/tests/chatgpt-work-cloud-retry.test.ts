@@ -22,6 +22,7 @@ import {
   workCloudRetryAuthorizationId,
   workCloudRetryDispatchId,
   workCloudRetryEnvelope,
+  workCloudRetryPrior,
   workDirectiveHasRun,
 } from "../lib/chatgpt-work-cloud-retry";
 import { executionDirectiveArtifactCanonicalJson } from "../lib/github-execution-directive";
@@ -326,6 +327,13 @@ test("the dispatcher follows the owner's retry to a new dispatch and hands the c
   const moved = discover([...base, ...failedStart(3, "work-cloud:old-source", "e".repeat(64)), authorization(6, "work-cloud:old-source")])[0]!;
   assert.equal(moved.dispatchId, workCloudRetryDispatchId("work-cloud:old-source"));
   assert.equal(moved.controllerRequest.priorAttempt?.dispatchId, "work-cloud:old-source");
+  // The controller takes the failed start from the ledger, never from its request file: the owner's authorization naming
+  // the dispatch, the failed start's request and its latest result.
+  assert.deepEqual(workCloudRetryPrior([...failed, authorization(6, first.dispatchId)], "alpha", retry.dispatchId),
+    { dispatchId: first.dispatchId, requestedAt: FAILED_AT, resultRecordedAt: BEFORE, promptSha256: sha256(first.workPrompt) });
+  assert.equal(workCloudRetryPrior([...failed, authorization(6, first.dispatchId)], "alpha", first.dispatchId), null, "not a retry");
+  assert.equal(workCloudRetryPrior([...failed, authorization(6, first.dispatchId)], "beta", retry.dispatchId), null, "another worker");
+  assert.equal(workCloudRetryPrior([...base, authorization(6, first.dispatchId)], "alpha", retry.dispatchId), "UNKNOWN");
   // A run of the job recorded after the owner's retry ends it: the retry is never started (the store refuses its request too).
   const ran = [...failed, authorization(6, first.dispatchId),
     event(7, "alpha", "run:alpha", { type: "codex_execution_started", worker: "alpha", directive_id: "directive:alpha", directive_revision: 1 })];
@@ -425,6 +433,16 @@ test("the search for a failed start's thread is read-only and says NONE only aft
   const long = `${PROMPT}\n${"x".repeat(3_000)}`;
   const client = new Reads((name) => name === "list_threads" ? value({ threads: [fresh, old] }) : thread("fresh", long.slice(0, 2_000)));
   assert.equal(await new NativeChatGptWorkCloudExecutor(client, null).searchForPrompt({ prompt: long, requestedAt: SINCE }), "MATCH");
+  // A surface that reflows or trims the first message still matches by the failed start's dispatch id, which only its
+  // prompt carries; without that id the search can only compare the text.
+  const marked = `MISSION_CONTROL_NATIVE_WORK_EXECUTION_V2\n{"dispatchId":"work-cloud:0123456789abcdef0123"}\nthe failed start's exact prompt`;
+  const reflowed = new Reads((name) => name === "list_threads" ? value({ threads: [fresh, old] }) : thread("fresh", marked.replace(/\n/g, " ").trim()));
+  const searcher = new NativeChatGptWorkCloudExecutor(reflowed, null);
+  assert.equal(await searcher.searchForPrompt({ prompt: marked, requestedAt: SINCE, marker: "work-cloud:0123456789abcdef0123" }), "MATCH");
+  assert.equal(await searcher.searchForPrompt({ prompt: marked, requestedAt: SINCE }), "NONE");
+  // A marker the prompt doesn't carry, or a short one, is ignored.
+  assert.equal(await searcher.searchForPrompt({ prompt: PROMPT, requestedAt: SINCE, marker: "work-cloud:0123456789abcdef0123" }), "NONE");
+  assert.equal(await searcher.searchForPrompt({ prompt: marked, requestedAt: SINCE, marker: "work-cloud" }), "NONE");
   // No project narrows the search, and the app's clock may run up to 10 minutes behind: both threads are read.
   const skewed = { kind: "chatgpt", id: "skewed", createdAt: at("2026-10-22T01:20:00Z"), updatedAt: at("2026-10-22T01:20:00Z") };
   const wide = search([{ ...fresh, projectId: "project-2" }, skewed, old], { fresh: thread("fresh", "x"), skewed: thread("skewed", PROMPT) });

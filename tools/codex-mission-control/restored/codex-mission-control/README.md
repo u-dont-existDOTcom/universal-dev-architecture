@@ -284,9 +284,10 @@ what it may use, what it must never do, and when it is done.
   by the store's own time (a create call that lost its answer may still complete late, and a new thread may show in
   the listing late). The retry is a new dispatch of the same job; its id
   comes from the failed one's alone (`lib/chatgpt-work-cloud-retry.ts`). Before the retry's request is recorded and its
-  Work call made, the controller checks the 30 minutes again and searches the app, read-only, for a thread on any
-  surface whose first message is the failed start's exact prompt (it carries that start's own dispatch id, so no
-  project or title narrows the search): it lists one page of threads and reads every thread made since that start,
+  Work call made, the controller reads from the ledger whether the dispatch is a retry and of which start (never from
+  its request file), checks the 30 minutes again and searches the app, read-only, for a thread on any surface whose
+  first message is the failed start's exact prompt or holds that start's own dispatch id (so no project or title
+  narrows the search): it lists one page of threads and reads every thread made since that start,
   allowing 10 minutes for the app's clock (25 at most). Only when the listing has a thread list that reaches back
   before the failed start (a ChatGPT thread updated earlier), no source is reported unavailable, and every such thread
   was read with no match does the retry go ahead; otherwise (a match, a listing without a
