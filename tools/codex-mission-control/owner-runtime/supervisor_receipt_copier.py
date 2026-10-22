@@ -33,12 +33,13 @@ IN_BAND_PRE_SEND_SUMMARY = "MISSION_CONTROL_IN_BAND_REQUEST_BINDING_PRE_SEND_V1"
 IN_BAND_PROVENANCE = "IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED"
 # One scan of the app's ChatGPT threads per cycle at most this often; after a scan that couldn't see or read every
 # thread (a rate-limited ChatGPT listing, a failed read), the wait doubles up to SCAN_MAX_BACKOFF_SECONDS. After a
-# complete scan, each waiting decision request's floor moves to the scan's start less SCAN_FLOOR_SKEW_SECONDS, so later
+# complete scan, each waiting decision request's floor moves to the scan's start less SCAN_FLOOR_SKEW_SECONDS (the ten
+# minutes of provider clock skew Mission Control allows elsewhere), so later
 # scans read only threads updated since: on 22 Oct two copiers re-read every thread updated since an unanswered
 # request's send time each cycle, about 4,000 reads an hour, and ChatGPT refused the account with "Too many requests".
 SCAN_MIN_INTERVAL_SECONDS = 60
 SCAN_MAX_BACKOFF_SECONDS = 15 * 60
-SCAN_FLOOR_SKEW_SECONDS = 5 * 60
+SCAN_FLOOR_SKEW_SECONDS = 10 * 60
 
 
 class CopierError(RuntimeError):

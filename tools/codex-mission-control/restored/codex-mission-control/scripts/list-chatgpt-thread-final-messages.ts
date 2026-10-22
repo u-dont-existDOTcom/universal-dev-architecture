@@ -67,7 +67,8 @@ async function main() {
     let unreadable = 0;
     const output: Array<{ threadId: string; status: string | null; updatedAt: number; observedAt: string; finalAgentMessage: string | null }> = [];
     for (const summary of threads) {
-      if (!summary || typeof summary !== "object" || Array.isArray(summary)) continue;
+      // An entry that isn't a thread summary may be an in-range thread in another shape: the scan isn't complete.
+      if (!summary || typeof summary !== "object" || Array.isArray(summary)) { unreadable += 1; continue; }
       const record = summary as Record<string, unknown>;
       // A thread listed without a kind may be a ChatGPT thread: it is read too (Codex review of dc538ad3).
       if (record.kind !== undefined && record.kind !== "chatgpt") continue;

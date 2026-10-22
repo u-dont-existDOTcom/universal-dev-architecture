@@ -572,22 +572,22 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
                 # Not due yet: no scan at all.
                 self.assertIsNone(copier.decision_scan(config, state, [candidate], NOW + dt.timedelta(seconds=30)))
                 self.assertEqual(len(asked), 1)
-                # A complete scan offers the floor at its start less five minutes; it moves only for a request the scan
+                # A complete scan offers the floor at its start less ten minutes; it moves only for a request the scan
                 # held no receipt for.
-                later = NOW + dt.timedelta(seconds=61)
+                later = NOW + dt.timedelta(minutes=15)
                 threads, advance = copier.decision_scan(config, state, [candidate], later)
                 self.assertEqual(asked[-1], "2026-09-21T13:56:00.000Z")
-                self.assertEqual(advance, {key: "2026-09-21T13:56:01.000Z"})
+                self.assertEqual(advance, {key: "2026-09-21T14:05:00.000Z"})
                 self.assertNotIn(key, state["decisionScanFloors"])
                 copier.advance_decision_floors(config, state, advance, set())
                 self.assertNotIn(key, copier.load_state(config)["decisionScanFloors"])
                 copier.advance_decision_floors(config, state, advance, {key})
                 self.assertEqual(state["decisionScan"]["backoffSeconds"], 0)
                 # The next scan reads only threads updated since that floor, and the state survives a restart.
-                self.assertEqual(copier.load_state(config)["decisionScanFloors"][key], "2026-09-21T13:56:01.000Z")
+                self.assertEqual(copier.load_state(config)["decisionScanFloors"][key], "2026-09-21T14:05:00.000Z")
                 _, advance = copier.decision_scan(config, state, [candidate], later + dt.timedelta(seconds=60))
-                self.assertEqual(asked[-1], "2026-09-21T13:56:01.000Z")
-                self.assertEqual(advance[key], "2026-09-21T13:57:01.000Z")
+                self.assertEqual(asked[-1], "2026-09-21T14:05:00.000Z")
+                self.assertEqual(advance[key], "2026-09-21T14:06:00.000Z")
             # A failed scan raises, and the wait doubles each time up to fifteen minutes.
             with patch.object(copier, "scan_chatgpt_final_messages", side_effect=copier.CopierError("ssh failed")):
                 moment = later + dt.timedelta(seconds=120)
