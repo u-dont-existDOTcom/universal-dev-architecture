@@ -49,11 +49,20 @@ export interface PreparedDirectWorkCloudDispatch {
     /** The directive's bounded-execution deadline; the controller checks it again right before the Work call. */
     deadline: string;
     /**
-     * For a new retry the owner authorized (lib/chatgpt-work-cloud-retry.ts): the failed start it follows, whose exact
-     * prompt the controller searches the app for before its Work call. The prompt is null when it can't be rebuilt to
-     * the failed start's recorded digest; the controller then holds the retry. Null for every other dispatch.
+     * For a retry the owner authorized (lib/chatgpt-work-cloud-retry.ts): the failed start it follows, whose exact prompt
+     * the controller searches the app for before the retry's request is recorded: when it was requested, when Mission
+     * Control recorded its result, and its prompt's recorded digest. The prompt is rebuilt here when it matches that
+     * digest, else null (the watcher then reads it from the failed start's private request file, and the controller
+     * holds the retry without it). The same for every state of the retry, so its private request file never changes
+     * once recorded. Null for every other dispatch.
      */
-    priorAttempt: { dispatchId: string; requestedAt: string; prompt: string | null } | null;
+    priorAttempt: {
+      dispatchId: string;
+      requestedAt: string;
+      resultRecordedAt: string | null;
+      promptSha256: string;
+      prompt: string | null;
+    } | null;
   };
   recoveryState: "NEW" | "REQUEST_ONLY_PROVEN_UNSENT" | "PENDING_SETUP_READ_ONLY";
   order: number;
@@ -242,11 +251,13 @@ export function discoverDirectWorkCloudDispatches(input: {
         prompt: workPrompt,
         requestedAt: request?.type === "chatgpt_work_cloud_dispatch_requested" ? request.requested_at : input.requestedAt,
         deadline: bounded.deadline,
-        priorAttempt: recoveryState === "NEW" && prior ? (() => {
+        priorAttempt: prior ? (() => {
           const priorPrompt = promptFor(prior.dispatchId);
           return {
             dispatchId: prior.dispatchId,
             requestedAt: prior.request.requested_at,
+            resultRecordedAt: prior.resultReceivedAt,
+            promptSha256: prior.request.prompt_sha256,
             prompt: sha256(priorPrompt) === prior.request.prompt_sha256 ? priorPrompt : null,
           };
         })() : null,

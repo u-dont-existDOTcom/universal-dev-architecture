@@ -288,6 +288,7 @@ function eventSummary(event: StoredEvent): string {
     case "chatgpt_work_cloud_dispatch_recorded": return `${data.status}: ${data.work_thread_id ?? data.client_thread_id ?? data.error_code ?? "awaiting native Work"}`;
     case "chatgpt_work_cloud_handoff_intent_recorded": return `${data.app_tool}: app-boundary intent recorded for ${data.dispatch_id}`;
     case "chatgpt_work_cloud_execution_receipt_recorded": return `${data.status}: ${data.terminal_state} · ${data.check_summary.passed} passed / ${data.check_summary.failed} failed`;
+    case "chatgpt_work_cloud_dispatch_retry_authorized": return `Owner retry of ${data.failed_dispatch_id} (${data.failed_status}${data.failed_error_code ? ` ${data.failed_error_code}` : ""}) as ${data.retry_dispatch_id}`;
     case "work_supervisor_handoff_recorded": return `Reasoning handoff ${data.handoff_id}: ${data.question}`;
     case "owner_decision_request_recorded": return data.owner_action.kind === "DECISION_REQUIRED"
       ? `Owner decision ${data.owner_action.decision_id}: ${data.owner_action.decision_question}`

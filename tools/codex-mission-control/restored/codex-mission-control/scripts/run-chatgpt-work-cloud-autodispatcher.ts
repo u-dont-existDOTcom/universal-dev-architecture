@@ -85,8 +85,23 @@ async function materialize(candidate: PreparedDirectWorkCloudDispatch): Promise<
   const artifactPath = candidate.controllerRequest.directiveArtifactPath;
   await writeExactPrivate(artifactPath, candidate.directiveArtifactText);
   const requestPath = path.join(privateRoot, `${sha256(candidate.dispatchId)}.request.json`);
-  await writeExactPrivate(requestPath, `${JSON.stringify(candidate.controllerRequest, null, 2)}\n`);
+  const controllerRequest = { ...candidate.controllerRequest, priorAttempt: withPriorPrompt(candidate.controllerRequest.priorAttempt) };
+  // Until its request is recorded (NEW), a dispatch's private request may be written again: a retry the controller held
+  // comes back with a new request time. Once recorded, it never changes.
+  await writeExactPrivate(requestPath, `${JSON.stringify(controllerRequest, null, 2)}\n`, candidate.recoveryState === "NEW");
   return requestPath;
+}
+
+// A retry's failed start whose prompt couldn't be rebuilt to its recorded digest: its own private request file holds the
+// exact prompt it was sent with; it is used only when it matches that digest (lib/chatgpt-work-cloud-retry.ts).
+type PriorAttempt = PreparedDirectWorkCloudDispatch["controllerRequest"]["priorAttempt"];
+function withPriorPrompt(prior: PriorAttempt): PriorAttempt {
+  if (!prior || prior.prompt !== null) return prior;
+  try {
+    const recorded = JSON.parse(fs.readFileSync(path.join(privateRoot, `${sha256(prior.dispatchId)}.request.json`), "utf8")) as { prompt?: unknown };
+    if (typeof recorded.prompt === "string" && sha256(recorded.prompt) === prior.promptSha256) return { ...prior, prompt: recorded.prompt };
+  } catch { /* absent or unreadable: the controller holds the retry */ }
+  return prior;
 }
 
 async function runController(requestPath: string): Promise<Record<string, unknown>> {
@@ -111,12 +126,17 @@ async function runController(requestPath: string): Promise<Record<string, unknow
   });
 }
 
-async function writeExactPrivate(target: string, bytes: string): Promise<void> {
+async function writeExactPrivate(target: string, bytes: string, replaceable = false): Promise<void> {
   const resolved = path.resolve(target);
   if (!resolved.startsWith(`${privateRoot}${path.sep}`)) throw new Error("Autodispatch artifacts must remain inside the private runtime directory.");
   if (fs.existsSync(resolved)) {
     const current = fs.readFileSync(resolved, "utf8");
-    if (current !== bytes) throw new Error(`Autodispatch private artifact changed under stable identity: ${path.basename(resolved)}`);
+    if (current === bytes) return;
+    if (!replaceable) throw new Error(`Autodispatch private artifact changed under stable identity: ${path.basename(resolved)}`);
+    const replacement = `${resolved}.${process.pid}.tmp`;
+    fs.writeFileSync(replacement, bytes, { mode: 0o600, flag: "w" });
+    fs.renameSync(replacement, resolved);
+    await chmod(resolved, 0o600);
     return;
   }
   const temp = `${resolved}.${process.pid}.tmp`;

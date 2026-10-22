@@ -23,6 +23,7 @@ import {
   type WorkCloudDispatchMode,
 } from "../lib/chatgpt-work-cloud-dispatch";
 import { parseWorkCloudAutodispatchWorkers } from "../lib/chatgpt-work-cloud-autodispatch";
+import { WORK_CLOUD_RETRY_SETTLE_MS } from "../lib/chatgpt-work-cloud-retry";
 
 const PRODUCER_ID = "system:chatgpt-work-cloud-dispatch";
 
@@ -41,8 +42,14 @@ interface ControllerRequest {
   requestedAt?: string;
   /** The directive's bounded-execution deadline (from the watcher): no Work call starts at or after it. */
   deadline?: string;
-  /** For a new retry the owner authorized after a failed start (lib/chatgpt-work-cloud-retry.ts): that start. */
-  priorAttempt?: { dispatchId: string; requestedAt: string; prompt: string | null } | null;
+  /** For a retry the owner authorized after a failed start (lib/chatgpt-work-cloud-retry.ts): that start. */
+  priorAttempt?: {
+    dispatchId: string;
+    requestedAt: string;
+    resultRecordedAt: string | null;
+    promptSha256: string;
+    prompt: string | null;
+  } | null;
 }
 
 async function main(): Promise<void> {
@@ -111,24 +118,23 @@ const sink = new HttpWorkCloudEventSink({
 });
 
 try {
-  // Before a retry of a failed start makes its Work call, a read-only search of the app for a Work thread whose first
-  // message is the failed start's exact prompt. Unless the search read every thread made since that start and found
-  // none, the retry is held: nothing is recorded or sent, and the watcher tries again later.
-  if (request.priorAttempt) {
-    const search = executor && request.priorAttempt.prompt !== null
-      ? await executor.searchForPrompt({
-        prompt: request.priorAttempt.prompt,
-        requestedAt: request.priorAttempt.requestedAt,
-        projectId: request.chatgptProjectId,
-      }).catch(() => "INCOMPLETE" as const)
-      : "INCOMPLETE" as const;
-    if (search !== "NONE") {
-      process.stdout.write(`${JSON.stringify({
-        status: "RETRY_HELD",
-        reason: search === "MATCH" ? "PRIOR_ATTEMPT_WORK_THREAD_FOUND"
-          : request.priorAttempt.prompt === null ? "PRIOR_ATTEMPT_PROMPT_UNKNOWN" : "PRIOR_ATTEMPT_SEARCH_INCOMPLETE",
-        setupError,
-      }, null, 2)}\n`);
+  // Before a retry of a failed start is recorded and makes its Work call: the failed start must have settled
+  // (WORK_CLOUD_RETRY_SETTLE_MS after Mission Control recorded its result), and a read-only search of the app for a
+  // thread whose first message is its exact prompt must have read every thread made since it and found none. Otherwise
+  // the retry is held: nothing is recorded or sent, and the watcher tries again later. A retry already recorded (its
+  // search passed then) is never searched again.
+  const prior = request.priorAttempt;
+  if (prior && !(await sink.getWorkCloudDispatch(request.binding.worker, request.dispatchId).catch(() => null))?.request) {
+    const settledAt = prior.resultRecordedAt ? Date.parse(prior.resultRecordedAt) + WORK_CLOUD_RETRY_SETTLE_MS : Number.NaN;
+    const promptKnown = prior.prompt !== null && createHash("sha256").update(prior.prompt).digest("hex") === prior.promptSha256;
+    const reason = !Number.isFinite(settledAt) || Date.now() < settledAt ? "PRIOR_ATTEMPT_NOT_SETTLED"
+      : !promptKnown || prior.prompt === null ? "PRIOR_ATTEMPT_PROMPT_UNKNOWN"
+      : !executor ? "PRIOR_ATTEMPT_SEARCH_INCOMPLETE"
+      : await executor.searchForPrompt({ prompt: prior.prompt, requestedAt: prior.requestedAt })
+        .then((search) => search === "NONE" ? null : search === "MATCH" ? "PRIOR_ATTEMPT_WORK_THREAD_FOUND" : "PRIOR_ATTEMPT_SEARCH_INCOMPLETE")
+        .catch(() => "PRIOR_ATTEMPT_SEARCH_INCOMPLETE");
+    if (reason) {
+      process.stdout.write(`${JSON.stringify({ status: "RETRY_HELD", reason, setupError }, null, 2)}\n`);
       return;
     }
   }

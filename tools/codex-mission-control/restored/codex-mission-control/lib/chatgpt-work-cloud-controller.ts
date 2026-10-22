@@ -195,14 +195,16 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
   /**
    * Read-only, before the owner's retry of a failed start (lib/chatgpt-work-cloud-retry.ts): whether a ChatGPT thread
    * whose first message is exactly `prompt` exists among the threads made at or after `requestedAt` (by their creation
-   * time, or their last update when the listing shows no creation time). NONE only when the one listing page reaches
-   * back before `requestedAt` and every such thread was read with a first message; a listing that doesn't reach back, an
-   * unreadable or temporary thread, a rate limit, or more candidates than PRIOR_SEARCH_MAX_READS is INCOMPLETE. Titles
-   * are never used, and nothing is written.
+   * time, or their last update when the listing shows no creation time), allowing PRIOR_SEARCH_CLOCK_SKEW_MS for the
+   * app's clock against Mission Control's. NONE only when the listing has a thread list that reaches back before that
+   * (at least one thread last updated earlier) and every such thread was read with a first message that isn't the
+   * prompt. A listing without a thread list or that doesn't reach back, an unreadable or temporary thread, a rate limit,
+   * or more candidates than PRIOR_SEARCH_MAX_READS is INCOMPLETE. The prompt carries the failed start's own dispatch id,
+   * so no project or title narrows the search, and nothing is written.
    */
-  async searchForPrompt(input: { prompt: string; requestedAt: string; projectId: string | null }): Promise<"MATCH" | "NONE" | "INCOMPLETE"> {
-    const requestedTime = Date.parse(input.requestedAt);
-    if (!Number.isFinite(requestedTime)) return "INCOMPLETE";
+  async searchForPrompt(input: { prompt: string; requestedAt: string }): Promise<"MATCH" | "NONE" | "INCOMPLETE"> {
+    const since = Date.parse(input.requestedAt) - PRIOR_SEARCH_CLOCK_SKEW_MS;
+    if (!Number.isFinite(since)) return "INCOMPLETE";
     let listed: unknown;
     try {
       listed = await this.read("list_threads", { limit: PRIOR_SEARCH_LIST_LIMIT });
@@ -211,12 +213,9 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     }
     if (chatGptSourceUnavailable(listed)) return "INCOMPLETE";
     const threads = listedThreads(listed);
-    const reachesBack = threads.length < PRIOR_SEARCH_LIST_LIMIT
-      || threads.some((thread) => thread.updatedMs !== null && thread.updatedMs < requestedTime);
-    if (!reachesBack) return "INCOMPLETE";
-    const candidates = threads.filter((thread) => thread.kind !== "other"
-      && (thread.madeMs === null || thread.madeMs >= requestedTime)
-      && (input.projectId === null || thread.projectId === null || thread.projectId === input.projectId));
+    if (!threads) return "INCOMPLETE";
+    if (!threads.some((thread) => thread.updatedMs !== null && thread.updatedMs < since)) return "INCOMPLETE";
+    const candidates = threads.filter((thread) => thread.kind !== "other" && (thread.madeMs === null || thread.madeMs >= since));
     if (candidates.length > PRIOR_SEARCH_MAX_READS) return "INCOMPLETE";
     for (const candidate of candidates) {
       if (!candidate.threadId || isTemporaryThreadId(candidate.threadId)) return "INCOMPLETE";
@@ -977,12 +976,16 @@ const PROVIDER_PROMPT_READBACK_LIMIT = 2_000;
 /** The one listing page and the reads a retry's search for its failed start's Work thread may use. */
 const PRIOR_SEARCH_LIST_LIMIT = 50;
 const PRIOR_SEARCH_MAX_READS = 25;
+/** How far the app's thread times may run behind Mission Control's clock before a thread counts as older. */
+const PRIOR_SEARCH_CLOCK_SKEW_MS = 10 * 60_000;
 
 /** Every thread of a listing, with its kind ("other" for a known non-ChatGPT surface), its creation (else update) time
- * and its update time, and its project when shown. */
+ * and its update time; null when the listing holds no thread list at all (an error text, or a changed shape). */
 function listedThreads(value: unknown): Array<{ threadId: string | null; kind: "chatgpt" | "other" | "unknown";
-  madeMs: number | null; updatedMs: number | null; projectId: string | null }> {
-  return objectsIn(value).flatMap((object) => Array.isArray(object.threads) ? object.threads : [])
+  madeMs: number | null; updatedMs: number | null }> | null {
+  const lists = objectsIn(value).filter((object) => Array.isArray(object.threads));
+  if (lists.length === 0) return null;
+  return lists.flatMap((object) => object.threads as unknown[])
     .filter((thread): thread is Record<string, unknown> => Boolean(thread && typeof thread === "object" && !Array.isArray(thread)))
     .map((thread) => {
       const kind = stringField(thread, "kind", "surface", "threadKind", "thread_kind")?.toLowerCase();
@@ -994,7 +997,6 @@ function listedThreads(value: unknown): Array<{ threadId: string | null; kind: "
           : ["chatgpt", "chatgptworkcloud", "chatgpt_work_cloud"].includes(kind) ? "chatgpt" as const : "other" as const,
         madeMs: createdMs ?? updatedMs,
         updatedMs,
-        projectId: stringField(thread, "projectId", "project_id"),
       };
     });
 }

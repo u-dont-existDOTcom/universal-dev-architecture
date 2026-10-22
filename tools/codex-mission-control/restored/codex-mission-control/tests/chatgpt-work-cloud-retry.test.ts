@@ -8,6 +8,7 @@ import { discoverDirectWorkCloudDispatches, selectWorkCloudDispatchCandidate } f
 import { NativeChatGptWorkCloudExecutor, type AppToolResult, type WorkCloudAppToolClient } from "../lib/chatgpt-work-cloud-controller";
 import {
   dispatchChatGptWorkCloud,
+  buildWorkCloudDispatchRecordedEnvelope,
   buildWorkCloudHandoffIntentEnvelope,
   type WorkCloudAppExecutor,
   type WorkCloudDispatchInput,
@@ -34,6 +35,9 @@ const taskId = "task:auth";
 const systemProducer: AuthenticatedProducer = { id: "system:chatgpt-work-cloud-dispatch", kind: "SYSTEM", workerScopes: ["auth"], taskScopes: [taskId] };
 const owner: AuthenticatedProducer = { id: "owner:primary", kind: "OWNER_AUTHORITY", workerScopes: ["*"], taskScopes: ["*"] };
 const PRODUCT_FAILURE = "WORK_CLOUD_PRODUCT_TOOL_EXECUTION_UNAVAILABLE";
+// The failed start must have settled 30 minutes before its retry is authorized (WORK_CLOUD_RETRY_SETTLE_MS).
+const LATER = "2026-09-19T04:00:00.000Z";
+const LATER2 = "2026-09-19T04:40:00.000Z";
 
 function profile() {
   return {
@@ -113,12 +117,12 @@ function currentDirectiveStore(): EventStore {
   return store;
 }
 
-/** One start as the dispatcher records it: its request, its app-boundary intent and its result. */
-async function recordStart(store: EventStore, overrides: Partial<WorkCloudDispatchInput>, outcome: WorkCloudExecutorOutcome) {
-  const dispatched = await dispatchChatGptWorkCloud(input(overrides), executor(outcome));
-  store.append(dispatched.request, now, systemProducer);
-  store.append(buildWorkCloudHandoffIntentEnvelope(input(overrides)), now, systemProducer);
-  store.append(dispatched.result, now, systemProducer);
+/** One start as the dispatcher records it, at `at`: its request, its app-boundary intent and its result. */
+async function recordStart(store: EventStore, overrides: Partial<WorkCloudDispatchInput>, outcome: WorkCloudExecutorOutcome, at = now) {
+  const dispatched = await dispatchChatGptWorkCloud(input({ requestedAt: at, ...overrides }), executor(outcome));
+  store.append(dispatched.request, at, systemProducer);
+  store.append(buildWorkCloudHandoffIntentEnvelope(input({ requestedAt: at, ...overrides })), at, systemProducer);
+  store.append(dispatched.result, at, systemProducer);
 }
 
 test("the owner retries a failed start once, as a new dispatch of the same job, and only the owner can", async () => {
@@ -129,15 +133,19 @@ test("the owner retries a failed start once, as a new dispatch of the same job, 
     // Not the owner: refused by the route's function and by the store on any route.
     const system = { ...systemProducer, workerScopes: ["*"], taskScopes: ["*"] };
     assert.throws(() => authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: system }), /Only the owner/);
-    const retryable = retryableWorkCloudDispatch(store.workerEvents("auth"), now);
+    // Not before the failed start has settled: a Work thread it made late could still appear (Codex review of e508a5f9).
+    assert.throws(() => authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: owner }, () => "2026-09-19T03:49:59.000Z"), /less than 30 minutes/);
+    const retryable = retryableWorkCloudDispatch(store.workerEvents("auth"), LATER);
     assert.ok(!("refusal" in retryable));
-    assert.throws(() => store.append(workCloudRetryEnvelope(retryable, system.id, now), now, system), ContractInvariantError);
-    assert.throws(() => store.append(workCloudRetryEnvelope(retryable, owner.id, now), now), ContractInvariantError, "no producer");
+    assert.throws(() => store.append(workCloudRetryEnvelope(retryable, system.id, LATER), LATER, system), ContractInvariantError);
+    assert.throws(() => store.append(workCloudRetryEnvelope(retryable, owner.id, LATER), LATER), ContractInvariantError, "no producer");
+    // Its time is the store's: a record claiming a later time than it is received at is refused.
+    assert.throws(() => store.append(workCloudRetryEnvelope(retryable, owner.id, LATER), now, owner), /at the time it is recorded/);
     // An owner record naming another failed start, result or retry is refused.
-    const forged = workCloudRetryEnvelope({ ...retryable, retryDispatchId: "work-cloud:forged" }, owner.id, now);
-    assert.throws(() => store.append(forged, now, owner), ContractInvariantError);
+    const forged = workCloudRetryEnvelope({ ...retryable, retryDispatchId: "work-cloud:forged" }, owner.id, LATER);
+    assert.throws(() => store.append(forged, LATER, owner), ContractInvariantError);
 
-    const first = authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: owner }, () => now);
+    const first = authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: owner }, () => LATER);
     assert.equal(first.status, "WORK_START_RETRY_AUTHORIZED");
     assert.equal(first.failedDispatchId, failedId);
     assert.equal(first.failedStatus, "UNAVAILABLE");
@@ -146,7 +154,7 @@ test("the owner retries a failed start once, as a new dispatch of the same job, 
     assert.equal(first.authorizationEventId, workCloudRetryAuthorizationId(failedId));
     // A repeat before the retry starts reports it; nothing is appended twice.
     const count = store.count();
-    const again = authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: owner }, () => now);
+    const again = authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: owner }, () => LATER);
     assert.equal(again.status, "WORK_START_RETRY_ALREADY_AUTHORIZED");
     assert.equal(again.duplicate, true);
     assert.equal(store.count(), count);
@@ -154,27 +162,30 @@ test("the owner retries a failed start once, as a new dispatch of the same job, 
     // Another start of the same job is refused unless it is exactly the authorized retry.
     const other = await dispatchChatGptWorkCloud(input({ dispatchId: "dispatch:auth:work-cloud:other" }), executor({ kind: "UNAVAILABLE", reasonCode: PRODUCT_FAILURE }));
     assert.throws(() => store.append(other.request, now, systemProducer), /only as the owner.s authorized retry/);
-    await recordStart(store, { dispatchId: first.retryDispatchId }, { kind: "UNAVAILABLE", reasonCode: PRODUCT_FAILURE });
+    await recordStart(store, { dispatchId: first.retryDispatchId }, { kind: "UNAVAILABLE", reasonCode: PRODUCT_FAILURE }, LATER);
 
     // The retry failed too: only a new authorization of the owner, naming the retry, allows one more.
-    const second = authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: owner }, () => now);
+    const second = authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: owner }, () => LATER2);
     assert.equal(second.failedDispatchId, first.retryDispatchId);
     assert.equal(second.retryDispatchId, workCloudRetryDispatchId(first.retryDispatchId));
     assert.notEqual(second.retryDispatchId, first.retryDispatchId);
   } finally { store.close(); }
 });
 
-test("a start that may be running or ran, or a continuation, is never retried", async () => {
+test("a start that may be running or ran, or that may hold a thread elsewhere, is never retried", async () => {
   const cases: Array<[string, WorkCloudExecutorOutcome, Partial<WorkCloudDispatchInput>, RegExp]> = [
     ["ready", { kind: "READY", surface: "CHATGPT_WORK_CLOUD", threadId: "work-thread-native-1", hostId: null }, {}, /ready or still waiting/],
     ["setting up", { kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:abc" }, {}, /ready or still waiting/],
     ["waiting for approval", { kind: "PENDING_APPROVAL" }, {}, /ready or still waiting/],
+    // A thread holding the prompt was made on another surface: the search reads only ChatGPT threads.
+    ["wrong surface", { kind: "WRONG_SURFACE", observedSurface: "CODEX" }, {}, /can mean a thread holding its prompt exists/],
+    ["ambiguous", { kind: "FAILED", reasonCode: "WORK_CLOUD_CREATE_AMBIGUOUS_PROMPT_MATCH" }, {}, /can mean a thread holding its prompt exists/],
   ];
   for (const [label, outcome, overrides, refusal] of cases) {
     const store = currentDirectiveStore();
     try {
       await recordStart(store, overrides, outcome);
-      assert.throws(() => authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: owner }, () => now), refusal, label);
+      assert.throws(() => authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: owner }, () => LATER), refusal, label);
     } finally { store.close(); }
   }
   // Across the app boundary without a result: the call may be under way.
@@ -182,14 +193,21 @@ test("a start that may be running or ran, or a continuation, is never retried", 
   try {
     const dispatched = await dispatchChatGptWorkCloud(input(), executor({ kind: "UNAVAILABLE", reasonCode: PRODUCT_FAILURE }));
     store.append(dispatched.request, now, systemProducer);
-    assert.throws(() => authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: owner }, () => now), /no result yet/);
+    assert.throws(() => authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: owner }, () => LATER), /no result yet/);
     store.append(buildWorkCloudHandoffIntentEnvelope(input()), now, systemProducer);
-    assert.throws(() => authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: owner }, () => now), /without a result/);
+    assert.throws(() => authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: owner }, () => LATER), /without a result/);
   } finally { store.close(); }
+  // A start that waited for setup and then failed when the app executor itself failed may be retried: its latest result counts.
+  const setup = currentDirectiveStore();
+  try {
+    await recordStart(setup, {}, { kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:abc" });
+    setup.append(buildWorkCloudDispatchRecordedEnvelope(input(), { kind: "FAILED", reasonCode: "WORK_CLOUD_APP_EXECUTOR_FAILED" }, now), now, systemProducer);
+    assert.equal(authorizeWorkCloudDispatchRetry(setup, { worker: "auth", producer: owner }, () => LATER).failedStatus, "FAILED");
+  } finally { setup.close(); }
   // No start on record at all.
   const empty = currentDirectiveStore();
   try {
-    assert.throws(() => authorizeWorkCloudDispatchRetry(empty, { worker: "auth", producer: owner }, () => now), /No start/);
+    assert.throws(() => authorizeWorkCloudDispatchRetry(empty, { worker: "auth", producer: owner }, () => LATER), /No start/);
   } finally { empty.close(); }
 });
 
@@ -278,29 +296,41 @@ test("the dispatcher follows the owner's retry to a new dispatch and hands the c
   assert.equal(retry.controllerRequest.mode, "CREATE");
   assert.match(retry.workPrompt, new RegExp(retry.dispatchId));
   assert.notEqual(retry.workPrompt, first.workPrompt);
-  assert.deepEqual(retry.controllerRequest.priorAttempt, { dispatchId: first.dispatchId, requestedAt: FAILED_AT, prompt: first.workPrompt });
-  // A failed start whose recorded prompt can't be rebuilt: no prompt to search for, so the controller holds the retry.
+  const priorAttempt = { dispatchId: first.dispatchId, requestedAt: FAILED_AT, resultRecordedAt: BEFORE, promptSha256: sha256(first.workPrompt), prompt: first.workPrompt };
+  assert.deepEqual(retry.controllerRequest.priorAttempt, priorAttempt);
+  // A failed start whose recorded prompt can't be rebuilt: no prompt here (the watcher reads it from the failed start's
+  // private request file, and the controller holds the retry without it).
   const unknown = discover([...base, ...failedStart(3, first.dispatchId, "f".repeat(64)), authorization(6, first.dispatchId)])[0]!;
   assert.equal(unknown.controllerRequest.priorAttempt?.prompt, null);
-  // Once the retry's own request is recorded (its search passed), recovery doesn't search again.
+  assert.equal(unknown.controllerRequest.priorAttempt?.promptSha256, "f".repeat(64));
+  // Once the retry's own request is recorded, the controller request is the same (its private file never changes), and
+  // the controller, seeing the request recorded, doesn't search again.
   const requested = discover([...failed, authorization(6, first.dispatchId),
     event(7, "alpha", "request:retry", { worker: "alpha", dispatch_id: retry.dispatchId, directive_id: "directive:alpha", directive_revision: 1,
       task_id: "task:alpha", type: "chatgpt_work_cloud_dispatch_requested", mode: "CREATE", prompt_sha256: sha256(retry.workPrompt), requested_at: BEFORE })])[0]!;
   assert.equal(requested.recoveryState, "REQUEST_ONLY_PROVEN_UNSENT");
-  assert.equal(requested.controllerRequest.priorAttempt, null);
+  assert.deepEqual(requested.controllerRequest.priorAttempt, priorAttempt);
+  // The chain starts where the ledger's authorization names the failed start, even when the id computed now differs
+  // (its source Chat changed since).
+  const moved = discover([...base, ...failedStart(3, "work-cloud:old-source", "e".repeat(64)), authorization(6, "work-cloud:old-source")])[0]!;
+  assert.equal(moved.dispatchId, workCloudRetryDispatchId("work-cloud:old-source"));
+  assert.equal(moved.controllerRequest.priorAttempt?.dispatchId, "work-cloud:old-source");
   // A retry that failed again needs another authorization, naming it.
   const twice = [...failed, authorization(6, first.dispatchId), ...failedStart(7, retry.dispatchId, sha256(retry.workPrompt), BEFORE)];
   assert.equal(discover(twice).length, 0);
   const third = discover([...twice, authorization(10, retry.dispatchId)])[0]!;
   assert.equal(third.dispatchId, workCloudRetryDispatchId(retry.dispatchId));
-  assert.deepEqual(third.controllerRequest.priorAttempt, { dispatchId: retry.dispatchId, requestedAt: BEFORE, prompt: retry.workPrompt });
+  assert.deepEqual(third.controllerRequest.priorAttempt,
+    { dispatchId: retry.dispatchId, requestedAt: BEFORE, resultRecordedAt: BEFORE, promptSha256: sha256(retry.workPrompt), prompt: retry.workPrompt });
 });
 
 test("no retry is authorized once the supervisor's authorization has ended", () => {
   const base = workerEvents("alpha");
   const first = discover(base)[0]!;
   const failed = [...base, ...failedStart(3, first.dispatchId, sha256(first.workPrompt))];
-  const open = retryableWorkCloudDispatch(failed, BEFORE);
+  const soon = retryableWorkCloudDispatch(failed, "2026-09-21T02:14:59.000Z");
+  assert.ok("refusal" in soon && /less than 30 minutes/.test(soon.refusal));
+  const open = retryableWorkCloudDispatch(failed, "2026-09-21T02:15:00.000Z");
   assert.ok(!("refusal" in open));
   assert.equal(open.failedDispatchId, first.dispatchId);
   const closed = retryableWorkCloudDispatch(failed, DEADLINE);
@@ -336,7 +366,7 @@ const SINCE = "2026-10-22T01:27:10.000Z";
 const at = (iso: string) => Date.parse(iso);
 const thread = (id: string, prompt: string, kind = "chatgpt") => value({ thread: { kind, id, turns: [{ params: { input: [{ type: "text", text: prompt }] } }] } });
 
-function search(threads: unknown[], reads: Record<string, AppToolResult | Error>, projectId: string | null = null) {
+function search(threads: unknown[], reads: Record<string, AppToolResult | Error>) {
   const client = new Reads((name, args) => {
     if (name === "list_threads") return value({ unavailableSources: [], threads });
     const answer = reads[String(args.threadId)];
@@ -345,7 +375,7 @@ function search(threads: unknown[], reads: Record<string, AppToolResult | Error>
     return answer;
   });
   const executor = new NativeChatGptWorkCloudExecutor(client, null);
-  return { client, result: executor.searchForPrompt({ prompt: PROMPT, requestedAt: SINCE, projectId }) };
+  return { client, result: executor.searchForPrompt({ prompt: PROMPT, requestedAt: SINCE }) };
 }
 
 test("the search for a failed start's Work thread is read-only and says NONE only after reading every thread made since", async () => {
@@ -361,17 +391,26 @@ test("the search for a failed start's Work thread is read-only and says NONE onl
   // The provider shows only the first 2,000 characters of a long first message.
   const long = `${PROMPT}\n${"x".repeat(3_000)}`;
   const client = new Reads((name) => name === "list_threads" ? value({ threads: [fresh, old] }) : thread("fresh", long.slice(0, 2_000)));
-  assert.equal(await new NativeChatGptWorkCloudExecutor(client, null).searchForPrompt({ prompt: long, requestedAt: SINCE, projectId: null }), "MATCH");
-  // Another project's thread can't be the Work thread.
-  assert.equal(await search([{ ...fresh, projectId: "project-2" }, old], {}, "project-1").result, "NONE");
+  assert.equal(await new NativeChatGptWorkCloudExecutor(client, null).searchForPrompt({ prompt: long, requestedAt: SINCE }), "MATCH");
+  // No project narrows the search, and the app's clock may run up to 10 minutes behind: both threads are read.
+  const skewed = { kind: "chatgpt", id: "skewed", createdAt: at("2026-10-22T01:20:00Z"), updatedAt: at("2026-10-22T01:20:00Z") };
+  const wide = search([{ ...fresh, projectId: "project-2" }, skewed, old], { fresh: thread("fresh", "x"), skewed: thread("skewed", PROMPT) });
+  assert.equal(await wide.result, "MATCH");
 });
 
 test("anything the search couldn't read holds the retry", async () => {
   const old = { kind: "chatgpt", id: "old", updatedAt: at("2026-10-21T00:00:00Z") };
   const fresh = (id: string) => ({ kind: "chatgpt", id, updatedAt: at("2026-10-22T05:00:00Z") });
-  // A full page of threads all updated since the failed start: older ones may be unlisted.
+  // A page of threads all updated since the failed start, however short: older ones may be unlisted.
   const fullPage = Array.from({ length: 50 }, (_, index) => ({ kind: "codex", id: `c-${index}`, updatedAt: at("2026-10-22T05:00:00Z") }));
   assert.equal(await search(fullPage, {}).result, "INCOMPLETE");
+  assert.equal(await search(fullPage.slice(0, 3), {}).result, "INCOMPLETE");
+  assert.equal(await search([], {}).result, "INCOMPLETE");
+  // A listing that holds no thread list (an error text, a changed shape) tells nothing.
+  for (const answer of [{ content: [{ type: "text", text: "Too many requests" }] }, { content: [] }, value({ items: [old] })]) {
+    const odd = new Reads(() => answer as AppToolResult);
+    assert.equal(await new NativeChatGptWorkCloudExecutor(odd, null).searchForPrompt({ prompt: PROMPT, requestedAt: SINCE }), "INCOMPLETE");
+  }
   assert.equal(await search([fresh("a"), old], { a: new Error("Too many requests") }).result, "INCOMPLETE");
   assert.equal(await search([fresh("a"), old], { a: value({ thread: { kind: "chatgpt", id: "a", turns: [] } }) }).result, "INCOMPLETE");
   assert.equal(await search([{ kind: "chatgpt", id: "local-chatgpt:tmp", updatedAt: at("2026-10-22T05:00:00Z") }, old], {}).result, "INCOMPLETE");
@@ -381,5 +420,5 @@ test("anything the search couldn't read holds the retry", async () => {
   // A thread listed without a kind is read, and a readable thread on another surface isn't the Work thread.
   assert.equal(await search([{ id: "kindless", updatedAt: at("2026-10-22T05:00:00Z") }, old], { kindless: thread("kindless", PROMPT, "codex") }).result, "NONE");
   const unavailable = new Reads(() => value({ unavailableSources: ["chatgpt"], threads: [] }));
-  assert.equal(await new NativeChatGptWorkCloudExecutor(unavailable, null).searchForPrompt({ prompt: PROMPT, requestedAt: SINCE, projectId: null }), "INCOMPLETE");
+  assert.equal(await new NativeChatGptWorkCloudExecutor(unavailable, null).searchForPrompt({ prompt: PROMPT, requestedAt: SINCE }), "INCOMPLETE");
 });
