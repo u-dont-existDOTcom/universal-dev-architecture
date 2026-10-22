@@ -307,7 +307,7 @@ export function routeFleetSupervisorReasoning(store: EventStore, watch: FleetSup
     factualPacket: {
       packetId: `packet:${requestId}`, taskId: watch.taskId,
       exactFactualState: factualState,
-      evidenceRefs: [],
+      evidenceRefs: fleetEvidenceRefs(factualState),
       decisionRequested: decision.trigger === "FIRST_SUPERVISION_REQUIRED"
         ? FIRST_SUPERVISION_DECISION_REQUESTED
         : decision.trigger === "CHECKPOINT_REVIEW_REQUIRED"
@@ -807,14 +807,14 @@ export const CHECKPOINT_REVIEW_DECISION_REQUESTED = "Your latest decision for th
  * with a new deadline, change it, or stop. Mission Control's record of the expiry is expired_work_job in the state. */
 export const WORK_DIRECTIVE_EXPIRED_UNRUN_DECISION_REQUESTED = "This task's latest supervisor decision authorized one bounded "
   + "native ChatGPT Work job. Its deadline passed before the job ran: Mission Control's own record of that is "
-  + "expired_work_job in the factual state, and the job as it was authorized is expired_work_job.authorized_job."
-  + "bounded_execution. Nothing was sent to ChatGPT Work for it, and Mission Control will not start that job now. Decide "
-  + "whether to authorize the same bounded job again with a new deadline, change it, or stop or hold the task; say what "
-  + "blocks it if anything does. Keep every limit of the authorized job unless you say why it changes. If "
-  + "authorized_job.provenance.prompt_clipped is true, the prompt shown was cut to fit this question: write the prompt "
-  + "of any job you authorize out in full. Every field listed in clipped_to_fit was also cut to fit this question (a field "
-  + "outside authorized_job only in what is shown here): write out in full every field of a job you authorize. Do not "
-  + "weaken the contract, spend money, or publish anything.";
+  + "expired_work_job in the factual state. The job as it was authorized is expired_work_job.authorized_job: when its "
+  + "shown is IN_FULL, in full in its bounded_execution; when shown is BY_REFERENCE (a job too long for one question), "
+  + "in full in its original decision receipt, the bound evidence reference provenance.decision_receipt (the "
+  + "bounded_execution there has SHA-256 provenance.bounded_execution_sha256); read it there. Nothing was sent to "
+  + "ChatGPT Work for it, and Mission Control will not start that job now. Decide whether to authorize the same bounded "
+  + "job again with a new deadline, change it, or stop or hold the task; say what blocks it if anything does. Keep every "
+  + "limit of the authorized job unless you say why it changes, and write out in full every field of a job you "
+  + "authorize. Do not weaken the contract, spend money, or publish anything.";
 
 function isReviewBoundaryEvidence(event: StoredEvent) {
   return event.data.type === "evidence_receipt_recorded"
@@ -845,6 +845,21 @@ export function fleetReasoningFactualState(
   limit = FLEET_FACTUAL_STATE_LIMIT,
 ): string {
   const facts = fleetReasoningFacts(decision, events, boundary);
+  const fitted = withSupervisionHistory(facts, events, taskId, limit);
+  if (fitted) return fitted;
+  if (facts.expired_work_job?.authorized_job) {
+    // An authorized job that doesn't fit one question in full, even without a history (22 Oct 2026: the Atlas task's
+    // job alone is about 13,000 characters), is named by its decision receipt instead: the receipt is a bound evidence
+    // reference the supervisor reads in full, and nothing of the job is shown cut short.
+    const byReference = fleetReasoningFacts(decision, events, boundary, "BY_REFERENCE");
+    return withSupervisionHistory(byReference, events, taskId, limit) ?? canonicalJson(byReference);
+  }
+  return fittedCheckpointReview(facts, limit) ?? canonicalJson(facts);
+}
+
+/** The state with as many of the task's recent supervisor decisions as fit (newest first), or null when even an empty
+ * history doesn't fit. */
+function withSupervisionHistory(facts: object, events: readonly StoredEvent[], taskId: string, limit: number): string | null {
   const { decisions, supersededOutcomeDecisions } = supervisionHistory(events, taskId);
   for (let listed = Math.min(FLEET_SUPERVISION_HISTORY_DECISIONS, decisions.length); listed >= 0; listed -= 1) {
     const state = canonicalJson({
@@ -858,116 +873,18 @@ export function fleetReasoningFactualState(
     });
     if (state.length <= limit) return state;
   }
-  const expiredJob = facts.expired_work_job?.authorized_job;
-  if (expiredJob) {
-    // An expired job that doesn't fit, even without a history: its prompt is shortened first, to no less than 500
-    // characters.
-    const full = expiredJob.provenance.prompt_length;
-    for (let promptLimit = Math.max(500, full - 500); ; promptLimit = Math.max(500, promptLimit - 500)) {
-      const state = canonicalJson(fleetReasoningFacts(decision, events, boundary, promptLimit));
-      if (state.length <= limit) return state;
-      if (promptLimit === 500) break;
-    }
-    // A supervisor's job has many long fields besides its prompt (21 Oct 2026: the Atlas task's job didn't fit with its
-    // prompt shortened, so its supervisor wasn't asked). Then all the job's long text, its prompt included, is shortened
-    // evenly, and only then any other long text in the state; every shortened field is named in clipped_to_fit.
-    return shortenedToFit(facts, limit, EXPIRED_JOB_PATH, (state, names) => {
-      if (!names.includes([...EXPIRED_JOB_PATH, "prompt"].join("."))) return;
-      const job = (state.expired_work_job as { authorized_job: { provenance: { prompt_clipped: boolean } } }).authorized_job;
-      job.provenance.prompt_clipped = true;
-    });
-  }
-  return fittedCheckpointReview(facts, limit) ?? canonicalJson(facts);
+  return null;
 }
 
-/** Text the expiry question may shorten is never cut below these lengths: a prompt to 500 characters, anything else to
- * 300. Identifiers, digests, times, references, paths, commands, schemas and the job's and contract's limits (its
- * allowed and forbidden lists) are never shortened: the supervisor keeps every limit of the job. */
-const SHORTENED_PROMPT_FLOOR = 500;
-const SHORTENED_TEXT_FLOOR = 300;
-const UNSHORTENED_KEYS = new RegExp("^(trigger|trigger_result|workspace|output_schema|depends_on|policyRef|routingPolicyBaseCommit)$"
-  + "|(^|_)(id|ids|ref|refs|sha256|at|deadline|schema_version|surface|status|kind|type|path|paths|commands)$"
-  + "|^(allowed|forbidden)_");
-const EXPIRED_JOB_PATH = ["expired_work_job", "authorized_job", "bounded_execution"] as const;
-
-function shortenedFloor(path: readonly (string | number)[]): number {
-  return path.at(-1) === "prompt" ? SHORTENED_PROMPT_FLOOR : SHORTENED_TEXT_FLOOR;
-}
-
-/** The state, shortened until it fits: first the text within `first` (a path into the state), then any text. Within each
- * scope every text longer than one common cap is cut to that cap (never below its floor), and the cap is the largest
- * that fits, so long fields are shortened evenly rather than one at a time. The state then names the shortened fields
- * in clipped_to_fit (a list's items under the list's name); a field is cut only when that saves more than naming it
- * costs, so a lower cap never makes the state longer. `marked` records a cut in the state itself (prompt_clipped). If
- * the floors don't fit, the state is returned too long, and the caller tells the owner instead of asking. */
-function shortenedToFit(facts: object, limit: number, first: readonly string[],
-  marked: (state: Record<string, unknown>, names: readonly string[]) => void): string {
-  type Leaf = { path: (string | number)[]; length: number };
-  const leaves = (value: unknown, path: (string | number)[], out: Leaf[]): Leaf[] => {
-    if (typeof value === "string") {
-      if (value.length > shortenedFloor(path)) out.push({ path, length: value.length });
-    } else if (Array.isArray(value)) {
-      if (!UNSHORTENED_KEYS.test(String(path.at(-1) ?? ""))) value.forEach((item, index) => leaves(item, [...path, index], out));
-    } else if (value && typeof value === "object") {
-      for (const [key, child] of Object.entries(value)) if (!UNSHORTENED_KEYS.test(key)) leaves(child, [...path, key], out);
-    }
-    return out;
-  };
-  // A field's name: its path, or for a list's items the list's path.
-  const nameOf = (path: readonly (string | number)[]) => {
-    const index = path.findIndex((key) => typeof key === "number");
-    return (index < 0 ? path : path.slice(0, index)).join(".");
-  };
-  const render = (state: Record<string, unknown>, clipped: readonly string[]) =>
-    canonicalJson(clipped.length > 0 ? { ...state, clipped_to_fit: clipped } : state);
-  let state = JSON.parse(canonicalJson(facts)) as Record<string, unknown>;
-  let clipped: string[] = [];
-  let rendered = render(state, clipped);
-  if (rendered.length <= limit) return rendered;
-  const scopes: (readonly string[])[] = [first, []];
-  for (const scope of scopes) {
-    const groups = new Map<string, Leaf[]>();
-    for (const leaf of leaves(state, [], [])) {
-      if (!scope.every((key, index) => leaf.path[index] === key)) continue;
-      const name = nameOf(leaf.path);
-      groups.set(name, [...(groups.get(name) ?? []), leaf]);
-    }
-    if (groups.size === 0) continue;
-    const attempt = (cap: number) => {
-      const copy = JSON.parse(canonicalJson(state)) as Record<string, unknown>;
-      const names = [...clipped];
-      for (const [name, group] of groups) {
-        const saved = group.reduce((sum, leaf) => sum + Math.max(0, leaf.length - Math.max(shortenedFloor(leaf.path), cap)), 0);
-        // A new name costs its quoted length and a comma in the state.
-        if (saved === 0 || (!names.includes(name) && saved <= name.length + 3)) continue;
-        for (const leaf of group) {
-          const target = Math.max(shortenedFloor(leaf.path), cap);
-          if (leaf.length <= target) continue;
-          const parent = leaf.path.slice(0, -1).reduce<unknown>((node, key) => (node as Record<string | number, unknown>)[key], copy) as Record<string | number, unknown>;
-          const key = leaf.path.at(-1)!;
-          parent[key] = clip(parent[key] as string, target);
-        }
-        if (!names.includes(name)) names.push(name);
-      }
-      if (names.length > clipped.length) marked(copy, names);
-      return { copy, names, text: render(copy, names) };
-    };
-    let low = SHORTENED_TEXT_FLOOR;
-    let high = Math.max(...[...groups.values()].flat().map((leaf) => leaf.length));
-    let best = attempt(low);
-    if (best.text.length > limit) {
-      // Even at the floors this scope doesn't fit: keep it there and shorten the next scope too.
-      ({ copy: state, names: clipped, text: rendered } = best);
-      continue;
-    }
-    while (low < high) {
-      const cap = Math.ceil((low + high) / 2);
-      const tried = attempt(cap);
-      if (tried.text.length <= limit) { low = cap; best = tried; } else high = cap - 1;
-    }
-    return best.text;
-  }
-  return rendered;
+/** The bound evidence references of a fleet question: for an expired job shown by reference, its decision receipt and
+ * the SHA-256 of the job as authorized; none otherwise. */
+function fleetEvidenceRefs(factualState: string): string[] {
+  const job = (JSON.parse(factualState) as { expired_work_job?: { authorized_job?: {
+    shown?: string; provenance?: { decision_receipt?: string; bounded_execution_sha256?: string | null };
+  } | null } }).expired_work_job?.authorized_job;
+  if (job?.shown !== "BY_REFERENCE" || !job.provenance?.decision_receipt) return [];
+  return [job.provenance.decision_receipt,
+    ...(job.provenance.bounded_execution_sha256 ? [`bounded_execution_sha256:${job.provenance.bounded_execution_sha256}`] : [])];
 }
 
 /**
@@ -1040,29 +957,35 @@ function clip(text: string | null | undefined, limit: number): string | null {
   return `${cut}…`;
 }
 
-/** The Work job an expiry record names, as its supervisor authorized it: its bounded execution in full, and where it came
- * from. The prompt travels whole unless the question can't fit; then it is cut (to no less than 500 characters) and
- * marked so. Every question opens a fresh chat, so this is the only place the supervisor sees the job. */
-function authorizedJob(events: readonly StoredEvent[], expiryEvidence: StoredEvent, promptLimit: number) {
+/** The Work job an expiry record names, as its supervisor authorized it, and where it came from. IN_FULL: its bounded
+ * execution exactly as authorized, so it can be authorized again as it stands. BY_REFERENCE (a job too long for one
+ * question): its identity, limits of time and cycles, and the decision receipt that holds it in full, which the
+ * question binds as evidence. Nothing of the job is ever cut short. Every question opens a fresh chat, so this is where
+ * the supervisor finds the job. */
+function authorizedJob(events: readonly StoredEvent[], expiryEvidence: StoredEvent, shown: "IN_FULL" | "BY_REFERENCE") {
   if (expiryEvidence.data.type !== "evidence_receipt_recorded") return null;
   const ref = expiryEvidence.data.refs.find((item) => item.startsWith("directive_event:"));
   const directive = ref ? events.find((event) => event.eventId === ref.slice("directive_event:".length))?.data : undefined;
   if (directive?.type !== "execution_directive_recorded") return null;
   const receipt = events.find((event) => event.eventId === directive.validated_decision_proof?.receipt_event_id)?.data;
   if (receipt?.type !== "github_decision_receipt_ingested" || !receipt.bounded_execution) return null;
-  const prompt = receipt.bounded_execution.prompt;
-  const clipped = prompt.length > promptLimit;
+  const job = receipt.bounded_execution;
+  const provenance = {
+    decision_request_id: receipt.request_id,
+    decision_id: receipt.decision_block.decision_id,
+    decision_receipt: receipt.github_receipt.immutable_url,
+    bounded_execution_sha256: receipt.bounded_execution_sha256 ?? null,
+    prompt_sha256: sha256(job.prompt),
+    prompt_length: job.prompt.length,
+  };
+  if (shown === "IN_FULL") return { shown, bounded_execution: job, provenance };
   return {
-    // The job exactly as authorized, in the bounded-execution shape, so it can be authorized again as it stands.
-    bounded_execution: { ...receipt.bounded_execution, prompt: clipped ? clip(prompt, promptLimit) : prompt },
-    provenance: {
-      decision_request_id: receipt.request_id,
-      decision_id: receipt.decision_block.decision_id,
-      bounded_execution_sha256: receipt.bounded_execution_sha256 ?? null,
-      prompt_sha256: sha256(prompt),
-      prompt_length: prompt.length,
-      prompt_clipped: clipped,
+    shown,
+    summary: {
+      task_id: job.task_id, job_id: job.job_id, execution_surface: job.execution_surface, deadline: job.deadline,
+      maximum_execution_cycles: job.maximum_execution_cycles,
     },
+    provenance,
   };
 }
 
@@ -1070,7 +993,7 @@ function fleetReasoningFacts(
   decision: FleetSupervisorDecision,
   events: readonly StoredEvent[],
   boundary: StoredEvent,
-  promptLimit = Number.POSITIVE_INFINITY,
+  jobShown: "IN_FULL" | "BY_REFERENCE" = "IN_FULL",
 ) {
   const worker = projectWorker([...events]);
   const queue = events.findLast((event) => event.data.type === "work_queue_published")?.data;
@@ -1092,7 +1015,7 @@ function fleetReasoningFacts(
       receipt_id: expiryEvidence.data.receipt_id,
       recorded_at: expiryEvidence.occurredAt,
       refs: expiryEvidence.data.refs,
-      authorized_job: authorizedJob(events, expiryEvidence, promptLimit),
+      authorized_job: authorizedJob(events, expiryEvidence, jobShown),
     } } : {}),
     // The decision a checkpoint review answers, in full up to 2,500 characters (the history below clips it to 600).
     ...(heldBy ? { held_by_decision: {
@@ -1283,13 +1206,13 @@ export function classifyFleetSupervisorTick(
         "Its authorized ChatGPT Work job expired before it ran, and an earlier question to its supervisor was sent but expired without an answer, so nothing is asked now.");
     }
     const routed = decision("WORK_DIRECTIVE_EXPIRED_UNRUN", "An authorized Work job expired before it ran; its supervisor was asked whether to authorize it again.", "ACTIVE", true, false, false, null);
-    // A question that can't fit even with every long field shortened would fail admission on every poll: tell the owner
+    // A question that can't fit even with the job named by reference would fail admission on every poll: tell the owner
     // once instead, and route nothing. The state is measured with the record routing would make.
     const withRecord = openExpiry.evidence ? events : [...events, expiryRecordAsEvent(openExpiry, events, now)];
     const boundary = reasoningBoundary(withRecord);
     if (boundary && fleetReasoningFactualState(routed, withRecord, boundary, watch.taskId).length > FLEET_FACTUAL_STATE_LIMIT) {
       return decision("OWNER_ACTION_REQUIRED", "The question about the expired Work job is too long for one supervisor question; nothing was routed.", "ACTIVE", false, false, true,
-        "Its authorized ChatGPT Work job expired before it ran, but the job and the task's state together are too long for one supervisor question, even shortened, so the supervisor wasn't asked.");
+        "Its authorized ChatGPT Work job expired before it ran, but the task's state is too long for one supervisor question even with the job named by its decision receipt, so the supervisor wasn't asked.");
     }
     return routed;
   }

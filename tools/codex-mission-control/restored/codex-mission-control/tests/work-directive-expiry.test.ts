@@ -521,32 +521,38 @@ test("an expiry record counts only for a directive that exists, made at or after
   } finally { store.close(); }
 });
 
-test("the question carries the job as it was authorized, and a long prompt is shortened to fit", async (t) => {
+test("the question carries the job in full when it fits, and names its decision receipt when it doesn't; nothing is cut", async (t) => {
   t.mock.timers.enable({ apis: ["Date"], now: Date.parse(AFTER) });
   for (const [label, prompt] of [["short", "EXACT BOUNDED DIRECTIVE job-1"], ["long", `LONG PROMPT ${"p".repeat(30_000)}`]] as const) {
     const store = registered();
     try {
       await withSupervisorConfiguration(async () => {
-        appendDecision(store, "work-1", { ...bounded(), prompt });
+        const { receipt } = appendDecision(store, "work-1", { ...bounded(), prompt });
+        assert.ok(receipt.data.type === "github_decision_receipt_ingested");
         const { watch } = enrollFleetSupervisorWatch(store, "project:atlas-test", { worker, taskId: task, cadenceMs: 60_000 }, at);
         routeFleetSupervisorReasoning(store, watch, classifyFleetSupervisorTick(watch, store.workerEvents(worker), store.verifyChain(), AFTER), []);
         const root = routeBody(store.workerEvents(worker).findLast((event) => event.data.type === "worker_message_recorded")!);
         assert.ok(root.factualPacket.exactFactualState.length <= 12_000, label);
-        const { bounded_execution: job, provenance } = JSON.parse(root.factualPacket.exactFactualState).expired_work_job.authorized_job;
-        assert.equal(job.deadline, DEADLINE);
-        assert.deepEqual(job.allowed_actions, ["read public pages"]);
-        assert.deepEqual(job.forbidden_actions, ["spend money"]);
-        assert.equal(job.maximum_execution_cycles, 2);
-        assert.equal(job.success_threshold, "Up to 8 sources staged.");
-        assert.equal(provenance.prompt_sha256, sha256(prompt));
-        assert.equal(provenance.prompt_length, prompt.length);
-        // The job keeps the bounded-execution shape, so it can be authorized again as it stands.
-        assert.deepEqual(Object.keys(job).sort(), Object.keys({ ...bounded(), prompt }).sort());
-        if (label === "short") { assert.equal(job.prompt, prompt); assert.equal(provenance.prompt_clipped, false); }
-        else {
-          assert.ok(job.prompt.length >= 500 && job.prompt.length < prompt.length); assert.ok(job.prompt.endsWith("…"));
-          assert.equal(provenance.prompt_clipped, true);
+        const shown = JSON.parse(root.factualPacket.exactFactualState).expired_work_job.authorized_job;
+        assert.equal(shown.provenance.prompt_sha256, sha256(prompt));
+        assert.equal(shown.provenance.prompt_length, prompt.length);
+        assert.equal(shown.provenance.decision_receipt, receipt.data.github_receipt.immutable_url);
+        assert.equal(shown.provenance.bounded_execution_sha256, receipt.data.bounded_execution_sha256);
+        if (label === "short") {
+          assert.equal(shown.shown, "IN_FULL");
+          // The job keeps the bounded-execution shape, so it can be authorized again as it stands.
+          assert.deepEqual(shown.bounded_execution, JSON.parse(JSON.stringify(receipt.data.bounded_execution)));
+          assert.equal(shown.bounded_execution.prompt, prompt);
+          assert.deepEqual(root.factualPacket.evidenceRefs, []);
+        } else {
+          assert.equal(shown.shown, "BY_REFERENCE");
+          assert.equal(shown.bounded_execution, undefined);
+          assert.deepEqual(shown.summary, { task_id: task, job_id: "job-1", execution_surface: "CHATGPT_WORK_CLOUD", deadline: DEADLINE, maximum_execution_cycles: 2 });
+          assert.ok(!root.factualPacket.exactFactualState.includes("LONG PROMPT"), "nothing of the job is shown cut short");
+          assert.deepEqual(root.factualPacket.evidenceRefs, [receipt.data.github_receipt.immutable_url,
+            `bounded_execution_sha256:${receipt.data.bounded_execution_sha256}`]);
         }
+        assert.equal(root.factualPacket.decisionRequested, WORK_DIRECTIVE_EXPIRED_UNRUN_DECISION_REQUESTED);
       });
     } finally { store.close(); }
   }
@@ -685,24 +691,25 @@ test("an answer after the expiry record settles it even when it leaves the expir
   } finally { store.close(); }
 });
 
-test("a prompt that fits travels whole, past 4,000 characters; one that doesn't is shortened and marked", async (t) => {
+test("a job whose fields together don't fit is named by its decision receipt, its long text never cut", async (t) => {
   t.mock.timers.enable({ apis: ["Date"], now: Date.parse(AFTER) });
   const store = registered();
   try {
     await withSupervisorConfiguration(async () => {
       const prompt = `PROMPT ${"q".repeat(20_000)}`;
-      appendDecision(store, "work-1", { ...bounded(), prompt, success_threshold: `Threshold ${"t".repeat(5_500)}` });
+      const { receipt } = appendDecision(store, "work-1", { ...bounded(), prompt, success_threshold: `Threshold ${"t".repeat(5_500)}` });
+      assert.ok(receipt.data.type === "github_decision_receipt_ingested");
       const { watch } = enrollFleetSupervisorWatch(store, "project:atlas-test", { worker, taskId: task, cadenceMs: 60_000 }, at);
       const decision = classifyFleetSupervisorTick(watch, store.workerEvents(worker), store.verifyChain(), AFTER);
       assert.equal(decision.trigger, "WORK_DIRECTIVE_EXPIRED_UNRUN");
       routeFleetSupervisorReasoning(store, watch, decision, []);
       const root = routeBody(store.workerEvents(worker).findLast((event) => event.data.type === "worker_message_recorded")!);
-      assert.ok(root.factualPacket.exactFactualState.length <= 12_000);
-      const { bounded_execution: job, provenance } = JSON.parse(root.factualPacket.exactFactualState).expired_work_job.authorized_job;
-      assert.ok(job.prompt.length >= 500 && job.prompt.length < 4_000, String(job.prompt.length));
-      assert.equal(provenance.prompt_clipped, true);
-      assert.equal(job.success_threshold.length, 5_510, "other fields travel whole");
-      assert.match(root.factualPacket.decisionRequested, /prompt_clipped is true, the prompt shown was cut/);
+      const state = root.factualPacket.exactFactualState;
+      assert.ok(state.length <= 12_000);
+      assert.equal(JSON.parse(state).expired_work_job.authorized_job.shown, "BY_REFERENCE");
+      assert.ok(!state.includes("Threshold ") && !state.includes("PROMPT "));
+      assert.equal(root.factualPacket.evidenceRefs[0], receipt.data.github_receipt.immutable_url);
+      assert.match(root.factualPacket.decisionRequested, /BY_REFERENCE/);
     });
   } finally { store.close(); }
 });
@@ -717,29 +724,28 @@ test("a 6,000-character prompt that fits goes out whole", async (t) => {
       const { watch } = enrollFleetSupervisorWatch(store, "project:atlas-test", { worker, taskId: task, cadenceMs: 60_000 }, at);
       routeFleetSupervisorReasoning(store, watch, classifyFleetSupervisorTick(watch, store.workerEvents(worker), store.verifyChain(), AFTER), []);
       const root = routeBody(store.workerEvents(worker).findLast((event) => event.data.type === "worker_message_recorded")!);
-      const { bounded_execution: job, provenance } = JSON.parse(root.factualPacket.exactFactualState).expired_work_job.authorized_job;
+      const { shown, bounded_execution: job } = JSON.parse(root.factualPacket.exactFactualState).expired_work_job.authorized_job;
+      assert.equal(shown, "IN_FULL");
       assert.equal(job.prompt, prompt);
-      assert.equal(provenance.prompt_clipped, false);
+      assert.deepEqual(root.factualPacket.evidenceRefs, []);
     });
   } finally { store.close(); }
 });
 
-test("a job whose long fields besides its prompt don't fit is shortened evenly, and every shortened field is named", async (t) => {
-  // 21 Oct 2026: the Atlas task's authorized job didn't fit one question with only its prompt shortened, so its supervisor
-  // wasn't asked. A supervisor's job has many long fields; then all of them, the prompt included, are shortened to one
-  // common length (the prompt never below 500 characters, the rest never below 300), the question names them, and the
-  // job's limits travel whole.
+test("a job like the Atlas task's, too long for one question in full, is named by reference and its supervisor is asked", async (t) => {
+  // 21-22 Oct 2026: the Atlas task's authorized job is about 13,000 characters on its own, so its supervisor wasn't
+  // asked, first with only its prompt shortened (#407), then with its long fields shortened too (#414). The question now
+  // names the job by its decision receipt, which the supervisor reads in full, and cuts nothing.
   t.mock.timers.enable({ apis: ["Date"], now: Date.parse(AFTER) });
   const store = registered();
   try {
     await withSupervisorConfiguration(async () => {
       const long = ["execution_objective", "reasoning_summary", "strategy_causal_hypothesis", "predicted_outcome_change",
         "success_threshold", "failure_threshold", "next_decision_changing_evidence", "reviewed_evidence_boundary"] as const;
-      const prompt = `PROMPT ${"q".repeat(8_000)}`;
-      const limit = `never ${"n".repeat(1_000)}`;
-      const job = { ...bounded(), prompt, forbidden_actions: ["spend money", limit] };
+      const job = { ...bounded(), prompt: `PROMPT ${"q".repeat(8_000)}`, forbidden_actions: ["spend money", `never ${"n".repeat(1_000)}`] };
       for (const field of long) job[field] = `${field} ${"w".repeat(2_500)}`;
-      appendDecision(store, "work-1", job);
+      const { receipt } = appendDecision(store, "work-1", job);
+      assert.ok(receipt.data.type === "github_decision_receipt_ingested");
       const { watch } = enrollFleetSupervisorWatch(store, "project:atlas-test", { worker, taskId: task, cadenceMs: 60_000 }, at);
       const decision = classifyFleetSupervisorTick(watch, store.workerEvents(worker), store.verifyChain(), AFTER);
       assert.equal(decision.trigger, "WORK_DIRECTIVE_EXPIRED_UNRUN");
@@ -747,44 +753,35 @@ test("a job whose long fields besides its prompt don't fit is shortened evenly, 
       const root = routeBody(store.workerEvents(worker).findLast((event) => event.data.type === "worker_message_recorded")!);
       const state = JSON.parse(root.factualPacket.exactFactualState);
       assert.ok(root.factualPacket.exactFactualState.length <= 12_000);
-      const { bounded_execution: shown, provenance } = state.expired_work_job.authorized_job;
-      const lengths = new Set([...long, "prompt"].map((field) => shown[field].length));
-      assert.equal(lengths.size, 1, "shortened evenly, the prompt included");
-      const length = [...lengths][0] ?? 0;
-      assert.ok(length >= 500 && length < 2_500, String(length));
-      for (const field of [...long, "prompt"] as const) {
-        assert.ok(shown[field].endsWith("…"), field);
-        assert.ok(job[field].startsWith(shown[field].slice(0, -1)), field);
-      }
-      assert.equal(provenance.prompt_clipped, true);
-      assert.equal(provenance.prompt_sha256, sha256(prompt));
-      assert.equal(provenance.prompt_length, prompt.length);
-      assert.deepEqual(state.clipped_to_fit, [...long, "prompt"].sort().map((field) => `expired_work_job.authorized_job.bounded_execution.${field}`));
-      // The job's limits and identifiers travel whole, and nothing outside the job was shortened.
-      assert.deepEqual(shown.forbidden_actions, ["spend money", limit]);
-      assert.deepEqual(shown.allowed_actions, ["read public pages"]);
-      assert.equal(shown.deadline, DEADLINE);
-      assert.equal(shown.job_id, "job-1");
-      assert.deepEqual(shown.inputs, job.inputs);
-      assert.equal(shown.workspace, job.workspace);
-      assert.equal(shown.maximum_execution_cycles, 2);
+      const shown = state.expired_work_job.authorized_job;
+      assert.equal(shown.shown, "BY_REFERENCE");
+      assert.equal(shown.provenance.bounded_execution_sha256, sha256(canonicalJson(job)));
+      assert.ok(!root.factualPacket.exactFactualState.includes("w".repeat(50)), "nothing of the job is shown cut short");
+      assert.equal(state.clipped_to_fit, undefined);
       assert.equal(state.task_contract.goal, "Collect public sources on one question and summarize them.");
-      assert.match(root.factualPacket.decisionRequested, /clipped_to_fit was also cut to fit this question/);
+      assert.deepEqual(root.factualPacket.evidenceRefs, [receipt.data.github_receipt.immutable_url,
+        `bounded_execution_sha256:${sha256(canonicalJson(job))}`]);
     });
   } finally { store.close(); }
 });
 
-test("a job that can't fit one question even shortened goes to the owner, and nothing is recorded or asked", () => {
-  const store = registered();
+test("a task whose state doesn't fit even with the job named by reference goes to the owner; nothing is recorded or asked", () => {
+  // The owner's registration at its limits (4,000 characters each): the contract alone is longer than one question.
+  const store = new EventStore(":memory:");
   try {
-    // A hundred allowed actions: the job's limits are never cut, and together they don't fit.
-    const actions = Array.from({ length: 100 }, (_, index) => `action ${String(index).padStart(3, "0")} ${"a".repeat(285)}`);
-    appendDecision(store, "work-1", { ...bounded(), allowed_actions: actions });
+    const line = (prefix: string) => Array.from({ length: 20 }, (_, index) => `${prefix} ${index} ${"x".repeat(180)}`).join("\n");
+    const parsed = parseOwnerTaskRegistration({
+      worker, name: "Atlas test pilot", goal: `Goal ${"g".repeat(3_990)}`,
+      may_use: line("may use"), must_never: line("must never"), done_when: line("done when"),
+    });
+    assert.notEqual(typeof parsed, "string", String(parsed));
+    registerOwnerTask(store, parsed as Exclude<typeof parsed, string>, owner, store.allEvents(), at);
+    appendDecision(store, "work-1", bounded());
     const { watch } = enrollFleetSupervisorWatch(store, "project:atlas-test", { worker, taskId: task, cadenceMs: 60_000 }, at);
     const decision = classifyFleetSupervisorTick(watch, store.workerEvents(worker), store.verifyChain(), AFTER);
     assert.equal(decision.trigger, "OWNER_ACTION_REQUIRED");
     assert.equal(decision.reasoningRequired, false);
-    assert.match(decision.notificationReason ?? "", /too long for one supervisor question, even shortened/);
+    assert.match(decision.notificationReason ?? "", /too long for one supervisor question even with the job named by its decision receipt/);
     assert.equal(store.workerEvents(worker).filter((event) => isWorkDirectiveExpiryEvidence(event)).length, 0);
   } finally { store.close(); }
 });
