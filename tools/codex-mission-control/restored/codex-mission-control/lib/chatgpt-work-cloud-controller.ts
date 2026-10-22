@@ -193,11 +193,13 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
   }
 
   /**
-   * Read-only, before the owner's retry of a failed start (lib/chatgpt-work-cloud-retry.ts): whether a ChatGPT thread
-   * whose first message is exactly `prompt` exists among the threads made at or after `requestedAt` (by their creation
-   * time, or their last update when the listing shows no creation time), allowing PRIOR_SEARCH_CLOCK_SKEW_MS for the
-   * app's clock against Mission Control's. NONE only when the listing has a thread list that reaches back before that
-   * (at least one thread last updated earlier) and every such thread was read with a first message that isn't the
+   * Read-only, before the owner's retry of a failed start (lib/chatgpt-work-cloud-retry.ts): whether a thread whose
+   * first message is exactly `prompt` exists among the threads made at or after `requestedAt` (by their creation time,
+   * or their last update when the listing shows no creation time), allowing PRIOR_SEARCH_CLOCK_SKEW_MS for the app's
+   * clock against Mission Control's. Threads on every surface are read: a create call whose answer was lost may have
+   * made its thread on another surface, as a wrong-surface result shows when the answer arrives (independent review of
+   * b72e68bd). NONE only when the listing has a thread list that reaches back before that (at least one ChatGPT or
+   * unknown-kind thread last updated earlier) and every such thread was read with a first message that isn't the
    * prompt. A listing without a thread list or that doesn't reach back, an unreadable or temporary thread, a rate limit,
    * or more candidates than PRIOR_SEARCH_MAX_READS is INCOMPLETE. The prompt carries the failed start's own dispatch id,
    * so no project or title narrows the search, and nothing is written.
@@ -214,8 +216,9 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     if (chatGptSourceUnavailable(listed)) return "INCOMPLETE";
     const threads = listedThreads(listed);
     if (!threads) return "INCOMPLETE";
-    if (!threads.some((thread) => thread.updatedMs !== null && thread.updatedMs < since)) return "INCOMPLETE";
-    const candidates = threads.filter((thread) => thread.kind !== "other" && (thread.madeMs === null || thread.madeMs >= since));
+    // An older thread of another surface proves nothing about ChatGPT's threads, which a listing may page apart.
+    if (!threads.some((thread) => thread.kind !== "other" && thread.updatedMs !== null && thread.updatedMs < since)) return "INCOMPLETE";
+    const candidates = threads.filter((thread) => thread.madeMs === null || thread.madeMs >= since);
     if (candidates.length > PRIOR_SEARCH_MAX_READS) return "INCOMPLETE";
     for (const candidate of candidates) {
       if (!candidate.threadId || isTemporaryThreadId(candidate.threadId)) return "INCOMPLETE";
@@ -225,10 +228,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
       } catch {
         return "INCOMPLETE";
       }
-      const surface = surfaceKind(read);
-      // A readable thread on another surface can't be the Work thread.
-      if (surface !== "chatgpt" && surface !== "unknown" && directThreadId(read) === candidate.threadId) continue;
-      if (surface !== "chatgpt" || directThreadId(read) !== candidate.threadId) return "INCOMPLETE";
+      if (directThreadId(read) !== candidate.threadId) return "INCOMPLETE";
       const observed = initialUserPrompt(read);
       if (observed === null) return "INCOMPLETE";
       if (promptReadbackMatches(input.prompt, observed)) return "MATCH";

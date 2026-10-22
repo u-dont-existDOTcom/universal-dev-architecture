@@ -10,7 +10,7 @@
 // authorization is still open and only once the failed start has settled (WORK_CLOUD_RETRY_SETTLE_MS after its result
 // was recorded). The retry is a new dispatch of the same directive with its own id, derived from the failed one alone.
 // Before the retry's request is recorded and its Work call made, the dispatcher reads the app (never writes) for a
-// ChatGPT thread whose first message is the failed start's exact prompt, and holds the retry unless it read every
+// thread on any surface whose first message is the failed start's exact prompt, and holds the retry unless it read every
 // thread made since that start and found none (scripts/dispatch-chatgpt-work-cloud.ts). A start that was retried and
 // failed again may be retried again only by another authorization of the owner, naming that retry.
 import { canonicalJson, sha256 } from "./canonical";
@@ -30,8 +30,7 @@ export const WORK_CLOUD_RETRYABLE_STATUSES: ReadonlySet<string> = new Set(["UNAV
 /**
  * Whether the owner may retry a start that ended with this result: UNAVAILABLE (any code), or FAILED only when the app
  * executor itself failed. A FAILED result whose code shows that a thread holding the prompt exists (a wrong surface, a
- * mismatched or ambiguous thread) is never retried, since the search before a retry reads only ChatGPT threads
- * (independent review of e508a5f9).
+ * mismatched or ambiguous thread) is never retried (independent review of e508a5f9).
  */
 export function retryableWorkCloudResult(result: { status: string; error_code: string | null }): boolean {
   return result.status === "UNAVAILABLE" || (result.status === "FAILED" && result.error_code === "WORK_CLOUD_APP_EXECUTOR_FAILED");
@@ -95,6 +94,11 @@ export function retryableWorkCloudDispatch(events: readonly StoredEvent[], at: s
   const latestByDispatch = new Map(results.map((result) => [result.dispatch_id, result]));
   if ([...latestByDispatch.values()].some((result) => !WORK_CLOUD_RETRYABLE_STATUSES.has(result.status))) {
     return { refusal: "A start of this Work job is ready or still waiting, so it isn't retried." };
+  }
+  // A start that made a thread (it waited for setup, or found one) may be running there, whatever its latest result
+  // (independent review of b72e68bd).
+  if (results.some((result) => Boolean(result.client_thread_id || result.work_thread_id))) {
+    return { refusal: "A start of this Work job made a thread in the app, so it isn't retried." };
   }
   const resultIds = new Set(results.map((result) => result.dispatch_id));
   if (related.some((event) => event.data.type === "chatgpt_work_cloud_handoff_intent_recorded"

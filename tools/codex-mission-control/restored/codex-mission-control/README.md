@@ -278,15 +278,17 @@ what it may use, what it must never do, and when it is done.
   supervisor's authorization is open (before its deadline), with no start of the job ready or waiting, none across the
   app boundary without a result, and no run of it on record. Only an `UNAVAILABLE` start, or one that `FAILED` because
   the app executor itself failed, is retried: a wrong surface or a mismatched or ambiguous thread can mean a thread
-  holding the prompt exists. The failed start must have settled first: the retry is authorized only 30 minutes or more
-  after Mission Control recorded its result, by the store's own time (a create call that lost its answer may still
-  complete late, and a new thread may show in the listing late). The retry is a new dispatch of the same job; its id
+  holding the prompt exists, and a start that made a thread (it waited for setup) is never retried. The failed start
+  must have settled first: the retry is authorized only 30 minutes or more after Mission Control recorded its result,
+  by the store's own time (a create call that lost its answer may still complete late, and a new thread may show in
+  the listing late). The retry is a new dispatch of the same job; its id
   comes from the failed one's alone (`lib/chatgpt-work-cloud-retry.ts`). Before the retry's request is recorded and its
-  Work call made, the controller checks the 30 minutes again and searches the app, read-only, for a ChatGPT thread
-  whose first message is the failed start's exact prompt (it carries that start's own dispatch id, so no project or
-  title narrows the search): it lists one page of threads and reads every thread made since that start, allowing 10
-  minutes for the app's clock (25 at most). Only when the listing has a thread list that reaches back before the failed
-  start and every such thread was read with no match does the retry go ahead; otherwise (a match, a listing without a
+  Work call made, the controller checks the 30 minutes again and searches the app, read-only, for a thread on any
+  surface whose first message is the failed start's exact prompt (it carries that start's own dispatch id, so no
+  project or title narrows the search): it lists one page of threads and reads every thread made since that start,
+  allowing 10 minutes for the app's clock (25 at most). Only when the listing has a thread list that reaches back
+  before the failed start (a ChatGPT thread updated earlier) and every such thread was read with no match does the
+  retry go ahead; otherwise (a match, a listing without a
   thread list or that doesn't reach back, a thread it couldn't read, too many, or a failed start whose prompt matches
   neither its rebuilt prompt nor its private request file) nothing is recorded or sent, and the dispatcher tries again
   after the same wait as a setup check (`DISPATCH_RETRY_HELD`). A retry that fails again needs another authorization

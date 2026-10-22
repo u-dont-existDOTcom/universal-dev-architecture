@@ -250,9 +250,11 @@ export class EventStore {
       && (!producer || producer.kind !== "OWNER_AUTHORITY" || !producerMayEmit(producer, envelope.data))) {
       throw new ContractInvariantError("A retry of a failed native Work start requires the owner's authenticated authority.");
     }
-    // Its time is the store's: the wait after the failed start (WORK_CLOUD_RETRY_SETTLE_MS) can't be claimed early.
+    // Its time is the store's: the wait after the failed start (WORK_CLOUD_RETRY_SETTLE_MS) can't be claimed early, so
+    // a time after its receipt is refused, and one more than 5 minutes before it too.
     if (envelope.data.type === "chatgpt_work_cloud_dispatch_retry_authorized"
-      && Math.abs(Date.parse(envelope.data.authorized_at) - Date.parse(receivedAt)) > 5 * 60_000) {
+      && !(Date.parse(envelope.data.authorized_at) <= Date.parse(receivedAt)
+        && Date.parse(receivedAt) - Date.parse(envelope.data.authorized_at) <= 5 * 60_000)) {
       throw new ContractInvariantError("A retry of a failed native Work start must be authorized at the time it is recorded.");
     }
     const authenticatedProducer = producer ?? internalProducerFor(envelope.data);

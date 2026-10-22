@@ -139,8 +139,10 @@ test("the owner retries a failed start once, as a new dispatch of the same job, 
     assert.ok(!("refusal" in retryable));
     assert.throws(() => store.append(workCloudRetryEnvelope(retryable, system.id, LATER), LATER, system), ContractInvariantError);
     assert.throws(() => store.append(workCloudRetryEnvelope(retryable, owner.id, LATER), LATER), ContractInvariantError, "no producer");
-    // Its time is the store's: a record claiming a later time than it is received at is refused.
+    // Its time is the store's: a record claiming a later time than it is received at, or one long before it, is refused.
     assert.throws(() => store.append(workCloudRetryEnvelope(retryable, owner.id, LATER), now, owner), /at the time it is recorded/);
+    assert.throws(() => store.append(workCloudRetryEnvelope(retryable, owner.id, "2026-09-19T03:54:00.000Z"), "2026-09-19T03:50:01.000Z", owner), /at the time it is recorded/);
+    assert.throws(() => store.append(workCloudRetryEnvelope(retryable, owner.id, LATER), "2026-09-19T04:05:01.000Z", owner), /at the time it is recorded/);
     // An owner record naming another failed start, result or retry is refused.
     const forged = workCloudRetryEnvelope({ ...retryable, retryDispatchId: "work-cloud:forged" }, owner.id, LATER);
     assert.throws(() => store.append(forged, LATER, owner), ContractInvariantError);
@@ -197,13 +199,19 @@ test("a start that may be running or ran, or that may hold a thread elsewhere, i
     store.append(buildWorkCloudHandoffIntentEnvelope(input()), now, systemProducer);
     assert.throws(() => authorizeWorkCloudDispatchRetry(store, { worker: "auth", producer: owner }, () => LATER), /without a result/);
   } finally { store.close(); }
-  // A start that waited for setup and then failed when the app executor itself failed may be retried: its latest result counts.
+  // A start that made a thread (it waited for setup) is never retried, even when it then failed in the app executor.
   const setup = currentDirectiveStore();
   try {
     await recordStart(setup, {}, { kind: "PENDING_SETUP", clientThreadId: "local-chatgpt:abc" });
     setup.append(buildWorkCloudDispatchRecordedEnvelope(input(), { kind: "FAILED", reasonCode: "WORK_CLOUD_APP_EXECUTOR_FAILED" }, now), now, systemProducer);
-    assert.equal(authorizeWorkCloudDispatchRetry(setup, { worker: "auth", producer: owner }, () => LATER).failedStatus, "FAILED");
+    assert.throws(() => authorizeWorkCloudDispatchRetry(setup, { worker: "auth", producer: owner }, () => LATER), /made a thread in the app/);
   } finally { setup.close(); }
+  // A start whose app executor failed without a thread may be retried.
+  const executorFailed = currentDirectiveStore();
+  try {
+    await recordStart(executorFailed, {}, { kind: "FAILED", reasonCode: "WORK_CLOUD_APP_EXECUTOR_FAILED" });
+    assert.equal(authorizeWorkCloudDispatchRetry(executorFailed, { worker: "auth", producer: owner }, () => LATER).failedStatus, "FAILED");
+  } finally { executorFailed.close(); }
   // No start on record at all.
   const empty = currentDirectiveStore();
   try {
@@ -378,15 +386,18 @@ function search(threads: unknown[], reads: Record<string, AppToolResult | Error>
   return { client, result: executor.searchForPrompt({ prompt: PROMPT, requestedAt: SINCE }) };
 }
 
-test("the search for a failed start's Work thread is read-only and says NONE only after reading every thread made since", async () => {
+test("the search for a failed start's thread is read-only and says NONE only after reading every thread made since, on every surface", async () => {
   const old = { kind: "chatgpt", id: "old", updatedAt: at("2026-10-21T00:00:00Z") };
   // Updated since, but made before the failed start (its creation time shows it): not read.
   const busyOld = { kind: "chatgpt", id: "busy-old", createdAt: at("2026-10-20T00:00:00Z"), updatedAt: at("2026-10-22T09:00:00Z") };
   const codex = { kind: "codex", id: "codex-1", updatedAt: at("2026-10-22T02:00:00Z") };
   const fresh = { kind: "chatgpt", id: "fresh", createdAt: at("2026-10-22T05:00:00Z"), updatedAt: at("2026-10-22T05:00:00Z") };
-  const none = search([fresh, busyOld, codex, old], { fresh: thread("fresh", "another conversation") });
+  const none = search([fresh, busyOld, codex, old], { fresh: thread("fresh", "another conversation"), "codex-1": thread("codex-1", "a coding task", "codex") });
   assert.equal(await none.result, "NONE");
-  assert.deepEqual(none.client.calls.map((call) => `${call.name}:${String(call.arguments.threadId ?? "")}`), ["list_threads:", "read_thread:fresh"]);
+  assert.deepEqual(none.client.calls.map((call) => `${call.name}:${String(call.arguments.threadId ?? "")}`),
+    ["list_threads:", "read_thread:fresh", "read_thread:codex-1"]);
+  // A create call whose answer was lost may have made its thread on another surface: a match there holds the retry too.
+  assert.equal(await search([fresh, codex, old], { fresh: thread("fresh", "x"), "codex-1": thread("codex-1", PROMPT, "codex") }).result, "MATCH");
   assert.equal((await search([fresh, old], { fresh: thread("fresh", PROMPT) }).result), "MATCH");
   // The provider shows only the first 2,000 characters of a long first message.
   const long = `${PROMPT}\n${"x".repeat(3_000)}`;
@@ -417,8 +428,12 @@ test("anything the search couldn't read holds the retry", async () => {
   const many = Array.from({ length: 26 }, (_, index) => fresh(`t-${index}`));
   assert.equal(await search([...many, old], {}).result, "INCOMPLETE");
   assert.equal(await search([{ id: "kindless", updatedAt: at("2026-10-22T05:00:00Z") }, old], { kindless: new Error("unreadable") }).result, "INCOMPLETE");
-  // A thread listed without a kind is read, and a readable thread on another surface isn't the Work thread.
-  assert.equal(await search([{ id: "kindless", updatedAt: at("2026-10-22T05:00:00Z") }, old], { kindless: thread("kindless", PROMPT, "codex") }).result, "NONE");
+  // A thread listed without a kind is read, whatever surface it turns out to be on.
+  assert.equal(await search([{ id: "kindless", updatedAt: at("2026-10-22T05:00:00Z") }, old], { kindless: thread("kindless", PROMPT, "codex") }).result, "MATCH");
+  assert.equal(await search([{ id: "kindless", updatedAt: at("2026-10-22T05:00:00Z") }, old], { kindless: thread("kindless", "x", "codex") }).result, "NONE");
+  // Only an older ChatGPT (or unknown-kind) thread shows the listing reaches back: another surface's may be paged apart.
+  const oldCodex = { kind: "codex", id: "old-codex", updatedAt: at("2026-10-21T00:00:00Z") };
+  assert.equal(await search([fresh("a"), oldCodex], { a: thread("a", "x") }).result, "INCOMPLETE");
   const unavailable = new Reads(() => value({ unavailableSources: ["chatgpt"], threads: [] }));
   assert.equal(await new NativeChatGptWorkCloudExecutor(unavailable, null).searchForPrompt({ prompt: PROMPT, requestedAt: SINCE }), "INCOMPLETE");
 });
