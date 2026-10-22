@@ -72,16 +72,24 @@ async function main() {
       if (record.kind !== "chatgpt") continue;
       const threadId = typeof record.id === "string" ? record.id : typeof record.threadId === "string" ? record.threadId : null;
       const updatedAt = timestampMs(record.updatedAt ?? record.updated_at);
-      if (!threadId || threadId.startsWith("local-chatgpt:") || updatedAt === null || updatedAt < updatedAfter) continue;
+      if (updatedAt !== null && updatedAt < updatedAfter) continue;
+      // A thread in range (or of unknown time) that can't be read exactly leaves the scan incomplete.
+      if (!threadId || threadId.startsWith("local-chatgpt:") || updatedAt === null) { unreadable += 1; continue; }
       try {
         const root = parseToolJson(await app.callTool({
           name: "read_thread",
           arguments: { threadId, turnLimit: 10, includeOutputs: false, maxOutputCharsPerItem: 20_000 },
         }));
         const thread = root.thread;
+        // The read must be this thread's (its id) with its turns; any other shape counts as unreadable, not as a thread
+        // without a receipt (Codex review of c1d9b23e).
+        const readId = thread && typeof thread === "object" && !Array.isArray(thread)
+          ? (thread as { id?: unknown; threadId?: unknown }).id ?? (thread as { threadId?: unknown }).threadId : undefined;
+        if (readId !== threadId || !Array.isArray(root.turns)) { unreadable += 1; continue; }
         const status = thread && typeof thread === "object" && !Array.isArray(thread)
           && (thread as { status?: unknown }).status && typeof (thread as { status: { type?: unknown } }).status.type === "string"
           ? String((thread as { status: { type: string } }).status.type) : null;
+        if (status === null) { unreadable += 1; continue; }
         output.push({ threadId, status, updatedAt, observedAt: new Date().toISOString(), finalAgentMessage: finalAgentMessage(root) });
       } catch { unreadable += 1; /* unreadable candidates cannot satisfy exact binding */ }
     }
