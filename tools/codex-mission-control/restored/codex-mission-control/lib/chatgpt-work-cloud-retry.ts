@@ -257,6 +257,8 @@ export interface WorkCloudRetryPrior {
   /** When Mission Control recorded the failed start's latest result (the store's time), or null if none is on record. */
   resultRecordedAt: string | null;
   promptSha256: string;
+  /** Every earlier failed start of the chain before it, oldest first: a late thread of any of them holds the retry. */
+  earlierDispatchIds: string[];
 }
 
 /**
@@ -275,7 +277,20 @@ export function workCloudRetryPrior(events: readonly StoredEvent[], worker: stri
   if (request?.type !== "chatgpt_work_cloud_dispatch_requested") return "UNKNOWN";
   const result = events.findLast((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded"
     && event.data.worker === worker && event.data.dispatch_id === failedId);
-  return { dispatchId: failedId, requestedAt: request.requested_at, resultRecordedAt: result?.receivedAt ?? null, promptSha256: request.prompt_sha256 };
+  const earlierDispatchIds: string[] = [];
+  const seen = new Set([dispatchId, failedId]);
+  for (let current = failedId; ;) {
+    const link = events.find((event) => event.data.type === "chatgpt_work_cloud_dispatch_retry_authorized"
+      && event.data.worker === worker && event.data.retry_dispatch_id === current)?.data;
+    if (link?.type !== "chatgpt_work_cloud_dispatch_retry_authorized" || seen.has(link.failed_dispatch_id)) break;
+    seen.add(link.failed_dispatch_id);
+    earlierDispatchIds.unshift(link.failed_dispatch_id);
+    current = link.failed_dispatch_id;
+  }
+  return {
+    dispatchId: failedId, requestedAt: request.requested_at, resultRecordedAt: result?.receivedAt ?? null,
+    promptSha256: request.prompt_sha256, earlierDispatchIds,
+  };
 }
 
 export interface WorkCloudRetryResult {
@@ -310,8 +325,11 @@ export function authorizeWorkCloudDispatchRetry(
       && directive?.type === "execution_directive_recorded" && event.data.directive_id === directive.directive_id
       && event.data.directive_revision === directive.directive_revision);
     const data = recorded?.data;
-    // A repeat while the authorized retry hasn't started yet reports it.
+    // A repeat while the authorized retry hasn't started yet, and still can (its directive active and open, no run on
+    // record), reports it; a stale one reports why it won't run (Codex review of b66cf2a5).
     if (data?.type === "chatgpt_work_cloud_dispatch_retry_authorized"
+      && directive?.type === "execution_directive_recorded" && directive.status === "ACTIVE"
+      && workDirectiveOpenAt(events, directive, at) && !workDirectiveHasRun(events, directive)
       && !events.some((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested" && event.data.dispatch_id === data.retry_dispatch_id)) {
       return {
         status: "WORK_START_RETRY_ALREADY_AUTHORIZED", worker: input.worker, failedDispatchId: data.failed_dispatch_id,

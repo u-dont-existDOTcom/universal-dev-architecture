@@ -349,7 +349,7 @@ test("the dispatcher follows the owner's retry to a new dispatch and hands the c
   // The controller takes the failed start from the ledger, never from its request file: the owner's authorization naming
   // the dispatch, the failed start's request and its latest result.
   assert.deepEqual(workCloudRetryPrior([...failed, authorization(6, first.dispatchId)], "alpha", retry.dispatchId),
-    { dispatchId: first.dispatchId, requestedAt: FAILED_AT, resultRecordedAt: BEFORE, promptSha256: sha256(first.workPrompt) });
+    { dispatchId: first.dispatchId, requestedAt: FAILED_AT, resultRecordedAt: BEFORE, promptSha256: sha256(first.workPrompt), earlierDispatchIds: [] });
   assert.equal(workCloudRetryPrior([...failed, authorization(6, first.dispatchId)], "alpha", first.dispatchId), null, "not a retry");
   assert.equal(workCloudRetryPrior([...failed, authorization(6, first.dispatchId)], "beta", retry.dispatchId), null, "another worker");
   assert.equal(workCloudRetryPrior([...base, authorization(6, first.dispatchId)], "alpha", retry.dispatchId), "UNKNOWN");
@@ -376,6 +376,9 @@ test("the dispatcher follows the owner's retry to a new dispatch and hands the c
   const twice = [...failed, authorization(6, first.dispatchId), ...failedStart(7, retry.dispatchId, sha256(retry.workPrompt), BEFORE)];
   assert.equal(discover(twice).length, 0);
   const third = discover([...twice, authorization(10, retry.dispatchId)])[0]!;
+  // A retry of a retry also searches for the chain's earlier failed start, by its dispatch id.
+  assert.deepEqual(workCloudRetryPrior([...twice, authorization(10, retry.dispatchId)], "alpha", third.dispatchId),
+    { dispatchId: retry.dispatchId, requestedAt: BEFORE, resultRecordedAt: BEFORE, promptSha256: sha256(retry.workPrompt), earlierDispatchIds: [first.dispatchId] });
   assert.equal(third.dispatchId, workCloudRetryDispatchId(retry.dispatchId));
   assert.deepEqual(third.controllerRequest.priorAttempt,
     { dispatchId: retry.dispatchId, requestedAt: BEFORE, resultRecordedAt: BEFORE, promptSha256: sha256(retry.workPrompt), prompt: retry.workPrompt });
@@ -406,6 +409,14 @@ test("no retry is authorized once the supervisor's authorization has ended", () 
   assert.equal(open.failedDispatchId, first.dispatchId);
   const closed = retryableWorkCloudDispatch(failed, DEADLINE);
   assert.ok("refusal" in closed && /deadline passed/.test(closed.refusal));
+  // A repeat of the owner's action reports the recorded retry only while it can still run; else why it won't.
+  const ledger = (events: StoredEvent[]) => ({ workerEvents: () => events, append: (): StoredEvent => { throw new Error("nothing is appended"); } });
+  const authorized = [...failed, authorization(6, first.dispatchId)];
+  assert.equal(authorizeWorkCloudDispatchRetry(ledger(authorized), { worker: "alpha", producer: owner }, () => "2026-09-21T03:00:00.000Z").status,
+    "WORK_START_RETRY_ALREADY_AUTHORIZED");
+  assert.throws(() => authorizeWorkCloudDispatchRetry(ledger(authorized), { worker: "alpha", producer: owner }, () => DEADLINE), /deadline passed/);
+  const ranSince = [...authorized, event(7, "alpha", "run:alpha", { type: "codex_execution_started", worker: "alpha", directive_id: "directive:alpha", directive_revision: 1 })];
+  assert.throws(() => authorizeWorkCloudDispatchRetry(ledger(ranSince), { worker: "alpha", producer: owner }, () => "2026-09-21T03:00:00.000Z"), /run on record/);
 });
 
 test("a held retry waits like a setup check, without delaying another new start", () => {
@@ -476,6 +487,8 @@ test("the search for a failed start's thread is read-only and says NONE only aft
   // A marker the prompt doesn't carry, or a short one, is ignored.
   assert.equal(await searcher.searchForPrompt({ prompt: PROMPT, requestedAt: SINCE, marker: "work-cloud:0123456789abcdef0123" }), "NONE");
   assert.equal(await searcher.searchForPrompt({ prompt: marked, requestedAt: SINCE, marker: "work-cloud" }), "NONE");
+  // An earlier failed start of the chain matches by its dispatch id too.
+  assert.equal(await searcher.searchForPrompt({ prompt: PROMPT, requestedAt: SINCE, earlierMarkers: ["work-cloud:0123456789abcdef0123"] }), "MATCH");
   // No project narrows the search, and the app's clock may run up to 10 minutes behind: both threads are read.
   const skewed = { kind: "chatgpt", id: "skewed", createdAt: at("2026-10-22T01:20:00Z"), updatedAt: at("2026-10-22T01:20:00Z") };
   const wide = search([{ ...fresh, projectId: "project-2" }, skewed, old], { fresh: thread("fresh", "x"), skewed: thread("skewed", PROMPT) });

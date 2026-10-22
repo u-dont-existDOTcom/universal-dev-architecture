@@ -148,7 +148,9 @@ try {
         : !Number.isFinite(settledAt) || Date.now() < settledAt ? "PRIOR_ATTEMPT_NOT_SETTLED"
         : priorPrompt === null ? "PRIOR_ATTEMPT_PROMPT_UNKNOWN"
         : !executor ? "PRIOR_ATTEMPT_SEARCH_INCOMPLETE"
-        : await executor.searchForPrompt({ prompt: priorPrompt, requestedAt: prior.requestedAt, marker: prior.dispatchId })
+        : await executor.searchForPrompt({
+          prompt: priorPrompt, requestedAt: prior.requestedAt, marker: prior.dispatchId, earlierMarkers: prior.earlierDispatchIds,
+        })
           .then((search) => search === "NONE" ? null : search === "MATCH" ? "PRIOR_ATTEMPT_WORK_THREAD_FOUND" : "PRIOR_ATTEMPT_SEARCH_INCOMPLETE")
           .catch(() => "PRIOR_ATTEMPT_SEARCH_INCOMPLETE");
       if (reason) {
