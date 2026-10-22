@@ -231,8 +231,11 @@ export function currentWorkCloudDispatch(
   const retried = new Set(retries.map((retry) => retry.retry_dispatch_id));
   let dispatchId = retries.find((retry) => !retried.has(retry.failed_dispatch_id))?.failed_dispatch_id ?? firstDispatchId;
   let prior: { dispatchId: string; request: RequestData; resultReceivedAt: string | null } | null = null;
-  // The chain is short (each link needs the owner); the bound only guards a malformed ledger.
-  for (let hop = 0; hop < 20; hop += 1) {
+  // Followed to its end, however long (each link needs the owner); a dispatch seen twice ends a malformed, cyclic ledger
+  // (Codex review of 0ed8bee8).
+  const seen = new Set<string>();
+  while (!seen.has(dispatchId)) {
+    seen.add(dispatchId);
     const current = dispatchId;
     const retry = retries.find((item) => item.failed_dispatch_id === current);
     if (!retry) break;

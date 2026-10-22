@@ -362,6 +362,20 @@ test("the dispatcher follows the owner's retry to a new dispatch and hands the c
     { dispatchId: retry.dispatchId, requestedAt: BEFORE, resultRecordedAt: BEFORE, promptSha256: sha256(retry.workPrompt), prompt: retry.workPrompt });
 });
 
+test("the dispatcher follows a long retry chain to its end", () => {
+  const base = workerEvents("alpha");
+  const first = discover(base)[0]!;
+  const chain = [...base];
+  let failedId = first.dispatchId;
+  for (let hop = 0; hop < 22; hop += 1) {
+    chain.push(...failedStart(chain.length + 1, failedId, "d".repeat(64)), authorization(chain.length + 4, failedId));
+    failedId = workCloudRetryDispatchId(failedId);
+  }
+  const last = discover(chain)[0]!;
+  assert.equal(last.dispatchId, failedId);
+  assert.equal(last.recoveryState, "NEW");
+});
+
 test("no retry is authorized once the supervisor's authorization has ended", () => {
   const base = workerEvents("alpha");
   const first = discover(base)[0]!;
