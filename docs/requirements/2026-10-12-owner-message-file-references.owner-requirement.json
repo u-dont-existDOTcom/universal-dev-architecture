@@ -1,0 +1,40 @@
+{
+  "requirement_id": "2026-10-12-owner-message-file-references",
+  "date": "2026-10-12",
+  "source": "Owner message in a Claude chat (community article lane, joel-articles) on 2026-10-12 at 17:23 UTC, after the assistant's final message named a report by a path relative to a lane folder.",
+  "owner_statement": "can you stop giving me paths to files that are relative to something? send that bug report to UDA i thought i told you always give me a link to click or a file to look at",
+  "problem": "A final message told the owner the reasoning was in `sweep-20261012/SWEEP-RESULTS.md`, a path relative to a folder inside a repository branch, which he couldn't open. The rule against this was loaded (patterns/human-readable-operational-references.md, Owner-facing artifact delivery; logic failure map LF-9.3), but it was prose applied from memory at the end of a long turn, and nothing checked the message.",
+  "recurring_finding": {
+    "class": "Owner-facing references he can't open (repository paths instead of a sent file or a link).",
+    "prior_fixes": [
+      "Root AGENTS.md, Owner-facing artifact delivery (moved to patterns/human-readable-operational-references.md, 2026-09-26)"
+    ],
+    "redesign": "A mechanical check of the draft message: scripts/owner_message_refs.py lists every path-like reference that is neither a link nor a file sent with the message; the pattern says to run it before a message names a file."
+  },
+  "required_behavior": [
+    "Before sending a message that points the owner to a file or document, run scripts/owner_message_refs.py on the draft with the sent files, or scan the draft by eye where the repository isn't checked out.",
+    "Each reference it lists is sent, replaced by a clickable link, or named in plain words."
+  ],
+  "authority": "OWNER_REQUIRED. The delivery-priority rule in patterns/human-readable-operational-references.md is unchanged; this adds a check of the message that carries it.",
+  "scope": "Every owner-facing message that names a file or document, on every surface under the universal architecture.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "notes": "The owner asked for the bug report to go to UDA; the script and its wording are the assistant's implementation."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/human-readable-operational-references.md and patterns/logic-failure-map.md (LF-9.3)",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "scripts/owner_message_refs.py and tests/test_owner_message_refs.py",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Claude chats on claude.ai without this repository checked out",
+      "disposition": "PROSE_ONLY",
+      "notes": "The by-eye scan in the pattern applies there."
+    }
+  ]
+}

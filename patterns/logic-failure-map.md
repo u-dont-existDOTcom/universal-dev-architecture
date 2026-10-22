@@ -122,7 +122,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 |---|---|---|---|---|
 | LF-9.1 | Opaque identifiers instead of plain names. | Plain name first, identifier in parentheses. | `patterns/human-readable-operational-references.md` | |
 | LF-9.2 | A link surfaced without opening it. | Open the exact link this turn. | Root `AGENTS.md` (Owner-facing outbound-link quality) | |
-| LF-9.3 | Output the owner can't use where it is: a repository path, a long chat dump. | Deliver it where it will be used. | `patterns/worker-directive-delivery-and-chat-output-budget.md`; `patterns/human-readable-operational-references.md` | |
+| LF-9.3 | Output the owner can't use where it is: a repository path, a long chat dump. | Deliver it where it will be used; before a message names a file, run `scripts/owner_message_refs.py` on the draft (owner, 2026-10-12). | `patterns/worker-directive-delivery-and-chat-output-budget.md`; `patterns/human-readable-operational-references.md` | |
 | LF-9.4 | A guess or a partial check reported as fact. | Each claim says where and when it was checked. | `patterns/reasoning-selection.md` (observed-state claims); `patterns/agent-to-agent-consultation.md` | |
 | LF-9.5 | A handoff missing what the next agent needs. | The brief is self-contained: goal, inputs, boundaries, acceptance check. | `patterns/worker-directive-delivery-and-chat-output-budget.md` | FM-2.4 |
 | LF-9.6 | Prose becomes hard to read aloud because connective relations are lost or repetition is mechanical. | Read the passage aloud; restore natural links and check local repetition in context. | `patterns/conversational-prose-speakability.md` | |
