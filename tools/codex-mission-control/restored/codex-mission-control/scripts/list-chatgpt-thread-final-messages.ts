@@ -77,7 +77,8 @@ async function main() {
     // reported unavailable (a rate-limited ChatGPT listing shows only other surfaces), and every read in range succeeded.
     const unavailable = listed.unavailableSources ?? listed.unavailable_sources;
     const sourcesUnavailable = Array.isArray(unavailable) ? unavailable.length > 0 : unavailable !== undefined && unavailable !== null;
-    let unreadable = 0;
+    // A pinned listing in another shape may hide a pinned thread: the scan isn't complete (Codex review of 573422d6).
+    let unreadable = listed.pinnedThreads !== undefined && !Array.isArray(listed.pinnedThreads) ? 1 : 0;
     const output: Array<{ threadId: string; status: string | null; updatedAt: number; observedAt: string; finalAgentMessage: string | null }> = [];
     const seen = new Set<string>();
     for (const summary of [...threads, ...pinned]) {
