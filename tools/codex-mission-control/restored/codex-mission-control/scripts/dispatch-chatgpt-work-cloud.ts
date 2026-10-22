@@ -11,6 +11,7 @@ import {
   connectCodexDriverMutationBridge,
   connectNativeAppToolClient,
   inMemoryDeferredThreads,
+  privatePriorSearchRuledOut,
   type DeferredThreadQueue,
   type ThreadIdSet,
   type WorkCloudAppToolClient,
@@ -27,6 +28,8 @@ import { WORK_CLOUD_RETRY_SETTLE_MS, workCloudRetryPrior } from "../lib/chatgpt-
 import type { StoredEvent } from "../lib/schema";
 
 const PRODUCER_ID = "system:chatgpt-work-cloud-dispatch";
+/** The pause between a retry's search reads: ChatGPT refuses reads that come too fast ("Too many requests"). */
+const PRIOR_SEARCH_READ_PAUSE_MS = 2_000;
 
 interface ControllerRequest {
   dispatchId: string;
@@ -150,6 +153,10 @@ try {
         : !executor ? "PRIOR_ATTEMPT_SEARCH_INCOMPLETE"
         : await executor.searchForPrompt({
           prompt: priorPrompt, requestedAt: prior.requestedAt, marker: prior.dispatchId, earlierMarkers: prior.earlierDispatchIds,
+          // Threads ruled out by this search's earlier runs, so a search ChatGPT keeps cutting short still finishes.
+          ruledOut: privatePriorSearchRuledOut(`${absoluteRequestPath}.prior-search.json`,
+            createHash("sha256").update(JSON.stringify([priorPrompt, prior.dispatchId, prior.earlierDispatchIds])).digest("hex")),
+          readPauseMs: PRIOR_SEARCH_READ_PAUSE_MS,
         })
           .then((search) => search === "NONE" ? null : search === "MATCH" ? "PRIOR_ATTEMPT_WORK_THREAD_FOUND" : "PRIOR_ATTEMPT_SEARCH_INCOMPLETE")
           .catch(() => "PRIOR_ATTEMPT_SEARCH_INCOMPLETE");
