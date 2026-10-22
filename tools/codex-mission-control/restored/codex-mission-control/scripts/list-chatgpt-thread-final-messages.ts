@@ -69,7 +69,8 @@ async function main() {
     for (const summary of threads) {
       if (!summary || typeof summary !== "object" || Array.isArray(summary)) continue;
       const record = summary as Record<string, unknown>;
-      if (record.kind !== "chatgpt") continue;
+      // A thread listed without a kind may be a ChatGPT thread: it is read too (Codex review of dc538ad3).
+      if (record.kind !== undefined && record.kind !== "chatgpt") continue;
       const threadId = typeof record.id === "string" ? record.id : typeof record.threadId === "string" ? record.threadId : null;
       const updatedAt = timestampMs(record.updatedAt ?? record.updated_at);
       if (updatedAt !== null && updatedAt < updatedAfter) continue;
