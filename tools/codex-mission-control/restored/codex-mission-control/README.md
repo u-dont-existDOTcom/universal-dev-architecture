@@ -268,6 +268,33 @@ what it may use, what it must never do, and when it is done.
   - Once the supervisor answers, the question is settled: a new authorization becomes the latest directive; an answer
     that starts no new step holds the task like any registered task held by its supervisor ("Held by its supervisor",
     then a verified checkpoint asks again).
+- **The owner may retry a Work start that failed at the ChatGPT app, once per failure.** A start whose result is
+  `UNAVAILABLE` or `FAILED` after the app boundary is ambiguous (the call may have reached Work), so the dispatcher never
+  starts that job again by itself, and the store refuses another start of a job whose latest start failed, except the
+  owner's authorized retry of it. Once the cause is repaired
+  (on 22 Oct the app refused every request from a dispatcher thread that belonged to an earlier app), the owner runs
+  `npm run -s owner:action -- work-start-retry --worker W`. Mission Control records the owner's
+  `chatgpt_work_cloud_dispatch_retry_authorized` for the worker's latest failed start of a new Work thread, only while the
+  supervisor's authorization is open (before its deadline), with no start of the job ready or waiting, none across the
+  app boundary without a result, and no run of it on record (checked again when the retry's request is recorded and
+  right before its app call; once the owner retried, Codex can't start the job). Only an `UNAVAILABLE` start, or one that `FAILED` because
+  the app executor itself failed, is retried: a wrong surface or a mismatched or ambiguous thread can mean a thread
+  holding the prompt exists, and a start that made a thread (it waited for setup) is never retried. The failed start
+  must have settled first: the retry is authorized only 30 minutes or more after Mission Control recorded its result,
+  by the store's own time (a create call that lost its answer may still complete late, and a new thread may show in
+  the listing late). The retry is a new dispatch of the same job; its id
+  comes from the failed one's alone (`lib/chatgpt-work-cloud-retry.ts`). Before the retry's request is recorded and its
+  Work call made, the controller reads from the ledger whether the dispatch is a retry and of which start (never from
+  its request file), checks the 30 minutes again and searches the app, read-only, for a thread on any surface whose
+  first message is the failed start's exact prompt or holds that start's own dispatch id (so no project or title
+  narrows the search): it lists one page of threads and reads every thread made since that start,
+  allowing 10 minutes for the app's clock (25 at most). Only when the listing has a thread list that reaches back
+  before the failed start (a ChatGPT thread updated earlier), no source is reported unavailable, and every such thread
+  was read with no match does the retry go ahead; otherwise (a match, a listing without a
+  thread list or that doesn't reach back, a thread it couldn't read, too many, or a failed start whose prompt matches
+  neither its rebuilt prompt nor its private request file) nothing is recorded or sent, and the dispatcher tries again
+  after the same wait as a setup check (`DISPATCH_RETRY_HELD`). A retry that fails again needs another authorization
+  of the owner, naming it.
 - Submitting the same answers again records nothing. Other answers for a registered task id are refused, and so is
   any id that already has records, saying what those records are.
 - **Closing a registered task comes next.** Marking it achieved or cancelling it needs the owner, so it will take the

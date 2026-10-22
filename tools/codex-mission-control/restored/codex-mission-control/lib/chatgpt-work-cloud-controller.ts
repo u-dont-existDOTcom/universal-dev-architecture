@@ -192,6 +192,64 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     return this.resolveTemporaryThread(input);
   }
 
+  /**
+   * Read-only, before the owner's retry of a failed start (lib/chatgpt-work-cloud-retry.ts): whether a thread whose
+   * first message is exactly `prompt` exists among the threads made at or after `requestedAt` (by their creation time,
+   * or their last update when the listing shows no creation time), allowing PRIOR_SEARCH_CLOCK_SKEW_MS for the app's
+   * clock against Mission Control's. Threads on every surface are read: a create call whose answer was lost may have
+   * made its thread on another surface, as a wrong-surface result shows when the answer arrives (independent review of
+   * b72e68bd). NONE only when the listing has a thread list that reaches back before that (at least one ChatGPT or
+   * unknown-kind thread last updated earlier) and every such thread was read with a first message that isn't the
+   * prompt. A listing that reports any source unavailable, has no thread list or doesn't reach back, an unreadable or
+   * temporary thread, a rate limit, or more candidates than PRIOR_SEARCH_MAX_READS is INCOMPLETE. A first message
+   * matches when it is the prompt (or the provider's 2,000-character readback of it), or when it holds `marker`, the
+   * failed start's own dispatch id, which its prompt carries and no other prompt does: a surface that reflows or trims
+   * the message still matches. It also matches when it holds one of `earlierMarkers`, the dispatch ids of the chain's
+   * earlier failed starts. No project or title narrows the search, and nothing is written.
+   */
+  async searchForPrompt(input: {
+    prompt: string;
+    requestedAt: string;
+    marker?: string;
+    earlierMarkers?: readonly string[];
+  }): Promise<"MATCH" | "NONE" | "INCOMPLETE"> {
+    const markers = [
+      ...(input.marker !== undefined && input.prompt.includes(input.marker) ? [input.marker] : []),
+      ...(input.earlierMarkers ?? []),
+    ].filter((marker) => marker.length >= 16);
+    const since = Date.parse(input.requestedAt) - PRIOR_SEARCH_CLOCK_SKEW_MS;
+    if (!Number.isFinite(since)) return "INCOMPLETE";
+    let listed: unknown;
+    try {
+      listed = await this.read("list_threads", { limit: PRIOR_SEARCH_LIST_LIMIT });
+    } catch {
+      return "INCOMPLETE";
+    }
+    // Every surface is searched, so any source the listing reports unavailable may hide the thread (Codex review of
+    // 917bddd7).
+    if (anySourceUnavailable(listed)) return "INCOMPLETE";
+    const threads = listedThreads(listed);
+    if (!threads) return "INCOMPLETE";
+    // An older thread of another surface proves nothing about ChatGPT's threads, which a listing may page apart.
+    if (!threads.some((thread) => thread.kind !== "other" && thread.updatedMs !== null && thread.updatedMs < since)) return "INCOMPLETE";
+    const candidates = threads.filter((thread) => thread.madeMs === null || thread.madeMs >= since);
+    if (candidates.length > PRIOR_SEARCH_MAX_READS) return "INCOMPLETE";
+    for (const candidate of candidates) {
+      if (!candidate.threadId || isTemporaryThreadId(candidate.threadId)) return "INCOMPLETE";
+      let read: unknown;
+      try {
+        read = await this.readExactThread(candidate.threadId);
+      } catch {
+        return "INCOMPLETE";
+      }
+      if (directThreadId(read) !== candidate.threadId) return "INCOMPLETE";
+      const observed = initialUserPrompt(read);
+      if (observed === null) return "INCOMPLETE";
+      if (promptReadbackMatches(input.prompt, observed) || markers.some((marker) => observed.includes(marker))) return "MATCH";
+    }
+    return "NONE";
+  }
+
   private async verifyExactThread(threadId: string): Promise<WorkCloudExecutorOutcome> {
     const read = await this.readExactThread(threadId);
     const surface = surfaceKind(read);
@@ -905,6 +963,14 @@ function chatGptSourceUnavailable(value: unknown): boolean {
   });
 }
 
+/** Whether a listing reports any thread source unavailable, whichever surface. */
+function anySourceUnavailable(value: unknown): boolean {
+  return objectsIn(value).some((object) => {
+    const sources = object.unavailableSources ?? object.unavailable_sources;
+    return Array.isArray(sources) ? sources.length > 0 : sources !== undefined && sources !== null;
+  });
+}
+
 function chatGptCandidates(
   value: unknown,
   requestedAt: string,
@@ -929,6 +995,33 @@ function chatGptCandidates(
 }
 
 const PROVIDER_PROMPT_READBACK_LIMIT = 2_000;
+/** The one listing page and the reads a retry's search for its failed start's Work thread may use. */
+const PRIOR_SEARCH_LIST_LIMIT = 50;
+const PRIOR_SEARCH_MAX_READS = 25;
+/** How far the app's thread times may run behind Mission Control's clock before a thread counts as older. */
+const PRIOR_SEARCH_CLOCK_SKEW_MS = 10 * 60_000;
+
+/** Every thread of a listing, with its kind ("other" for a known non-ChatGPT surface), its creation (else update) time
+ * and its update time; null when the listing holds no thread list at all (an error text, or a changed shape). */
+function listedThreads(value: unknown): Array<{ threadId: string | null; kind: "chatgpt" | "other" | "unknown";
+  madeMs: number | null; updatedMs: number | null }> | null {
+  const lists = objectsIn(value).filter((object) => Array.isArray(object.threads));
+  if (lists.length === 0) return null;
+  return lists.flatMap((object) => object.threads as unknown[])
+    .filter((thread): thread is Record<string, unknown> => Boolean(thread && typeof thread === "object" && !Array.isArray(thread)))
+    .map((thread) => {
+      const kind = stringField(thread, "kind", "surface", "threadKind", "thread_kind")?.toLowerCase();
+      const updatedMs = timestampMilliseconds(thread.updatedAt ?? thread.updated_at);
+      const createdMs = timestampMilliseconds(thread.createdAt ?? thread.created_at);
+      return {
+        threadId: stringField(thread, "threadId", "thread_id", "id"),
+        kind: kind === undefined ? "unknown" as const
+          : ["chatgpt", "chatgptworkcloud", "chatgpt_work_cloud"].includes(kind) ? "chatgpt" as const : "other" as const,
+        madeMs: createdMs ?? updatedMs,
+        updatedMs,
+      };
+    });
+}
 
 function promptReadbackMatches(expected: string, observed: string): boolean {
   if (observed === expected) return true;

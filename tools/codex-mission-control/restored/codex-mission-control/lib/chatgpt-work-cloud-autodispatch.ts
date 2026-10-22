@@ -4,6 +4,7 @@ import { launchSelectionFor } from "./work-execution-profile";
 import type { StoredEvent } from "./schema";
 import { ruleGraphPromptBlock, workHandoffRuleGraphProjection, WORK_PROMPT_BUDGET_LABEL, WORK_PROMPT_MAX_BYTES } from "./rule-graph-contract";
 import { workQuestionContextForRequest } from "./owner-question-route";
+import { currentWorkCloudDispatch, workDirectiveHasRun } from "./chatgpt-work-cloud-retry";
 
 export const WORK_CLOUD_EXECUTION_RECEIPT_PREFIX = "MISSION_CONTROL_WORK_CLOUD_EXECUTION_RECEIPT_V1\n";
 export const WORK_CLOUD_SUPERVISOR_HANDOFF_PREFIX = "MISSION_CONTROL_WORK_SUPERVISOR_HANDOFF_V1\n";
@@ -47,6 +48,21 @@ export interface PreparedDirectWorkCloudDispatch {
     requestedAt: string;
     /** The directive's bounded-execution deadline; the controller checks it again right before the Work call. */
     deadline: string;
+    /**
+     * For a retry the owner authorized (lib/chatgpt-work-cloud-retry.ts): the failed start it follows, whose exact prompt
+     * the controller searches the app for before the retry's request is recorded: when it was requested, when Mission
+     * Control recorded its result, and its prompt's recorded digest. The prompt is rebuilt here when it matches that
+     * digest, else null (the watcher then reads it from the failed start's private request file, and the controller
+     * holds the retry without it). The same for every state of the retry, so its private request file never changes
+     * once recorded. Null for every other dispatch.
+     */
+    priorAttempt: {
+      dispatchId: string;
+      requestedAt: string;
+      resultRecordedAt: string | null;
+      promptSha256: string;
+      prompt: string | null;
+    } | null;
   };
   recoveryState: "NEW" | "REQUEST_ONLY_PROVEN_UNSENT" | "PENDING_SETUP_READ_ONLY";
   order: number;
@@ -153,7 +169,7 @@ export function discoverDirectWorkCloudDispatches(input: {
     if (sha256(directiveArtifactText) !== directive.directive_artifact_sha256) {
       throw new Error(`Native Work directive artifact ${directive.directive_id} does not reconstruct to its durable digest.`);
     }
-    const dispatchId = `work-cloud:${sha256(canonicalJson({
+    const firstDispatchId = `work-cloud:${sha256(canonicalJson({
       worker: directive.worker,
       directiveId: directive.directive_id,
       directiveRevision: directive.directive_revision,
@@ -165,6 +181,20 @@ export function discoverDirectWorkCloudDispatches(input: {
       existingWorkThreadId: workQuestionContext?.workThreadId ?? null,
       boundedPromptSha256: sha256(bounded.prompt),
     })).slice(0, 32)}`;
+    // A start the owner retried after it failed is followed to the retry (lib/chatgpt-work-cloud-retry.ts).
+    const { dispatchId, prior } = currentWorkCloudDispatch(input.events, directive.worker, directive, firstDispatchId);
+    // A retry is never started once a run of the job is on record (the store refuses its request too).
+    if (prior && workDirectiveHasRun(input.events.filter((event) => event.worker === directive.worker), directive)) continue;
+    const promptFor = (id: string) => buildDirectWorkPrompt({
+      dispatchId: id,
+      worker: directive.worker,
+      directiveId: directive.directive_id,
+      directiveRevision: directive.directive_revision,
+      taskId: directive.task_id,
+      sourceChat,
+      receiptTarget: input.receiptTarget,
+      exactDirective: bounded.prompt,
+    });
     const workPrompt = buildDirectWorkPrompt({
       dispatchId,
       worker: directive.worker,
@@ -223,6 +253,16 @@ export function discoverDirectWorkCloudDispatches(input: {
         prompt: workPrompt,
         requestedAt: request?.type === "chatgpt_work_cloud_dispatch_requested" ? request.requested_at : input.requestedAt,
         deadline: bounded.deadline,
+        priorAttempt: prior ? (() => {
+          const priorPrompt = promptFor(prior.dispatchId);
+          return {
+            dispatchId: prior.dispatchId,
+            requestedAt: prior.request.requested_at,
+            resultRecordedAt: prior.resultReceivedAt,
+            promptSha256: prior.request.prompt_sha256,
+            prompt: sha256(priorPrompt) === prior.request.prompt_sha256 ? priorPrompt : null,
+          };
+        })() : null,
       },
       recoveryState,
       order: directiveEvent.sequence,
@@ -316,19 +356,20 @@ function nullableString(value: unknown, field: string): string | null {
 
 // Picks the next dispatch for one watcher cycle. A PENDING_SETUP dispatch is only a read-only
 // re-resolution; retrying it every cycle hammered the app bridge, so it is retried at most once
-// per retryMs. New and proven-unsent dispatches are never delayed.
+// per retryMs. A retry the controller held (its read-only search for the failed start's Work thread
+// wasn't complete) waits the same time. Other new and proven-unsent dispatches are never delayed.
 export function selectWorkCloudDispatchCandidate(
   candidates: PreparedDirectWorkCloudDispatch[],
   lastPendingAttemptMs: ReadonlyMap<string, number>,
   nowMs: number,
   retryMs: number,
 ): PreparedDirectWorkCloudDispatch | null {
-  // Fresh (non-pending) dispatches always go first, so a due setup retry never delays a new launch.
-  const fresh = candidates.find((candidate) => candidate.recoveryState !== "PENDING_SETUP_READ_ONLY");
-  if (fresh) return fresh;
-  for (const candidate of candidates) {
+  const due = (candidate: PreparedDirectWorkCloudDispatch) => {
     const last = lastPendingAttemptMs.get(candidate.dispatchId);
-    if (last === undefined || nowMs - last >= retryMs) return candidate;
-  }
-  return null;
+    return last === undefined || nowMs - last >= retryMs;
+  };
+  // Fresh (non-pending) dispatches always go first, so a due setup retry never delays a new launch.
+  const fresh = candidates.find((candidate) => candidate.recoveryState !== "PENDING_SETUP_READ_ONLY" && due(candidate));
+  if (fresh) return fresh;
+  return candidates.find((candidate) => candidate.recoveryState === "PENDING_SETUP_READ_ONLY" && due(candidate)) ?? null;
 }

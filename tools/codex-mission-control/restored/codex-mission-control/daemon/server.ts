@@ -51,6 +51,7 @@ import { ProviderDecisionCopier, ProviderDecisionValidationError } from "../lib/
 import { githubRepositoryFileReader } from "../lib/github-repository-files";
 import { parseTaskCheckpointRepositories, type RepositoryFileReader } from "../lib/task-checkpoint";
 import { recordTaskCheckpoint } from "../lib/task-checkpoint-record";
+import { authorizeWorkCloudDispatchRetry } from "../lib/chatgpt-work-cloud-retry";
 
 const host = process.env.MISSION_CONTROL_DAEMON_HOST ?? "127.0.0.1";
 const port = Number(process.env.MISSION_CONTROL_DAEMON_PORT ?? 4100);
@@ -253,6 +254,23 @@ const server = http.createServer(async (request, response) => {
         });
       } catch (error) {
         return json(response, 409, { error: error instanceof Error ? error.message : "Unsent reasoning retirement was rejected." });
+      }
+    }
+    // The owner's one retry of the latest native Work start that failed at the ChatGPT app, while its supervisor's
+    // authorization is open (lib/chatgpt-work-cloud-retry.ts). Nothing is sent here: the dispatcher starts the retry
+    // after its read-only search for a Work thread of the failed start.
+    const workStartRetryMatch = url.pathname.match(/^\/workers\/([^/]+)\/work-cloud-dispatches\/retry-failed$/);
+    if (request.method === "POST" && workStartRetryMatch) {
+      const producer = authorizeMutation(request);
+      if (producer.kind !== "OWNER_AUTHORITY") return json(response, 403, { error: "Only the owner may retry a failed Work start." });
+      const worker = decodeURIComponent(workStartRetryMatch[1]);
+      if (!/^[a-z0-9][a-z0-9_-]{0,79}$/.test(worker)) return json(response, 400, { error: "The worker is not a stable Mission Control identifier." });
+      try {
+        const result = authorizeWorkCloudDispatchRetry(store, { worker, producer });
+        if (!result.duplicate) notifications.emit("event", { type: "work_start_retry_authorized", worker, retryDispatchId: result.retryDispatchId });
+        return json(response, result.duplicate ? 200 : 201, result);
+      } catch (error) {
+        return json(response, 409, { error: error instanceof Error ? error.message : "The retry of the failed Work start was rejected." });
       }
     }
     const workQuestionReissueMatch = url.pathname.match(/^\/workers\/([^/]+)\/work-questions\/reissue-expired$/);

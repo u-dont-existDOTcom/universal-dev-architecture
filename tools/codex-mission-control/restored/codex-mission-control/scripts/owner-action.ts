@@ -33,6 +33,9 @@ const USAGE = `Usage: owner-action <action> [options]
                                                       unless it read a Work answer Mission Control refuses, found on the
                                                       decision issue); Mission Control first runs one GitHub
                                                       reconciliation, so a reply already posted is taken in instead
+  work-start-retry --worker W                         retry once the worker's latest native Work start that failed at the
+                                                      ChatGPT app (UNAVAILABLE or FAILED), while its authorization is open;
+                                                      the dispatcher first searches the app for a Work thread of it
   checkpoint-verify --worker W --file F --commit C --sha256 S
                                                       Mission Control reads checkpoint F at commit C from task W's configured
                                                       private repository, checks its SHA-256 S and every file it lists, and
@@ -174,6 +177,14 @@ export async function runOwnerAction(argv: string[]): Promise<{ status: number; 
       return jsonResult(await daemonFetch(`/workers/${encodeURIComponent(worker)}/work-questions/resend-sent`, {
         method: "POST", headers: daemonMutationHeaders(owner(), { "content-type": "application/json" }),
         body: JSON.stringify(discard === "yes" ? { request_id: requestId, discard_finished_reply: true } : { request_id: requestId }),
+      }));
+    }
+    case "work-start-retry": {
+      const opts = options(rest, ["worker"]);
+      const worker = required(opts, "worker");
+      if (!/^[a-z0-9][a-z0-9_-]{0,79}$/.test(worker)) throw new UsageError("--worker must be one exact worker ID.");
+      return jsonResult(await daemonFetch(`/workers/${encodeURIComponent(worker)}/work-cloud-dispatches/retry-failed`, {
+        method: "POST", headers: daemonMutationHeaders(owner()),
       }));
     }
     case "checkpoint-verify": {
