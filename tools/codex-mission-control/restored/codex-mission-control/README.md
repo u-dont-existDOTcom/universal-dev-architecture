@@ -276,8 +276,8 @@ what it may use, what it must never do, and when it is done.
   `npm run -s owner:action -- work-start-retry --worker W`. Mission Control records the owner's
   `chatgpt_work_cloud_dispatch_retry_authorized` for the worker's latest failed start of a new Work thread, only while the
   supervisor's authorization is open (before its deadline), with no start of the job ready or waiting, none across the
-  app boundary without a result, and no run of it on record (checked again when the retry's request is recorded).
-  Only an `UNAVAILABLE` start, or one that `FAILED` because
+  app boundary without a result, and no run of it on record (checked again when the retry's request is recorded and
+  right before its app call; once the owner retried, Codex can't start the job). Only an `UNAVAILABLE` start, or one that `FAILED` because
   the app executor itself failed, is retried: a wrong surface or a mismatched or ambiguous thread can mean a thread
   holding the prompt exists, and a start that made a thread (it waited for setup) is never retried. The failed start
   must have settled first: the retry is authorized only 30 minutes or more after Mission Control recorded its result,

@@ -52,6 +52,32 @@ export function workDirectiveHasRun(
     && (event.data as { directive_revision?: number }).directive_revision === directive.directive_revision);
 }
 
+/** Whether a Work start may cross the app boundary (the store's check before its handoff intent, right before the app
+ * call): a retry the owner authorized never does once a run of its job is on record, recorded at any time before
+ * (Codex review of de5312bf). Null when it may. */
+export function retryHandoffProblem(
+  events: readonly StoredEvent[],
+  dispatch: { dispatch_id: string; directive_id: string; directive_revision: number },
+): string | null {
+  const retry = events.some((event) => event.data.type === "chatgpt_work_cloud_dispatch_retry_authorized"
+    && event.data.retry_dispatch_id === dispatch.dispatch_id);
+  return retry && workDirectiveHasRun(events, dispatch)
+    ? "A retry of a native Work start isn't sent to the app once a run of its job is on record."
+    : null;
+}
+
+/** Whether Codex may start a directive's job (the store's check): never once the owner authorized a retry of its native
+ * Work start, so the retry and a Codex run can't both start it (Codex review of de5312bf). Null when it may. */
+export function codexStartReservedProblem(
+  events: readonly StoredEvent[],
+  start: { directive_id: string; directive_revision: number },
+): string | null {
+  return events.some((event) => event.data.type === "chatgpt_work_cloud_dispatch_retry_authorized"
+    && event.data.directive_id === start.directive_id && event.data.directive_revision === start.directive_revision)
+    ? "A native Work job the owner retried is reserved for that retry, so Codex can't start it."
+    : null;
+}
+
 /**
  * How long a failed start must have settled before it may be retried (Codex review of e508a5f9, P1): a create call
  * that timed out or lost its answer may still complete late, and a new thread may show in the app's listing late. A

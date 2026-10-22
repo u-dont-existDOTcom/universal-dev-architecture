@@ -16,7 +16,9 @@ import {
 } from "../lib/chatgpt-work-cloud-dispatch";
 import {
   authorizeWorkCloudDispatchRetry,
+  codexStartReservedProblem,
   retryableWorkCloudDispatch,
+  retryHandoffProblem,
   workCloudRetryAuthorizationId,
   workCloudRetryDispatchId,
   workCloudRetryEnvelope,
@@ -330,6 +332,19 @@ test("the dispatcher follows the owner's retry to a new dispatch and hands the c
   assert.equal(discover(ran).length, 0);
   assert.equal(workDirectiveHasRun(ran, { directive_id: "directive:alpha", directive_revision: 1 }), true);
   assert.equal(workDirectiveHasRun(ran, { directive_id: "directive:alpha", directive_revision: 2 }), false);
+  // A run recorded after the retry's request still stops it at the app boundary (the store's check before its handoff
+  // intent), and once the owner retried, Codex can't start the job.
+  const runEvent = event(8, "alpha", "run:late", { type: "codex_execution_started", worker: "alpha", directive_id: "directive:alpha", directive_revision: 1 });
+  const retryRequested = [...failed, authorization(6, first.dispatchId),
+    event(7, "alpha", "request:retry", { worker: "alpha", dispatch_id: retry.dispatchId, directive_id: "directive:alpha", directive_revision: 1,
+      task_id: "task:alpha", type: "chatgpt_work_cloud_dispatch_requested", mode: "CREATE", prompt_sha256: sha256(retry.workPrompt), requested_at: BEFORE })];
+  const retryBoundary = { dispatch_id: retry.dispatchId, directive_id: "directive:alpha", directive_revision: 1 };
+  assert.equal(retryHandoffProblem(retryRequested, retryBoundary), null);
+  assert.match(retryHandoffProblem([...retryRequested, runEvent], retryBoundary) ?? "", /run of its job is on record/);
+  assert.equal(retryHandoffProblem([...base, runEvent], { ...retryBoundary, dispatch_id: first.dispatchId }), null, "not a retry");
+  assert.equal(codexStartReservedProblem(failed, { directive_id: "directive:alpha", directive_revision: 1 }), null);
+  assert.match(codexStartReservedProblem(retryRequested, { directive_id: "directive:alpha", directive_revision: 1 }) ?? "", /reserved for that retry/);
+  assert.equal(codexStartReservedProblem(retryRequested, { directive_id: "directive:alpha", directive_revision: 2 }), null);
   // A retry that failed again needs another authorization, naming it.
   const twice = [...failed, authorization(6, first.dispatchId), ...failedStart(7, retry.dispatchId, sha256(retry.workPrompt), BEFORE)];
   assert.equal(discover(twice).length, 0);

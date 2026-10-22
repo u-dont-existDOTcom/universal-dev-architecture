@@ -17,7 +17,13 @@ import { supervisionHandoffCapsuleSha256 } from "./supervision-handoff";
 import { authorityStateVectorHash } from "./terminal-comparator";
 import { buildExecutionDirectiveFromGitHubDecision } from "./github-execution-directive";
 import { workDirectiveDeadline } from "./work-directive-expiry";
-import { retryAuthorizationProblem, WORK_CLOUD_RETRYABLE_STATUSES, workDirectiveHasRun } from "./chatgpt-work-cloud-retry";
+import {
+  codexStartReservedProblem,
+  retryAuthorizationProblem,
+  retryHandoffProblem,
+  WORK_CLOUD_RETRYABLE_STATUSES,
+  workDirectiveHasRun,
+} from "./chatgpt-work-cloud-retry";
 import {
   evaluateWorkExecutionPreflight,
   failureMayAuthorizeProfileEscalation,
@@ -1140,6 +1146,9 @@ export class EventStore {
         && event.data.dispatch_id === data.dispatch_id)) {
         throw new ContractInvariantError("Native Work handoff intent cannot be recorded after a dispatch result.");
       }
+      // An owner's retry crosses the app boundary only while no run of its job is on record (lib/chatgpt-work-cloud-retry.ts).
+      const retryProblem = retryHandoffProblem(events, data);
+      if (retryProblem) throw new ContractInvariantError(retryProblem);
     }
     if (data.type === "chatgpt_work_cloud_execution_receipt_recorded") {
       const request = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested"
@@ -1353,6 +1362,8 @@ export class EventStore {
       if (priorReceipt?.type === "execution_receipt_recorded") {
         throw new ContractInvariantError("Codex cannot continue after a directive stop receipt; a new independent chat review and directive are required.");
       }
+      const reserved = codexStartReservedProblem(events, data);
+      if (reserved) throw new ContractInvariantError(reserved);
       if (directive.directive_schema_version === 3) {
         const authorization = [...events].reverse().find((event) => event.data.type === "work_execution_profile_authorized"
           && event.data.authorization_id === data.work_profile_authorization_id)?.data;
