@@ -28,7 +28,8 @@ class OwnerQuestionsPageTests(unittest.TestCase):
             "A file in a public repository is public",
             "Never start a second page.",
             "**Open questions.** Each question has a number that is never reused.",
-            "**For you to do (no decision needed).**",
+            "**For you to do.**",
+            "A decision is never listed here: accepting finished work, choosing between options, or saying what to change is a numbered open question with options.",
             "**Decided.**",
             "**Coming up (not a question yet).**",
             "a title that names the decision in plain words, never a pull request, branch or issue number;",
@@ -48,7 +49,7 @@ class OwnerQuestionsPageTests(unittest.TestCase):
     def test_sections_are_listed_in_order(self) -> None:
         order = [
             self.pattern.index("**Open questions.**"),
-            self.pattern.index("**For you to do (no decision needed).**"),
+            self.pattern.index("**For you to do.**"),
             self.pattern.index("**Decided.**"),
             self.pattern.index("**Coming up (not a question yet).**"),
         ]
