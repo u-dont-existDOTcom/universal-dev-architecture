@@ -1,11 +1,19 @@
 // The owner's retry of a native Work start that failed at the ChatGPT app (#385, 22 Oct 2026;
 // lib/chatgpt-work-cloud-retry.ts).
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { sha256 } from "../lib/canonical";
 import { discoverDirectWorkCloudDispatches, selectWorkCloudDispatchCandidate } from "../lib/chatgpt-work-cloud-autodispatch";
-import { NativeChatGptWorkCloudExecutor, type AppToolResult, type WorkCloudAppToolClient } from "../lib/chatgpt-work-cloud-controller";
+import {
+  NativeChatGptWorkCloudExecutor,
+  privatePriorSearchRuledOut,
+  type AppToolResult,
+  type WorkCloudAppToolClient,
+} from "../lib/chatgpt-work-cloud-controller";
 import {
   dispatchChatGptWorkCloud,
   buildWorkCloudDispatchRecordedEnvelope,
@@ -526,4 +534,74 @@ test("anything the search couldn't read holds the retry", async () => {
   const codexUnavailable = new Reads((name) => name === "list_threads"
     ? value({ unavailableSources: ["codex"], threads: [fresh("a"), old] }) : thread("a", "x"));
   assert.equal(await new NativeChatGptWorkCloudExecutor(codexUnavailable, null).searchForPrompt({ prompt: PROMPT, requestedAt: SINCE }), "INCOMPLETE");
+});
+
+test("a search ChatGPT cuts short goes on where it stopped and never reads a ruled-out thread again", async () => {
+  const old = { kind: "chatgpt", id: "old", updatedAt: at("2026-10-21T00:00:00Z") };
+  const fresh = (id: string) => ({ kind: "chatgpt", id, updatedAt: at("2026-10-22T05:00:00Z") });
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "mc-prior-search-"));
+  const file = path.join(directory, "request.json.prior-search.json");
+  const pauses: number[] = [];
+  const run = (reads: Record<string, AppToolResult | Error>, threads: unknown[] = [fresh("a"), fresh("b"), fresh("c"), old]) => {
+    const client = new Reads((name, args) => {
+      if (name === "list_threads") return value({ unavailableSources: [], threads });
+      const answer = reads[String(args.threadId)];
+      if (!answer) throw new Error(`unexpected read of ${String(args.threadId)}`);
+      if (answer instanceof Error) throw answer;
+      return answer;
+    });
+    const searcher = new NativeChatGptWorkCloudExecutor(client, null, { sleep: async (ms) => { pauses.push(ms); } });
+    const result = searcher.searchForPrompt({
+      prompt: PROMPT, requestedAt: SINCE, ruledOut: privatePriorSearchRuledOut(file, "search-1"), readPauseMs: 2_000,
+    });
+    return { client, result };
+  };
+  const readsOf = (client: Reads) => client.calls.filter((call) => call.name === "read_thread").map((call) => String(call.arguments.threadId));
+  try {
+    // ChatGPT refuses the second read: the run stops there, and the first thread is ruled out for the next run.
+    const first = run({ a: thread("a", "x"), b: new Error("Too many requests") });
+    assert.equal(await first.result, "INCOMPLETE");
+    assert.deepEqual(readsOf(first.client), ["a", "b"]);
+    assert.deepEqual(pauses, [2_000]);
+    assert.equal((fs.statSync(file).mode & 0o777).toString(8), "600");
+    const second = run({ b: thread("b", "y"), c: thread("c", "z") });
+    assert.equal(await second.result, "NONE");
+    assert.deepEqual(readsOf(second.client), ["b", "c"]);
+    // A thread made since joins the search; the ones ruled out stay out, and a match is still found.
+    const third = run({ d: thread("d", PROMPT) }, [fresh("d"), fresh("a"), fresh("b"), fresh("c"), old]);
+    assert.equal(await third.result, "MATCH");
+    assert.deepEqual(readsOf(third.client), ["d"]);
+    // A file kept for another search (another prompt or markers) rules nothing out.
+    const other = privatePriorSearchRuledOut(file, "search-2");
+    assert.equal(other.has("a"), false);
+    // An unreadable or temporary thread doesn't stop the run, but the search can't finish while it stays unread.
+    fs.rmSync(file, { force: true });
+    const unreadable = run({ a: value({ thread: { kind: "chatgpt", id: "a", turns: [] } }), b: thread("b", "y") },
+      [fresh("a"), { kind: "chatgpt", id: "local-chatgpt:tmp", updatedAt: at("2026-10-22T05:00:00Z") }, fresh("b"), old]);
+    assert.equal(await unreadable.result, "INCOMPLETE");
+    assert.deepEqual(readsOf(unreadable.client), ["a", "b"]);
+    assert.equal(privatePriorSearchRuledOut(file, "search-1").has("b"), true);
+    assert.equal(privatePriorSearchRuledOut(file, "search-1").has("a"), false);
+    // An answer that isn't the thread asked for (a refusal may come as text) stops the run like a failed read.
+    fs.rmSync(file, { force: true });
+    const refusal = { content: [{ type: "text", text: "Too many requests" }] } as AppToolResult;
+    const refused = run({ a: refusal, b: thread("b", "y") }, [fresh("a"), fresh("b"), old]);
+    assert.equal(await refused.result, "INCOMPLETE");
+    assert.deepEqual(readsOf(refused.client), ["a"]);
+    // A run reads at most 25 threads; the next run reads on from there.
+    fs.rmSync(file, { force: true });
+    const many = Array.from({ length: 30 }, (_, index) => fresh(`t-${index}`));
+    const all = Object.fromEntries(many.map((item) => [item.id, thread(item.id, "x")]));
+    const capped = run(all, [...many, old]);
+    assert.equal(await capped.result, "INCOMPLETE");
+    assert.equal(readsOf(capped.client).length, 25);
+    const rest = run(all, [...many, old]);
+    assert.equal(await rest.result, "NONE");
+    assert.deepEqual(readsOf(rest.client), ["t-25", "t-26", "t-27", "t-28", "t-29"]);
+    // A file that isn't this shape starts empty.
+    fs.writeFileSync(file, JSON.stringify(["t-0"]));
+    assert.equal(privatePriorSearchRuledOut(file, "search-1").has("t-0"), false);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });

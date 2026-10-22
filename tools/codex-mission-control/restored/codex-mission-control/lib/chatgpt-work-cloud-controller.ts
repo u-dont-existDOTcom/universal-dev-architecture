@@ -73,6 +73,35 @@ export interface ThreadIdSet {
   ids(): string[];
 }
 
+/**
+ * The threads a held retry's search (NativeChatGptWorkCloudExecutor.searchForPrompt) has ruled out, kept in a private
+ * file (mode 0600; the caller puts it beside the private request file) so the search's next run doesn't read them
+ * again. The file names its search by `search`, a digest of the prompt and markers: a file made for another search,
+ * or one that can't be read, starts the set empty. At most the latest 1,000 are kept.
+ */
+export function privatePriorSearchRuledOut(file: string, search: string): { has(threadId: string): boolean; add(threadId: string): void } {
+  let ids = new Set<string>();
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
+    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const stored = parsed as { search?: unknown; threadIds?: unknown };
+      if (stored.search === search && Array.isArray(stored.threadIds)) {
+        ids = new Set(stored.threadIds.filter((id): id is string => typeof id === "string").slice(-1_000));
+      }
+    }
+  } catch { /* absent or unreadable: start empty */ }
+  return {
+    has: (threadId) => ids.has(threadId),
+    add: (threadId) => {
+      if (ids.has(threadId)) return;
+      ids.add(threadId);
+      const temp = `${file}.${process.pid}.tmp`;
+      fs.writeFileSync(temp, JSON.stringify({ search, threadIds: [...ids].slice(-1_000) }), { mode: 0o600 });
+      fs.renameSync(temp, file);
+    },
+  };
+}
+
 function inMemoryThreadIdSet(): ThreadIdSet {
   const ids = new Set<string>();
   return { has: (threadId) => ids.has(threadId), add: (threadId) => { ids.add(threadId); }, ids: () => [...ids] };
@@ -205,13 +234,23 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
    * matches when it is the prompt (or the provider's 2,000-character readback of it), or when it holds `marker`, the
    * failed start's own dispatch id, which its prompt carries and no other prompt does: a surface that reflows or trims
    * the message still matches. It also matches when it holds one of `earlierMarkers`, the dispatch ids of the chain's
-   * earlier failed starts. No project or title narrows the search, and nothing is written.
+   * earlier failed starts. No project or title narrows the search, and nothing is written to the app.
+   *
+   * ChatGPT may refuse reads for a while ("Too many requests") after only a few, so a search can be finished over
+   * several runs: `ruledOut` holds the threads earlier runs of this same search (same prompt and markers) read with a
+   * first message that matches neither, and a thread's first message never changes, so those aren't read again. With
+   * it, a run reads at most PRIOR_SEARCH_MAX_READS threads and says INCOMPLETE while others remain unread; it reads on
+   * past a temporary thread or one read without a first message (still INCOMPLETE at the end, unless a later thread
+   * matches), and stops at the first failed read or answer that isn't the thread asked for (a refusal may come either
+   * way). `readPauseMs` spaces the reads.
    */
   async searchForPrompt(input: {
     prompt: string;
     requestedAt: string;
     marker?: string;
     earlierMarkers?: readonly string[];
+    ruledOut?: { has(threadId: string): boolean; add(threadId: string): void };
+    readPauseMs?: number;
   }): Promise<"MATCH" | "NONE" | "INCOMPLETE"> {
     const markers = [
       ...(input.marker !== undefined && input.prompt.includes(input.marker) ? [input.marker] : []),
@@ -232,22 +271,40 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     if (!threads) return "INCOMPLETE";
     // An older thread of another surface proves nothing about ChatGPT's threads, which a listing may page apart.
     if (!threads.some((thread) => thread.kind !== "other" && thread.updatedMs !== null && thread.updatedMs < since)) return "INCOMPLETE";
-    const candidates = threads.filter((thread) => thread.madeMs === null || thread.madeMs >= since);
-    if (candidates.length > PRIOR_SEARCH_MAX_READS) return "INCOMPLETE";
+    const ruledOut = input.ruledOut ?? null;
+    const candidates = threads.filter((thread) => thread.madeMs === null || thread.madeMs >= since)
+      .filter((thread) => !(ruledOut && thread.threadId && ruledOut.has(thread.threadId)));
+    // Without a record of earlier runs a search that can't read every candidate can never finish, so it reads nothing.
+    if (!ruledOut && candidates.length > PRIOR_SEARCH_MAX_READS) return "INCOMPLETE";
+    let complete = true;
+    let reads = 0;
     for (const candidate of candidates) {
-      if (!candidate.threadId || isTemporaryThreadId(candidate.threadId)) return "INCOMPLETE";
+      if (!candidate.threadId || isTemporaryThreadId(candidate.threadId)) {
+        if (!ruledOut) return "INCOMPLETE";
+        complete = false;
+        continue;
+      }
+      if (reads >= PRIOR_SEARCH_MAX_READS) return "INCOMPLETE";
+      if (reads > 0 && input.readPauseMs) await this.sleep(input.readPauseMs);
+      reads += 1;
       let read: unknown;
       try {
         read = await this.readExactThread(candidate.threadId);
       } catch {
+        // A refused read (often "Too many requests") stops the run: more reads now would only be refused too.
         return "INCOMPLETE";
       }
       if (directThreadId(read) !== candidate.threadId) return "INCOMPLETE";
       const observed = initialUserPrompt(read);
-      if (observed === null) return "INCOMPLETE";
+      if (observed === null) {
+        if (!ruledOut) return "INCOMPLETE";
+        complete = false;
+        continue;
+      }
       if (promptReadbackMatches(input.prompt, observed) || markers.some((marker) => observed.includes(marker))) return "MATCH";
+      ruledOut?.add(candidate.threadId);
     }
-    return "NONE";
+    return complete ? "NONE" : "INCOMPLETE";
   }
 
   private async verifyExactThread(threadId: string): Promise<WorkCloudExecutorOutcome> {
