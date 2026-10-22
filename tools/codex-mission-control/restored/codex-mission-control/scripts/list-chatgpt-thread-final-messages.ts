@@ -43,6 +43,8 @@ function finalAgentMessage(root: Record<string, unknown>): string | null {
   }
   return null;
 }
+/** The app's list_threads limit (its maximum): the newest non-pinned threads first. */
+const LIST_LIMIT = 50;
 async function main() {
   const updatedAfterText = requiredArg("--updated-after");
   const updatedAfter = Date.parse(updatedAfterText);
@@ -54,11 +56,12 @@ async function main() {
     executorThreadId: requiredEnv("MISSION_CONTROL_CHATGPT_APP_EXECUTOR_THREAD_ID"),
   });
   try {
-    const listed = parseToolJson(await app.callTool({ name: "list_threads", arguments: { limit: 50 } }));
+    const listed = parseToolJson(await app.callTool({ name: "list_threads", arguments: { limit: LIST_LIMIT } }));
     const threads = Array.isArray(listed.threads) ? listed.threads : [];
-    // Whether this scan saw every ChatGPT thread it lists (the copier advances its scan floor only then): a thread list,
-    // no thread source reported unavailable (a rate-limited ChatGPT listing shows only other surfaces), and every read
-    // in range succeeded.
+    // Whether this scan saw every ChatGPT thread updated after `--updated-after` (the copier advances its scan floor only
+    // then): a thread list that isn't cut by the limit (fewer threads than the limit, or one updated before the floor),
+    // no thread source reported unavailable (a rate-limited ChatGPT listing shows only other surfaces), and every read in
+    // range succeeded.
     const unavailable = listed.unavailableSources ?? listed.unavailable_sources;
     const sourcesUnavailable = Array.isArray(unavailable) ? unavailable.length > 0 : unavailable !== undefined && unavailable !== null;
     let unreadable = 0;
@@ -82,8 +85,10 @@ async function main() {
         output.push({ threadId, status, updatedAt, observedAt: new Date().toISOString(), finalAgentMessage: finalAgentMessage(root) });
       } catch { unreadable += 1; /* unreadable candidates cannot satisfy exact binding */ }
     }
-    const complete = Array.isArray(listed.threads) && !sourcesUnavailable && unreadable === 0;
-    process.stdout.write(`${JSON.stringify({ threads: output, complete, sourcesUnavailable, unreadable })}\n`);
+    const reachesBack = threads.length < LIST_LIMIT || threads.some((summary) => summary && typeof summary === "object"
+      && !Array.isArray(summary) && (timestampMs((summary as Record<string, unknown>).updatedAt ?? (summary as Record<string, unknown>).updated_at) ?? Infinity) < updatedAfter);
+    const complete = Array.isArray(listed.threads) && reachesBack && !sourcesUnavailable && unreadable === 0;
+    process.stdout.write(`${JSON.stringify({ threads: output, complete, truncated: !reachesBack, sourcesUnavailable, unreadable })}\n`);
   } finally { await app.close(); }
 }
 main().catch((error: unknown) => { process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`); process.exitCode = 1; });

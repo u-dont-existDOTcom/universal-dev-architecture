@@ -769,10 +769,12 @@ def _iso(moment: dt.datetime) -> str:
 
 def decision_scan(
     config: Config, state: dict[str, Any], candidates: list[DecisionCandidate], now: dt.datetime,
-) -> list[dict[str, Any]] | None:
+) -> tuple[list[dict[str, Any]], dict[str, str]] | None:
     """One throttled scan for every waiting decision request (None when it isn't time yet). It reads threads updated
     after the earliest waiting request's floor: its send time, or after a complete scan that scan's start less the skew.
-    A complete scan moves every waiting request's floor; an incomplete or failed one doubles the wait instead."""
+    Returns the threads and, after a complete scan, the floors each request may move to; the caller moves a request's
+    floor only once it found no receipt for it in this scan (a receipt found stays visible until it is published). An
+    incomplete or failed scan moves nothing and doubles the wait."""
     scan = state.setdefault("decisionScan", {})
     keys = [f"decision:{c.request_id}:{c.provider_session_id}" for c in candidates]
     # Floors of requests no longer waiting (published, or gone from the feed) are dropped.
@@ -797,10 +799,11 @@ def decision_scan(
         threads, complete = scan_chatgpt_final_messages(config, _iso(min(candidate_floors)))
     except Exception:
         complete, threads = False, None
+    advance: dict[str, str] = {}
     if complete:
         moved = now - dt.timedelta(seconds=SCAN_FLOOR_SKEW_SECONDS)
         for key, floor in zip(keys, candidate_floors):
-            floors[key] = _iso(max(floor, moved))
+            advance[key] = _iso(max(floor, moved))
         scan["backoffSeconds"] = 0
         scan["nextAt"] = _iso(now + dt.timedelta(seconds=SCAN_MIN_INTERVAL_SECONDS))
     else:
@@ -810,7 +813,16 @@ def decision_scan(
     save_state(config, state)
     if threads is None:
         raise CopierError("provider thread scan failed; the next scan waits")
-    return threads
+    return threads, advance
+
+
+def advance_decision_floors(config: Config, state: dict[str, Any], advance: dict[str, str], unmatched: set[str]) -> None:
+    """Moves the floors of the requests this scan found no receipt for (only those)."""
+    floors = state.setdefault("decisionScanFloors", {})
+    for key in unmatched:
+        if key in advance:
+            floors[key] = advance[key]
+    save_state(config, state)
 
 
 def _updated_at_iso(value: Any) -> str:
@@ -990,20 +1002,17 @@ def save_state(config: Config, state: dict[str, Any]) -> None:
     os.replace(temp, path)
 
 
-def process_once(config: Config) -> dict[str, Any]:
-    events = fetch_events(config)
-    state = load_state(config)
-    published = state["published"]
+def _copy_decisions(
+    config: Config, state: dict[str, Any], published: dict[str, Any], waiting: list[DecisionCandidate],
+    threads: list[dict[str, Any]], unmatched: set[str],
+) -> list[dict[str, Any]]:
+    """Copies each waiting request's receipt found in `threads`; adds to `unmatched` each request evaluated with none."""
     copied: list[dict[str, Any]] = []
-
-    waiting = [candidate for candidate in discover_decision_candidates(events, min_sequence=config.min_sequence)
-               if f"decision:{candidate.request_id}:{candidate.provider_session_id}" not in published]
-    # One throttled scan serves every waiting request (it returns None when the next scan isn't due yet).
-    scanned = decision_scan(config, state, waiting, dt.datetime.now(dt.timezone.utc)) if waiting else None
-    for candidate in waiting if scanned is not None else []:
+    for candidate in waiting:
         key = f"decision:{candidate.request_id}:{candidate.provider_session_id}"
-        resolved = select_decision_machine_block(scanned, candidate)
+        resolved = select_decision_machine_block(threads, candidate)
         if not resolved:
+            unmatched.add(key)
             continue
         validate_decision_block(resolved.publish_block, resolved.payload, candidate)
         record_app_readback(
@@ -1025,6 +1034,27 @@ def process_once(config: Config) -> dict[str, Any]:
         published[key] = {"commentId": comment_id, "sha256": sha256_text(resolved.publish_block), "kind": "decision"}
         copied.append({"kind": "decision", "requestId": candidate.request_id, "commentId": comment_id})
         save_state(config, state)
+    return copied
+
+
+def process_once(config: Config) -> dict[str, Any]:
+    events = fetch_events(config)
+    state = load_state(config)
+    published = state["published"]
+    copied: list[dict[str, Any]] = []
+
+    waiting = [candidate for candidate in discover_decision_candidates(events, min_sequence=config.min_sequence)
+               if f"decision:{candidate.request_id}:{candidate.provider_session_id}" not in published]
+    # One throttled scan serves every waiting request (it returns None when the next scan isn't due yet). A request's
+    # floor moves only once this scan was evaluated for it and held no receipt for it, even if a later step fails.
+    scanned = decision_scan(config, state, waiting, dt.datetime.now(dt.timezone.utc)) if waiting else None
+    unmatched: set[str] = set()
+    try:
+        copied.extend(_copy_decisions(config, state, published, waiting if scanned is not None else [],
+                                      scanned[0] if scanned is not None else [], unmatched))
+    finally:
+        if scanned is not None:
+            advance_decision_floors(config, state, scanned[1], unmatched)
 
     # Refetch after decisions because ingestion may append the Work directive/dispatch asynchronously.
     events = fetch_events(config)

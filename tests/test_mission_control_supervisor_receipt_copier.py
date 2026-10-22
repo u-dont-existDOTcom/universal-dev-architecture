@@ -565,25 +565,29 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
                 return answers.pop(0)
 
             with patch.object(copier, "scan_chatgpt_final_messages", side_effect=scan):
-                # An incomplete scan (a rate-limited listing, a failed read) keeps the floor and waits a minute.
-                self.assertEqual(copier.decision_scan(config, state, [candidate], NOW), [])
+                # An incomplete scan (a rate-limited or cut listing, a failed read) moves no floor and waits a minute.
+                self.assertEqual(copier.decision_scan(config, state, [candidate], NOW), ([], {}))
                 self.assertEqual(asked, ["2026-09-21T13:56:00.000Z"])
-                self.assertNotIn(key, state["decisionScanFloors"])
                 self.assertEqual(state["decisionScan"]["backoffSeconds"], 60)
                 # Not due yet: no scan at all.
                 self.assertIsNone(copier.decision_scan(config, state, [candidate], NOW + dt.timedelta(seconds=30)))
                 self.assertEqual(len(asked), 1)
-                # A complete scan moves the floor to its start less five minutes.
+                # A complete scan offers the floor at its start less five minutes; it moves only for a request the scan
+                # held no receipt for.
                 later = NOW + dt.timedelta(seconds=61)
-                self.assertEqual(copier.decision_scan(config, state, [candidate], later), [])
+                threads, advance = copier.decision_scan(config, state, [candidate], later)
                 self.assertEqual(asked[-1], "2026-09-21T13:56:00.000Z")
-                self.assertEqual(state["decisionScanFloors"][key], "2026-09-21T13:56:01.000Z")
+                self.assertEqual(advance, {key: "2026-09-21T13:56:01.000Z"})
+                self.assertNotIn(key, state["decisionScanFloors"])
+                copier.advance_decision_floors(config, state, advance, set())
+                self.assertNotIn(key, copier.load_state(config)["decisionScanFloors"])
+                copier.advance_decision_floors(config, state, advance, {key})
                 self.assertEqual(state["decisionScan"]["backoffSeconds"], 0)
                 # The next scan reads only threads updated since that floor, and the state survives a restart.
                 self.assertEqual(copier.load_state(config)["decisionScanFloors"][key], "2026-09-21T13:56:01.000Z")
-                copier.decision_scan(config, state, [candidate], later + dt.timedelta(seconds=60))
+                _, advance = copier.decision_scan(config, state, [candidate], later + dt.timedelta(seconds=60))
                 self.assertEqual(asked[-1], "2026-09-21T13:56:01.000Z")
-                self.assertEqual(state["decisionScanFloors"][key], "2026-09-21T13:57:01.000Z")
+                self.assertEqual(advance[key], "2026-09-21T13:57:01.000Z")
             # A failed scan raises, and the wait doubles each time up to fifteen minutes.
             with patch.object(copier, "scan_chatgpt_final_messages", side_effect=copier.CopierError("ssh failed")):
                 moment = later + dt.timedelta(seconds=120)
@@ -597,8 +601,9 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
                 self.assertIsNone(copier.decision_scan(config, state, [], moment))
                 self.assertEqual(copier.load_state(config)["decisionScanFloors"], {})
 
-    def test_one_scan_serves_every_waiting_request_and_a_published_request_is_not_scanned_again(self) -> None:
+    def test_one_scan_serves_every_waiting_request_and_a_receipt_stays_visible_until_it_is_published(self) -> None:
         candidate = copier.discover_decision_candidates([route_event(), pre_send(), session_complete(), stage_started()], now=NOW)[0]
+        key = f"decision:{candidate.request_id}:{candidate.provider_session_id}"
         block = self._decision_block()
         thread = {"threadId": "stable-app-thread", "status": "idle", "updatedAt": 1790000001000,
                   "observedAt": "2026-09-23T00:00:05.000Z", "finalAgentMessage": block}
@@ -606,17 +611,35 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
             config = copier.Config("primary", "mission-control-development", "/app", "/private/env",
                                    "u-dont-existDOTcom/universal-dev-architecture", 61, 0, Path(directory), 10, "gh")
             published: list[str] = []
+            failing = [True]
+
+            def publish(*args, **kwargs):
+                if failing[0]:
+                    raise copier.CopierError("GitHub unavailable")
+                published.append(kwargs["body"])
+                return 9
+
             with patch.object(copier, "fetch_events", return_value=[]), \
                  patch.object(copier, "discover_decision_candidates", return_value=[candidate]), \
                  patch.object(copier, "discover_work_candidates", return_value=[]), \
                  patch.object(copier, "scan_chatgpt_final_messages", return_value=([thread], True)) as scan, \
                  patch.object(copier, "record_app_readback", return_value={}), \
-                 patch.object(copier, "publish_exact", side_effect=lambda *a, **k: published.append(k["body"]) or 9):
+                 patch.object(copier, "publish_exact", side_effect=publish):
+                # The receipt was found but not published: its request's floor stays, so the next scan sees it again.
+                with self.assertRaisesRegex(copier.CopierError, "GitHub unavailable"):
+                    copier.process_once(config)
+                self.assertNotIn(key, copier.load_state(config)["decisionScanFloors"])
+                failing[0] = False
+                state = copier.load_state(config)
+                state["decisionScan"]["nextAt"] = "2000-01-01T00:00:00.000Z"
+                copier.save_state(config, state)
                 self.assertEqual(copier.process_once(config)["status"], "COPIED")
                 self.assertEqual(published, [block])
-                self.assertEqual(scan.call_count, 1)
+                self.assertEqual(scan.call_count, 2)
+                self.assertEqual(scan.call_args_list[0].args[1], scan.call_args_list[1].args[1])
+                # Published: not scanned for again.
                 self.assertEqual(copier.process_once(config)["status"], "IDLE")
-                self.assertEqual(scan.call_count, 1)
+                self.assertEqual(scan.call_count, 2)
 
 
 if __name__ == "__main__":
