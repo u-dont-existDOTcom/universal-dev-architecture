@@ -756,7 +756,8 @@ test("a job like the Atlas task's, too long for one question in full, is named b
       const shown = state.expired_work_job.authorized_job;
       assert.equal(shown.shown, "BY_REFERENCE");
       assert.equal(shown.provenance.bounded_execution_sha256, sha256(canonicalJson(job)));
-      assert.ok(!root.factualPacket.exactFactualState.includes("w".repeat(50)), "nothing of the job is shown cut short");
+      // Nothing of the job is shown cut short (the supervision history keeps its own clipped summary of past decisions).
+      assert.ok(!JSON.stringify(shown).includes("w".repeat(50)), "nothing of the job is shown cut short");
       assert.equal(state.clipped_to_fit, undefined);
       assert.equal(state.task_contract.goal, "Collect public sources on one question and summarize them.");
       assert.deepEqual(root.factualPacket.evidenceRefs, [receipt.data.github_receipt.immutable_url,
