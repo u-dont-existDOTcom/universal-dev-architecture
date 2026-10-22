@@ -549,8 +549,8 @@ test("the question carries the job in full when it fits, and names its decision 
           assert.equal(shown.bounded_execution, undefined);
           assert.deepEqual(shown.summary, { task_id: task, job_id: "job-1", execution_surface: "CHATGPT_WORK_CLOUD", deadline: DEADLINE, maximum_execution_cycles: 2 });
           assert.ok(!root.factualPacket.exactFactualState.includes("LONG PROMPT"), "nothing of the job is shown cut short");
-          assert.deepEqual(root.factualPacket.evidenceRefs, [receipt.data.github_receipt.immutable_url,
-            `bounded_execution_sha256:${receipt.data.bounded_execution_sha256}`]);
+          assert.deepEqual(root.factualPacket.evidenceRefs, [receipt.data.github_receipt.immutable_url]);
+          assert.equal(shown.provenance.decision_receipt_posted_at, receipt.data.github_receipt.github_created_at);
         }
         assert.equal(root.factualPacket.decisionRequested, WORK_DIRECTIVE_EXPIRED_UNRUN_DECISION_REQUESTED);
       });
@@ -760,8 +760,8 @@ test("a job like the Atlas task's, too long for one question in full, is named b
       assert.ok(!JSON.stringify(shown).includes("w".repeat(50)), "nothing of the job is shown cut short");
       assert.equal(state.clipped_to_fit, undefined);
       assert.equal(state.task_contract.goal, "Collect public sources on one question and summarize them.");
-      assert.deepEqual(root.factualPacket.evidenceRefs, [receipt.data.github_receipt.immutable_url,
-        `bounded_execution_sha256:${sha256(canonicalJson(job))}`]);
+      assert.deepEqual(root.factualPacket.evidenceRefs, [receipt.data.github_receipt.immutable_url]);
+      assert.match(root.factualPacket.decisionRequested, /edited after it was posted, do not rely on it/);
     });
   } finally { store.close(); }
 });

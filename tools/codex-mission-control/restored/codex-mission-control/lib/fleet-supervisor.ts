@@ -809,12 +809,13 @@ export const WORK_DIRECTIVE_EXPIRED_UNRUN_DECISION_REQUESTED = "This task's late
   + "native ChatGPT Work job. Its deadline passed before the job ran: Mission Control's own record of that is "
   + "expired_work_job in the factual state. The job as it was authorized is expired_work_job.authorized_job: when its "
   + "shown is IN_FULL, in full in its bounded_execution; when shown is BY_REFERENCE (a job too long for one question), "
-  + "in full in its original decision receipt, the bound evidence reference provenance.decision_receipt (the "
-  + "bounded_execution there has SHA-256 provenance.bounded_execution_sha256); read it there. Nothing was sent to "
-  + "ChatGPT Work for it, and Mission Control will not start that job now. Decide whether to authorize the same bounded "
-  + "job again with a new deadline, change it, or stop or hold the task; say what blocks it if anything does. Keep every "
-  + "limit of the authorized job unless you say why it changes, and write out in full every field of a job you "
-  + "authorize. Do not weaken the contract, spend money, or publish anything.";
+  + "in full as the bounded_execution of its original decision receipt, the bound evidence reference "
+  + "provenance.decision_receipt, posted at provenance.decision_receipt_posted_at. Read it there; if that comment was "
+  + "edited after it was posted, do not rely on it: hold the task and say so. Nothing was sent to ChatGPT Work for the "
+  + "job, and Mission Control will not start it now. Decide whether to authorize the same bounded job again with a new "
+  + "deadline, change it, or stop or hold the task; say what blocks it if anything does. Keep every limit of the "
+  + "authorized job unless you say why it changes, and write out in full every field of a job you authorize. Do not "
+  + "weaken the contract, spend money, or publish anything.";
 
 function isReviewBoundaryEvidence(event: StoredEvent) {
   return event.data.type === "evidence_receipt_recorded"
@@ -876,15 +877,13 @@ function withSupervisionHistory(facts: object, events: readonly StoredEvent[], t
   return null;
 }
 
-/** The bound evidence references of a fleet question: for an expired job shown by reference, its decision receipt and
- * the SHA-256 of the job as authorized; none otherwise. */
+/** The bound evidence references of a fleet question: for an expired job shown by reference, its decision receipt (a
+ * GitHub comment the supervisor reads with its GitHub app); none otherwise. */
 function fleetEvidenceRefs(factualState: string): string[] {
   const job = (JSON.parse(factualState) as { expired_work_job?: { authorized_job?: {
-    shown?: string; provenance?: { decision_receipt?: string; bounded_execution_sha256?: string | null };
+    shown?: string; provenance?: { decision_receipt?: string };
   } | null } }).expired_work_job?.authorized_job;
-  if (job?.shown !== "BY_REFERENCE" || !job.provenance?.decision_receipt) return [];
-  return [job.provenance.decision_receipt,
-    ...(job.provenance.bounded_execution_sha256 ? [`bounded_execution_sha256:${job.provenance.bounded_execution_sha256}`] : [])];
+  return job?.shown === "BY_REFERENCE" && job.provenance?.decision_receipt ? [job.provenance.decision_receipt] : [];
 }
 
 /**
@@ -974,6 +973,9 @@ function authorizedJob(events: readonly StoredEvent[], expiryEvidence: StoredEve
     decision_request_id: receipt.request_id,
     decision_id: receipt.decision_block.decision_id,
     decision_receipt: receipt.github_receipt.immutable_url,
+    decision_receipt_posted_at: receipt.github_receipt.github_created_at,
+    // Mission Control's digest of the job as it recorded it (parsed: strings trimmed, defaults filled), not of the
+    // comment's text.
     bounded_execution_sha256: receipt.bounded_execution_sha256 ?? null,
     prompt_sha256: sha256(job.prompt),
     prompt_length: job.prompt.length,

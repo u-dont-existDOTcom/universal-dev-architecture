@@ -247,10 +247,11 @@ what it may use, what it must never do, and when it is done.
   again with a new deadline, change it, or stop (`WORK_DIRECTIVE_EXPIRED_UNRUN`). The question's state carries the record
   and the job as it was authorized (`expired_work_job.authorized_job`): `IN_FULL`, its bounded execution in its own
   shape, when the question fits that way; otherwise `BY_REFERENCE`, its identity (task, job, surface, deadline, cycles)
-  and its original decision receipt, which the question binds as an evidence reference (with the job's SHA-256) for
-  the supervisor to read in full. Nothing of the job is ever shown cut short. Both carry where the job came from and
-  its prompt's SHA-256 and length; the record is the question's boundary. Other workers' expired directives are left
-  to their own supervision.
+  and its original decision receipt (a GitHub comment), which the question binds as an evidence reference for the
+  supervisor to read in full; if the comment was edited after it was posted, the supervisor is told not to rely on it
+  and to hold. The job itself is never shown cut short (the supervision history keeps its usual short excerpts of past
+  decisions). Both forms carry where the job came from, Mission Control's digest of it, and its prompt's SHA-256 and
+  length; the record is the question's boundary. Other workers' expired directives are left to their own supervision.
   - A job that may have started (an intent without a result, a `READY`, `PENDING_SETUP`, `PENDING_APPROVAL` or
     `FAILED` result, an `UNAVAILABLE` one whose code isn't a pre-send code, or a Codex start or receipt for the
     directive) is never treated as unrun. The pre-send codes (`PRE_SEND_UNAVAILABLE_CODES`) are
