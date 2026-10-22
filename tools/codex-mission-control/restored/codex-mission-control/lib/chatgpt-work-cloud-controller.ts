@@ -222,27 +222,33 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
   }
 
   /**
-   * Read-only, before the owner's retry of a failed start (lib/chatgpt-work-cloud-retry.ts): whether a thread whose
-   * first message is exactly `prompt` exists among the threads made at or after `requestedAt` (by their creation time,
-   * or their last update when the listing shows no creation time), allowing PRIOR_SEARCH_CLOCK_SKEW_MS for the app's
-   * clock against Mission Control's. Threads on every surface are read: a create call whose answer was lost may have
-   * made its thread on another surface, as a wrong-surface result shows when the answer arrives (independent review of
-   * b72e68bd). NONE only when the listing has a thread list that reaches back before that (at least one ChatGPT or
-   * unknown-kind thread last updated earlier) and every such thread was read with a first message that isn't the
-   * prompt. A listing that reports any source unavailable, has no thread list or doesn't reach back, an unreadable or
-   * temporary thread, a rate limit, or more candidates than PRIOR_SEARCH_MAX_READS is INCOMPLETE. A first message
-   * matches when it is the prompt (or the provider's 2,000-character readback of it), or when it holds `marker`, the
-   * failed start's own dispatch id, which its prompt carries and no other prompt does: a surface that reflows or trims
-   * the message still matches. It also matches when it holds one of `earlierMarkers`, the dispatch ids of the chain's
-   * earlier failed starts. No project or title narrows the search, and nothing is written to the app.
+   * Read-only, before the owner's retry of a failed start (lib/chatgpt-work-cloud-retry.ts): whether a thread holding
+   * `prompt` exists among the threads made at or after `requestedAt` (by their creation time, or their last update when
+   * the listing shows no creation time), allowing PRIOR_SEARCH_CLOCK_SKEW_MS for the app's clock against Mission
+   * Control's. Threads on every surface are read: a create call whose answer was lost may have made its thread on
+   * another surface, as a wrong-surface result shows when the answer arrives (independent review of b72e68bd).
+   *
+   * read_thread returns a thread's newest turns first, a page at a time, so its first page need not hold the first
+   * message. Each thread is read page by page (PRIOR_SEARCH_TURN_PAGE turns each) and holds the prompt when any of its
+   * user messages is the prompt (or the provider's 2,000-character readback of it), or holds `marker`, the failed
+   * start's own dispatch id, which its prompt carries and no other prompt does (a surface that reflows or trims the
+   * message still matches), or one of `earlierMarkers`, the dispatch ids of the chain's earlier failed starts. A thread
+   * is ruled out when its read shows it was made before the failed start (less the skew), or when all of its turns were
+   * read (its last page says no older turns are left) with at least one user message and no match.
+   *
+   * NONE only when the listing has a thread list that reaches back before that (at least one ChatGPT or unknown-kind
+   * thread last updated earlier) and every candidate was ruled out. A listing that reports any source unavailable, has
+   * no thread list or doesn't reach back, a temporary thread, one that can't be ruled out (no user message, or a page
+   * that doesn't say whether older turns are left), a rate limit, or more reads than PRIOR_SEARCH_MAX_READS is
+   * INCOMPLETE. No project or title narrows the search, and nothing is written to the app.
    *
    * ChatGPT may refuse reads for a while ("Too many requests") after only a few, so a search can be finished over
-   * several runs: `ruledOut` holds the threads earlier runs of this same search (same prompt and markers) read with a
-   * first message that matches neither, and a thread's first message never changes, so those aren't read again. With
-   * it, a run reads at most PRIOR_SEARCH_MAX_READS threads and says INCOMPLETE while others remain unread; it reads on
-   * past a temporary thread or one read without a first message (still INCOMPLETE at the end, unless a later thread
-   * matches), and stops at the first failed read or answer that isn't the thread asked for (a refusal may come either
-   * way). `readPauseMs` spaces the reads.
+   * several runs: `ruledOut` holds the threads earlier runs of this same search (same rule, prompt and markers) ruled
+   * out; a ruled-out thread stays so (its first message and creation time never change), so those aren't read again.
+   * With it, a run reads at most PRIOR_SEARCH_MAX_READS pages and says INCOMPLETE while threads remain unread; it reads
+   * on past a temporary thread or one it can't rule out (still INCOMPLETE at the end, unless a later thread matches), and
+   * stops at the first failed read or answer that isn't the thread asked for (a refusal may come either way).
+   * `readPauseMs` spaces the reads.
    */
   async searchForPrompt(input: {
     prompt: string;
@@ -284,24 +290,48 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
         complete = false;
         continue;
       }
-      if (reads >= PRIOR_SEARCH_MAX_READS) return "INCOMPLETE";
-      if (reads > 0 && input.readPauseMs) await this.sleep(input.readPauseMs);
-      reads += 1;
-      let read: unknown;
-      try {
-        read = await this.readExactThread(candidate.threadId);
-      } catch {
-        // A refused read (often "Too many requests") stops the run: more reads now would only be refused too.
-        return "INCOMPLETE";
+      // A thread is read newest turns first, a page at a time (read_thread's own order). It holds the failed start's
+      // prompt when any of its user messages matches; it is ruled out only when the thread itself was made before the
+      // failed start, or when every one of its turns was read (no older page left) and it has a user message.
+      let cursor: string | null = null;
+      let messages = 0;
+      let outcome: "MATCH" | "RULED_OUT" | "UNRESOLVED" | null = null;
+      while (outcome === null) {
+        if (reads >= PRIOR_SEARCH_MAX_READS) return "INCOMPLETE";
+        if (reads > 0 && input.readPauseMs) await this.sleep(input.readPauseMs);
+        reads += 1;
+        let read: unknown;
+        try {
+          read = await this.read("read_thread", {
+            threadId: candidate.threadId, turnLimit: PRIOR_SEARCH_TURN_PAGE, ...(cursor === null ? {} : { cursor }),
+          });
+        } catch {
+          // A refused read (often "Too many requests") stops the run: more reads now would only be refused too.
+          return "INCOMPLETE";
+        }
+        if (directThreadId(read) !== candidate.threadId) return "INCOMPLETE";
+        const texts = userMessagesIn(read);
+        messages += texts.length;
+        if (texts.some((text) => promptReadbackMatches(input.prompt, text) || markers.some((marker) => text.includes(marker)))) {
+          outcome = "MATCH";
+          break;
+        }
+        const made = threadCreatedMs(read, candidate.threadId);
+        if (made !== null && made < since) {
+          outcome = "RULED_OUT";
+          break;
+        }
+        const older = olderTurns(read);
+        if (older === "NONE") outcome = messages > 0 ? "RULED_OUT" : "UNRESOLVED";
+        else if (older === "UNKNOWN") outcome = "UNRESOLVED";
+        else cursor = older.cursor;
       }
-      if (directThreadId(read) !== candidate.threadId) return "INCOMPLETE";
-      const observed = initialUserPrompt(read);
-      if (observed === null) {
+      if (outcome === "MATCH") return "MATCH";
+      if (outcome === "UNRESOLVED") {
         if (!ruledOut) return "INCOMPLETE";
         complete = false;
         continue;
       }
-      if (promptReadbackMatches(input.prompt, observed) || markers.some((marker) => observed.includes(marker))) return "MATCH";
       ruledOut?.add(candidate.threadId);
     }
     return complete ? "NONE" : "INCOMPLETE";
@@ -1052,6 +1082,14 @@ function chatGptCandidates(
 }
 
 const PROVIDER_PROMPT_READBACK_LIMIT = 2_000;
+/** Turns per read_thread page in a retry's search (the tool's maximum). */
+const PRIOR_SEARCH_TURN_PAGE = 10;
+/**
+ * What rules a thread out in a retry's search. Threads ruled out under an older rule are read again: the version is part
+ * of the name of the search's saved progress (scripts/dispatch-chatgpt-work-cloud.ts). 2: every turn is read (version 1
+ * compared only the first user message of read_thread's first page, which holds the newest turns).
+ */
+export const PRIOR_SEARCH_RULE_VERSION = 2;
 /** The one listing page and the reads a retry's search for its failed start's Work thread may use. */
 const PRIOR_SEARCH_LIST_LIMIT = 50;
 const PRIOR_SEARCH_MAX_READS = 25;
@@ -1120,6 +1158,52 @@ function initialUserPrompt(value: unknown): string | null {
     }
   }
   return null;
+}
+
+/** Every user message on a read page (each turn's, and a messages list's), in the order the page holds them. */
+function userMessagesIn(value: unknown): string[] {
+  const texts: string[] = [];
+  for (const object of objectsIn(value)) {
+    if (Array.isArray(object.turns)) {
+      for (const turn of object.turns) {
+        if (!turn || typeof turn !== "object" || Array.isArray(turn)) continue;
+        const turnObject = turn as Record<string, unknown>;
+        const authored = userAuthoredText(turnObject);
+        if (authored !== null) { texts.push(authored); continue; }
+        const params = asObject(turnObject.params);
+        const input = params ? textContent(params.input) : null;
+        if (input !== null) texts.push(input);
+      }
+    }
+    if (Array.isArray(object.messages)) {
+      for (const message of object.messages) {
+        if (!message || typeof message !== "object" || Array.isArray(message)) continue;
+        const authored = userAuthoredText(message as Record<string, unknown>);
+        if (authored !== null) texts.push(authored);
+      }
+    }
+  }
+  return texts;
+}
+
+/** The read thread's own creation time, from the object that carries its exact id; null when it shows none. */
+function threadCreatedMs(value: unknown, threadId: string): number | null {
+  for (const object of objectsIn(value)) {
+    if (stringField(object, "threadId", "thread_id", "id") !== threadId) continue;
+    const made = timestampMilliseconds(object.createdAt ?? object.created_at);
+    if (made !== null) return made;
+  }
+  return null;
+}
+
+/** Whether a read page leaves older turns unread: NONE only when its page says so (hasMore false, or no next cursor). */
+function olderTurns(value: unknown): "NONE" | "UNKNOWN" | { cursor: string } {
+  const page = objectsIn(value).map((object) => asObject(object.page)).find((candidate) => candidate !== null);
+  if (!page) return "UNKNOWN";
+  const cursor = page.nextCursor ?? page.next_cursor;
+  if (page.hasMore === false || page.has_more === false) return "NONE";
+  if (page.hasMore === undefined && page.has_more === undefined && cursor === null) return "NONE";
+  return typeof cursor === "string" && cursor.length > 0 ? { cursor } : "UNKNOWN";
 }
 
 function userAuthoredText(object: Record<string, unknown>): string | null {
