@@ -454,7 +454,10 @@ const value = (structuredContent: unknown): AppToolResult => ({ structuredConten
 const PROMPT = "MISSION_CONTROL_NATIVE_WORK_EXECUTION_V2\nthe failed start's exact prompt";
 const SINCE = "2026-10-22T01:27:10.000Z";
 const at = (iso: string) => Date.parse(iso);
-const thread = (id: string, prompt: string, kind = "chatgpt") => value({ thread: { kind, id, turns: [{ params: { input: [{ type: "text", text: prompt }] } }] } });
+// A read of a thread with one turn, its whole history (read_thread's page: newest turns first, none older left).
+const COMPLETE_PAGE = { order: "newest_first", limit: 10, nextCursor: null, hasMore: false };
+const thread = (id: string, prompt: string, kind = "chatgpt") =>
+  value({ thread: { kind, id, turns: [{ params: { input: [{ type: "text", text: prompt }] } }] }, page: COMPLETE_PAGE });
 
 function search(threads: unknown[], reads: Record<string, AppToolResult | Error>) {
   const client = new Reads((name, args) => {
@@ -604,4 +607,54 @@ test("a search ChatGPT cuts short goes on where it stopped and never reads a rul
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("a thread is read newest turns first, page by page: it is ruled out only once all its turns are read or it was made before the failed start", async () => {
+  const old = { kind: "chatgpt", id: "old", updatedAt: at("2026-10-21T00:00:00Z") };
+  const fresh = { kind: "chatgpt", id: "long", updatedAt: at("2026-10-22T09:00:00Z") };
+  // read_thread's own shape: the thread, a page of its newest turns, and whether older turns are left.
+  const turn = (text: string) => ({ id: `turn-${text.length}`, items: [{ type: "userMessage", content: [{ type: "text", text }] }, { type: "agentMessage", text: "ok" }] });
+  const page = (texts: string[], older: string | null, createdAt?: string) => value({
+    schemaVersion: 1,
+    thread: { id: "long", kind: "chatgpt", ...(createdAt ? { createdAt: at(createdAt) } : {}) },
+    page: { order: "newest_first", limit: 10, nextCursor: older, hasMore: older !== null },
+    turns: texts.map(turn),
+  });
+  const run = (pages: Record<string, AppToolResult>) => {
+    const client = new Reads((name, args) => {
+      if (name === "list_threads") return value({ unavailableSources: [], threads: [fresh, old] });
+      assert.equal(args.turnLimit, 10);
+      const answer = pages[String(args.cursor ?? "first")];
+      if (!answer) throw new Error(`unexpected page ${String(args.cursor)}`);
+      return answer;
+    });
+    return { client, result: new NativeChatGptWorkCloudExecutor(client, null).searchForPrompt({ prompt: PROMPT, requestedAt: SINCE }) };
+  };
+  const cursors = (client: Reads) => client.calls.filter((call) => call.name === "read_thread").map((call) => String(call.arguments.cursor ?? "first"));
+  // The failed start's prompt is the thread's first message, on an older page than the newest turns: a match.
+  const older = run({ first: page(["a follow-up", "another"], "c1"), c1: page([PROMPT], null) });
+  assert.equal(await older.result, "MATCH");
+  assert.deepEqual(cursors(older.client), ["first", "c1"]);
+  // Every page read and none holds it: ruled out.
+  const none = run({ first: page(["a follow-up"], "c1"), c1: page(["the chat's first message"], null) });
+  assert.equal(await none.result, "NONE");
+  assert.deepEqual(cursors(none.client), ["first", "c1"]);
+  // A thread the read shows was made before the failed start (less 10 minutes) can't be its thread: no older page read.
+  const before = run({ first: page(["a follow-up"], "c1", "2026-10-20T00:00:00Z") });
+  assert.equal(await before.result, "NONE");
+  assert.deepEqual(cursors(before.client), ["first"]);
+  // Made since, older turns left: not ruled out until they're read.
+  const since = run({ first: page(["a follow-up"], "c1", "2026-10-22T05:00:00Z"), c1: page(["x"], null, "2026-10-22T05:00:00Z") });
+  assert.equal(await since.result, "NONE");
+  assert.deepEqual(cursors(since.client), ["first", "c1"]);
+  // A match on the newest page holds the retry without reading older pages.
+  assert.equal(await run({ first: page([PROMPT], "c1") }).result, "MATCH");
+  // A page that doesn't say whether older turns are left, or says so without a cursor, rules nothing out.
+  const unsure = value({ thread: { id: "long", kind: "chatgpt" }, turns: [turn("x")] });
+  assert.equal(await run({ first: unsure }).result, "INCOMPLETE");
+  const noCursor = value({ thread: { id: "long", kind: "chatgpt" }, page: { order: "newest_first", hasMore: true, nextCursor: null }, turns: [turn("x")] });
+  assert.equal(await run({ first: noCursor }).result, "INCOMPLETE");
+  // All turns read but no user message among them: not ruled out either.
+  const silent = value({ thread: { id: "long", kind: "chatgpt" }, page: COMPLETE_PAGE, turns: [{ id: "t", items: [{ type: "agentMessage", text: "ok" }] }] });
+  assert.equal(await run({ first: silent }).result, "INCOMPLETE");
 });

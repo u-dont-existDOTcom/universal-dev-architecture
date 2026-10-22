@@ -288,13 +288,15 @@ what it may use, what it must never do, and when it is done.
   its request file), checks the 30 minutes again and searches the app, read-only, for a thread on any surface whose
   first message is the failed start's exact prompt or holds that start's own dispatch id (so no project or title
   narrows the search): it lists one page of threads and reads every thread made since that start,
-  allowing 10 minutes for the app's clock. ChatGPT may refuse reads for a while after a few ("Too many requests"), so
-  the search can take several tries: the threads it read with no match are kept beside the private request file (a
-  thread's first message never changes) and aren't read again, and each try reads at most 25 threads, two seconds
-  apart, stopping at the first refused read. Only when the listing has a thread list that reaches back
+  allowing 10 minutes for the app's clock. The app returns a thread's newest turns first, ten at a time, so each
+  thread is read page by page: any user message that is the prompt or holds the dispatch id holds the retry, and a
+  thread is ruled out only once all its turns were read, or when its read shows it was made before the failed start.
+  ChatGPT may refuse reads for a while after a few ("Too many requests"), so the search can take several tries: the
+  threads it ruled out are kept beside the private request file (a thread's first message never changes) and aren't
+  read again, and each try reads at most 25 pages, two seconds apart, stopping at the first refused read. Only when the listing has a thread list that reaches back
   before the failed start (a ChatGPT thread updated earlier), no source is reported unavailable, and every such thread
   was read with no match does the retry go ahead; otherwise (a match, a listing without a
-  thread list or that doesn't reach back, a thread it couldn't read or hasn't read yet, or a failed start whose prompt
+  thread list or that doesn't reach back, a thread it couldn't read or rule out, or a failed start whose prompt
   matches neither its rebuilt prompt nor its private request file) nothing is recorded or sent, and the dispatcher
   tries again after the same wait as a setup check (`DISPATCH_RETRY_HELD`). A retry that fails again needs another authorization
   of the owner, naming it.

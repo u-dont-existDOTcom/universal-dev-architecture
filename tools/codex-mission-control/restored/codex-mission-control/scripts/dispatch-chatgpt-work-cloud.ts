@@ -11,6 +11,7 @@ import {
   connectCodexDriverMutationBridge,
   connectNativeAppToolClient,
   inMemoryDeferredThreads,
+  PRIOR_SEARCH_RULE_VERSION,
   privatePriorSearchRuledOut,
   type DeferredThreadQueue,
   type ThreadIdSet,
@@ -153,9 +154,10 @@ try {
         : !executor ? "PRIOR_ATTEMPT_SEARCH_INCOMPLETE"
         : await executor.searchForPrompt({
           prompt: priorPrompt, requestedAt: prior.requestedAt, marker: prior.dispatchId, earlierMarkers: prior.earlierDispatchIds,
-          // Threads ruled out by this search's earlier runs, so a search ChatGPT keeps cutting short still finishes.
+          // Threads ruled out by this search's earlier runs, so a search ChatGPT keeps cutting short still finishes. The
+          // rule's version is part of the search's name: threads ruled out under an older rule are read again.
           ruledOut: privatePriorSearchRuledOut(`${absoluteRequestPath}.prior-search.json`,
-            createHash("sha256").update(JSON.stringify([priorPrompt, prior.dispatchId, prior.earlierDispatchIds])).digest("hex")),
+            createHash("sha256").update(JSON.stringify([PRIOR_SEARCH_RULE_VERSION, priorPrompt, prior.dispatchId, prior.earlierDispatchIds])).digest("hex")),
           readPauseMs: PRIOR_SEARCH_READ_PAUSE_MS,
         })
           .then((search) => search === "NONE" ? null : search === "MATCH" ? "PRIOR_ATTEMPT_WORK_THREAD_FOUND" : "PRIOR_ATTEMPT_SEARCH_INCOMPLETE")
