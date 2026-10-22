@@ -59,9 +59,9 @@ async function main() {
     const listed = parseToolJson(await app.callTool({ name: "list_threads", arguments: { limit: LIST_LIMIT } }));
     const threads = Array.isArray(listed.threads) ? listed.threads : [];
     // Whether this scan saw every ChatGPT thread updated after `--updated-after` (the copier advances its scan floor only
-    // then): a thread list that isn't cut by the limit (fewer threads than the limit, or one updated before the floor),
-    // no thread source reported unavailable (a rate-limited ChatGPT listing shows only other surfaces), and every read in
-    // range succeeded.
+    // then): a thread list that reaches back past the floor (a ChatGPT or unknown-kind thread updated before it; a short
+    // page alone proves nothing, since sources may be paged apart, as for the Work retry's search), no thread source
+    // reported unavailable (a rate-limited ChatGPT listing shows only other surfaces), and every read in range succeeded.
     const unavailable = listed.unavailableSources ?? listed.unavailable_sources;
     const sourcesUnavailable = Array.isArray(unavailable) ? unavailable.length > 0 : unavailable !== undefined && unavailable !== null;
     let unreadable = 0;
@@ -93,8 +93,12 @@ async function main() {
         output.push({ threadId, status, updatedAt, observedAt: new Date().toISOString(), finalAgentMessage: finalAgentMessage(root) });
       } catch { unreadable += 1; /* unreadable candidates cannot satisfy exact binding */ }
     }
-    const reachesBack = threads.length < LIST_LIMIT || threads.some((summary) => summary && typeof summary === "object"
-      && !Array.isArray(summary) && (timestampMs((summary as Record<string, unknown>).updatedAt ?? (summary as Record<string, unknown>).updated_at) ?? Infinity) < updatedAfter);
+    const reachesBack = threads.some((summary) => {
+      if (!summary || typeof summary !== "object" || Array.isArray(summary)) return false;
+      const record = summary as Record<string, unknown>;
+      if (record.kind !== undefined && record.kind !== "chatgpt") return false;
+      return (timestampMs(record.updatedAt ?? record.updated_at) ?? Infinity) < updatedAfter;
+    });
     const complete = Array.isArray(listed.threads) && reachesBack && !sourcesUnavailable && unreadable === 0;
     process.stdout.write(`${JSON.stringify({ threads: output, complete, truncated: !reachesBack, sourcesUnavailable, unreadable })}\n`);
   } finally { await app.close(); }
