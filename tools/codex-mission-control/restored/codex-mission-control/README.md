@@ -288,8 +288,8 @@ what it may use, what it must never do, and when it is done.
   surface whose first message is the failed start's exact prompt (it carries that start's own dispatch id, so no
   project or title narrows the search): it lists one page of threads and reads every thread made since that start,
   allowing 10 minutes for the app's clock (25 at most). Only when the listing has a thread list that reaches back
-  before the failed start (a ChatGPT thread updated earlier) and every such thread was read with no match does the
-  retry go ahead; otherwise (a match, a listing without a
+  before the failed start (a ChatGPT thread updated earlier), no source is reported unavailable, and every such thread
+  was read with no match does the retry go ahead; otherwise (a match, a listing without a
   thread list or that doesn't reach back, a thread it couldn't read, too many, or a failed start whose prompt matches
   neither its rebuilt prompt nor its private request file) nothing is recorded or sent, and the dispatcher tries again
   after the same wait as a setup check (`DISPATCH_RETRY_HELD`). A retry that fails again needs another authorization

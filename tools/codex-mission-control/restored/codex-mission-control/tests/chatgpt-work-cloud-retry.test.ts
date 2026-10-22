@@ -458,4 +458,8 @@ test("anything the search couldn't read holds the retry", async () => {
   assert.equal(await search([fresh("a"), oldCodex], { a: thread("a", "x") }).result, "INCOMPLETE");
   const unavailable = new Reads(() => value({ unavailableSources: ["chatgpt"], threads: [] }));
   assert.equal(await new NativeChatGptWorkCloudExecutor(unavailable, null).searchForPrompt({ prompt: PROMPT, requestedAt: SINCE }), "INCOMPLETE");
+  // Every surface is searched, so another surface's source reported unavailable may hide the thread too.
+  const codexUnavailable = new Reads((name) => name === "list_threads"
+    ? value({ unavailableSources: ["codex"], threads: [fresh("a"), old] }) : thread("a", "x"));
+  assert.equal(await new NativeChatGptWorkCloudExecutor(codexUnavailable, null).searchForPrompt({ prompt: PROMPT, requestedAt: SINCE }), "INCOMPLETE");
 });

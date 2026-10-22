@@ -200,8 +200,8 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
    * made its thread on another surface, as a wrong-surface result shows when the answer arrives (independent review of
    * b72e68bd). NONE only when the listing has a thread list that reaches back before that (at least one ChatGPT or
    * unknown-kind thread last updated earlier) and every such thread was read with a first message that isn't the
-   * prompt. A listing without a thread list or that doesn't reach back, an unreadable or temporary thread, a rate limit,
-   * or more candidates than PRIOR_SEARCH_MAX_READS is INCOMPLETE. The prompt carries the failed start's own dispatch id,
+   * prompt. A listing that reports any source unavailable, has no thread list or doesn't reach back, an unreadable or
+   * temporary thread, a rate limit, or more candidates than PRIOR_SEARCH_MAX_READS is INCOMPLETE. The prompt carries the failed start's own dispatch id,
    * so no project or title narrows the search, and nothing is written.
    */
   async searchForPrompt(input: { prompt: string; requestedAt: string }): Promise<"MATCH" | "NONE" | "INCOMPLETE"> {
@@ -213,7 +213,9 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     } catch {
       return "INCOMPLETE";
     }
-    if (chatGptSourceUnavailable(listed)) return "INCOMPLETE";
+    // Every surface is searched, so any source the listing reports unavailable may hide the thread (Codex review of
+    // 917bddd7).
+    if (anySourceUnavailable(listed)) return "INCOMPLETE";
     const threads = listedThreads(listed);
     if (!threads) return "INCOMPLETE";
     // An older thread of another surface proves nothing about ChatGPT's threads, which a listing may page apart.
@@ -946,6 +948,14 @@ function chatGptSourceUnavailable(value: unknown): boolean {
   return objectsIn(value).some((object) => {
     const sources = object.unavailableSources ?? object.unavailable_sources;
     return Array.isArray(sources) && sources.some((source) => typeof source === "string" && source.toLowerCase().includes("chatgpt"));
+  });
+}
+
+/** Whether a listing reports any thread source unavailable, whichever surface. */
+function anySourceUnavailable(value: unknown): boolean {
+  return objectsIn(value).some((object) => {
+    const sources = object.unavailableSources ?? object.unavailable_sources;
+    return Array.isArray(sources) ? sources.length > 0 : sources !== undefined && sources !== null;
   });
 }
 

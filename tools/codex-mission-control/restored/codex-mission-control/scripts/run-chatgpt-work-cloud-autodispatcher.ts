@@ -86,9 +86,11 @@ async function materialize(candidate: PreparedDirectWorkCloudDispatch): Promise<
   await writeExactPrivate(artifactPath, candidate.directiveArtifactText);
   const requestPath = path.join(privateRoot, `${sha256(candidate.dispatchId)}.request.json`);
   const controllerRequest = { ...candidate.controllerRequest, priorAttempt: withPriorPrompt(candidate.controllerRequest.priorAttempt) };
-  // Until its request is recorded (NEW), a dispatch's private request may be written again: a retry the controller held
-  // comes back with a new request time. Once recorded, it never changes.
-  await writeExactPrivate(requestPath, `${JSON.stringify(controllerRequest, null, 2)}\n`, candidate.recoveryState === "NEW");
+  // Only a retry the controller held, whose request isn't recorded yet (NEW), may have its private request written again:
+  // it comes back with a new request time. Every other private request never changes under its dispatch id (Codex
+  // review of 917bddd7), and a recorded one never changes.
+  await writeExactPrivate(requestPath, `${JSON.stringify(controllerRequest, null, 2)}\n`,
+    candidate.recoveryState === "NEW" && candidate.controllerRequest.priorAttempt !== null);
   return requestPath;
 }
 
