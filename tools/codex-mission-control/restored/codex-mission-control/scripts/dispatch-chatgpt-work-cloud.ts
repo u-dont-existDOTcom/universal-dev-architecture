@@ -41,6 +41,8 @@ interface ControllerRequest {
   requestedAt?: string;
   /** The directive's bounded-execution deadline (from the watcher): no Work call starts at or after it. */
   deadline?: string;
+  /** For a new retry the owner authorized after a failed start (lib/chatgpt-work-cloud-retry.ts): that start. */
+  priorAttempt?: { dispatchId: string; requestedAt: string; prompt: string | null } | null;
 }
 
 async function main(): Promise<void> {
@@ -109,6 +111,27 @@ const sink = new HttpWorkCloudEventSink({
 });
 
 try {
+  // Before a retry of a failed start makes its Work call, a read-only search of the app for a Work thread whose first
+  // message is the failed start's exact prompt. Unless the search read every thread made since that start and found
+  // none, the retry is held: nothing is recorded or sent, and the watcher tries again later.
+  if (request.priorAttempt) {
+    const search = executor && request.priorAttempt.prompt !== null
+      ? await executor.searchForPrompt({
+        prompt: request.priorAttempt.prompt,
+        requestedAt: request.priorAttempt.requestedAt,
+        projectId: request.chatgptProjectId,
+      }).catch(() => "INCOMPLETE" as const)
+      : "INCOMPLETE" as const;
+    if (search !== "NONE") {
+      process.stdout.write(`${JSON.stringify({
+        status: "RETRY_HELD",
+        reason: search === "MATCH" ? "PRIOR_ATTEMPT_WORK_THREAD_FOUND"
+          : request.priorAttempt.prompt === null ? "PRIOR_ATTEMPT_PROMPT_UNKNOWN" : "PRIOR_ATTEMPT_SEARCH_INCOMPLETE",
+        setupError,
+      }, null, 2)}\n`);
+      return;
+    }
+  }
   const completed = await dispatchAndRecordChatGptWorkCloud({
     dispatchId: request.dispatchId,
     mode: request.mode,

@@ -52,6 +52,18 @@ async function cycle(): Promise<Record<string, unknown>> {
   if (candidate.recoveryState === "PENDING_SETUP_READ_ONLY") lastPendingAttemptMs.set(candidate.dispatchId, Date.now());
   const requestPath = await materialize(candidate);
   const controller = await runController(requestPath);
+  // A retry of a failed start that the controller held (lib/chatgpt-work-cloud-retry.ts): nothing was recorded or sent,
+  // and it is tried again after the same wait as a setup check.
+  if (controller.status === "RETRY_HELD") {
+    lastPendingAttemptMs.set(candidate.dispatchId, Date.now());
+    return {
+      status: "DISPATCH_RETRY_HELD",
+      observedAt: now,
+      worker: candidate.worker,
+      dispatchId: candidate.dispatchId,
+      reason: typeof controller.reason === "string" ? controller.reason : null,
+    };
+  }
   return {
     status: "DISPATCH_CYCLE",
     observedAt: now,

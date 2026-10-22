@@ -17,6 +17,7 @@ import { supervisionHandoffCapsuleSha256 } from "./supervision-handoff";
 import { authorityStateVectorHash } from "./terminal-comparator";
 import { buildExecutionDirectiveFromGitHubDecision } from "./github-execution-directive";
 import { workDirectiveDeadline } from "./work-directive-expiry";
+import { retryAuthorizationProblem, WORK_CLOUD_RETRYABLE_STATUSES } from "./chatgpt-work-cloud-retry";
 import {
   evaluateWorkExecutionPreflight,
   failureMayAuthorizeProfileEscalation,
@@ -243,6 +244,11 @@ export class EventStore {
     if (trustedSystemBoundaryTypes.has(envelope.data.type)
       && (!producer || !producerMayEmit(producer, envelope.data))) {
       throw new ContractInvariantError("Trusted task-creation and native Work dispatch evidence requires an explicit matching authenticated SYSTEM producer.");
+    }
+    // Only the owner retries a failed native Work start (lib/chatgpt-work-cloud-retry.ts), on any route.
+    if (envelope.data.type === "chatgpt_work_cloud_dispatch_retry_authorized"
+      && (!producer || producer.kind !== "OWNER_AUTHORITY" || !producerMayEmit(producer, envelope.data))) {
+      throw new ContractInvariantError("A retry of a failed native Work start requires the owner's authenticated authority.");
     }
     const authenticatedProducer = producer ?? internalProducerFor(envelope.data);
     const worker = eventWorker(envelope.data);
@@ -1046,6 +1052,30 @@ export class EventStore {
         }
       }
       this.assertUniqueDomainId(data.worker, data.type, "dispatch_id", data.dispatch_id);
+      // A job whose latest start of a new Work thread failed (UNAVAILABLE or FAILED) starts again only as the retry the
+      // owner authorized of that start (lib/chatgpt-work-cloud-retry.ts), never on its own.
+      if (data.mode === "CREATE") {
+        const earlier = events.findLast((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested"
+          && event.data.mode === "CREATE" && event.data.directive_id === data.directive_id
+          && event.data.directive_revision === data.directive_revision)?.data;
+        const earlierResult = earlier?.type === "chatgpt_work_cloud_dispatch_requested"
+          ? events.findLast((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded"
+            && event.data.dispatch_id === earlier.dispatch_id)?.data
+          : undefined;
+        if (earlier?.type === "chatgpt_work_cloud_dispatch_requested" && earlierResult?.type === "chatgpt_work_cloud_dispatch_recorded"
+          && WORK_CLOUD_RETRYABLE_STATUSES.has(earlierResult.status)) {
+          const retry = events.find((event) => event.data.type === "chatgpt_work_cloud_dispatch_retry_authorized"
+            && event.data.failed_dispatch_id === earlier.dispatch_id)?.data;
+          if (retry?.type !== "chatgpt_work_cloud_dispatch_retry_authorized" || retry.retry_dispatch_id !== data.dispatch_id) {
+            throw new ContractInvariantError("A native Work job whose start failed starts again only as the owner's authorized retry of that start.");
+          }
+        }
+      }
+    }
+    if (data.type === "chatgpt_work_cloud_dispatch_retry_authorized") {
+      const problem = retryAuthorizationProblem(events, data);
+      if (problem) throw new ContractInvariantError(problem);
+      this.assertUniqueDomainId(data.worker, data.type, "failed_dispatch_id", data.failed_dispatch_id, validationHistory);
     }
     if (data.type === "chatgpt_work_cloud_dispatch_recorded") {
       const request = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested"
