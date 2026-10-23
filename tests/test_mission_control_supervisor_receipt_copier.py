@@ -484,6 +484,23 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
         coded = dict(receipt, blockerCodes=["SUPERVISOR_REASONING_REQUIRED", bare_receipt])
         coded_parsed = copier.extract_machine_block("Done.\n" + bare_receipt + json.dumps(coded), copier.WORK_RECEIPT_PREFIX, bare_marker=True)
         self.assertEqual(coded_parsed, (copier.WORK_RECEIPT_PREFIX + json.dumps(coded), coded))
+        # Two receipts, in any mix of forms, are refused rather than resolved by their order (Codex review of 26439d35).
+        canonical_receipt = copier.WORK_RECEIPT_PREFIX + receipt_json
+        for twice in (bare_receipt + receipt_json + "\n" + bare_receipt + receipt_json,
+                      bare_receipt + receipt_json + "\n" + canonical_receipt,
+                      canonical_receipt + "\n" + bare_receipt + receipt_json):
+            with self.subTest(twice=twice[:60]), self.assertRaisesRegex(copier.CopierError, "more than one public Work receipt"):
+                copier.extract_machine_block(twice, copier.WORK_RECEIPT_PREFIX, bare_marker=True)
+        # A handoff whose question writes the receipt marker followed by "{": the receipt is searched for after the
+        # handoff's JSON, so the reply is still read whole.
+        quoting = "Should the " + bare_receipt + "{...} block list artifacts?"
+        quoted = dict(handoff, question=quoting, questionSha256=copier.sha256_text(quoting))
+        reply = bare_handoff + json.dumps(quoted) + "\n" + bare_receipt + receipt_json
+        found = copier.extract_private_work_handoff(reply)
+        self.assertEqual(found.payload, quoted)
+        self.assertEqual(copier.extract_machine_block(reply, copier.WORK_RECEIPT_PREFIX, bare_marker=True, start=found.end)[1], receipt)
+        with self.assertRaisesRegex(copier.CopierError, "more than one public Work receipt"):
+            copier.extract_machine_block(reply, copier.WORK_RECEIPT_PREFIX, bare_marker=True)
         # Only with bare_marker, only for a marker followed by its JSON, and trailing prose still fails.
         self.assertIsNone(copier.extract_machine_block(message, copier.WORK_RECEIPT_PREFIX))
         self.assertIsNone(copier.extract_machine_block(bare_receipt + " " + receipt_json, copier.WORK_RECEIPT_PREFIX, bare_marker=True))
