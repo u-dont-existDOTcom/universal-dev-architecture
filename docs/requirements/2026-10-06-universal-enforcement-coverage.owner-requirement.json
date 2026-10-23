@@ -59,8 +59,8 @@
       "clauses_sha256": "3ccde4efbdd0f812c2217fdd65a49355b9208c2f1cad00908b892bb6f4a5ba83"
     },
     "AGENTS.md#per-turn-bootstrap-invariants": {
-      "clause_count": 28,
-      "clauses_sha256": "78cb10a3461ef413faafdc298c27360ab999bccb60ffd9bb8d33fa2562cc343e"
+      "clause_count": 30,
+      "clauses_sha256": "64c580412be84b6f010572342ef983369212a25cd72e05f7c8a1b1e582a6b586"
     },
     "AGENTS.md#pre-final-continuation-invariant": {
       "clause_count": 6,

@@ -45,7 +45,7 @@ Indexed patterns: 85
 
 Migration backlog: 78
 
-Task-time records: 75, sourced from 13 files, with 2 mechanical and 83 semantic obligations. Corrected slice 2a adds 28 records and extends three continuity records; its 31 records carry 32 semantic behaviors and 281 mapped clause rows.
+Task-time records: 78, sourced from 13 files, with 2 mechanical and 86 semantic obligations. Corrected slice 2a adds 28 records and extends three continuity records; its 31 records carry 32 semantic behaviors and 281 mapped clause rows.
 
 | Disposition | Count |
 |---|---:|
@@ -150,7 +150,7 @@ Clauses 9; consolidated obligations 3; structured clauses 9; excepted 0; remaini
 
 ### AGENTS.md#per-turn-bootstrap-invariants
 
-Clauses 27; consolidated obligations 6; structured clauses 26; excepted 1; remaining 0.
+Clauses 30; consolidated obligations 7; structured clauses 29; excepted 1; remaining 0.
 
 | Exact sentence or clause | Record / obligation or exception carrier |
 |---|---|
@@ -182,6 +182,8 @@ Clauses 27; consolidated obligations 6; structured clauses 26; excepted 1; remai
 | Treat failure to emit the timestamp as the first line of the final user-visible answer on any assistant turn as an instruction-following failure even when the timestamp appeared during thinking or the underlying task answer is otherwise correct. | uda.final.timestamp / final-first-line-timestamp |
 | **Every turn:** reusable output over ~8,000 characters goes in a file, for any recipient; | uda.kernel.output-budget / file-for-long-reusable-output |
 | chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`. | uda.kernel.output-budget / file-for-long-reusable-output |
+| **Say each thing once:** what an interim message already showed the owner as written in the same turn is not repeated in the final answer; | uda.kernel.say-once / no-repeat-of-interim-message |
+| the final answer adds only what is new or changed, still carries what a rule requires of the final answer itself, and stands on its own when it will be read alone: `patterns/worker-directive-delivery-and-chat-output-budget.md`. | uda.kernel.say-once / no-repeat-of-interim-message |
 
 ### AGENTS.md#pre-final-continuation-invariant
 
