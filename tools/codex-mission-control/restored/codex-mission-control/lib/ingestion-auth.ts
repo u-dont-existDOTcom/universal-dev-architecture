@@ -16,7 +16,7 @@ export const authenticatedEventTypes = [
   "owner_decision_recorded", "supervision_route_recorded", "research_verdict_recorded", "reasoning_message_recorded", "reasoning_supervision_recorded",
   "execution_directive_recorded", "work_execution_profile_authorized", "work_task_creation_selection_applied", "work_execution_preflight_recorded",
   "chatgpt_work_cloud_dispatch_requested", "chatgpt_work_cloud_handoff_intent_recorded", "chatgpt_work_cloud_dispatch_recorded",
-  "chatgpt_work_cloud_execution_receipt_recorded", "work_supervisor_handoff_recorded", "owner_decision_request_recorded", "codex_execution_started", "execution_receipt_recorded", "work_model_routing_checkpoint_recorded", "outcome_progress_recorded",
+  "chatgpt_work_cloud_execution_receipt_recorded", "chatgpt_work_cloud_dispatch_retry_authorized", "work_supervisor_handoff_recorded", "owner_decision_request_recorded", "codex_execution_started", "execution_receipt_recorded", "work_model_routing_checkpoint_recorded", "outcome_progress_recorded",
   "supervision_alert_recorded", "supervision_design_feedback_recorded", "symphony_runtime_observed",
   "live_worker_evidence_observed", "symphony_adapter_diagnostic_recorded", "review_marked", "supervisor_chat_link_set",
   "owner_message_recorded", "outbound_delivery_lifecycle_recorded", "worker_message_recorded",
@@ -36,6 +36,8 @@ const authorityEvents = new Set<MissionControlEventV2["type"]>([
   "owner_source_recorded", "owner_outcome_recorded", "task_contract_recorded",
   "objective_reconciliation_recorded", "owner_decision_recorded",
   "owner_message_recorded", "reasoning_message_recorded",
+  // The owner's one retry of a native Work start that failed at the ChatGPT app (lib/chatgpt-work-cloud-retry.ts).
+  "chatgpt_work_cloud_dispatch_retry_authorized",
 ]);
 const workerEvents = new Set<MissionControlEventV2["type"]>([
   "worker_checkpoint_recorded", "completion_claim_recorded", "codex_execution_started", "execution_receipt_recorded",
@@ -169,5 +171,8 @@ function embeddedIdentityMatches(producer: AuthenticatedProducer, event: Mission
     return producer.id === event.worker || producer.id === `worker:${event.worker}`;
   }
   if (event.type === "owner_decision_recorded") return event.authorized_by === producer.id;
+  if (event.type === "chatgpt_work_cloud_dispatch_retry_authorized") {
+    return producer.kind === "OWNER_AUTHORITY" && event.authorized_by === producer.id;
+  }
   return true;
 }

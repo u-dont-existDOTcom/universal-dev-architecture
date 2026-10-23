@@ -181,6 +181,22 @@ test("checkpoint-verify posts only the exact file, commit and SHA-256 for one wo
   });
 });
 
+test("work-start-retry posts to one fixed route for one exact worker, with no body (#385, 22 Oct)", async () => {
+  await withServer(async (base, seen) => {
+    const ok = await run(["work-start-retry", "--worker", "atlas-living-pilot"], env(base));
+    assert.equal(ok.code, 0, ok.stderr);
+    assert.deepEqual(seen.map((s) => `${s.method} ${s.url}`), ["POST /workers/atlas-living-pilot/work-cloud-dispatches/retry-failed"]);
+    assert.equal(seen[0].body, "");
+    assert.equal(seen[0].headers["x-mission-control-producer-kind"], "OWNER_AUTHORITY");
+    for (const args of [["work-start-retry"], ["work-start-retry", "--worker", "Atlas"], ["work-start-retry", "--worker", "../x"],
+      ["work-start-retry", "--worker", "atlas-living-pilot", "--dispatch", "work-cloud:x"]]) {
+      const refused = await run(args, env(base));
+      assert.equal(refused.code, 2, `${args.join(" ")}: ${refused.stderr}`);
+    }
+    assert.equal(seen.length, 1);
+  });
+});
+
 test("there is no action that forwards caller-supplied content under the owner credential", async () => {
   await withServer(async (base, seen) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "owner-action-"));

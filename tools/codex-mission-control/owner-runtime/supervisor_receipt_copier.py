@@ -31,6 +31,15 @@ WORK_HANDOFF_PREFIX = "MISSION_CONTROL_WORK_SUPERVISOR_HANDOFF_V1\n"
 PROVIDER_SESSION_SUMMARY = "MISSION_CONTROL_PROVIDER_SESSION_V1"
 IN_BAND_PRE_SEND_SUMMARY = "MISSION_CONTROL_IN_BAND_REQUEST_BINDING_PRE_SEND_V1"
 IN_BAND_PROVENANCE = "IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED"
+# One scan of the app's ChatGPT threads per cycle at most this often; after a scan that couldn't see or read every
+# thread (a rate-limited ChatGPT listing, a failed read), the wait doubles up to SCAN_MAX_BACKOFF_SECONDS. After a
+# complete scan, each waiting decision request's floor moves to the scan's start less SCAN_FLOOR_SKEW_SECONDS (the ten
+# minutes of provider clock skew Mission Control allows elsewhere), so later
+# scans read only threads updated since: on 22 Oct two copiers re-read every thread updated since an unanswered
+# request's send time each cycle, about 4,000 reads an hour, and ChatGPT refused the account with "Too many requests".
+SCAN_MIN_INTERVAL_SECONDS = 60
+SCAN_MAX_BACKOFF_SECONDS = 15 * 60
+SCAN_FLOOR_SKEW_SECONDS = 10 * 60
 
 
 class CopierError(RuntimeError):
@@ -65,6 +74,7 @@ class WorkCandidate:
 class WorkSupervisorHandoff:
     block: str
     payload: dict[str, Any]
+    end: int = 0  # where the handoff's JSON ends in the reply: the public receipt is searched for only after it
 
 
 @dataclasses.dataclass(frozen=True)
@@ -271,13 +281,42 @@ def discover_work_candidates(events: list[dict[str, Any]], *, min_sequence: int 
     return sorted(candidates, key=lambda item: (item.sequence, item.dispatch_id))
 
 
-def extract_machine_block(text: str | None, prefix: str) -> tuple[str, dict[str, Any]] | None:
+def _work_block_starts(text: str, prefix: str, start: int) -> list[int]:
+    """Where a Work block's marker starts a block in `text` from `start`: the marker's name followed by its newline or,
+    as the Work prompt asks ("followed immediately by one strict JSON object"), by "{". The name inside the block's own
+    values (a privacy-safe code) is followed by neither and isn't counted (Codex review of 29f54e5a)."""
+    bare = prefix.rstrip("\n")
+    starts: list[int] = []
+    index = text.find(bare, start)
+    while index >= 0:
+        if text[index + len(bare):index + len(bare) + 1] in ("\n", "{"):
+            starts.append(index)
+        index = text.find(bare, index + len(bare))
+    return starts
+
+
+def extract_machine_block(
+    text: str | None, prefix: str, *, bare_marker: bool = False, start: int = 0,
+) -> tuple[str, dict[str, Any]] | None:
+    """The machine block at `prefix` (its marker line, then strict JSON, nothing after). With `bare_marker` (Work
+    blocks), the marker may also be followed immediately by its JSON, as the Work prompt asks; exactly one marker may
+    start a block from `start` on (two receipts, in any mix of forms, are refused: Codex review of 26439d35), and the
+    block is returned in the canonical form: the marker on its own line, then the JSON as written."""
     if not isinstance(text, str):
         return None
-    index = text.find(prefix)
-    if index < 0:
-        return None
-    block = text[index:].strip()
+    if bare_marker:
+        starts = _work_block_starts(text, prefix, start)
+        if not starts:
+            return None
+        if len(starts) > 1:
+            raise CopierError("more than one public Work receipt was emitted")
+        rest = text[starts[0] + len(prefix.rstrip("\n")):]
+        block = prefix + (rest[1:] if rest.startswith("\n") else rest).strip()
+    else:
+        index = text.find(prefix)
+        if index < 0:
+            return None
+        block = text[index:].strip()
     if not block.startswith(prefix):
         return None
     try:
@@ -547,22 +586,42 @@ def repair_decision_digest_only(
 def extract_private_work_handoff(text: str | None) -> WorkSupervisorHandoff | None:
     if not isinstance(text, str):
         return None
-    start = text.find(WORK_HANDOFF_PREFIX)
-    if start < 0:
-        return None
-    public_start = text.find(WORK_RECEIPT_PREFIX, start + len(WORK_HANDOFF_PREFIX))
-    if public_start < 0:
-        raise CopierError("private Work supervisor handoff is missing the required final public Work receipt")
-    if text.find(WORK_HANDOFF_PREFIX, start + len(WORK_HANDOFF_PREFIX)) >= 0:
-        raise CopierError("more than one private Work supervisor handoff was emitted")
-    block = text[start:public_start].strip()
+    # The first handoff marker that starts a block, in either form: with its newline, or followed immediately by its
+    # JSON, as the Work prompt asks (23 Oct: a live Work reply wrote both markers that way, and the copier saw neither).
+    # The handoff's JSON is decoded structurally, so a marker name inside its strings can't end it early, and only
+    # whitespace may then come before the public receipt's marker (Codex review of 1a376a2f).
+    marker = WORK_HANDOFF_PREFIX.rstrip("\n")
+    receipt_marker = WORK_RECEIPT_PREFIX.rstrip("\n")
+    search = 0
+    while True:
+        start = text.find(marker, search)
+        if start < 0:
+            return None
+        if text[start + len(marker):start + len(marker) + 1] in ("\n", "{"):
+            break
+        search = start + len(marker)
+    json_start = start + len(marker)
+    while json_start < len(text) and text[json_start].isspace():
+        json_start += 1
     try:
-        payload = json.loads(block[len(WORK_HANDOFF_PREFIX):])
+        payload, end = json.JSONDecoder().raw_decode(text, json_start)
     except json.JSONDecodeError as exc:
         raise CopierError("private Work supervisor handoff is not strict JSON") from exc
+    after = end
+    while after < len(text) and text[after].isspace():
+        after += 1
+    if text.startswith(marker, after):
+        raise CopierError("more than one private Work supervisor handoff was emitted")
+    # The receipt's marker must come next and start a block (followed by its newline or "{"), as the receipt reader
+    # requires (Codex review of f97e39a9): anything else between the handoff and a receipt is refused.
+    if (not text.startswith(receipt_marker, after)
+            or text[after + len(receipt_marker):after + len(receipt_marker) + 1] not in ("\n", "{")):
+        if not _work_block_starts(text, WORK_RECEIPT_PREFIX, end):
+            raise CopierError("private Work supervisor handoff is missing the required final public Work receipt")
+        raise CopierError("private Work supervisor handoff is not strict JSON")
     if not isinstance(payload, dict):
         raise CopierError("private Work supervisor handoff payload must be an object")
-    return WorkSupervisorHandoff(block=block, payload=payload)
+    return WorkSupervisorHandoff(block=WORK_HANDOFF_PREFIX + text[json_start:end], payload=payload, end=end)
 
 
 def validate_private_work_handoff(handoff: WorkSupervisorHandoff, candidate: WorkCandidate) -> dict[str, Any]:
@@ -737,7 +796,9 @@ def read_thread(config: Config, thread_id: str) -> dict[str, Any]:
     return value
 
 
-def list_chatgpt_final_messages(config: Config, updated_after: str) -> list[dict[str, Any]]:
+def scan_chatgpt_final_messages(config: Config, updated_after: str) -> tuple[list[dict[str, Any]], bool]:
+    """The app's ChatGPT threads updated after `updated_after` with their final messages, and whether the scan was
+    complete (every listed thread seen and read; an older lister that doesn't say counts as incomplete)."""
     command = (
         f"cd {shlex.quote(config.remote_app_root)} && set -a; . {shlex.quote(config.remote_env_file)}; set +a; "
         f"node_modules/.bin/tsx scripts/list-chatgpt-thread-final-messages.ts --updated-after {shlex.quote(updated_after)}"
@@ -746,7 +807,73 @@ def list_chatgpt_final_messages(config: Config, updated_after: str) -> list[dict
     threads = value.get("threads") if isinstance(value, dict) else None
     if not isinstance(threads, list):
         raise CopierError("provider thread listing returned invalid JSON")
-    return [item for item in threads if isinstance(item, dict)]
+    return [item for item in threads if isinstance(item, dict)], value.get("complete") is True
+
+
+def list_chatgpt_final_messages(config: Config, updated_after: str) -> list[dict[str, Any]]:
+    return scan_chatgpt_final_messages(config, updated_after)[0]
+
+
+def _iso(moment: dt.datetime) -> str:
+    return moment.astimezone(dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def decision_scan(
+    config: Config, state: dict[str, Any], candidates: list[DecisionCandidate], now: dt.datetime,
+) -> tuple[list[dict[str, Any]], dict[str, str]] | None:
+    """One throttled scan for every waiting decision request (None when it isn't time yet). It reads threads updated
+    after the earliest waiting request's floor: its send time, or after a complete scan that scan's start less the skew.
+    Returns the threads and, after a complete scan, the floors each request may move to; the caller moves a request's
+    floor only once it found no receipt for it in this scan (a receipt found stays visible until it is published). An
+    incomplete or failed scan moves nothing and doubles the wait."""
+    scan = state.setdefault("decisionScan", {})
+    keys = [f"decision:{c.request_id}:{c.provider_session_id}" for c in candidates]
+    # Floors of requests no longer waiting (published, or gone from the feed) are dropped.
+    floors = {key: value for key, value in state.get("decisionScanFloors", {}).items() if key in keys}
+    state["decisionScanFloors"] = floors
+    if not candidates:
+        save_state(config, state)
+        return None
+    next_at = scan.get("nextAt")
+    if isinstance(next_at, str) and parse_iso(next_at) > now:
+        return None
+    candidate_floors = []
+    for key, candidate in zip(keys, candidates):
+        floor = parse_iso(candidate.pre_send_at)
+        recorded = floors.get(key)
+        if isinstance(recorded, str) and parse_iso(recorded) > floor:
+            floor = parse_iso(recorded)
+        candidate_floors.append(floor)
+    backoff = scan.get("backoffSeconds")
+    backoff = backoff if isinstance(backoff, (int, float)) and not isinstance(backoff, bool) and backoff > 0 else 0
+    try:
+        threads, complete = scan_chatgpt_final_messages(config, _iso(min(candidate_floors)))
+    except Exception:
+        complete, threads = False, None
+    advance: dict[str, str] = {}
+    if complete:
+        moved = now - dt.timedelta(seconds=SCAN_FLOOR_SKEW_SECONDS)
+        for key, floor in zip(keys, candidate_floors):
+            advance[key] = _iso(max(floor, moved))
+        scan["backoffSeconds"] = 0
+        scan["nextAt"] = _iso(now + dt.timedelta(seconds=SCAN_MIN_INTERVAL_SECONDS))
+    else:
+        backoff = min(SCAN_MAX_BACKOFF_SECONDS, max(SCAN_MIN_INTERVAL_SECONDS, backoff * 2))
+        scan["backoffSeconds"] = backoff
+        scan["nextAt"] = _iso(now + dt.timedelta(seconds=backoff))
+    save_state(config, state)
+    if threads is None:
+        raise CopierError("provider thread scan failed; the next scan waits")
+    return threads, advance
+
+
+def advance_decision_floors(config: Config, state: dict[str, Any], advance: dict[str, str], unmatched: set[str]) -> None:
+    """Moves the floors of the requests this scan found no receipt for (only those)."""
+    floors = state.setdefault("decisionScanFloors", {})
+    for key in unmatched:
+        if key in advance:
+            floors[key] = advance[key]
+    save_state(config, state)
 
 
 def _updated_at_iso(value: Any) -> str:
@@ -926,18 +1053,17 @@ def save_state(config: Config, state: dict[str, Any]) -> None:
     os.replace(temp, path)
 
 
-def process_once(config: Config) -> dict[str, Any]:
-    events = fetch_events(config)
-    state = load_state(config)
-    published = state["published"]
+def _copy_decisions(
+    config: Config, state: dict[str, Any], published: dict[str, Any], waiting: list[DecisionCandidate],
+    threads: list[dict[str, Any]], unmatched: set[str],
+) -> list[dict[str, Any]]:
+    """Copies each waiting request's receipt found in `threads`; adds to `unmatched` each request evaluated with none."""
     copied: list[dict[str, Any]] = []
-
-    for candidate in discover_decision_candidates(events, min_sequence=config.min_sequence):
+    for candidate in waiting:
         key = f"decision:{candidate.request_id}:{candidate.provider_session_id}"
-        if key in published:
-            continue
-        resolved = resolve_decision_machine_block(config, candidate)
+        resolved = select_decision_machine_block(threads, candidate)
         if not resolved:
+            unmatched.add(key)
             continue
         validate_decision_block(resolved.publish_block, resolved.payload, candidate)
         record_app_readback(
@@ -959,6 +1085,27 @@ def process_once(config: Config) -> dict[str, Any]:
         published[key] = {"commentId": comment_id, "sha256": sha256_text(resolved.publish_block), "kind": "decision"}
         copied.append({"kind": "decision", "requestId": candidate.request_id, "commentId": comment_id})
         save_state(config, state)
+    return copied
+
+
+def process_once(config: Config) -> dict[str, Any]:
+    events = fetch_events(config)
+    state = load_state(config)
+    published = state["published"]
+    copied: list[dict[str, Any]] = []
+
+    waiting = [candidate for candidate in discover_decision_candidates(events, min_sequence=config.min_sequence)
+               if f"decision:{candidate.request_id}:{candidate.provider_session_id}" not in published]
+    # One throttled scan serves every waiting request (it returns None when the next scan isn't due yet). A request's
+    # floor moves only once this scan was evaluated for it and held no receipt for it, even if a later step fails.
+    scanned = decision_scan(config, state, waiting, dt.datetime.now(dt.timezone.utc)) if waiting else None
+    unmatched: set[str] = set()
+    try:
+        copied.extend(_copy_decisions(config, state, published, waiting if scanned is not None else [],
+                                      scanned[0] if scanned is not None else [], unmatched))
+    finally:
+        if scanned is not None:
+            advance_decision_floors(config, state, scanned[1], unmatched)
 
     # Refetch after decisions because ingestion may append the Work directive/dispatch asynchronously.
     events = fetch_events(config)
@@ -969,7 +1116,9 @@ def process_once(config: Config) -> dict[str, Any]:
         thread = read_thread(config, candidate.thread_id)
         final_message = thread.get("finalAgentMessage")
         private_handoff = extract_private_work_handoff(final_message)
-        parsed = extract_machine_block(final_message, WORK_RECEIPT_PREFIX)
+        # After a handoff, the receipt is searched for only past the handoff's JSON (its strings may name the marker).
+        parsed = extract_machine_block(final_message, WORK_RECEIPT_PREFIX, bare_marker=True,
+                                       start=private_handoff.end if private_handoff else 0)
         if not parsed:
             continue
         block, payload = parsed

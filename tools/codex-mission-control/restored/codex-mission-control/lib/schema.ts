@@ -1356,6 +1356,23 @@ export const chatGptWorkCloudExecutionReceiptRecordedSchema = z.object({
   source: z.literal("CHATGPT_WORK_GITHUB_RECEIPT_ATTESTED"),
 }).strict();
 
+/** The owner's authorization to start once more a native Work job whose start failed at the ChatGPT app (#385, 22 Oct
+ * 2026; lib/chatgpt-work-cloud-retry.ts). It names the failed start and the one retry it allows, and nothing else. */
+export const chatGptWorkCloudDispatchRetryAuthorizedSchema = z.object({
+  type: z.literal("chatgpt_work_cloud_dispatch_retry_authorized"),
+  worker: WorkerId,
+  task_id: StableId,
+  directive_id: StableId,
+  directive_revision: z.number().int().positive(),
+  retry_authorization_id: StableId,
+  failed_dispatch_id: StableId,
+  failed_status: z.enum(["UNAVAILABLE", "FAILED"]),
+  failed_error_code: workCloudPrivacySafeCode.nullable(),
+  retry_dispatch_id: StableId,
+  authorized_by: StableId,
+  authorized_at: Timestamp,
+}).strict();
+
 export const workSupervisorHandoffRecordedSchema = z.object({
   type: z.literal("work_supervisor_handoff_recorded"),
   worker: WorkerId,
@@ -1932,6 +1949,7 @@ export const eventSchemaV2 = z.union([
   workExecutionProfileAuthorizedSchema, workTaskCreationSelectionAppliedSchema, workExecutionPreflightRecordedSchema,
   chatGptWorkCloudDispatchRequestedSchema, chatGptWorkCloudDispatchRecordedSchema, workSupervisorHandoffRecordedSchema,
   chatGptWorkCloudHandoffIntentRecordedSchema, chatGptWorkCloudExecutionReceiptRecordedSchema,
+  chatGptWorkCloudDispatchRetryAuthorizedSchema,
   codexExecutionStartedSchema, executionReceiptRecordedSchema, workModelRoutingCheckpointRecordedSchema,
   githubDecisionReceiptIngestedSchema,
   outcomeProgressRecordedSchema, supervisionAlertRecordedSchema,

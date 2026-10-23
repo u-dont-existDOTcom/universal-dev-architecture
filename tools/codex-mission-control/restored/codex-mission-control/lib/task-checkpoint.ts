@@ -11,6 +11,7 @@ import { canonicalJson, sha256 } from "./canonical";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import { workerHasOwnerTaskRegistration } from "./owner-task-source";
 import type { AppendEnvelope, StoredEvent } from "./schema";
+import { isBoundWorkDirectiveExpiry, workDirectiveExpiryEventId } from "./work-directive-expiry";
 
 export const TASK_CHECKPOINT_VERIFIER_ID = "verifier:task-checkpoint";
 /** The first line of every verified checkpoint's evidence summary. */
@@ -205,14 +206,22 @@ export interface RegisteredTaskHold {
  * asks the owner nothing, and the task has never had a directive. The task waits for what the decision asked for; a
  * checkpoint verified after the decision is what the fleet watch takes back to the supervisor. A decision that asks the
  * owner to decide is the owner's, not a hold; a task that has had a directive is not treated as held here (a decision
- * may continue a directive without new bounded execution), and keeps the projection's other owner-action rules.
+ * may continue a directive without new bounded execution), and keeps the projection's other owner-action rules, unless
+ * that directive's Work job expired unrun and the decision answered Mission Control's record of that.
  */
 export function registeredTaskHold(events: readonly StoredEvent[]): RegisteredTaskHold | null {
   if (!workerHasOwnerTaskRegistration(events)) return null;
   const decision = events.findLast((event) => event.data.type === "github_decision_receipt_ingested");
   if (!decision || decision.data.type !== "github_decision_receipt_ingested" || decision.data.bounded_execution) return null;
   if (decision.data.owner_action?.kind === "DECISION_REQUIRED") return null;
-  if (events.some((event) => event.data.type === "execution_directive_recorded")) return null;
+  // A task that has had a directive is held again only when its latest directive's job expired unrun, Mission Control
+  // recorded that, and the supervisor's answer after the record started no new step (lib/work-directive-expiry.ts).
+  const latestDirective = events.findLast((event) => event.data.type === "execution_directive_recorded");
+  if (latestDirective) {
+    const expiryRecord = events.find((event) => isBoundWorkDirectiveExpiry(events, event)
+      && (event.data as { receipt_id: string }).receipt_id === workDirectiveExpiryEventId(latestDirective));
+    if (!expiryRecord || decision.sequence < expiryRecord.sequence) return null;
+  }
   const checkpointAfter = events.findLast((event) => event.sequence > decision.sequence && isVerifiedTaskCheckpoint(event)) ?? null;
   return { decision, checkpointAfter };
 }

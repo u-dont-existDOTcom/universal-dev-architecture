@@ -16,6 +16,14 @@ import { validateOwnerResponseContinuation } from "./owner-response-continuation
 import { supervisionHandoffCapsuleSha256 } from "./supervision-handoff";
 import { authorityStateVectorHash } from "./terminal-comparator";
 import { buildExecutionDirectiveFromGitHubDecision } from "./github-execution-directive";
+import { workDirectiveDeadline } from "./work-directive-expiry";
+import {
+  codexStartReservedProblem,
+  retryAuthorizationProblem,
+  retryHandoffProblem,
+  WORK_CLOUD_RETRYABLE_STATUSES,
+  workDirectiveHasRun,
+} from "./chatgpt-work-cloud-retry";
 import {
   evaluateWorkExecutionPreflight,
   failureMayAuthorizeProfileEscalation,
@@ -242,6 +250,18 @@ export class EventStore {
     if (trustedSystemBoundaryTypes.has(envelope.data.type)
       && (!producer || !producerMayEmit(producer, envelope.data))) {
       throw new ContractInvariantError("Trusted task-creation and native Work dispatch evidence requires an explicit matching authenticated SYSTEM producer.");
+    }
+    // Only the owner retries a failed native Work start (lib/chatgpt-work-cloud-retry.ts), on any route.
+    if (envelope.data.type === "chatgpt_work_cloud_dispatch_retry_authorized"
+      && (!producer || producer.kind !== "OWNER_AUTHORITY" || !producerMayEmit(producer, envelope.data))) {
+      throw new ContractInvariantError("A retry of a failed native Work start requires the owner's authenticated authority.");
+    }
+    // Its time is the store's: the wait after the failed start (WORK_CLOUD_RETRY_SETTLE_MS) can't be claimed early, so
+    // a time after its receipt is refused, and one more than 5 minutes before it too.
+    if (envelope.data.type === "chatgpt_work_cloud_dispatch_retry_authorized"
+      && !(Date.parse(envelope.data.authorized_at) <= Date.parse(receivedAt)
+        && Date.parse(receivedAt) - Date.parse(envelope.data.authorized_at) <= 5 * 60_000)) {
+      throw new ContractInvariantError("A retry of a failed native Work start must be authorized at the time it is recorded.");
     }
     const authenticatedProducer = producer ?? internalProducerFor(envelope.data);
     const worker = eventWorker(envelope.data);
@@ -1031,6 +1051,11 @@ export class EventStore {
         || directive.source_body_sha256 !== data.source_body_sha256) {
         throw new ContractInvariantError("Native Work dispatch must bind the current exact active Chat execution directive and source provenance.");
       }
+      // A supervisor's authorization ends at its bounded deadline: no native Work job is requested at or after it.
+      const deadline = workDirectiveDeadline(events, directive);
+      if (deadline !== null && Date.parse(data.requested_at) >= Date.parse(deadline)) {
+        throw new ContractInvariantError("Native Work dispatch cannot be requested at or after its directive's bounded deadline.");
+      }
       if (data.mode === "CONTINUE") {
         const priorReady = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded"
           && event.data.status === "READY" && event.data.work_thread_id === data.existing_work_thread_id)?.data;
@@ -1040,6 +1065,41 @@ export class EventStore {
         }
       }
       this.assertUniqueDomainId(data.worker, data.type, "dispatch_id", data.dispatch_id);
+      // A job whose latest start of a new Work thread failed (UNAVAILABLE or FAILED) starts again only as the retry the
+      // owner authorized of that start (lib/chatgpt-work-cloud-retry.ts), never on its own; a job the owner retried
+      // never starts beside its latest start while that one is unresolved.
+      if (data.mode === "CREATE") {
+        const earlier = events.findLast((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested"
+          && event.data.mode === "CREATE" && event.data.directive_id === data.directive_id
+          && event.data.directive_revision === data.directive_revision)?.data;
+        const earlierResult = earlier?.type === "chatgpt_work_cloud_dispatch_requested"
+          ? events.findLast((event) => event.data.type === "chatgpt_work_cloud_dispatch_recorded"
+            && event.data.dispatch_id === earlier.dispatch_id)?.data
+          : undefined;
+        if (earlier?.type === "chatgpt_work_cloud_dispatch_requested" && earlierResult?.type === "chatgpt_work_cloud_dispatch_recorded"
+          && WORK_CLOUD_RETRYABLE_STATUSES.has(earlierResult.status)) {
+          const retry = events.find((event) => event.data.type === "chatgpt_work_cloud_dispatch_retry_authorized"
+            && event.data.failed_dispatch_id === earlier.dispatch_id)?.data;
+          if (retry?.type !== "chatgpt_work_cloud_dispatch_retry_authorized" || retry.retry_dispatch_id !== data.dispatch_id) {
+            throw new ContractInvariantError("A native Work job whose start failed starts again only as the owner's authorized retry of that start.");
+          }
+          // A run recorded after the owner's authorization ends the retry too (Codex review of 7f7deeee).
+          if (workDirectiveHasRun(events, data)) {
+            throw new ContractInvariantError("A native Work job with a run on record isn't started again by a retry.");
+          }
+        } else if (earlier?.type === "chatgpt_work_cloud_dispatch_requested"
+          && events.some((event) => event.data.type === "chatgpt_work_cloud_dispatch_retry_authorized"
+            && event.data.directive_id === data.directive_id && event.data.directive_revision === data.directive_revision)) {
+          // A job the owner retried starts again only as the next authorized retry, after its latest start failed: never
+          // beside a start that is unresolved, ready or waiting (Codex review of 79260e2f).
+          throw new ContractInvariantError("A native Work job the owner retried isn't started again while its latest start is unresolved.");
+        }
+      }
+    }
+    if (data.type === "chatgpt_work_cloud_dispatch_retry_authorized") {
+      const problem = retryAuthorizationProblem(events, data);
+      if (problem) throw new ContractInvariantError(problem);
+      this.assertUniqueDomainId(data.worker, data.type, "failed_dispatch_id", data.failed_dispatch_id, validationHistory);
     }
     if (data.type === "chatgpt_work_cloud_dispatch_recorded") {
       const request = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested"
@@ -1078,6 +1138,13 @@ export class EventStore {
         || data.producer_id !== request.producer_id) {
         throw new ContractInvariantError("Native Work handoff intent must bind the exact durable dispatch request before the app boundary.");
       }
+      // Nothing crosses the provider boundary for a job whose authorization has ended.
+      const intentDirective = [...events].reverse().find((event) => event.data.type === "execution_directive_recorded"
+        && event.data.directive_id === data.directive_id && event.data.directive_revision === data.directive_revision)?.data;
+      const intentDeadline = intentDirective?.type === "execution_directive_recorded" ? workDirectiveDeadline(events, intentDirective) : null;
+      if (intentDeadline !== null && Date.parse(data.intent_at) >= Date.parse(intentDeadline)) {
+        throw new ContractInvariantError("Native Work handoff intent cannot be recorded at or after its directive's bounded deadline.");
+      }
       if (events.some((event) => event.data.type === "chatgpt_work_cloud_handoff_intent_recorded"
         && event.data.dispatch_id === data.dispatch_id)) {
         throw new ContractInvariantError("Native Work handoff intent may be recorded only once per dispatch.");
@@ -1086,6 +1153,9 @@ export class EventStore {
         && event.data.dispatch_id === data.dispatch_id)) {
         throw new ContractInvariantError("Native Work handoff intent cannot be recorded after a dispatch result.");
       }
+      // An owner's retry crosses the app boundary only while no run of its job is on record (lib/chatgpt-work-cloud-retry.ts).
+      const retryProblem = retryHandoffProblem(events, data);
+      if (retryProblem) throw new ContractInvariantError(retryProblem);
     }
     if (data.type === "chatgpt_work_cloud_execution_receipt_recorded") {
       const request = [...events].reverse().find((event) => event.data.type === "chatgpt_work_cloud_dispatch_requested"
@@ -1299,6 +1369,8 @@ export class EventStore {
       if (priorReceipt?.type === "execution_receipt_recorded") {
         throw new ContractInvariantError("Codex cannot continue after a directive stop receipt; a new independent chat review and directive are required.");
       }
+      const reserved = codexStartReservedProblem(events, data);
+      if (reserved) throw new ContractInvariantError(reserved);
       if (directive.directive_schema_version === 3) {
         const authorization = [...events].reverse().find((event) => event.data.type === "work_execution_profile_authorized"
           && event.data.authorization_id === data.work_profile_authorization_id)?.data;
