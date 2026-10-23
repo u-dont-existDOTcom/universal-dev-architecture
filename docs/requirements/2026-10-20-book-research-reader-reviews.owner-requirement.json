@@ -1,0 +1,79 @@
+{
+  "requirement_id": "2026-10-20-book-research-reader-reviews",
+  "date": "2026-10-20",
+  "source": "Owner message of 2026-10-20 to an agent session working in the AskRigor repository, quoted verbatim by that session in its brief for this change; in the message, the two rule sentences are on separate lines. The message names the rule a new Universal Instructions item (the Universal Instructions are AskRigor's public protocol) and asks for it to be sent to this repository too.",
+  "owner_statement": "new universal instructions item:\nBook research should include reader-review evidence alongside primary-text reading, identifying practical difficulties, negative experiences, differences in usability, and criticisms that the author might not address.\nReviews must be checked against the book, duplicates should not be counted as independent evidence, and self-selected reviews must not be mistaken for clinical outcome studies.\n(send that to UDA also)",
+  "problem": "An assistant asked to read several books and compare the practical methods they teach studied the texts closely but did not read what readers reported. Reader reviews read later showed practical difficulties, negative experiences and differences in usability that the books' own examples did not show, and criticisms of health claims the authors made. A review sample has its own limits: its readers chose to write, the same review can appear on several pages, and a reviewer's account of what a book says can be wrong.",
+  "failure_mechanisms": [
+    "Reported in the feedback note of pull request #398, not observed here: the research analyzed the books' text in depth but at first overlooked reader reviews, which were examined only later.",
+    "Inferred, not established: no rule here routed book research to reader reviews. patterns/consilience-and-expected-observability.md reaches reviews through practical-effectiveness claims, and reading or comparing what books teach need not be framed as one."
+  ],
+  "existing_coverage": [
+    "patterns/consilience-and-expected-observability.md: for practical-effectiveness claims, seek mixed and critical firsthand reports; repetitions of one source count as one lineage; reviews and forums are discrepancy detectors and heterogeneity evidence, not informal randomized trials. It activates on effectiveness claims, not on reading, assessing or recommending a book.",
+    "patterns/source-interpretation-provenance.md, Point-of-use anchoring: a sentence about what a text says rests on a passage in it, and a claim that a text does not contain something covers only the text searched.",
+    "patterns/whole-argument-reconstruction.md: reconstruct the whole argument before judging a part of it, so a point the source makes elsewhere is not called missing.",
+    "patterns/coverage-before-depth-in-selection.md: breadth before depth for a broad comparison or landscape synthesis.",
+    "patterns/shopping-research.md: ratings and reviews for products and offers someone may buy.",
+    "Pull request #398 (open draft, uda-lane label, filed 2026-10-18 at the owner's request): feedback/2026-10-18-book-reviews-in-source-research.md, a maintainer suggestion with a seven-point rule, suggested activations and a regression case, and suggested-fixes/AskRigor/2026-10-18-book-review-triangulation.md, an AskRigor lane item. Neither file is on main, and neither is changed here."
+  ],
+  "required_behavior": [
+    "Book research should include reader-review evidence alongside primary-text reading, identifying practical difficulties, negative experiences, differences in usability, and criticisms that the author might not address.",
+    "Reviews must be checked against the book, duplicates should not be counted as independent evidence, and self-selected reviews must not be mistaken for clinical outcome studies.",
+    "The rule applies to book research: research that reads, assesses or recommends a book or a method a book teaches. A passing mention of a book is not book research.",
+    "The rule adds no gate, grants no authority and sets no quota of reviews or sources."
+  ],
+  "basis": [
+    "The owner's statement above.",
+    "The feedback note in pull request #398, filed at the owner's request, for the problem and the regression case.",
+    "The existing patterns under existing_coverage, which the new pattern links to without changing them."
+  ],
+  "not_adopted": [
+    "Counting only readers who tried the method.",
+    "Keeping reviews of other editions, formats and translations apart.",
+    "Setting publisher blurbs, endorsements and promotional testimonials aside.",
+    "Reporting how many reviews were read, or that none were found."
+  ],
+  "not_adopted_reason": "These, like the other details in the feedback note and lane item of pull request #398 that go beyond the owner's two sentences, are not adopted. They become part of the rule only if the owner adopts them.",
+  "regression": "patterns/book-research-reader-reviews.md, Regression: a synthetic book that teaches a writing exercise, with mixed reader experience, a widely shared review that overstates what the book claims and one review repeated on two sites. Adapted from the regression case in #398's feedback note, without its conditions on endorsements and on finding no reviews.",
+  "scope": "patterns/book-research-reader-reviews.md (new), its LESSON-INDEX.md entry and docs/INDEX.md route, the logic-failure-map rows LF-3.7 and LF-3.9, a LEGACY_UNSTRUCTURED enforcement-inventory entry with its owner authorization, a slice finding in the enforcement-coverage requirement record, the coverage counts in docs/uda-enforcement-coverage.md and in three coverage tests, this record, its test and the task checkpoint. Pull request #398 and its two files, the task-time rule records and the other patterns are unchanged.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "Book research includes reader-review evidence alongside the book, checked against the book and weighed for what it is, as current guidance in this repository and as an item of AskRigor's Universal Instructions.",
+    "notes": "The two rule sentences are the owner's, unchanged. The trigger wording, the links to existing patterns, the regression case and the bounds are the maintainer's; they add no requirement. How pull request #398 is closed or adapted is the maintainer lane's decision and is not made here."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/book-research-reader-reviews.md, reached through LESSON-INDEX.md and docs/INDEX.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Agent sessions that load this repository's rules",
+      "disposition": "PROJECTED",
+      "note": "Reached through the lesson-index trigger; a session that never loads UDA is not covered."
+    },
+    {
+      "surface": "tests/test_book_research_reader_reviews.py",
+      "disposition": "TESTED_TEXT_ONLY"
+    },
+    {
+      "surface": "AskRigor public Universal Instructions (a declared public app in portable/PUBLIC-APPS.json)",
+      "disposition": "QUEUED",
+      "reason": "The owner's message names the rule an item for the Universal Instructions. AskRigor's own session makes that change under AskRigor's protocol authority; this repository does not edit AskRigor's protocols."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED",
+    "TESTED_TEXT_ONLY"
+  ],
+  "nonclaims": [
+    "Text-presence tests protect the rule's wording, trigger, bounds and routes; they do not show that any agent reads reader reviews or weighs them as the rule says.",
+    "No behavioral evaluation was run for this rule.",
+    "No repository rule reaches a session that never loaded UDA.",
+    "This record does not change or decide pull request #398.",
+    "Nothing here is LIVE_VERIFIED."
+  ],
+  "transfer_rationale": "The owner gave the rule as a universal instruction. It applies wherever an agent researches a book or the method it teaches, in any project, because readers' reports show how a method works out in use, which the text alone cannot show; the owner's second sentence sets the limits on what those reports can show."
+}

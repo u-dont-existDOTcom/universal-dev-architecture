@@ -94,6 +94,12 @@
       "owner_quote": "that's weird the owner question page wasn't stored on github? fix that in UDA rules then, anything that should be continuable between accounts needs to really be stored on github clearly and there should be the continuation handoff always stored in the claude-acceptance-transfer folder in my home folder, isn't that in UDA rules?",
       "date": "2026-10-10",
       "source": "docs/requirements/2026-10-10-cross-account-continuity.owner-requirement.json"
+    },
+    {
+      "id": "patterns/book-research-reader-reviews.md",
+      "owner_quote": "new universal instructions item:\nBook research should include reader-review evidence alongside primary-text reading, identifying practical difficulties, negative experiences, differences in usability, and criticisms that the author might not address.\nReviews must be checked against the book, duplicates should not be counted as independent evidence, and self-selected reviews must not be mistaken for clinical outcome studies.\n(send that to UDA also)",
+      "date": "2026-10-20",
+      "source": "docs/requirements/2026-10-20-book-research-reader-reviews.owner-requirement.json"
     }
   ]
 }

@@ -1427,6 +1427,62 @@
       }
     },
     {
+      "id": "patterns/book-research-reader-reviews.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "owner rule: when research reads, assesses or recommends a book or a method a book teaches"
+      },
+      "actors": [
+        "chat",
+        "researcher",
+        "recommendation-author",
+        "reviewer"
+      ],
+      "phases": [
+        "retrieval",
+        "reasoning",
+        "final-delivery"
+      ],
+      "destinations": [
+        "reader-review evidence read alongside the primary text",
+        "review claims checked against the book's passages",
+        "owner-facing book or method assessment"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/book-research-reader-reviews.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "docs/INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_book_research_reader_reviews.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "New owner rule with an active lesson-index route. Static tests preserve the owner's two sentences, the trigger, the bounds and the routes; they do not show that an agent reads reader reviews, checks them against the book, or weighs duplicates and self-selected reviews as the rule says. No task-time record or runtime guard is claimed.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register a book-research trigger and reasoning obligations that bind reader-review evidence beside the primary text, review claims checked against book passages, duplicate handling and the self-selected limit at the owner-facing assessment.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
       "id": "patterns/canonical-design-os-bootstrap.md",
       "kind": "pattern",
       "indexed": true,
