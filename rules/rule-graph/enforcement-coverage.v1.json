@@ -604,7 +604,7 @@
           "obligation_id": "no-repeat-of-interim-message"
         },
         {
-          "sentence": "the final answer adds only what is new or changed, still carries what every final answer must, and stands on its own when it is read alone: `patterns/worker-directive-delivery-and-chat-output-budget.md`.",
+          "sentence": "the final answer adds only what is new or changed, still carries what a rule requires of the final answer itself, and stands on its own when it is read alone: `patterns/worker-directive-delivery-and-chat-output-budget.md`.",
           "record": "uda.kernel.say-once",
           "obligation_id": "no-repeat-of-interim-message"
         }
@@ -9520,7 +9520,7 @@
       "behavioral": true,
       "activation_route": {
         "kind": "INDEX_TRIGGER",
-        "detail": "When any reusable long output or worker handoff is due"
+        "detail": "When any reusable long output or worker handoff is due, or a final answer follows interim messages of the same turn"
       },
       "actors": [
         "chat",
@@ -9580,7 +9580,7 @@
           "class": "ADMISSION"
         }
       ],
-      "legacy_remainder": "Carry long-output budgeting, packaged entrypoint, same-turn runnable delivery and required companions to the exact outgoing artifact or handoff; reject path-only or deferred delivery. The listed semantic slice now accepts bound receipts; the other operative obligations above remain incompletely represented.",
+      "legacy_remainder": "Carry long-output budgeting, packaged entrypoint, same-turn runnable delivery and required companions to the exact outgoing artifact or handoff; reject path-only or deferred delivery. The listed semantic slice now accepts bound receipts; the other operative obligations above remain incompletely represented. Say each thing once is carried by the root per-turn line and its record uda.kernel.say-once.",
       "migration": {
         "priority": "P1",
         "next_step": "Carry long-output budgeting, packaged entrypoint, same-turn runnable delivery and required companions to the exact outgoing artifact or handoff; reject path-only or deferred delivery.",

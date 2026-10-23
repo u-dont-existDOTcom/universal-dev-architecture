@@ -158,11 +158,11 @@ What counts as said: a message of the same turn that reached the owner as writte
 - Before writing the final answer, reread what this turn already sent to the owner.
 - Saying something early is fine and often useful. Saying it twice is the failure.
 
-Saying once never drops what every final answer must carry, even when an interim message said it already: the timestamp first line, an access failure the per-turn bootstrap requires the final answer to state, and any line a standing owner or surface rule puts in every final answer (a closing resume line, for example). These stay, kept short.
+Saying once never drops what a rule requires of the final answer itself, even when an interim message said it already: the timestamp first line, an access failure the per-turn bootstrap requires the final answer to state, the direct answer to the owner's question first, a terminal status label, and any line a standing owner or surface rule puts in every final answer (a closing resume line, for example). These stay, kept short. What a rule only requires the owner to receive, such as a command to run or the steps to take, the owner has received once an interim message showed it as written, so the final answer points back to it. This is how `patterns/task-time-lesson-activation.md` §1A applies here: a message the owner saw as written, still in view above the final answer, is not an intermediate surface.
 
 A final answer that will be read alone stands on its own: when it is relayed, forwarded, posted or handed off without the interim messages (a receipt to a supervisor, a notification, a handoff to another agent), its reader gets what it needs from the final answer itself, and pointing back to messages that reader never saw is the failure.
 
-This holds on every surface and for every recipient who saw the interim messages as written. Work is not among this rule's actors: a Work job's result reaches its supervisor alone, as a receipt, so it stands on its own as the paragraph above says.
+This holds on every surface where the owner reads the interim messages and the final answer together. Work is not among this rule's actors: the representative Work contract is at its size limit, and a Work job's result reaches its supervisor alone, as a receipt, so it has to stand on its own in any case.
 
 ## Preserve substantive visibility
 

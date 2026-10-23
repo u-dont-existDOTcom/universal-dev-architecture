@@ -183,7 +183,7 @@ Clauses 30; consolidated obligations 7; structured clauses 29; excepted 1; remai
 | **Every turn:** reusable output over ~8,000 characters goes in a file, for any recipient; | uda.kernel.output-budget / file-for-long-reusable-output |
 | chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`. | uda.kernel.output-budget / file-for-long-reusable-output |
 | **Say each thing once:** what an interim message already showed the owner as written in the same turn is not repeated in the final answer; | uda.kernel.say-once / no-repeat-of-interim-message |
-| the final answer adds only what is new or changed, still carries what every final answer must, and stands on its own when it is read alone: `patterns/worker-directive-delivery-and-chat-output-budget.md`. | uda.kernel.say-once / no-repeat-of-interim-message |
+| the final answer adds only what is new or changed, still carries what a rule requires of the final answer itself, and stands on its own when it is read alone: `patterns/worker-directive-delivery-and-chat-output-budget.md`. | uda.kernel.say-once / no-repeat-of-interim-message |
 
 ### AGENTS.md#pre-final-continuation-invariant
 

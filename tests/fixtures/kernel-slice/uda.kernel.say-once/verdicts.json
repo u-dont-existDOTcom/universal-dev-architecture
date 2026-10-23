@@ -19,13 +19,13 @@
   },
   "near-miss-final.txt": {
     "verdict": "FAIL",
-    "evidence": "The final answer shortened the wording but still repeated what the interim message said.\nCommitted substitute: final answer restating the interim message.\n",
+    "evidence": "The final answer left out the access failure because the interim message had already reported it.\nCommitted substitute: content a rule requires of the final answer itself dropped because an interim message said it.\n",
     "actor": {
       "id": "fixture-reviewer",
       "kind": "chat",
       "relation": "SAME_AGENT"
     },
     "obligation_id": "no-repeat-of-interim-message",
-    "non_substitute": "final answer restating the interim message"
+    "non_substitute": "content a rule requires of the final answer itself dropped because an interim message said it"
   }
 }
