@@ -665,7 +665,11 @@ test("a thread is read newest turns first, page by page: it is ruled out only on
   const untypedOlder = value({ thread: { id: "long", kind: "chatgpt" }, page: COMPLETE_PAGE, turns: [{ id: "t1", items: [{ text: "?" }] }] });
   assert.equal(await run({ first: assistantOlder, c1: untypedOlder }).result, "INCOMPLETE");
   // An item without a type, a turn without items, a turn with its own role, or no turns at all: not ruled out.
-  for (const turns of [[{ id: "t", items: [{ text: "?" }] }], [{ id: "t" }], [{ id: "t", role: "system", items: [{ type: "agentMessage", text: "ok" }] }], []]) {
+  // So is a turn with any key beside its items and timing (a direct input, content or text may hold the prompt).
+  const agent = [{ type: "agentMessage", text: "ok" }];
+  for (const turns of [[{ id: "t", items: [{ text: "?" }] }], [{ id: "t" }], [{ id: "t", role: "system", items: agent }],
+    [{ id: "t", input: [{ type: "text", text: PROMPT }], items: agent }], [{ id: "t", content: "x", items: agent }],
+    [{ id: "t", items: [{ type: "agentMessage", role: "user", text: "x" }] }], []]) {
     const unknown = value({ thread: { id: "long", kind: "chatgpt" }, page: COMPLETE_PAGE, turns });
     assert.equal(await run({ first: unknown }).result, "INCOMPLETE");
   }
