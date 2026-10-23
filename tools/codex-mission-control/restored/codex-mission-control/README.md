@@ -290,7 +290,8 @@ what it may use, what it must never do, and when it is done.
   narrows the search): it lists one page of threads and reads every thread made since that start,
   allowing 10 minutes for the app's clock. The app returns a thread's newest turns first, ten at a time, so each
   thread is read page by page: any user message that is the prompt or holds the dispatch id holds the retry, and a
-  thread is ruled out only once all its turns were read, or when its read shows it was made before the failed start.
+  thread is ruled out only once all its turns were read (with a user message, or with only the assistant's items: a
+  chat the assistant started), or when its read shows it was made before the failed start.
   ChatGPT may refuse reads for a while after a few ("Too many requests"), so the search can take several tries: the
   threads it ruled out are kept beside the private request file (a thread's first message never changes) and aren't
   read again, and each try reads at most 25 pages, two seconds apart, stopping at a rate limit; a thread that fails

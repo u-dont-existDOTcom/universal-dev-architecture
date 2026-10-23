@@ -654,9 +654,21 @@ test("a thread is read newest turns first, page by page: it is ruled out only on
   assert.equal(await run({ first: unsure }).result, "INCOMPLETE");
   const noCursor = value({ thread: { id: "long", kind: "chatgpt" }, page: { order: "newest_first", hasMore: true, nextCursor: null }, turns: [turn("x")] });
   assert.equal(await run({ first: noCursor }).result, "INCOMPLETE");
-  // All turns read but no user message among them: not ruled out either.
-  const silent = value({ thread: { id: "long", kind: "chatgpt" }, page: COMPLETE_PAGE, turns: [{ id: "t", items: [{ type: "agentMessage", text: "ok" }] }] });
-  assert.equal(await run({ first: silent }).result, "INCOMPLETE");
+  // All turns read and only the assistant's items in them (a chat the assistant started): the failed start's thread
+  // begins with the prompt as a user message, so this one is ruled out.
+  const assistantOnly = value({ thread: { id: "long", kind: "chatgpt" }, page: COMPLETE_PAGE, turns: [{ id: "t", items: [{ type: "agentMessage", text: "ok" }] }] });
+  assert.equal(await run({ first: assistantOnly }).result, "NONE");
+  // Across pages too, but only while every page shows only such items.
+  const assistantOlder = value({ thread: { id: "long", kind: "chatgpt" }, page: { order: "newest_first", limit: 10, nextCursor: "c1", hasMore: true },
+    turns: [{ id: "t2", items: [{ type: "agentMessage", text: "later" }] }] });
+  assert.equal(await run({ first: assistantOlder, c1: assistantOnly }).result, "NONE");
+  const untypedOlder = value({ thread: { id: "long", kind: "chatgpt" }, page: COMPLETE_PAGE, turns: [{ id: "t1", items: [{ text: "?" }] }] });
+  assert.equal(await run({ first: assistantOlder, c1: untypedOlder }).result, "INCOMPLETE");
+  // An item without a type, a turn without items, a turn with its own role, or no turns at all: not ruled out.
+  for (const turns of [[{ id: "t", items: [{ text: "?" }] }], [{ id: "t" }], [{ id: "t", role: "system", items: [{ type: "agentMessage", text: "ok" }] }], []]) {
+    const unknown = value({ thread: { id: "long", kind: "chatgpt" }, page: COMPLETE_PAGE, turns });
+    assert.equal(await run({ first: unknown }).result, "INCOMPLETE");
+  }
 });
 
 test("a read that fails for another reason than a rate limit doesn't stop the search's run, and its own setup threads aren't candidates", async () => {
