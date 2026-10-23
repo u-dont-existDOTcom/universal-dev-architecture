@@ -467,6 +467,78 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
             with self.assertRaisesRegex(copier.CopierError, "BLOCKED receipt"):
                 copier.process_once(config)
 
+    def test_work_markers_followed_immediately_by_their_json_are_read_and_published_in_canonical_form(self) -> None:
+        # The Work prompt asks for each marker "followed immediately by one strict JSON object"; a live reply on 23 Oct
+        # wrote them so (no newline after either marker).
+        request, result, handoff, receipt = self._work_fixture()
+        bare_receipt = copier.WORK_RECEIPT_PREFIX.rstrip("\n")
+        bare_handoff = copier.WORK_HANDOFF_PREFIX.rstrip("\n")
+        receipt_json = json.dumps(receipt)
+        message = "2026-10-23 03:13:00 UTC\n\nThe job needs the supervisor.\n\n" + bare_handoff + json.dumps(handoff) + "\n\n" + bare_receipt + receipt_json
+        parsed = copier.extract_machine_block(message, copier.WORK_RECEIPT_PREFIX, bare_marker=True)
+        self.assertEqual(parsed[0], copier.WORK_RECEIPT_PREFIX + receipt_json)
+        self.assertEqual(parsed[1], receipt)
+        candidate = copier.discover_work_candidates([request, result])[0]
+        self.assertEqual(copier.validate_private_work_handoff(copier.extract_private_work_handoff(message), candidate), handoff)
+        # The marker's name inside the receipt's own values (a schema-valid code) is passed over (Codex review of 29f54e5a).
+        coded = dict(receipt, blockerCodes=["SUPERVISOR_REASONING_REQUIRED", bare_receipt])
+        coded_parsed = copier.extract_machine_block("Done.\n" + bare_receipt + json.dumps(coded), copier.WORK_RECEIPT_PREFIX, bare_marker=True)
+        self.assertEqual(coded_parsed, (copier.WORK_RECEIPT_PREFIX + json.dumps(coded), coded))
+        # Two receipts, in any mix of forms, are refused rather than resolved by their order (Codex review of 26439d35).
+        canonical_receipt = copier.WORK_RECEIPT_PREFIX + receipt_json
+        for twice in (bare_receipt + receipt_json + "\n" + bare_receipt + receipt_json,
+                      bare_receipt + receipt_json + "\n" + canonical_receipt,
+                      canonical_receipt + "\n" + bare_receipt + receipt_json):
+            with self.subTest(twice=twice[:60]), self.assertRaisesRegex(copier.CopierError, "more than one public Work receipt"):
+                copier.extract_machine_block(twice, copier.WORK_RECEIPT_PREFIX, bare_marker=True)
+        # A handoff whose question writes the receipt marker followed by "{": the receipt is searched for after the
+        # handoff's JSON, so the reply is still read whole.
+        quoting = "Should the " + bare_receipt + "{...} block list artifacts?"
+        quoted = dict(handoff, question=quoting, questionSha256=copier.sha256_text(quoting))
+        reply = bare_handoff + json.dumps(quoted) + "\n" + bare_receipt + receipt_json
+        found = copier.extract_private_work_handoff(reply)
+        self.assertEqual(found.payload, quoted)
+        self.assertEqual(copier.extract_machine_block(reply, copier.WORK_RECEIPT_PREFIX, bare_marker=True, start=found.end)[1], receipt)
+        with self.assertRaisesRegex(copier.CopierError, "more than one public Work receipt"):
+            copier.extract_machine_block(reply, copier.WORK_RECEIPT_PREFIX, bare_marker=True)
+        # Only with bare_marker, only for a marker followed by its JSON, and trailing prose still fails.
+        self.assertIsNone(copier.extract_machine_block(message, copier.WORK_RECEIPT_PREFIX))
+        self.assertIsNone(copier.extract_machine_block(bare_receipt + " " + receipt_json, copier.WORK_RECEIPT_PREFIX, bare_marker=True))
+        with self.assertRaisesRegex(copier.CopierError, "not strict JSON"):
+            copier.extract_machine_block(bare_receipt + receipt_json + " and more", copier.WORK_RECEIPT_PREFIX, bare_marker=True)
+        with self.assertRaisesRegex(copier.CopierError, "more than one"):
+            copier.extract_private_work_handoff(bare_handoff + json.dumps(handoff) + bare_handoff + json.dumps(handoff) + bare_receipt + receipt_json)
+        # Two handoffs in different forms are refused in either order (Codex review of 1a376a2f).
+        other = dict(handoff, question="another question", questionSha256=copier.sha256_text("another question"))
+        for first, second in ((bare_handoff, copier.WORK_HANDOFF_PREFIX), (copier.WORK_HANDOFF_PREFIX, bare_handoff)):
+            with self.subTest(first=first.endswith("\n")), self.assertRaisesRegex(copier.CopierError, "more than one"):
+                copier.extract_private_work_handoff(first + json.dumps(handoff) + "\n" + second + json.dumps(other) + "\n" + bare_receipt + receipt_json)
+        # A marker name inside the handoff's own strings doesn't end it: its JSON is decoded as a whole.
+        mentions = dict(handoff, question="Which " + bare_receipt + " fields?", questionSha256=copier.sha256_text("Which " + bare_receipt + " fields?"))
+        self.assertEqual(copier.validate_private_work_handoff(copier.extract_private_work_handoff(
+            bare_handoff + json.dumps(mentions) + "\n" + bare_receipt + receipt_json), candidate), mentions)
+        # A marker name in the prose before the handoff isn't a block; text between the handoff and its receipt is refused.
+        self.assertEqual(copier.extract_private_work_handoff("The " + bare_handoff + " block follows.\n" + bare_handoff + json.dumps(handoff) + bare_receipt + receipt_json).payload, handoff)
+        with self.assertRaisesRegex(copier.CopierError, "not strict JSON"):
+            copier.extract_private_work_handoff(bare_handoff + json.dumps(handoff) + " and then " + bare_receipt + receipt_json)
+        # The receipt's marker name after the handoff must start a block (Codex review of f97e39a9).
+        with self.assertRaisesRegex(copier.CopierError, "not strict JSON"):
+            copier.extract_private_work_handoff(bare_handoff + json.dumps(handoff) + "\n" + bare_receipt + " comes next.\n" + bare_receipt + receipt_json)
+        with self.assertRaisesRegex(copier.CopierError, "missing the required final public Work receipt"):
+            copier.extract_private_work_handoff(bare_handoff + json.dumps(handoff) + "\n" + bare_receipt + " comes next.")
+        recorded: list[str] = []
+        published: list[str] = []
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(copier, "fetch_events", return_value=[request, result]), \
+             patch.object(copier, "read_thread", return_value={"finalAgentMessage": message, "observedAt": "2026-10-23T03:13:05Z"}), \
+             patch.object(copier, "run", side_effect=lambda command, **kwargs: recorded.append(json.loads(kwargs["input_text"])["dispatchId"]) or json.dumps({"status": "RECORDED"})), \
+             patch.object(copier, "publish_exact", side_effect=lambda *a, **k: published.append(k["body"]) or 9):
+            config = copier.Config("primary", "mission-control-development", "/app", "/private/env",
+                                   "owner/repo", 4, 0, Path(directory), 10, "gh")
+            copier.process_once(config)
+        self.assertEqual(recorded, ["work-cloud:handoff"])
+        self.assertEqual(published, [copier.WORK_RECEIPT_PREFIX + receipt_json])
+
     def test_receipt_without_private_handoff_is_published_without_recording(self) -> None:
         request, result, _handoff, receipt = self._work_fixture()
         block = copier.WORK_RECEIPT_PREFIX + json.dumps(receipt)
@@ -531,6 +603,115 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
                                 ({"owner_action": decision_action, "bounded_execution": work}, "before owner input")):
             with self.subTest(message=message), self.assertRaisesRegex(copier.CopierError, message):
                 check(**fields)
+
+    def _decision_block(self) -> str:
+        exact = "Create one harmless isolated child branch and return execution facts only."
+        payload = {
+            "schema_version": 5, "envelope_kind": "MISSION_CONTROL_CANONICAL_DECISION",
+            "request_id": "issue178-v3", "supervisor_id": "mc-project-manager",
+            "provider_session_id": "provider-session:v3", "nonce": "nonce-v3",
+            "in_band_binding_sha256": "3" * 64, "execution_provenance": copier.IN_BAND_PROVENANCE,
+            "evidence_capsule": {"id": "capsule:v3", "sha256": "1" * 64},
+            "owner_outcome": {"id": "owner-outcome:issue178", "epoch": 2, "sha256": "2" * 64},
+            "reasoning_lane": "EXTRA_HIGH_DIRECT",
+            "decision_block": {"decision_id": "decision:v3", "exact_text": exact, "sha256": copier.sha256_text(exact)},
+            "pro_decision_block": {"used": False, "model_mode": None, "exact_text": None, "sha256": None},
+            "writer_contract": {"mode": "EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", "reinterpretation_allowed": False},
+        }
+        return copier.DECISION_PREFIX + json.dumps(payload, separators=(",", ":"))
+
+    def test_decision_scans_are_throttled_and_read_only_threads_updated_since_the_last_complete_scan(self) -> None:
+        # 22 Oct 2026: two copiers re-read every thread updated since an unanswered request's send time each cycle, and
+        # ChatGPT refused the account with "Too many requests".
+        candidate = copier.discover_decision_candidates([route_event(), pre_send(), session_complete(), stage_started()], now=NOW)[0]
+        key = f"decision:{candidate.request_id}:{candidate.provider_session_id}"
+        with tempfile.TemporaryDirectory() as directory:
+            config = copier.Config("primary", "mission-control-development", "/app", "/private/env",
+                                   "u-dont-existDOTcom/universal-dev-architecture", 61, 0, Path(directory), 10, "gh")
+            state = copier.load_state(config)
+            asked: list[str] = []
+            answers = [([], False), ([], True), ([], True)]
+
+            def scan(_config, updated_after):
+                asked.append(updated_after)
+                return answers.pop(0)
+
+            with patch.object(copier, "scan_chatgpt_final_messages", side_effect=scan):
+                # An incomplete scan (a rate-limited or cut listing, a failed read) moves no floor and waits a minute.
+                self.assertEqual(copier.decision_scan(config, state, [candidate], NOW), ([], {}))
+                self.assertEqual(asked, ["2026-09-21T13:56:00.000Z"])
+                self.assertEqual(state["decisionScan"]["backoffSeconds"], 60)
+                # Not due yet: no scan at all.
+                self.assertIsNone(copier.decision_scan(config, state, [candidate], NOW + dt.timedelta(seconds=30)))
+                self.assertEqual(len(asked), 1)
+                # A complete scan offers the floor at its start less ten minutes; it moves only for a request the scan
+                # held no receipt for.
+                later = NOW + dt.timedelta(minutes=15)
+                threads, advance = copier.decision_scan(config, state, [candidate], later)
+                self.assertEqual(asked[-1], "2026-09-21T13:56:00.000Z")
+                self.assertEqual(advance, {key: "2026-09-21T14:05:00.000Z"})
+                self.assertNotIn(key, state["decisionScanFloors"])
+                copier.advance_decision_floors(config, state, advance, set())
+                self.assertNotIn(key, copier.load_state(config)["decisionScanFloors"])
+                copier.advance_decision_floors(config, state, advance, {key})
+                self.assertEqual(state["decisionScan"]["backoffSeconds"], 0)
+                # The next scan reads only threads updated since that floor, and the state survives a restart.
+                self.assertEqual(copier.load_state(config)["decisionScanFloors"][key], "2026-09-21T14:05:00.000Z")
+                _, advance = copier.decision_scan(config, state, [candidate], later + dt.timedelta(seconds=60))
+                self.assertEqual(asked[-1], "2026-09-21T14:05:00.000Z")
+                self.assertEqual(advance[key], "2026-09-21T14:06:00.000Z")
+            # A failed scan raises, and the wait doubles each time up to fifteen minutes.
+            with patch.object(copier, "scan_chatgpt_final_messages", side_effect=copier.CopierError("ssh failed")):
+                moment = later + dt.timedelta(seconds=120)
+                for expected in (60, 120, 240, 480, 900, 900):
+                    with self.assertRaisesRegex(copier.CopierError, "scan failed"):
+                        copier.decision_scan(config, state, [candidate], moment)
+                    self.assertEqual(state["decisionScan"]["backoffSeconds"], expected)
+                    moment += dt.timedelta(seconds=expected)
+            # A request no longer waiting loses its floor, and nothing is scanned for no request.
+            with patch.object(copier, "scan_chatgpt_final_messages", side_effect=AssertionError("must not scan")):
+                self.assertIsNone(copier.decision_scan(config, state, [], moment))
+                self.assertEqual(copier.load_state(config)["decisionScanFloors"], {})
+
+    def test_one_scan_serves_every_waiting_request_and_a_receipt_stays_visible_until_it_is_published(self) -> None:
+        candidate = copier.discover_decision_candidates([route_event(), pre_send(), session_complete(), stage_started()], now=NOW)[0]
+        key = f"decision:{candidate.request_id}:{candidate.provider_session_id}"
+        block = self._decision_block()
+        thread = {"threadId": "stable-app-thread", "status": "idle", "updatedAt": 1790000001000,
+                  "observedAt": "2026-09-23T00:00:05.000Z", "finalAgentMessage": block}
+        with tempfile.TemporaryDirectory() as directory:
+            config = copier.Config("primary", "mission-control-development", "/app", "/private/env",
+                                   "u-dont-existDOTcom/universal-dev-architecture", 61, 0, Path(directory), 10, "gh")
+            published: list[str] = []
+            failing = [True]
+
+            def publish(*args, **kwargs):
+                if failing[0]:
+                    raise copier.CopierError("GitHub unavailable")
+                published.append(kwargs["body"])
+                return 9
+
+            with patch.object(copier, "fetch_events", return_value=[]), \
+                 patch.object(copier, "discover_decision_candidates", return_value=[candidate]), \
+                 patch.object(copier, "discover_work_candidates", return_value=[]), \
+                 patch.object(copier, "scan_chatgpt_final_messages", return_value=([thread], True)) as scan, \
+                 patch.object(copier, "record_app_readback", return_value={}), \
+                 patch.object(copier, "publish_exact", side_effect=publish):
+                # The receipt was found but not published: its request's floor stays, so the next scan sees it again.
+                with self.assertRaisesRegex(copier.CopierError, "GitHub unavailable"):
+                    copier.process_once(config)
+                self.assertNotIn(key, copier.load_state(config)["decisionScanFloors"])
+                failing[0] = False
+                state = copier.load_state(config)
+                state["decisionScan"]["nextAt"] = "2000-01-01T00:00:00.000Z"
+                copier.save_state(config, state)
+                self.assertEqual(copier.process_once(config)["status"], "COPIED")
+                self.assertEqual(published, [block])
+                self.assertEqual(scan.call_count, 2)
+                self.assertEqual(scan.call_args_list[0].args[1], scan.call_args_list[1].args[1])
+                # Published: not scanned for again.
+                self.assertEqual(copier.process_once(config)["status"], "IDLE")
+                self.assertEqual(scan.call_count, 2)
 
 
 if __name__ == "__main__":

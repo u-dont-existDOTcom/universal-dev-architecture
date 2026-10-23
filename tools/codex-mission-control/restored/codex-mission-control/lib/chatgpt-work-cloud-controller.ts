@@ -16,6 +16,7 @@ import type {
   WorkCloudEventSink,
   WorkCloudExecutorOutcome,
 } from "./chatgpt-work-cloud-dispatch";
+import { WORK_CLOUD_DEADLINE_PASSED, workCloudDeadlineReached } from "./chatgpt-work-cloud-dispatch";
 
 const REQUIRED_APP_TOOLS = ["create_thread", "send_message_to_thread", "read_thread", "list_threads"] as const;
 const READ_ONLY_APP_TOOLS = ["read_thread", "list_threads"] as const;
@@ -70,6 +71,35 @@ export interface ThreadIdSet {
   has(threadId: string): boolean;
   add(threadId: string): void;
   ids(): string[];
+}
+
+/**
+ * The threads a held retry's search (NativeChatGptWorkCloudExecutor.searchForPrompt) has ruled out, kept in a private
+ * file (mode 0600; the caller puts it beside the private request file) so the search's next run doesn't read them
+ * again. The file names its search by `search`, a digest of the prompt and markers: a file made for another search,
+ * or one that can't be read, starts the set empty. At most the latest 1,000 are kept.
+ */
+export function privatePriorSearchRuledOut(file: string, search: string): { has(threadId: string): boolean; add(threadId: string): void } {
+  let ids = new Set<string>();
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
+    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const stored = parsed as { search?: unknown; threadIds?: unknown };
+      if (stored.search === search && Array.isArray(stored.threadIds)) {
+        ids = new Set(stored.threadIds.filter((id): id is string => typeof id === "string").slice(-1_000));
+      }
+    }
+  } catch { /* absent or unreadable: start empty */ }
+  return {
+    has: (threadId) => ids.has(threadId),
+    add: (threadId) => {
+      if (ids.has(threadId)) return;
+      ids.add(threadId);
+      const temp = `${file}.${process.pid}.tmp`;
+      fs.writeFileSync(temp, JSON.stringify({ search, threadIds: [...ids].slice(-1_000) }), { mode: 0o600 });
+      fs.renameSync(temp, file);
+    },
+  };
 }
 
 function inMemoryThreadIdSet(): ThreadIdSet {
@@ -135,7 +165,10 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     prompt: string;
     requestedAt: string;
     target: { type: "chatgptWorkCloud"; projectId?: string };
+    deadline?: string;
   }): Promise<WorkCloudExecutorOutcome> {
+    // Right before the Work call: the directive's deadline by the clock now.
+    if (workCloudDeadlineReached(input.deadline)) return { kind: "UNAVAILABLE", reasonCode: WORK_CLOUD_DEADLINE_PASSED };
     const created = await this.mutate("create_thread", {
       title: input.title,
       prompt: input.prompt,
@@ -158,7 +191,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     });
   }
 
-  async sendMessageToThread(input: { threadId: string; prompt: string }): Promise<WorkCloudExecutorOutcome> {
+  async sendMessageToThread(input: { threadId: string; prompt: string; deadline?: string }): Promise<WorkCloudExecutorOutcome> {
     const before = await this.readExactThread(input.threadId);
     const beforeSurface = surfaceKind(before);
     if (beforeSurface !== "chatgpt") return wrongSurface(beforeSurface);
@@ -166,7 +199,9 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
       return { kind: "FAILED", reasonCode: "WORK_CLOUD_CONTINUATION_THREAD_MISMATCH" };
     }
 
-    const sent = await this.mutate("send_message_to_thread", input);
+    // Right before the Work call (after the read above): the directive's deadline by the clock now.
+    if (workCloudDeadlineReached(input.deadline)) return { kind: "UNAVAILABLE", reasonCode: WORK_CLOUD_DEADLINE_PASSED };
+    const sent = await this.mutate("send_message_to_thread", { threadId: input.threadId, prompt: input.prompt });
     if (isExecutorOutcome(sent)) return sent;
     const sentSurface = surfaceKind(sent);
     if (sentSurface !== "unknown" && sentSurface !== "chatgpt") return wrongSurface(sentSurface);
@@ -184,6 +219,147 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     projectId: string | null;
   }): Promise<WorkCloudExecutorOutcome> {
     return this.resolveTemporaryThread(input);
+  }
+
+  /**
+   * Read-only, before the owner's retry of a failed start (lib/chatgpt-work-cloud-retry.ts): whether a thread holding
+   * `prompt` exists among the threads made at or after `requestedAt` (by their creation time, or their last update when
+   * the listing shows no creation time), allowing PRIOR_SEARCH_CLOCK_SKEW_MS for the app's clock against Mission
+   * Control's. Threads on every surface are read: a create call whose answer was lost may have made its thread on
+   * another surface, as a wrong-surface result shows when the answer arrives (independent review of b72e68bd).
+   *
+   * read_thread returns a thread's newest turns first, a page at a time, so its first page need not hold the first
+   * message. Each thread is read page by page (PRIOR_SEARCH_TURN_PAGE turns each) and holds the prompt when any of its
+   * user messages is the prompt (or the provider's 2,000-character readback of it), or holds `marker`, the failed
+   * start's own dispatch id, which its prompt carries and no other prompt does (a surface that reflows or trims the
+   * message still matches), or one of `earlierMarkers`, the dispatch ids of the chain's earlier failed starts. A thread
+   * is ruled out when its read shows it was made before the failed start (less the skew), or when all of its turns were
+   * read (its last page says no older turns are left) with no match and either at least one user message or none at all
+   * among items of known types (a chat the assistant started: the failed start's thread begins with the prompt as a
+   * user message).
+   *
+   * NONE only when the listing has a thread list that reaches back before that (at least one ChatGPT or unknown-kind
+   * thread last updated earlier) and every candidate was ruled out. A listing that reports any source unavailable, has
+   * no thread list or doesn't reach back, a temporary thread, one that can't be ruled out (no user message and an item
+   * or turn of unknown shape, or a page that doesn't say whether older turns are left), a rate limit, or more reads than
+   * PRIOR_SEARCH_MAX_READS is
+   * INCOMPLETE. No project or title narrows the search, and nothing is written to the app.
+   *
+   * ChatGPT may refuse reads for a while ("Too many requests") after only a few, so a search can be finished over
+   * several runs: `ruledOut` holds the threads earlier runs of this same search (same rule, prompt and markers) ruled
+   * out; a ruled-out thread stays so (its first message and creation time never change), so those aren't read again.
+   * With it, a run reads at most PRIOR_SEARCH_MAX_READS pages and says INCOMPLETE while threads remain unread; it reads
+   * on past a temporary thread or one it can't rule out (still INCOMPLETE at the end, unless a later thread matches), and
+   * past a read that fails for another reason than a rate limit (at most PRIOR_SEARCH_MAX_FAILED_READS times); it stops
+   * at a rate limit or an answer that isn't the thread asked for (a refusal may come either way). `readPauseMs` spaces
+   * the reads.
+   *
+   * `ownThreadIds` are Mission Control's own setup threads (the controller's executor thread, the threads its mutation
+   * route drives): the owner's setup made and named them for the controller to run in, so a Work create's new thread is
+   * never one of them, and they aren't candidates.
+   */
+  async searchForPrompt(input: {
+    prompt: string;
+    requestedAt: string;
+    marker?: string;
+    earlierMarkers?: readonly string[];
+    ruledOut?: { has(threadId: string): boolean; add(threadId: string): void };
+    readPauseMs?: number;
+    ownThreadIds?: readonly string[];
+  }): Promise<"MATCH" | "NONE" | "INCOMPLETE"> {
+    const markers = [
+      ...(input.marker !== undefined && input.prompt.includes(input.marker) ? [input.marker] : []),
+      ...(input.earlierMarkers ?? []),
+    ].filter((marker) => marker.length >= 16);
+    const since = Date.parse(input.requestedAt) - PRIOR_SEARCH_CLOCK_SKEW_MS;
+    if (!Number.isFinite(since)) return "INCOMPLETE";
+    let listed: unknown;
+    try {
+      listed = await this.read("list_threads", { limit: PRIOR_SEARCH_LIST_LIMIT });
+    } catch {
+      return "INCOMPLETE";
+    }
+    // Every surface is searched, so any source the listing reports unavailable may hide the thread (Codex review of
+    // 917bddd7).
+    if (anySourceUnavailable(listed)) return "INCOMPLETE";
+    const threads = listedThreads(listed);
+    if (!threads) return "INCOMPLETE";
+    // An older thread of another surface proves nothing about ChatGPT's threads, which a listing may page apart.
+    if (!threads.some((thread) => thread.kind !== "other" && thread.updatedMs !== null && thread.updatedMs < since)) return "INCOMPLETE";
+    const ruledOut = input.ruledOut ?? null;
+    const own = new Set((input.ownThreadIds ?? []).filter((threadId) => threadId.length > 0));
+    const candidates = threads.filter((thread) => thread.madeMs === null || thread.madeMs >= since)
+      .filter((thread) => !(thread.threadId && own.has(thread.threadId)))
+      .filter((thread) => !(ruledOut && thread.threadId && ruledOut.has(thread.threadId)));
+    // Without a record of earlier runs a search that can't read every candidate can never finish, so it reads nothing.
+    if (!ruledOut && candidates.length > PRIOR_SEARCH_MAX_READS) return "INCOMPLETE";
+    let complete = true;
+    let reads = 0;
+    let failedReads = 0;
+    for (const candidate of candidates) {
+      if (!candidate.threadId || isTemporaryThreadId(candidate.threadId)) {
+        if (!ruledOut) return "INCOMPLETE";
+        complete = false;
+        continue;
+      }
+      // A thread is read newest turns first, a page at a time (read_thread's own order). It holds the failed start's
+      // prompt when any of its user messages matches; it is ruled out only when the thread itself was made before the
+      // failed start, or when every one of its turns was read (no older page left) and it has a user message.
+      let cursor: string | null = null;
+      let messages = 0;
+      // Whether every turn read so far is known to hold no user message (each turn's items all typed, none a user's).
+      let onlyOtherItems = true;
+      let outcome: "MATCH" | "RULED_OUT" | "UNRESOLVED" | null = null;
+      while (outcome === null) {
+        if (reads >= PRIOR_SEARCH_MAX_READS) return "INCOMPLETE";
+        if (reads > 0 && input.readPauseMs) await this.sleep(input.readPauseMs);
+        reads += 1;
+        let read: unknown;
+        try {
+          read = await this.read("read_thread", {
+            threadId: candidate.threadId, turnLimit: PRIOR_SEARCH_TURN_PAGE, ...(cursor === null ? {} : { cursor }),
+          });
+        } catch (error) {
+          // A rate limit ("Too many requests") stops the run: more reads now would only be refused too. Any other failed
+          // read (a conversation that times out loading, say) leaves this thread unresolved, and a run that keeps the
+          // search's progress reads on past it, at most PRIOR_SEARCH_MAX_FAILED_READS times, so one thread that never
+          // loads can't stop the others from being ruled out.
+          if (!ruledOut || isRateLimited(error)) return "INCOMPLETE";
+          failedReads += 1;
+          if (failedReads >= PRIOR_SEARCH_MAX_FAILED_READS) return "INCOMPLETE";
+          outcome = "UNRESOLVED";
+          break;
+        }
+        if (directThreadId(read) !== candidate.threadId) return "INCOMPLETE";
+        const texts = userMessagesIn(read);
+        messages += texts.length;
+        onlyOtherItems &&= turnsWithoutUserItems(read);
+        if (texts.some((text) => promptReadbackMatches(input.prompt, text) || markers.some((marker) => text.includes(marker)))) {
+          outcome = "MATCH";
+          break;
+        }
+        const made = threadCreatedMs(read, candidate.threadId);
+        if (made !== null && made < since) {
+          outcome = "RULED_OUT";
+          break;
+        }
+        const older = olderTurns(read);
+        // A thread with every turn read is ruled out when it has a user message (none matched), or when every item of
+        // every turn is of a known type that isn't a user's message (an assistant-started chat): the failed start's
+        // thread begins with the prompt as a user message.
+        if (older === "NONE") outcome = messages > 0 || onlyOtherItems ? "RULED_OUT" : "UNRESOLVED";
+        else if (older === "UNKNOWN") outcome = "UNRESOLVED";
+        else cursor = older.cursor;
+      }
+      if (outcome === "MATCH") return "MATCH";
+      if (outcome === "UNRESOLVED") {
+        if (!ruledOut) return "INCOMPLETE";
+        complete = false;
+        continue;
+      }
+      ruledOut?.add(candidate.threadId);
+    }
+    return complete ? "NONE" : "INCOMPLETE";
   }
 
   private async verifyExactThread(threadId: string): Promise<WorkCloudExecutorOutcome> {
@@ -899,6 +1075,14 @@ function chatGptSourceUnavailable(value: unknown): boolean {
   });
 }
 
+/** Whether a listing reports any thread source unavailable, whichever surface. */
+function anySourceUnavailable(value: unknown): boolean {
+  return objectsIn(value).some((object) => {
+    const sources = object.unavailableSources ?? object.unavailable_sources;
+    return Array.isArray(sources) ? sources.length > 0 : sources !== undefined && sources !== null;
+  });
+}
+
 function chatGptCandidates(
   value: unknown,
   requestedAt: string,
@@ -923,6 +1107,43 @@ function chatGptCandidates(
 }
 
 const PROVIDER_PROMPT_READBACK_LIMIT = 2_000;
+/** Turns per read_thread page in a retry's search (the tool's maximum). */
+const PRIOR_SEARCH_TURN_PAGE = 10;
+/** Failed reads (other than a rate limit) a run of a retry's search reads on past; each may take the app's 30 seconds. */
+const PRIOR_SEARCH_MAX_FAILED_READS = 2;
+/**
+ * What rules a thread out in a retry's search. Threads ruled out under an older rule are read again: the version is part
+ * of the name of the search's saved progress (scripts/dispatch-chatgpt-work-cloud.ts). 2: every turn is read (version 1
+ * compared only the first user message of read_thread's first page, which holds the newest turns).
+ */
+export const PRIOR_SEARCH_RULE_VERSION = 2;
+/** The one listing page and the reads a retry's search for its failed start's Work thread may use. */
+const PRIOR_SEARCH_LIST_LIMIT = 50;
+const PRIOR_SEARCH_MAX_READS = 25;
+/** How far the app's thread times may run behind Mission Control's clock before a thread counts as older. */
+const PRIOR_SEARCH_CLOCK_SKEW_MS = 10 * 60_000;
+
+/** Every thread of a listing, with its kind ("other" for a known non-ChatGPT surface), its creation (else update) time
+ * and its update time; null when the listing holds no thread list at all (an error text, or a changed shape). */
+function listedThreads(value: unknown): Array<{ threadId: string | null; kind: "chatgpt" | "other" | "unknown";
+  madeMs: number | null; updatedMs: number | null }> | null {
+  const lists = objectsIn(value).filter((object) => Array.isArray(object.threads));
+  if (lists.length === 0) return null;
+  return lists.flatMap((object) => object.threads as unknown[])
+    .filter((thread): thread is Record<string, unknown> => Boolean(thread && typeof thread === "object" && !Array.isArray(thread)))
+    .map((thread) => {
+      const kind = stringField(thread, "kind", "surface", "threadKind", "thread_kind")?.toLowerCase();
+      const updatedMs = timestampMilliseconds(thread.updatedAt ?? thread.updated_at);
+      const createdMs = timestampMilliseconds(thread.createdAt ?? thread.created_at);
+      return {
+        threadId: stringField(thread, "threadId", "thread_id", "id"),
+        kind: kind === undefined ? "unknown" as const
+          : ["chatgpt", "chatgptworkcloud", "chatgpt_work_cloud"].includes(kind) ? "chatgpt" as const : "other" as const,
+        madeMs: createdMs ?? updatedMs,
+        updatedMs,
+      };
+    });
+}
 
 function promptReadbackMatches(expected: string, observed: string): boolean {
   if (observed === expected) return true;
@@ -964,6 +1185,82 @@ function initialUserPrompt(value: unknown): string | null {
     }
   }
   return null;
+}
+
+/** Every user message on a read page (each turn's, and a messages list's), in the order the page holds them. */
+function userMessagesIn(value: unknown): string[] {
+  const texts: string[] = [];
+  for (const object of objectsIn(value)) {
+    if (Array.isArray(object.turns)) {
+      for (const turn of object.turns) {
+        if (!turn || typeof turn !== "object" || Array.isArray(turn)) continue;
+        const turnObject = turn as Record<string, unknown>;
+        const authored = userAuthoredText(turnObject);
+        if (authored !== null) { texts.push(authored); continue; }
+        const params = asObject(turnObject.params);
+        const input = params ? textContent(params.input) : null;
+        if (input !== null) texts.push(input);
+      }
+    }
+    if (Array.isArray(object.messages)) {
+      for (const message of object.messages) {
+        if (!message || typeof message !== "object" || Array.isArray(message)) continue;
+        const authored = userAuthoredText(message as Record<string, unknown>);
+        if (authored !== null) texts.push(authored);
+      }
+    }
+  }
+  return texts;
+}
+
+/** The keys of a read_thread turn that carry no message of their own (its messages are in `items`). */
+const TURN_KEYS_WITHOUT_MESSAGES = new Set(["id", "status", "error", "startedAt", "completedAt", "durationMs", "items"]);
+/** read_thread item types known to be the assistant's, never a user's (lower-cased). Any other type proves nothing. */
+const ASSISTANT_ITEM_TYPES = new Set(["agentmessage"]);
+
+/**
+ * Whether a read page has turns and every one of them is known to hold no user message: each turn has only the keys of
+ * TURN_KEYS_WITHOUT_MESSAGES (no direct input, content, text, role or params), it has items, and every item is an
+ * object of an ASSISTANT_ITEM_TYPES type without a user role. False when the page has no turns, or a turn or item isn't
+ * of that shape (Codex reviews of 6cee1356, a turn's direct input may hold the prompt, and of 44f9d6b1, an item type
+ * that isn't recognized may be a user's).
+ */
+function turnsWithoutUserItems(value: unknown): boolean {
+  const lists = objectsIn(value).filter((object) => Array.isArray(object.turns));
+  const turns = lists.flatMap((object) => object.turns as unknown[]);
+  if (turns.length === 0) return false;
+  return turns.every((turn) => {
+    if (!turn || typeof turn !== "object" || Array.isArray(turn)) return false;
+    const turnObject = turn as Record<string, unknown>;
+    if (Object.keys(turnObject).some((key) => !TURN_KEYS_WITHOUT_MESSAGES.has(key))) return false;
+    if (!Array.isArray(turnObject.items) || turnObject.items.length === 0) return false;
+    return turnObject.items.every((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+      const type = stringField(item as Record<string, unknown>, "type")?.toLowerCase();
+      const role = stringField(item as Record<string, unknown>, "role", "authorRole", "author_role")?.toLowerCase();
+      return type !== undefined && ASSISTANT_ITEM_TYPES.has(type) && role !== "user";
+    });
+  });
+}
+
+/** The read thread's own creation time, from the object that carries its exact id; null when it shows none. */
+function threadCreatedMs(value: unknown, threadId: string): number | null {
+  for (const object of objectsIn(value)) {
+    if (stringField(object, "threadId", "thread_id", "id") !== threadId) continue;
+    const made = timestampMilliseconds(object.createdAt ?? object.created_at);
+    if (made !== null) return made;
+  }
+  return null;
+}
+
+/** Whether a read page leaves older turns unread: NONE only when its page says so (hasMore false, or no next cursor). */
+function olderTurns(value: unknown): "NONE" | "UNKNOWN" | { cursor: string } {
+  const page = objectsIn(value).map((object) => asObject(object.page)).find((candidate) => candidate !== null);
+  if (!page) return "UNKNOWN";
+  const cursor = page.nextCursor ?? page.next_cursor;
+  if (page.hasMore === false || page.has_more === false) return "NONE";
+  if (page.hasMore === undefined && page.has_more === undefined && cursor === null) return "NONE";
+  return typeof cursor === "string" && cursor.length > 0 ? { cursor } : "UNKNOWN";
 }
 
 function userAuthoredText(object: Record<string, unknown>): string | null {

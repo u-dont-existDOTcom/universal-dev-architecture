@@ -11,6 +11,31 @@ function requiredEnv(name: string): string {
   if (!value) throw new Error(`${name} is required.`);
   return value;
 }
+const RATE_LIMIT_TEXT = /too many requests|rate.?limit|\b429\b/i;
+
+/**
+ * Whether an app tool's answer is ChatGPT refusing for a rate limit: an error result whose text says so, or a result
+ * without the error flag whose text says so and isn't a thread (plain text, or a JSON object without `thread`). A read
+ * thread's own text may mention rate limits, so a result holding a thread never counts (Codex review of b9b3feb3).
+ */
+function isRateLimited(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const content = (value as { content?: unknown }).content;
+  const texts = Array.isArray(content)
+    ? content.map((entry) => entry && typeof entry === "object" && typeof (entry as { text?: unknown }).text === "string" ? (entry as { text: string }).text : "")
+    : [];
+  const text = texts.join(" ");
+  if (!RATE_LIMIT_TEXT.test(text)) return false;
+  if ((value as { isError?: unknown }).isError === true) return true;
+  const first = texts.find((entry) => entry.length > 0) ?? "";
+  try {
+    const parsed = JSON.parse(first) as unknown;
+    return !(parsed && typeof parsed === "object" && !Array.isArray(parsed) && "thread" in (parsed as Record<string, unknown>));
+  } catch {
+    return true;
+  }
+}
+
 function parseToolJson(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("app tool returned an invalid result");
   const content = (value as { content?: unknown }).content;
@@ -43,6 +68,19 @@ function finalAgentMessage(root: Record<string, unknown>): string | null {
   }
   return null;
 }
+/** A listed thread's kind, as lib/chatgpt-work-cloud-controller.ts's listedThreads classifies it: "chatgpt" for its
+ * aliases, "other" for another named surface, "unknown" when no kind is named (Codex review of da9e663d). */
+function threadKind(record: Record<string, unknown>): "chatgpt" | "other" | "unknown" {
+  let named: string | null = null;
+  for (const key of ["kind", "surface", "threadKind", "thread_kind"]) {
+    const value = record[key];
+    if (typeof value === "string" && value) { named = value; break; }
+  }
+  if (named === null) return "unknown";
+  return ["chatgpt", "chatgptworkcloud", "chatgpt_work_cloud"].includes(named.toLowerCase()) ? "chatgpt" : "other";
+}
+/** The app's list_threads limit (its maximum): the newest non-pinned threads first. */
+const LIST_LIMIT = 50;
 async function main() {
   const updatedAfterText = requiredArg("--updated-after");
   const updatedAfter = Date.parse(updatedAfterText);
@@ -54,29 +92,67 @@ async function main() {
     executorThreadId: requiredEnv("MISSION_CONTROL_CHATGPT_APP_EXECUTOR_THREAD_ID"),
   });
   try {
-    const listed = parseToolJson(await app.callTool({ name: "list_threads", arguments: { limit: 50 } }));
+    const listed = parseToolJson(await app.callTool({ name: "list_threads", arguments: { limit: LIST_LIMIT } }));
     const threads = Array.isArray(listed.threads) ? listed.threads : [];
+    // Pinned threads come in full beside the recent page: they are read too, but only the page shows reach-back.
+    const pinned = Array.isArray(listed.pinnedThreads) ? listed.pinnedThreads : [];
+    // Whether this scan saw every ChatGPT thread updated after `--updated-after` (the copier advances its scan floor only
+    // then): a thread list that reaches back past the floor (a ChatGPT or unknown-kind thread updated before it; a short
+    // page alone proves nothing, since sources may be paged apart, as for the Work retry's search), no thread source
+    // reported unavailable (a rate-limited ChatGPT listing shows only other surfaces), and every read in range succeeded.
+    const unavailable = listed.unavailableSources ?? listed.unavailable_sources;
+    const sourcesUnavailable = Array.isArray(unavailable) ? unavailable.length > 0 : unavailable !== undefined && unavailable !== null;
+    // A pinned listing in another shape may hide a pinned thread: the scan isn't complete (Codex review of 573422d6).
+    let unreadable = listed.pinnedThreads !== undefined && !Array.isArray(listed.pinnedThreads) ? 1 : 0;
     const output: Array<{ threadId: string; status: string | null; updatedAt: number; observedAt: string; finalAgentMessage: string | null }> = [];
-    for (const summary of threads) {
-      if (!summary || typeof summary !== "object" || Array.isArray(summary)) continue;
+    const seen = new Set<string>();
+    // A read ChatGPT refuses with a rate limit ends the scan (it is incomplete then anyway): every further read would be
+    // refused too, and each one keeps the account limited, its owner's own ChatGPT use included (#385, 23 Oct).
+    let rateLimited = false;
+    for (const summary of [...threads, ...pinned]) {
+      // An entry that isn't a thread summary may be an in-range thread in another shape: the scan isn't complete.
+      if (!summary || typeof summary !== "object" || Array.isArray(summary)) { unreadable += 1; continue; }
       const record = summary as Record<string, unknown>;
-      if (record.kind !== "chatgpt") continue;
+      // A thread listed without a kind may be a ChatGPT thread: it is read too (Codex review of dc538ad3).
+      if (threadKind(record) === "other") continue;
       const threadId = typeof record.id === "string" ? record.id : typeof record.threadId === "string" ? record.threadId : null;
       const updatedAt = timestampMs(record.updatedAt ?? record.updated_at);
-      if (!threadId || threadId.startsWith("local-chatgpt:") || updatedAt === null || updatedAt < updatedAfter) continue;
+      if (updatedAt !== null && updatedAt < updatedAfter) continue;
+      // A thread in range (or of unknown time) that can't be read exactly leaves the scan incomplete.
+      if (!threadId || threadId.startsWith("local-chatgpt:") || updatedAt === null) { unreadable += 1; continue; }
+      if (seen.has(threadId)) continue;
+      seen.add(threadId);
       try {
-        const root = parseToolJson(await app.callTool({
+        const result = await app.callTool({
           name: "read_thread",
           arguments: { threadId, turnLimit: 10, includeOutputs: false, maxOutputCharsPerItem: 20_000 },
-        }));
+        });
+        if (isRateLimited(result)) { unreadable += 1; rateLimited = true; break; }
+        const root = parseToolJson(result);
         const thread = root.thread;
+        // The read must be this thread's (its id) with its turns; any other shape counts as unreadable, not as a thread
+        // without a receipt (Codex review of c1d9b23e).
+        const readId = thread && typeof thread === "object" && !Array.isArray(thread)
+          ? (thread as { id?: unknown; threadId?: unknown }).id ?? (thread as { threadId?: unknown }).threadId : undefined;
+        if (readId !== threadId || !Array.isArray(root.turns)) { unreadable += 1; continue; }
         const status = thread && typeof thread === "object" && !Array.isArray(thread)
           && (thread as { status?: unknown }).status && typeof (thread as { status: { type?: unknown } }).status.type === "string"
           ? String((thread as { status: { type: string } }).status.type) : null;
+        if (status === null) { unreadable += 1; continue; }
         output.push({ threadId, status, updatedAt, observedAt: new Date().toISOString(), finalAgentMessage: finalAgentMessage(root) });
-      } catch { /* unreadable candidates cannot satisfy exact binding */ }
+      } catch (error) {
+        unreadable += 1; /* unreadable candidates cannot satisfy exact binding */
+        if (RATE_LIMIT_TEXT.test(error instanceof Error ? error.message : String(error))) { rateLimited = true; break; }
+      }
     }
-    process.stdout.write(`${JSON.stringify({ threads: output })}\n`);
+    const reachesBack = threads.some((summary) => {
+      if (!summary || typeof summary !== "object" || Array.isArray(summary)) return false;
+      const record = summary as Record<string, unknown>;
+      if (threadKind(record) === "other") return false;
+      return (timestampMs(record.updatedAt ?? record.updated_at) ?? Infinity) < updatedAfter;
+    });
+    const complete = Array.isArray(listed.threads) && reachesBack && !sourcesUnavailable && unreadable === 0;
+    process.stdout.write(`${JSON.stringify({ threads: output, complete, truncated: !reachesBack, sourcesUnavailable, unreadable, rateLimited })}\n`);
   } finally { await app.close(); }
 }
 main().catch((error: unknown) => { process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`); process.exitCode = 1; });

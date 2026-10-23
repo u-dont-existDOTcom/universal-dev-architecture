@@ -16,6 +16,8 @@ For **every assistant turn** governed by this architecture, the **first line of 
 
 **Every turn:** reusable output over ~8,000 characters goes in a file, for any recipient; chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`.
 
+**Say each thing once:** what an interim message already showed the owner as written in the same turn is not repeated in the final answer; the final answer adds only what is new or changed, still carries what a rule requires of the final answer itself, and stands on its own when it will be read alone: `patterns/worker-directive-delivery-and-chat-output-budget.md`.
+
 ## Pre-final continuation invariant
 
 Before final delivery, apply `patterns/codex-github-operating-system.md` → **Continuation and stop admission**. An OPEN task with a safe authorized executable next action requires doing it now, not just diagnosing or planning it. A self-authored scope or completed lease cannot cancel parent implementation authority. Check the actual final output: stop only at an evidenced boundary, finish independent work, and preserve explicit owner restrictions and real access, spending, privacy, platform, and irreversible-action gates.

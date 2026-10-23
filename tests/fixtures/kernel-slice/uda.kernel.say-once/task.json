@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "task_id": "synthetic-kernel-task",
+  "bootstrap": {
+    "state": "LOADED",
+    "source": "synthetic current directive"
+  },
+  "facts": {
+    "governance_required": {
+      "state": "KNOWN",
+      "value": true,
+      "provenance": "synthetic task declaration"
+    },
+    "owner_requires_live_root": {
+      "state": "KNOWN",
+      "value": true,
+      "provenance": "synthetic task declaration"
+    },
+    "role": {
+      "state": "KNOWN",
+      "value": "universal_internal",
+      "provenance": "synthetic task declaration"
+    },
+    "actor": {
+      "state": "KNOWN",
+      "value": "chat",
+      "provenance": "synthetic task declaration"
+    },
+    "destination": {
+      "state": "KNOWN",
+      "value": "owner-visible-final",
+      "provenance": "synthetic task declaration"
+    },
+    "action_classes": {
+      "state": "KNOWN",
+      "value": [
+        "instruction_maintenance",
+        "artifact_delivery",
+        "followup_task_authoring",
+        "experiment_launch"
+      ],
+      "provenance": "synthetic task declaration"
+    },
+    "owner_outcome_status": {
+      "state": "KNOWN",
+      "value": "OPEN",
+      "provenance": "synthetic task declaration"
+    },
+    "task_mode": {
+      "state": "KNOWN",
+      "value": "IMPLEMENTATION",
+      "provenance": "synthetic task declaration"
+    },
+    "owner_correction_present": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "synthetic task declaration"
+    },
+    "explicit_boundary_binding_requested": {
+      "state": "KNOWN",
+      "value": false,
+      "provenance": "synthetic task declaration"
+    },
+    "request_kind": {
+      "state": "KNOWN",
+      "value": "plain_answer",
+      "provenance": "synthetic task declaration"
+    }
+  }
+}

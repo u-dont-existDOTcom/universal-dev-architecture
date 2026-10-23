@@ -234,6 +234,76 @@ what it may use, what it must never do, and when it is done.
     It holds again with what is missing, or decides the first bounded step. If that review is sent but never answered,
     or the review can't fit one question even shortened, the owner is notified and nothing asks again until a new
     checkpoint is verified.
+- **An authorized Work job that expired before it ran is asked about once.** A supervisor's bounded execution names a
+  deadline, and native ChatGPT Work is never started at or after it, for any worker: the Work dispatcher skips a job not
+  yet sent, the store refuses its dispatch request and its provider-bound handoff intent, and the dispatch and the
+  Work controller check the deadline again by the clock right before the Work call (`WORK_CLOUD_DEADLINE_PASSED`, recorded
+  as `UNAVAILABLE` before any call). For a registered task,
+  when the latest directive is a native Work directive whose deadline has passed and nothing crossed the provider
+  boundary for it (no handoff intent, or only `UNAVAILABLE` results recorded before any Work call, and no Work or Codex
+  record of it running), the
+  next check records that once, as verified evidence from Mission Control itself (`verifier:work-directive-expiry`,
+  `lifecycle_status:EXPIRED_UNRUN`), and asks the project-manager supervisor, quietly, whether to authorize the job
+  again with a new deadline, change it, or stop (`WORK_DIRECTIVE_EXPIRED_UNRUN`). The question's state carries the record
+  and the job as it was authorized (`expired_work_job.authorized_job`): `IN_FULL`, its bounded execution in its own
+  shape, when the question fits that way; otherwise `BY_REFERENCE`, its identity (task, job, surface, deadline, cycles)
+  and its original decision receipt (a GitHub comment), which the question binds as an evidence reference for the
+  supervisor to read in full; if the comment was edited after it was posted, the supervisor is told not to rely on it
+  and to hold. The job itself is never shown cut short (the supervision history keeps its usual short excerpts of past
+  decisions). Both forms carry where the job came from, Mission Control's digest of it, and its prompt's SHA-256 and
+  length; the record is the question's boundary. Other workers' expired directives are left to their own supervision.
+  - A job that may have started (an intent without a result, a `READY`, `PENDING_SETUP`, `PENDING_APPROVAL` or
+    `FAILED` result, an `UNAVAILABLE` one whose code isn't a pre-send code, or a Codex start or receipt for the
+    directive) is never treated as unrun. The pre-send codes (`PRE_SEND_UNAVAILABLE_CODES`) are
+    `WORK_CLOUD_SURFACE_VERIFICATION_UNAVAILABLE`, `WORK_CLOUD_DISPATCH_UNAVAILABLE`, `WORK_CLOUD_DRIVER_BUSY` and
+    `WORK_CLOUD_DEADLINE_PASSED`; a timeout, a missing or invalid tool receipt, or any other `UNAVAILABLE` code can
+    follow a call that reached Work.
+  - Every recorded owner obligation, any blocker on the owner or an outside actor, and a missing contract source come
+    first. The only owner action the question replaces is the projection's placeholder for a task that records none
+    (`OWNER.ACTION_TELEMETRY_MISSING`).
+  - The owner is notified and nothing is asked when an earlier question was sent and expired unanswered, when the
+    question about the expiry was sent and went unanswered, when a second authorized job in a row also expired unrun
+    (in a row: no job between them may have started, by the same test as above), or when the question can't fit even
+    with the job named by reference.
+  - Once the supervisor answers, the question is settled: a new authorization becomes the latest directive; an answer
+    that starts no new step holds the task like any registered task held by its supervisor ("Held by its supervisor",
+    then a verified checkpoint asks again).
+- **The owner may retry a Work start that failed at the ChatGPT app, once per failure.** A start whose result is
+  `UNAVAILABLE` or `FAILED` after the app boundary is ambiguous (the call may have reached Work), so the dispatcher never
+  starts that job again by itself, and the store refuses another start of a job whose latest start failed, except the
+  owner's authorized retry of it. Once the cause is repaired
+  (on 22 Oct the app refused every request from a dispatcher thread that belonged to an earlier app), the owner runs
+  `npm run -s owner:action -- work-start-retry --worker W`. Mission Control records the owner's
+  `chatgpt_work_cloud_dispatch_retry_authorized` for the worker's latest failed start of a new Work thread, only while the
+  supervisor's authorization is open (before its deadline), with no start of the job ready or waiting, none across the
+  app boundary without a result, and no run of it on record (checked again when the retry's request is recorded and
+  right before its app call; once the owner retried, Codex can't start the job). Only an `UNAVAILABLE` start, or one that `FAILED` because
+  the app executor itself failed, is retried: a wrong surface or a mismatched or ambiguous thread can mean a thread
+  holding the prompt exists, and a start that made a thread (it waited for setup) is never retried. The failed start
+  must have settled first: the retry is authorized only 30 minutes or more after Mission Control recorded its result,
+  by the store's own time (a create call that lost its answer may still complete late, and a new thread may show in
+  the listing late). The retry is a new dispatch of the same job; its id
+  comes from the failed one's alone (`lib/chatgpt-work-cloud-retry.ts`). Before the retry's request is recorded and its
+  Work call made, the controller reads from the ledger whether the dispatch is a retry and of which start (never from
+  its request file), checks the 30 minutes again and searches the app, read-only, for a thread on any surface whose
+  first message is the failed start's exact prompt or holds that start's own dispatch id (so no project or title
+  narrows the search): it lists one page of threads and reads every thread made since that start,
+  allowing 10 minutes for the app's clock. The app returns a thread's newest turns first, ten at a time, so each
+  thread is read page by page: any user message that is the prompt or holds the dispatch id holds the retry, and a
+  thread is ruled out only once all its turns were read (with a user message, or with only the assistant's items: a
+  chat the assistant started), or when its read shows it was made before the failed start.
+  ChatGPT may refuse reads for a while after a few ("Too many requests"), so the search can take several tries: the
+  threads it ruled out are kept beside the private request file (a thread's first message never changes) and aren't
+  read again, and each try reads at most 25 pages, two seconds apart, stopping at a rate limit; a thread that fails
+  to load for another reason stays unresolved while the try reads on (at most two such failures a try). Mission
+  Control's own setup threads (the controller's executor thread, the threads its mutation route drives) aren't
+  searched. Only when the listing has a thread list that reaches back
+  before the failed start (a ChatGPT thread updated earlier), no source is reported unavailable, and every such thread
+  was read with no match does the retry go ahead; otherwise (a match, a listing without a
+  thread list or that doesn't reach back, a thread it couldn't read or rule out, or a failed start whose prompt
+  matches neither its rebuilt prompt nor its private request file) nothing is recorded or sent, and the dispatcher
+  tries again after the same wait as a setup check (`DISPATCH_RETRY_HELD`). A retry that fails again needs another authorization
+  of the owner, naming it.
 - Submitting the same answers again records nothing. Other answers for a registered task id are refused, and so is
   any id that already has records, saying what those records are.
 - **Closing a registered task comes next.** Marking it achieved or cancelling it needs the owner, so it will take the
