@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { ChromeDevtoolsBrowser } from '../src/cdp.mjs';
+import { ChromeDevtoolsBrowser, GITHUB_APP_MENTION } from '../src/cdp.mjs';
 import { defaultState, parseChatDirectory, sha256 } from '../src/core.mjs';
 import { CentralSubmissionScheduler as RelaySubmissionScheduler } from '../src/submission-pacing.mjs';
 import {
@@ -300,6 +300,112 @@ test('central authority rejects a CDP crossed-boundary abort and restart cannot 
   assert.equal(abortCalls, 0);
   assert.equal(transport.clickDispatches, 1);
   assert.equal(centralStore.state.admissions[0].status, 'AMBIGUOUS_AFTER_RESTART');
+});
+
+const emptyAppMention = {
+  composerFound: true, composerAmbiguous: false, mentionCount: 0, exactMentionCount: 0, composerEmpty: true,
+};
+const boundAppMention = {
+  composerFound: true, composerAmbiguous: false, mentionCount: 1, exactMentionCount: 1, mentionExactBodyEmpty: true,
+};
+const noSelectedApp = { composerFormFound: true, toolsControlCount: 1, chipMatchCount: 0 };
+const controlRect = { x: 1, y: 1, width: 10, height: 10 };
+
+function appSelectionTransport(observations, { failInput = false, failObservation = false } = {}) {
+  const inputMethods = [];
+  let reads = 0;
+  class SelectionWebSocket {
+    constructor() { this.listeners = new Map(); queueMicrotask(() => this.emit('open', {})); }
+    addEventListener(type, listener) { this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]); }
+    send(raw) {
+      const message = JSON.parse(raw);
+      const isInput = message.method.startsWith('Input.');
+      if (isInput) inputMethods.push(message.method);
+      let response = { id: message.id, result: {} };
+      if ((isInput && failInput) || (message.method === 'Runtime.callFunctionOn' && failObservation)) {
+        response = { id: message.id, error: { code: -32000, message: 'synthetic transport failure' } };
+      } else if (message.method === 'Runtime.evaluate') {
+        response.result = { result: { objectId: 'global-object' } };
+      } else if (message.method === 'Runtime.callFunctionOn') {
+        response.result = { result: { value: observations[Math.min(reads++, observations.length - 1)] } };
+      }
+      queueMicrotask(() => this.emit('message', { data: JSON.stringify(response) }));
+    }
+    close() {}
+    emit(type, event) { for (const listener of this.listeners.get(type) ?? []) listener(event); }
+  }
+  return { WebSocketImpl: SelectionWebSocket, inputMethods };
+}
+
+const selectionTarget = { id: 'owned-target-test', webSocketDebuggerUrl: 'ws://controlled/page' };
+const githubSelection = { knownLabels: [GITHUB_APP_MENTION.label], requiredLabels: [GITHUB_APP_MENTION.label] };
+
+for (const failure of ['contaminated-mention', 'inspection-transport']) {
+  test(`app selection marks ${failure} before any input as PREPARING`, async () => {
+    const transport = appSelectionTransport([{ ...boundAppMention, mentionExactBodyEmpty: false }], {
+      failObservation: failure === 'inspection-transport',
+    });
+    const browser = new ChromeDevtoolsBrowser({ WebSocketImpl: transport.WebSocketImpl });
+    await assert.rejects(browser.selectAppsForMessage(selectionTarget, githubSelection),
+      (error) => error?.relayStage === 'PREPARING');
+    assert.deepEqual(transport.inputMethods, []);
+  });
+}
+
+for (const [kind, observations, labels, expectedMethod] of [
+  ['chip click', [boundAppMention, { ...noSelectedApp, chipMatchCount: 1, chipRect: controlRect }], githubSelection,
+    'Input.dispatchMouseEvent'],
+  ['text insertion', [emptyAppMention, noSelectedApp, { ok: true, alreadyExact: true }], githubSelection,
+    'Input.insertText'],
+  ['wheel event', [emptyAppMention, noSelectedApp, {
+    ...noSelectedApp, listOpen: true, listAtTop: true, listAtEnd: false, listScrollRect: controlRect,
+  }], { knownLabels: ['Other App'], requiredLabels: ['Other App'] }, 'Input.dispatchMouseEvent'],
+  ['key event', [emptyAppMention, noSelectedApp, { ...noSelectedApp, renderedAppMatchCount: 1 }, {
+    focused: true, matchCount: 1,
+  }], { knownLabels: ['Other App'], requiredLabels: ['Other App'] }, 'Input.dispatchKeyEvent'],
+]) {
+  test(`app selection leaves a failed ${kind} dispatch unmarked`, async () => {
+    const transport = appSelectionTransport(observations, { failInput: true });
+    const browser = new ChromeDevtoolsBrowser({ WebSocketImpl: transport.WebSocketImpl });
+    await assert.rejects(browser.selectAppsForMessage(selectionTarget, labels),
+      (error) => error?.relayStage === undefined && /synthetic transport failure/.test(error.message));
+    assert.deepEqual(transport.inputMethods, [expectedMethod]);
+  });
+}
+
+test('app selection leaves an observation failure after successful input unmarked', async () => {
+  const transport = appSelectionTransport([boundAppMention,
+    { ...noSelectedApp, chipMatchCount: 1, chipRect: controlRect },
+    { ...noSelectedApp, toolsControlCount: 0 },
+  ]);
+  const browser = new ChromeDevtoolsBrowser({ WebSocketImpl: transport.WebSocketImpl, pageReadyTimeoutMs: 1 });
+  await assert.rejects(browser.selectAppsForMessage(selectionTarget, githubSelection),
+    (error) => error?.relayStage === undefined && /Tools control/.test(error.message));
+  assert.equal(transport.inputMethods.length, 3);
+});
+
+test('a pre-input app-selection rejection closes its central admission before allowing retry', async () => {
+  const now = { value: Date.parse('2026-09-18T12:00:00.000Z') };
+  const centralStore = new MemoryStore(defaultSchedulerState('2026-09-18T11:00:00.000Z'));
+  const central = centralScheduler(centralStore, now);
+  await central.activateLease(primaryLease());
+  const transport = appSelectionTransport([{ ...boundAppMention, mentionExactBodyEmpty: false }]);
+  const browser = new ChromeDevtoolsBrowser({ WebSocketImpl: transport.WebSocketImpl });
+  let abortCalls = 0;
+  const scheduler = new RelaySubmissionScheduler({
+    schedulerClient: relayClient(central, () => { abortCalls += 1; }),
+    stateStore: new MemoryStore(defaultState()), host: relayHost(), minIntervalMs: 60_000, now: () => now.value,
+  });
+  await assert.rejects(scheduler.submit({
+    context: requestBoundSubmissionContext(),
+    submit: () => browser.selectAppsForMessage(selectionTarget, githubSelection),
+  }), (error) => error?.relayStage === 'PREPARING' && error.preBoundaryAbortConfirmed === true);
+  assert.equal(abortCalls, 1);
+  assert.deepEqual(transport.inputMethods, []);
+  const status = await central.status();
+  assert.equal(status.unresolvedAdmission, null);
+  assert.equal(status.queueHead.status, 'PRECLICK_RETRY_PENDING');
+  assert.equal(status.ready, true);
 });
 
 function centralScheduler(store, now) {

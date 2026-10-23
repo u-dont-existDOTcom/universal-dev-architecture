@@ -740,7 +740,7 @@ export function composerTextState(element, expectedBody, expectedMentions = []) 
           const label = wrapperChildren[1];
           const href = node.getAttribute('text-link-href');
           if (attributes.length !== allowed.length || !attributes.every((name) => allowed.includes(name))
-            || node.getAttribute('rich-link-source-app-id') !== 'github'
+            || !['github', ''].includes(node.getAttribute('rich-link-source-app-id'))
             || node.getAttribute('data-appearance') !== 'inline-mention'
             || node.getAttribute('data-layout') !== 'inline-flow'
             || node.getAttribute('data-breakable-url') !== ''
@@ -750,7 +750,7 @@ export function composerTextState(element, expectedBody, expectedMentions = []) 
             || icon.getAttribute('data-inline-url-icon') !== '' || icon.getAttribute('aria-hidden') !== 'true'
             || icon.getAttribute('contenteditable') !== 'false' || icon.textContent !== ''
             || label?.nodeType !== 3 || !href || label.nodeValue !== href || node.textContent !== href) return null;
-          // ChatGPT's generated connected-app URL chip is accepted only when
+          // ChatGPT's generated app or plain-web URL chip is accepted only when
           // its exact text remains identical to the underlying URL.
           text += href;
           continue;
@@ -1332,124 +1332,139 @@ export class ChromeDevtoolsBrowser {
   }
 
   async selectAppsForMessage(target, { knownLabels, requiredLabels }) {
-    if (!Array.isArray(knownLabels) || !Array.isArray(requiredLabels)) throw new Error('App selection requires knownLabels and requiredLabels arrays.');
-    if (new Set(knownLabels).size !== knownLabels.length || new Set(requiredLabels).size !== requiredLabels.length) throw new Error('App labels must be unique.');
-    if (requiredLabels.some((label) => !knownLabels.includes(label))) throw new Error('Every required app label must be present in knownLabels.');
-    return this.#withPageClient(target, async (client) => {
-      const githubRequired = requiredLabels.includes(GITHUB_APP_MENTION.label);
-      let githubMention = await client.callFunction(APP_MENTION_STATE_FN, [GITHUB_APP_MENTION]);
-      let githubAction = appMentionSelectionState(githubMention, { required: githubRequired });
-      const removedLabels = [];
-      for (const label of knownLabels) {
-        const observation = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
-        appSelectionState(observation, label, { considerList: false });
-        if (observation.chipMatchCount === 1) {
-          await this.#clickRect(client, observation.chipRect);
-          await waitFor(async () => {
-            const next = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
-            appSelectionState(next, label, { considerList: false });
-            return next.chipMatchCount === 0 ? next : false;
-          }, this.pageReadyTimeoutMs, 150, `Selected app chip ${label} did not clear before per-message reselection.`);
-          removedLabels.push(label);
+    let inputAttempted = false;
+    try {
+      if (!Array.isArray(knownLabels) || !Array.isArray(requiredLabels)) throw new Error('App selection requires knownLabels and requiredLabels arrays.');
+      if (new Set(knownLabels).size !== knownLabels.length || new Set(requiredLabels).size !== requiredLabels.length) throw new Error('App labels must be unique.');
+      if (requiredLabels.some((label) => !knownLabels.includes(label))) throw new Error('Every required app label must be present in knownLabels.');
+      return await this.#withPageClient(target, async (pageClient) => {
+        const client = {
+          callFunction: (...args) => pageClient.callFunction(...args),
+          send: (method, params) => {
+            // Mark before dispatch: a rejected input response cannot prove that
+            // the page did not receive the event.
+            if (method.startsWith('Input.')) inputAttempted = true;
+            return pageClient.send(method, params);
+          },
+        };
+        const githubRequired = requiredLabels.includes(GITHUB_APP_MENTION.label);
+        let githubMention = await client.callFunction(APP_MENTION_STATE_FN, [GITHUB_APP_MENTION]);
+        let githubAction = appMentionSelectionState(githubMention, { required: githubRequired });
+        const removedLabels = [];
+        for (const label of knownLabels) {
+          const observation = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
+          appSelectionState(observation, label, { considerList: false });
+          if (observation.chipMatchCount === 1) {
+            await this.#clickRect(client, observation.chipRect);
+            await waitFor(async () => {
+              const next = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
+              appSelectionState(next, label, { considerList: false });
+              return next.chipMatchCount === 0 ? next : false;
+            }, this.pageReadyTimeoutMs, 150, `Selected app chip ${label} did not clear before per-message reselection.`);
+            removedLabels.push(label);
+          }
         }
-      }
 
-      const selectedLabels = [];
-      const composerMentions = [];
-      for (const label of requiredLabels) {
-        if (label === GITHUB_APP_MENTION.label) {
-          if (githubAction.type !== 'MENTION_BOUND') {
-            if (githubAction.type !== 'INSERT_QUERY') throw new Error('ChatGPT composer could not begin GitHub app-mention selection.');
-            const prepared = await client.callFunction(PREPARE_COMPOSER_FN, ['', []]);
-            if (!prepared?.ok || !prepared.alreadyExact) throw new Error('ChatGPT composer could not be prepared for GitHub app-mention selection.');
-            await client.send('Input.insertText', { text: `@${GITHUB_APP_MENTION.display}` });
-            githubMention = await waitFor(async () => {
-              const next = await client.callFunction(APP_MENTION_STATE_FN, [GITHUB_APP_MENTION]);
-              const action = appMentionSelectionState(next, { required: true });
-              return ['CLICK_OPTION', 'MENTION_BOUND'].includes(action.type) ? { ...next, action } : false;
-            }, this.pageReadyTimeoutMs, 150, 'Exact GitHub app autocomplete option did not appear.');
-            if (githubMention.action.type !== 'MENTION_BOUND') {
-              await this.#clickRect(client, githubMention.optionRect);
+        const selectedLabels = [];
+        const composerMentions = [];
+        for (const label of requiredLabels) {
+          if (label === GITHUB_APP_MENTION.label) {
+            if (githubAction.type !== 'MENTION_BOUND') {
+              if (githubAction.type !== 'INSERT_QUERY') throw new Error('ChatGPT composer could not begin GitHub app-mention selection.');
+              const prepared = await client.callFunction(PREPARE_COMPOSER_FN, ['', []]);
+              if (!prepared?.ok || !prepared.alreadyExact) throw new Error('ChatGPT composer could not be prepared for GitHub app-mention selection.');
+              await client.send('Input.insertText', { text: `@${GITHUB_APP_MENTION.display}` });
               githubMention = await waitFor(async () => {
                 const next = await client.callFunction(APP_MENTION_STATE_FN, [GITHUB_APP_MENTION]);
-                return appMentionSelectionState(next, { required: true }).type === 'MENTION_BOUND' ? next : false;
-              }, this.pageReadyTimeoutMs, 150, 'Exact GitHub app mention was not established in the composer.');
+                const action = appMentionSelectionState(next, { required: true });
+                return ['CLICK_OPTION', 'MENTION_BOUND'].includes(action.type) ? { ...next, action } : false;
+              }, this.pageReadyTimeoutMs, 150, 'Exact GitHub app autocomplete option did not appear.');
+              if (githubMention.action.type !== 'MENTION_BOUND') {
+                await this.#clickRect(client, githubMention.optionRect);
+                githubMention = await waitFor(async () => {
+                  const next = await client.callFunction(APP_MENTION_STATE_FN, [GITHUB_APP_MENTION]);
+                  return appMentionSelectionState(next, { required: true }).type === 'MENTION_BOUND' ? next : false;
+                }, this.pageReadyTimeoutMs, 150, 'Exact GitHub app mention was not established in the composer.');
+              }
+              githubAction = { type: 'MENTION_BOUND' };
             }
-            githubAction = { type: 'MENTION_BOUND' };
-          }
-          selectedLabels.push(label);
-          composerMentions.push({ ...GITHUB_APP_MENTION });
-          continue;
-        }
-        let listRewound = false;
-        for (let attempt = 0; ; attempt += 1) {
-          if (attempt >= 40) throw new Error(`ChatGPT did not expose or select exact app label ${label} within 40 steps.`);
-          const observation = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
-          if (observation.listOpen === true && observation.listAtTop === true) listRewound = true;
-          const action = appSelectionState(observation, label, { listRewound });
-          if (observation.chipMatchCount === 1) break;
-          if (['SCROLL_LIST', 'SCROLL_LIST_UP', 'REWIND_LIST'].includes(action.type)) {
-            const r = observation.listScrollRect;
-            const deltaY = action.type === 'REWIND_LIST' ? -100_000 : (action.type === 'SCROLL_LIST_UP' ? -120 : 120);
-            await client.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: r.x + r.width / 2, y: r.y + r.height / 2, deltaX: 0, deltaY });
-            if (action.type === 'REWIND_LIST') listRewound = true;
-            await new Promise((resolve) => setTimeout(resolve, 250));
+            selectedLabels.push(label);
+            composerMentions.push({ ...GITHUB_APP_MENTION });
             continue;
           }
-          if (action.type === 'LIST_OPTION') {
-            await this.#clickRect(client, observation.listRect);
-          } else if (action.type === 'OPEN_TOOLS') {
-            await this.#clickRect(client, observation.toolsRect);
-          } else if (action.type === 'OPEN_MORE') {
-            await this.#clickRect(client, observation.moreRect);
-          } else if (action.type === 'FOCUS_APP') {
-            const focused = await client.callFunction(FOCUS_APP_OPTION_FN, [label]);
-            if (!focused?.focused || focused.matchCount !== 1) throw new Error(`Could not focus exact app label ${label}.`);
-            await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
-            await client.send('Input.dispatchKeyEvent', { type: 'char', text: '\r', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
-            await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
-          } else {
-            await this.#clickRect(client, observation.appRect);
+          let listRewound = false;
+          for (let attempt = 0; ; attempt += 1) {
+            if (attempt >= 40) throw new Error(`ChatGPT did not expose or select exact app label ${label} within 40 steps.`);
+            const observation = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
+            if (observation.listOpen === true && observation.listAtTop === true) listRewound = true;
+            const action = appSelectionState(observation, label, { listRewound });
+            if (observation.chipMatchCount === 1) break;
+            if (['SCROLL_LIST', 'SCROLL_LIST_UP', 'REWIND_LIST'].includes(action.type)) {
+              const r = observation.listScrollRect;
+              const deltaY = action.type === 'REWIND_LIST' ? -100_000 : (action.type === 'SCROLL_LIST_UP' ? -120 : 120);
+              await client.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: r.x + r.width / 2, y: r.y + r.height / 2, deltaX: 0, deltaY });
+              if (action.type === 'REWIND_LIST') listRewound = true;
+              await new Promise((resolve) => setTimeout(resolve, 250));
+              continue;
+            }
+            if (action.type === 'LIST_OPTION') {
+              await this.#clickRect(client, observation.listRect);
+            } else if (action.type === 'OPEN_TOOLS') {
+              await this.#clickRect(client, observation.toolsRect);
+            } else if (action.type === 'OPEN_MORE') {
+              await this.#clickRect(client, observation.moreRect);
+            } else if (action.type === 'FOCUS_APP') {
+              const focused = await client.callFunction(FOCUS_APP_OPTION_FN, [label]);
+              if (!focused?.focused || focused.matchCount !== 1) throw new Error(`Could not focus exact app label ${label}.`);
+              await client.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+              await client.send('Input.dispatchKeyEvent', { type: 'char', text: '\r', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+              await client.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+            } else {
+              await this.#clickRect(client, observation.appRect);
+            }
+            const selected = await waitFor(async () => {
+              const next = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
+              appSelectionState(next, label, { listRewound });
+              if (next.chipMatchCount === 1) return next;
+              if (action.type === 'OPEN_TOOLS') return next.toolsExpanded || next.listOpen || next.moreMatchCount === 1 || next.renderedAppMatchCount === 1 ? next : false;
+              if (action.type === 'LIST_OPTION') return next.chipMatchCount === 1 ? next : false;
+              if (action.type === 'OPEN_MORE') return next.renderedAppMatchCount === 1 ? next : false;
+              if (action.type === 'FOCUS_APP') return next.chipMatchCount === 1 ? next : false;
+              return false;
+            }, this.pageReadyTimeoutMs, 150, `ChatGPT did not expose or select exact app label ${label}.`);
+            if (selected.chipMatchCount === 1) break;
           }
-          const selected = await waitFor(async () => {
-            const next = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, label]);
-            appSelectionState(next, label, { listRewound });
-            if (next.chipMatchCount === 1) return next;
-            if (action.type === 'OPEN_TOOLS') return next.toolsExpanded || next.listOpen || next.moreMatchCount === 1 || next.renderedAppMatchCount === 1 ? next : false;
-            if (action.type === 'LIST_OPTION') return next.chipMatchCount === 1 ? next : false;
-            if (action.type === 'OPEN_MORE') return next.renderedAppMatchCount === 1 ? next : false;
-            if (action.type === 'FOCUS_APP') return next.chipMatchCount === 1 ? next : false;
-            return false;
-          }, this.pageReadyTimeoutMs, 150, `ChatGPT did not expose or select exact app label ${label}.`);
-          if (selected.chipMatchCount === 1) break;
+          selectedLabels.push(label);
         }
-        selectedLabels.push(label);
-      }
 
-      const verified = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, null]);
-      appSelectionState(verified, null);
-      for (const label of knownLabels) {
-        const expected = requiredLabels.includes(label) && label !== GITHUB_APP_MENTION.label ? 1 : 0;
-        if (verified.chipCounts?.[label] !== expected) throw new Error(`Per-message app chip verification failed for exact label ${label}.`);
-      }
-      githubMention = await client.callFunction(APP_MENTION_STATE_FN, [GITHUB_APP_MENTION]);
-      const expectedMentionCount = githubRequired ? 1 : 0;
-      githubAction = appMentionSelectionState(githubMention, { required: githubRequired });
-      if (githubMention?.exactMentionCount !== expectedMentionCount || githubMention?.mentionCount !== expectedMentionCount
-        || (githubRequired ? githubAction.type !== 'MENTION_BOUND' : githubAction.type !== 'NO_MENTION')) {
-        throw new Error('Per-message GitHub app-mention verification failed.');
-      }
-      return {
-        status: 'MESSAGE_APPS_SELECTED',
-        requiredLabels,
-        selectedLabels,
-        clearedPriorLabels: removedLabels,
-        verifiedChipCounts: verified.chipCounts,
-        verifiedMentionCounts: { [GITHUB_APP_MENTION.label]: githubMention.exactMentionCount },
-        composerMentions,
-        inspectedAssistantOutput: false,
-      };
-    });
+        const verified = await client.callFunction(APP_SELECTION_STATE_FN, [knownLabels, null]);
+        appSelectionState(verified, null);
+        for (const label of knownLabels) {
+          const expected = requiredLabels.includes(label) && label !== GITHUB_APP_MENTION.label ? 1 : 0;
+          if (verified.chipCounts?.[label] !== expected) throw new Error(`Per-message app chip verification failed for exact label ${label}.`);
+        }
+        githubMention = await client.callFunction(APP_MENTION_STATE_FN, [GITHUB_APP_MENTION]);
+        const expectedMentionCount = githubRequired ? 1 : 0;
+        githubAction = appMentionSelectionState(githubMention, { required: githubRequired });
+        if (githubMention?.exactMentionCount !== expectedMentionCount || githubMention?.mentionCount !== expectedMentionCount
+          || (githubRequired ? githubAction.type !== 'MENTION_BOUND' : githubAction.type !== 'NO_MENTION')) {
+          throw new Error('Per-message GitHub app-mention verification failed.');
+        }
+        return {
+          status: 'MESSAGE_APPS_SELECTED',
+          requiredLabels,
+          selectedLabels,
+          clearedPriorLabels: removedLabels,
+          verifiedChipCounts: verified.chipCounts,
+          verifiedMentionCounts: { [GITHUB_APP_MENTION.label]: githubMention.exactMentionCount },
+          composerMentions,
+          inspectedAssistantOutput: false,
+        };
+      });
+    } catch (error) {
+      if (!inputAttempted && error && typeof error === 'object') error.relayStage = 'PREPARING';
+      throw error;
+    }
   }
 
   async detectJournalWriteConfirmation(target, { expectedUrl }) {
