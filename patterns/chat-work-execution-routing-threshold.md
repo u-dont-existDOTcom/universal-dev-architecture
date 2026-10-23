@@ -292,11 +292,13 @@ Re-run this preflight when the nature of the residual execution materially chang
 
 ## Long-running ChatGPT recovery
 
-Any already-authorized long-running supervisor chat can stop making progress before its current objective is finished, including Extra High, Pro, Project Manager, and specialist turns. Mission Control may use the exact one-word message:
+Any already-authorized long-running supervisor chat can stop making progress before its current objective is finished, including Extra High, Pro, Project Manager, and specialist turns. Mission Control may use the exact recovery message:
 
 ```text
-continue
+Continue, you got interrupted. Don't redo the work you did.
 ```
+
+A bare `continue` sometimes made the chat forget the work it had just done and start the task again; the message names the interruption and asks it not to redo finished work.
 
 as a **same-chat transport recovery nudge**. It is not an execution verdict or mission-guard `CONTINUE` decision.
 
@@ -311,12 +313,12 @@ Recovery preserves the current conversation and current model/mode unless the ad
 Apply bounded recovery:
 
 - the underlying Chat objective must already be authorized;
-- send only the minimal `continue` message; do not rewrite the task or introduce new semantic direction;
+- send only that exact recovery message; do not rewrite the task or introduce new semantic direction;
 - record recovery as transport evidence without claiming assistant content or hidden backend model identity;
 - cap consecutive automatic nudges to prevent quota-burning loops;
 - a failed or ambiguous nudge is not automatically replayed;
 - when liveness remains unresolved after the recovery ceiling, return control to Chat rather than silently replanning in Work;
-- never use `continue` to bypass an owner decision, Mission Control admission gate, safety/release gate, ambiguity state, spend/access boundary, or a required model switch.
+- never use the recovery message to bypass an owner decision, Mission Control admission gate, safety/release gate, ambiguity state, spend/access boundary, or a required model switch.
 
 For consumer ChatGPT surfaces where assistant output is not programmatically extracted, durable stage-completion/continue-required receipts are preferred when UI liveness alone cannot distinguish a normal idle-but-incomplete turn from true semantic completion.
 

@@ -1,7 +1,7 @@
 {
   "catalog_sha256": "cb4e6af30693401b74014192a3aaeb5744e64d5d15004cb0fd205ceef8e1e21a",
   "compiler_sha256": "7ea7e14d49c8e2d10a5c015119a71b4457392fb6090a30f4cb38c9777be10509",
-  "content_sha256": "05e7c6585e85cd933ec6b79b8790c1803ea7e30f706a527e93784b21447c7616",
+  "content_sha256": "3c973baf910cfba17dceda449fad5cab4ddb18812b3e3caee66193521878a96d",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
@@ -42,9 +42,9 @@
     {
       "extracted_sha256": "fcbf8b266bcb6900d3f644ca975a17713427c5c35f2ea956eacb941f3367a666",
       "extracted_utf8_bytes": 962,
-      "git_blob_sha1": "92b83434c3fdcf5745777901dc081ec041b4c152",
+      "git_blob_sha1": "ee38450168f86b4dd6b621d9a49e9bd6a34295e5",
       "path": "patterns/chat-work-execution-routing-threshold.md",
-      "repository_revision": "BLOB:92b83434c3fdcf5745777901dc081ec041b4c152",
+      "repository_revision": "BLOB:ee38450168f86b4dd6b621d9a49e9bd6a34295e5",
       "rule_id": "uda.chat-work.execution-separation",
       "selectors": [
         {

@@ -3,6 +3,7 @@ import {
   PROVIDER_SESSION_MODEL_SUMMARY,
   PROVIDER_SESSION_SUMMARY,
   RELAY_STAGE_SUMMARY,
+  CONTINUE_NUDGE_BODY,
   CONTINUE_NUDGE_DELAY_MS,
   canonicalJson,
   consumerControlRefs,
@@ -28,7 +29,7 @@ const TERMINAL_STEPS = new Set([COMPLETE_STEP, EXPIRED_STEP]);
 const ROOT_URL = 'https://chatgpt.com/';
 const PROJECTION_TIMEOUT_MS = 30_000;
 const ARTIFACT_POLL_INTERVAL_MS = 90_000;
-const CONTINUE_BODY = 'continue';
+const CONTINUE_BODY = CONTINUE_NUDGE_BODY;
 const CONTINUE_BODY_SHA256 = sha256(CONTINUE_BODY);
 
 export class ControllerMediatedPmRuntime {
@@ -770,12 +771,18 @@ export class ControllerMediatedPmRuntime {
       || attempt.retry.boundaryObservedAt) {
       throw new Error('CONTROLLER_CONTINUE_RETRY_STATE_INVALID.');
     }
+    // Retry replays the message this attempt sent, which may predate a change of the nudge's wording, so admission
+    // and provenance carry that attempt's own digest, not the current wording's.
+    const bodySha256 = attempt.bodySha256;
+    if (typeof bodySha256 !== 'string' || !/^[0-9a-f]{64}$/.test(bodySha256)) {
+      throw new Error('CONTROLLER_CONTINUE_RETRY_STATE_INVALID.');
+    }
     try {
       await this.submissionPacer.submit({
         context: submissionSchedulerContext({
           chat, target, expectedUrl, providerSessionId, requestId: cycle.requestId,
           queueKey: `controller:${cycle.cycleId}:${lane}:continue:${attempt.attemptNumber}:retry`,
-          sendPath: `CONTROLLER_${lane.toUpperCase()}_CONTINUE_RETRY`, bodySha256: CONTINUE_BODY_SHA256,
+          sendPath: `CONTROLLER_${lane.toUpperCase()}_CONTINUE_RETRY`, bodySha256,
         }),
         beforeSubmit: async () => {
           state = await this.stateStore.read();
