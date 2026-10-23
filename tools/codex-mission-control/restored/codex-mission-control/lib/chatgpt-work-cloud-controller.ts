@@ -1215,12 +1215,15 @@ function userMessagesIn(value: unknown): string[] {
 
 /** The keys of a read_thread turn that carry no message of their own (its messages are in `items`). */
 const TURN_KEYS_WITHOUT_MESSAGES = new Set(["id", "status", "error", "startedAt", "completedAt", "durationMs", "items"]);
+/** read_thread item types known to be the assistant's, never a user's (lower-cased). Any other type proves nothing. */
+const ASSISTANT_ITEM_TYPES = new Set(["agentmessage"]);
 
 /**
  * Whether a read page has turns and every one of them is known to hold no user message: each turn has only the keys of
- * TURN_KEYS_WITHOUT_MESSAGES (no direct input, content, text, role or params), it has items, every item is an object
- * with a type, and no type names a user's message nor any item a user role. False when the page has no turns, or a turn
- * or item isn't of that shape (Codex review of 6cee1356: a turn's direct input may hold the prompt).
+ * TURN_KEYS_WITHOUT_MESSAGES (no direct input, content, text, role or params), it has items, and every item is an
+ * object of an ASSISTANT_ITEM_TYPES type without a user role. False when the page has no turns, or a turn or item isn't
+ * of that shape (Codex reviews of 6cee1356, a turn's direct input may hold the prompt, and of 44f9d6b1, an item type
+ * that isn't recognized may be a user's).
  */
 function turnsWithoutUserItems(value: unknown): boolean {
   const lists = objectsIn(value).filter((object) => Array.isArray(object.turns));
@@ -1235,7 +1238,7 @@ function turnsWithoutUserItems(value: unknown): boolean {
       if (!item || typeof item !== "object" || Array.isArray(item)) return false;
       const type = stringField(item as Record<string, unknown>, "type")?.toLowerCase();
       const role = stringField(item as Record<string, unknown>, "role", "authorRole", "author_role")?.toLowerCase();
-      return type !== undefined && type !== null && type.length > 0 && !type.includes("user") && role !== "user";
+      return type !== undefined && ASSISTANT_ITEM_TYPES.has(type) && role !== "user";
     });
   });
 }
