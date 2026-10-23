@@ -13,14 +13,27 @@ function requiredEnv(name: string): string {
 }
 const RATE_LIMIT_TEXT = /too many requests|rate.?limit|\b429\b/i;
 
-/** Whether an app tool's answer is ChatGPT refusing for a rate limit (an error result whose text says so). */
+/**
+ * Whether an app tool's answer is ChatGPT refusing for a rate limit: an error result whose text says so, or a result
+ * without the error flag whose text says so and isn't a thread (plain text, or a JSON object without `thread`). A read
+ * thread's own text may mention rate limits, so a result holding a thread never counts (Codex review of b9b3feb3).
+ */
 function isRateLimited(value: unknown): boolean {
-  if (!value || typeof value !== "object" || Array.isArray(value) || (value as { isError?: unknown }).isError !== true) return false;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const content = (value as { content?: unknown }).content;
-  const text = Array.isArray(content)
-    ? content.map((entry) => entry && typeof entry === "object" && typeof (entry as { text?: unknown }).text === "string" ? (entry as { text: string }).text : "").join(" ")
-    : "";
-  return RATE_LIMIT_TEXT.test(text);
+  const texts = Array.isArray(content)
+    ? content.map((entry) => entry && typeof entry === "object" && typeof (entry as { text?: unknown }).text === "string" ? (entry as { text: string }).text : "")
+    : [];
+  const text = texts.join(" ");
+  if (!RATE_LIMIT_TEXT.test(text)) return false;
+  if ((value as { isError?: unknown }).isError === true) return true;
+  const first = texts.find((entry) => entry.length > 0) ?? "";
+  try {
+    const parsed = JSON.parse(first) as unknown;
+    return !(parsed && typeof parsed === "object" && !Array.isArray(parsed) && "thread" in (parsed as Record<string, unknown>));
+  } catch {
+    return true;
+  }
 }
 
 function parseToolJson(value: unknown): Record<string, unknown> {
