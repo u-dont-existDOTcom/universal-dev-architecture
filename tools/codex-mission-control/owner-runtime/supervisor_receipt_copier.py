@@ -577,32 +577,39 @@ def repair_decision_digest_only(
 def extract_private_work_handoff(text: str | None) -> WorkSupervisorHandoff | None:
     if not isinstance(text, str):
         return None
-    # The marker with its newline, or followed immediately by its JSON, as the Work prompt asks (23 Oct: a live Work
-    # reply wrote both markers that way, and the copier saw neither).
-    handoff_marker = WORK_HANDOFF_PREFIX.rstrip("\n")
-    start = text.find(WORK_HANDOFF_PREFIX)
-    if start >= 0:
-        body_start = start + len(WORK_HANDOFF_PREFIX)
-    else:
-        found = _bare_marker(text, WORK_HANDOFF_PREFIX, last=False)
-        if found is None:
+    # The first handoff marker that starts a block, in either form: with its newline, or followed immediately by its
+    # JSON, as the Work prompt asks (23 Oct: a live Work reply wrote both markers that way, and the copier saw neither).
+    # The handoff's JSON is decoded structurally, so a marker name inside its strings can't end it early, and only
+    # whitespace may then come before the public receipt's marker (Codex review of 1a376a2f).
+    marker = WORK_HANDOFF_PREFIX.rstrip("\n")
+    receipt_marker = WORK_RECEIPT_PREFIX.rstrip("\n")
+    search = 0
+    while True:
+        start = text.find(marker, search)
+        if start < 0:
             return None
-        start = found[0]
-        body_start = start + len(handoff_marker)
-    public_start = text.find(WORK_RECEIPT_PREFIX.rstrip("\n"), body_start)
-    if public_start < 0:
-        raise CopierError("private Work supervisor handoff is missing the required final public Work receipt")
-    if text.find(handoff_marker, body_start) >= 0:
-        raise CopierError("more than one private Work supervisor handoff was emitted")
-    body = text[body_start:public_start].strip()
-    block = WORK_HANDOFF_PREFIX + body
+        if text[start + len(marker):start + len(marker) + 1] in ("\n", "{"):
+            break
+        search = start + len(marker)
+    json_start = start + len(marker)
+    while json_start < len(text) and text[json_start].isspace():
+        json_start += 1
     try:
-        payload = json.loads(body)
+        payload, end = json.JSONDecoder().raw_decode(text, json_start)
     except json.JSONDecodeError as exc:
         raise CopierError("private Work supervisor handoff is not strict JSON") from exc
+    after = end
+    while after < len(text) and text[after].isspace():
+        after += 1
+    if text.startswith(marker, after):
+        raise CopierError("more than one private Work supervisor handoff was emitted")
+    if not text.startswith(receipt_marker, after):
+        if text.find(receipt_marker, end) < 0:
+            raise CopierError("private Work supervisor handoff is missing the required final public Work receipt")
+        raise CopierError("private Work supervisor handoff is not strict JSON")
     if not isinstance(payload, dict):
         raise CopierError("private Work supervisor handoff payload must be an object")
-    return WorkSupervisorHandoff(block=block, payload=payload)
+    return WorkSupervisorHandoff(block=WORK_HANDOFF_PREFIX + text[json_start:end], payload=payload)
 
 
 def validate_private_work_handoff(handoff: WorkSupervisorHandoff, candidate: WorkCandidate) -> dict[str, Any]:

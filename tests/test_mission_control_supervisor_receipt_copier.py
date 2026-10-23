@@ -487,6 +487,19 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
             copier.extract_machine_block(bare_receipt + receipt_json + " and more", copier.WORK_RECEIPT_PREFIX, bare_marker=True)
         with self.assertRaisesRegex(copier.CopierError, "more than one"):
             copier.extract_private_work_handoff(bare_handoff + json.dumps(handoff) + bare_handoff + json.dumps(handoff) + bare_receipt + receipt_json)
+        # Two handoffs in different forms are refused in either order (Codex review of 1a376a2f).
+        other = dict(handoff, question="another question", questionSha256=copier.sha256_text("another question"))
+        for first, second in ((bare_handoff, copier.WORK_HANDOFF_PREFIX), (copier.WORK_HANDOFF_PREFIX, bare_handoff)):
+            with self.subTest(first=first.endswith("\n")), self.assertRaisesRegex(copier.CopierError, "more than one"):
+                copier.extract_private_work_handoff(first + json.dumps(handoff) + "\n" + second + json.dumps(other) + "\n" + bare_receipt + receipt_json)
+        # A marker name inside the handoff's own strings doesn't end it: its JSON is decoded as a whole.
+        mentions = dict(handoff, question="Which " + bare_receipt + " fields?", questionSha256=copier.sha256_text("Which " + bare_receipt + " fields?"))
+        self.assertEqual(copier.validate_private_work_handoff(copier.extract_private_work_handoff(
+            bare_handoff + json.dumps(mentions) + "\n" + bare_receipt + receipt_json), candidate), mentions)
+        # A marker name in the prose before the handoff isn't a block; text between the handoff and its receipt is refused.
+        self.assertEqual(copier.extract_private_work_handoff("The " + bare_handoff + " block follows.\n" + bare_handoff + json.dumps(handoff) + bare_receipt + receipt_json).payload, handoff)
+        with self.assertRaisesRegex(copier.CopierError, "not strict JSON"):
+            copier.extract_private_work_handoff(bare_handoff + json.dumps(handoff) + " and then " + bare_receipt + receipt_json)
         recorded: list[str] = []
         published: list[str] = []
         with tempfile.TemporaryDirectory() as directory, \
