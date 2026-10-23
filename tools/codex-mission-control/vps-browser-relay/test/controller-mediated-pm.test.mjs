@@ -401,6 +401,39 @@ test('visible failure of exact continue enters Retry-of-continue and clicks it o
   assert.equal(fixture.pacer.contexts.at(-1).sendPath, 'CONTROLLER_ORIGIN_CONTINUE_RETRY');
 });
 
+test('Retry of a continue sent before a wording change is admitted with that continue\'s own digest', async () => {
+  const fixture = makeFixture();
+  fixture.browser.retryInspections.push(
+    retryInspection(),
+    { status: 'CONTINUE_TURN_COMPLETE_NO_RETRY', assistantContentObserved: false },
+  );
+  await driveOriginToContinue(fixture);
+  assert.equal(fixture.pacer.contexts.at(-1).bodySha256, sha256(CONTINUE_NUDGE_BODY));
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'WAIT_ORIGIN_ARTIFACT');
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'RETRY_FAILED_CONTINUE');
+  // The relay restarts on a version whose nudge wording differs from the one this attempt sent.
+  const earlier = sha256('continue');
+  fixture.store.state.controllerCycles['cycle-1'].recoveries.origin.attempts.at(-1).bodySha256 = earlier;
+  fixture.store.state.controllerCycles['cycle-1'].artifactPolling.origin.nextPollAt = '2026-01-01T00:00:00.000Z';
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'RETRY_FAILED_CONTINUE');
+  assert.equal(fixture.browser.retryClicks.length, 1);
+  assert.equal(fixture.pacer.contexts.at(-1).sendPath, 'CONTROLLER_ORIGIN_CONTINUE_RETRY');
+  assert.equal(fixture.pacer.contexts.at(-1).bodySha256, earlier);
+});
+
+test('Retry of a continue whose stored digest is unusable fails closed without clicking', async () => {
+  const fixture = makeFixture();
+  fixture.browser.retryInspections.push(retryInspection());
+  await driveOriginToContinue(fixture);
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'WAIT_ORIGIN_ARTIFACT');
+  assert.equal((await fixture.runtime.cycle('cycle-1')).status, 'RETRY_FAILED_CONTINUE');
+  delete fixture.store.state.controllerCycles['cycle-1'].recoveries.origin.attempts.at(-1).bodySha256;
+  fixture.store.state.controllerCycles['cycle-1'].artifactPolling.origin.nextPollAt = '2026-01-01T00:00:00.000Z';
+  const result = await fixture.runtime.cycle('cycle-1');
+  assert.equal(result.status, 'CONTROLLER_CYCLE_ERROR');
+  assert.equal(fixture.browser.retryClicks.length, 0);
+});
+
 test('ambiguous Retry ancestry fails closed and never clicks Retry or resends original task', async () => {
   const fixture = makeFixture();
   fixture.browser.retryInspectionError = new Error('CONTINUE_RETRY_ANCESTRY_AMBIGUOUS');
