@@ -658,3 +658,45 @@ test("a thread is read newest turns first, page by page: it is ruled out only on
   const silent = value({ thread: { id: "long", kind: "chatgpt" }, page: COMPLETE_PAGE, turns: [{ id: "t", items: [{ type: "agentMessage", text: "ok" }] }] });
   assert.equal(await run({ first: silent }).result, "INCOMPLETE");
 });
+
+test("a read that fails for another reason than a rate limit doesn't stop the search's run, and its own setup threads aren't candidates", async () => {
+  const old = { kind: "chatgpt", id: "old", updatedAt: at("2026-10-21T00:00:00Z") };
+  const fresh = (id: string, kind = "chatgpt") => ({ kind, id, updatedAt: at("2026-10-22T05:00:00Z") });
+  const timedOut = { isError: true, content: [{ type: "text", text: "ChatGPT conversation load timed out" }] } as AppToolResult;
+  const tooMany = { isError: true, content: [{ type: "text", text: '{"detail":"Too many requests"}' }] } as AppToolResult;
+  const run = (threads: unknown[], reads: Record<string, AppToolResult>, ruled: Set<string> | null, ownThreadIds?: string[]) => {
+    const client = new Reads((name, args) => {
+      if (name === "list_threads") return value({ unavailableSources: [], threads: [...threads, old] });
+      const answer = reads[String(args.threadId)];
+      if (!answer) throw new Error(`unexpected read of ${String(args.threadId)}`);
+      return answer;
+    });
+    const ruledOut = ruled ? { has: (id: string) => ruled.has(id), add: (id: string) => { ruled.add(id); } } : undefined;
+    const result = new NativeChatGptWorkCloudExecutor(client, null).searchForPrompt({ prompt: PROMPT, requestedAt: SINCE, ruledOut, ownThreadIds });
+    return { client, result };
+  };
+  const readsOf = (client: Reads) => client.calls.filter((call) => call.name === "read_thread").map((call) => String(call.arguments.threadId));
+  // With the search's progress kept, a conversation that won't load stays unresolved and the run reads on.
+  const ruled = new Set<string>();
+  const past = run([fresh("slow"), fresh("b"), fresh("c")], { slow: timedOut, b: thread("b", "x"), c: thread("c", "y") }, ruled);
+  assert.equal(await past.result, "INCOMPLETE");
+  assert.deepEqual(readsOf(past.client), ["slow", "b", "c"]);
+  assert.deepEqual([...ruled], ["b", "c"]);
+  // A later thread can still match.
+  assert.equal(await run([fresh("slow"), fresh("d")], { slow: timedOut, d: thread("d", PROMPT) }, new Set()).result, "MATCH");
+  // At most two such failures a run.
+  const many = run([fresh("s1"), fresh("s2"), fresh("e")], { s1: timedOut, s2: timedOut, e: thread("e", "x") }, new Set());
+  assert.equal(await many.result, "INCOMPLETE");
+  assert.deepEqual(readsOf(many.client), ["s1", "s2"]);
+  // A rate limit still stops the run, and so does any failed read without a record of earlier runs.
+  const limited = run([fresh("r"), fresh("b")], { r: tooMany, b: thread("b", "x") }, new Set());
+  assert.equal(await limited.result, "INCOMPLETE");
+  assert.deepEqual(readsOf(limited.client), ["r"]);
+  const unkept = run([fresh("slow"), fresh("b")], { slow: timedOut, b: thread("b", "x") }, null);
+  assert.equal(await unkept.result, "INCOMPLETE");
+  assert.deepEqual(readsOf(unkept.client), ["slow"]);
+  // The controller's own setup threads aren't candidates: not read, and the search can finish without them.
+  const own = run([fresh("executor", "codex"), fresh("b")], { b: thread("b", "x") }, null, ["executor"]);
+  assert.equal(await own.result, "NONE");
+  assert.deepEqual(readsOf(own.client), ["b"]);
+});

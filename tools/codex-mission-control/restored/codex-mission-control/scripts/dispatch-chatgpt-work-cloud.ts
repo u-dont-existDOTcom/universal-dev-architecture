@@ -159,6 +159,12 @@ try {
           ruledOut: privatePriorSearchRuledOut(`${absoluteRequestPath}.prior-search.json`,
             createHash("sha256").update(JSON.stringify([PRIOR_SEARCH_RULE_VERSION, priorPrompt, prior.dispatchId, prior.earlierDispatchIds])).digest("hex")),
           readPauseMs: PRIOR_SEARCH_READ_PAUSE_MS,
+          // This controller's own setup threads, which the owner's setup named for it to run in.
+          ownThreadIds: [
+            process.env.MISSION_CONTROL_CHATGPT_APP_EXECUTOR_THREAD_ID ?? process.env.CODEX_THREAD_ID,
+            process.env.MISSION_CONTROL_CODEX_APP_SERVER_THREAD_ID,
+            process.env.MISSION_CONTROL_CHATGPT_WORK_DRIVER_THREAD_ID,
+          ].map((threadId) => threadId?.trim() ?? "").filter((threadId) => threadId.length > 0),
         })
           .then((search) => search === "NONE" ? null : search === "MATCH" ? "PRIOR_ATTEMPT_WORK_THREAD_FOUND" : "PRIOR_ATTEMPT_SEARCH_INCOMPLETE")
           .catch(() => "PRIOR_ATTEMPT_SEARCH_INCOMPLETE");

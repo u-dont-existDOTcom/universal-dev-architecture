@@ -293,7 +293,10 @@ what it may use, what it must never do, and when it is done.
   thread is ruled out only once all its turns were read, or when its read shows it was made before the failed start.
   ChatGPT may refuse reads for a while after a few ("Too many requests"), so the search can take several tries: the
   threads it ruled out are kept beside the private request file (a thread's first message never changes) and aren't
-  read again, and each try reads at most 25 pages, two seconds apart, stopping at the first refused read. Only when the listing has a thread list that reaches back
+  read again, and each try reads at most 25 pages, two seconds apart, stopping at a rate limit; a thread that fails
+  to load for another reason stays unresolved while the try reads on (at most two such failures a try). Mission
+  Control's own setup threads (the controller's executor thread, the threads its mutation route drives) aren't
+  searched. Only when the listing has a thread list that reaches back
   before the failed start (a ChatGPT thread updated earlier), no source is reported unavailable, and every such thread
   was read with no match does the retry go ahead; otherwise (a match, a listing without a
   thread list or that doesn't reach back, a thread it couldn't read or rule out, or a failed start whose prompt
