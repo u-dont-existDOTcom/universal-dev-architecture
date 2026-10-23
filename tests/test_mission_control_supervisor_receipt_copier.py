@@ -467,6 +467,39 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
             with self.assertRaisesRegex(copier.CopierError, "BLOCKED receipt"):
                 copier.process_once(config)
 
+    def test_work_markers_followed_immediately_by_their_json_are_read_and_published_in_canonical_form(self) -> None:
+        # The Work prompt asks for each marker "followed immediately by one strict JSON object"; a live reply on 23 Oct
+        # wrote them so (no newline after either marker).
+        request, result, handoff, receipt = self._work_fixture()
+        bare_receipt = copier.WORK_RECEIPT_PREFIX.rstrip("\n")
+        bare_handoff = copier.WORK_HANDOFF_PREFIX.rstrip("\n")
+        receipt_json = json.dumps(receipt)
+        message = "2026-10-23 03:13:00 UTC\n\nThe job needs the supervisor.\n\n" + bare_handoff + json.dumps(handoff) + "\n\n" + bare_receipt + receipt_json
+        parsed = copier.extract_machine_block(message, copier.WORK_RECEIPT_PREFIX, bare_marker=True)
+        self.assertEqual(parsed[0], copier.WORK_RECEIPT_PREFIX + receipt_json)
+        self.assertEqual(parsed[1], receipt)
+        candidate = copier.discover_work_candidates([request, result])[0]
+        self.assertEqual(copier.validate_private_work_handoff(copier.extract_private_work_handoff(message), candidate), handoff)
+        # Only with bare_marker, only for a marker followed by its JSON, and trailing prose still fails.
+        self.assertIsNone(copier.extract_machine_block(message, copier.WORK_RECEIPT_PREFIX))
+        self.assertIsNone(copier.extract_machine_block(bare_receipt + " " + receipt_json, copier.WORK_RECEIPT_PREFIX, bare_marker=True))
+        with self.assertRaisesRegex(copier.CopierError, "not strict JSON"):
+            copier.extract_machine_block(bare_receipt + receipt_json + " and more", copier.WORK_RECEIPT_PREFIX, bare_marker=True)
+        with self.assertRaisesRegex(copier.CopierError, "more than one"):
+            copier.extract_private_work_handoff(bare_handoff + json.dumps(handoff) + bare_handoff + json.dumps(handoff) + bare_receipt + receipt_json)
+        recorded: list[str] = []
+        published: list[str] = []
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(copier, "fetch_events", return_value=[request, result]), \
+             patch.object(copier, "read_thread", return_value={"finalAgentMessage": message, "observedAt": "2026-10-23T03:13:05Z"}), \
+             patch.object(copier, "run", side_effect=lambda command, **kwargs: recorded.append(json.loads(kwargs["input_text"])["dispatchId"]) or json.dumps({"status": "RECORDED"})), \
+             patch.object(copier, "publish_exact", side_effect=lambda *a, **k: published.append(k["body"]) or 9):
+            config = copier.Config("primary", "mission-control-development", "/app", "/private/env",
+                                   "owner/repo", 4, 0, Path(directory), 10, "gh")
+            copier.process_once(config)
+        self.assertEqual(recorded, ["work-cloud:handoff"])
+        self.assertEqual(published, [copier.WORK_RECEIPT_PREFIX + receipt_json])
+
     def test_receipt_without_private_handoff_is_published_without_recording(self) -> None:
         request, result, _handoff, receipt = self._work_fixture()
         block = copier.WORK_RECEIPT_PREFIX + json.dumps(receipt)
