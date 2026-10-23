@@ -169,6 +169,64 @@ test('transformed, decorated, or non-generated links fail closed', () => {
   }
 });
 
+test('generated plain-web and GitHub chips with nested empty icons preserve exact body bytes', () => {
+  const url = 'https://example.invalid/recovery/' + 'x'.repeat(26);
+  assert.equal(url.length, 59);
+  const richLink = (sourceApp, overrides = {}) => {
+    const svg = element('svg', [element('path', [], { d: 'M0 0' })], {
+      class: 'Icon', fill: 'none', height: '20', width: '20', viewBox: '0 0 20 20', xmlns: 'http://www.w3.org/2000/svg',
+    });
+    const icon = element('SPAN', [
+      element('SPAN', [svg], { class: 'IconContainer SlotSizedIconContainer', contenteditable: 'false' }),
+      element('SPAN', [], { class: 'Label' }),
+    ], {
+      class: 'Mention ProseMirror-widget', 'data-appearance': 'inline-mention', 'data-layout': 'inline-flow',
+      'data-tone': 'accent', 'data-font-weight': 'medium', 'data-underline-on-hover': '',
+      'data-inline-url-icon': '', 'aria-hidden': 'true', contenteditable: 'false',
+    });
+    const label = text(url);
+    const wrapper = element('SPAN', [icon, label], { class: 'Label' });
+    const link = element('SPAN', [wrapper], {
+      'rich-link-source-app-id': sourceApp, class: 'Mention', 'data-appearance': 'inline-mention',
+      'data-layout': 'inline-flow', 'data-font-weight': 'medium', 'data-tone': 'accent',
+      'data-underline-on-hover': '', 'data-breakable-url': '', 'text-link-href': url,
+      'data-rich-text-generated-autolink': '', ...overrides,
+    });
+    const textContent = (node) => node.nodeType === 3 ? node.nodeValue : node.childNodes.map(textContent).join('');
+    for (const node of [icon, link]) Object.defineProperty(node, 'textContent', { get: () => textContent(node) });
+    return { link, icon, label, wrapper };
+  };
+  for (const sourceApp of ['', 'github']) {
+    const { link } = richLink(sourceApp);
+    const lines = Array.from({ length: 10 }, (_, index) => `synthetic paragraph ${index}`);
+    lines[4] = `before ${url} after`;
+    const input = fromLines(lines.join('\n'));
+    input.childNodes[4] = paragraph(text('before '), link, text(' after'));
+    assert.deepEqual(run(PREPARE_COMPOSER_FN, [input], lines.join('\n')), { ok: true, alreadyExact: true });
+    assert.deepEqual(run(VERIFY_COMPOSER_FN, [input], lines.join('\n')), { exact: true, length: lines.join('\n').length });
+    assert.equal(run(VERIFY_COMPOSER_FN, [input], lines.join('\n') + '!').exact, false);
+  }
+  for (const mutate of [
+    (fixture) => { fixture.label.nodeValue = 'different label'; },
+    (fixture) => { fixture.icon.childNodes.push(text('hidden text')); },
+    (fixture) => { fixture.wrapper.childNodes.push(text('extra')); },
+  ]) {
+    const fixture = richLink('');
+    mutate(fixture);
+    assert.equal(run(VERIFY_COMPOSER_FN, [composer(paragraph(fixture.link))], url).reason, 'COMPOSER_MARKUP_UNSUPPORTED');
+  }
+  for (const attributes of [
+    { 'rich-link-source-app-id': 'other-app' },
+    { 'rich-link-source-app-id': null },
+    { 'text-link-href': url + '/changed' },
+    { 'data-rich-text-generated-autolink': 'true' },
+    { onclick: 'unexpected' },
+  ]) {
+    const { link } = richLink('', attributes);
+    assert.equal(run(VERIFY_COMPOSER_FN, [composer(paragraph(link))], url).reason, 'COMPOSER_MARKUP_UNSUPPORTED');
+  }
+});
+
 test('empty paragraphs, internal BR, and explicit trailing placeholders preserve LF count', () => {
   for (const input of [composer(), composer(paragraph()), composer(paragraph(br())), composer(paragraph(br(true)))]) {
     assert.deepEqual(run(PREPARE_COMPOSER_FN, [input], 'next'), { ok: true, alreadyExact: false });
