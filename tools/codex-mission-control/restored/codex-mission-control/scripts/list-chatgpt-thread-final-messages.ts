@@ -11,6 +11,31 @@ function requiredEnv(name: string): string {
   if (!value) throw new Error(`${name} is required.`);
   return value;
 }
+const RATE_LIMIT_TEXT = /too many requests|rate.?limit|\b429\b/i;
+
+/**
+ * Whether an app tool's answer is ChatGPT refusing for a rate limit: an error result whose text says so, or a result
+ * without the error flag whose text says so and isn't a thread (plain text, or a JSON object without `thread`). A read
+ * thread's own text may mention rate limits, so a result holding a thread never counts (Codex review of b9b3feb3).
+ */
+function isRateLimited(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const content = (value as { content?: unknown }).content;
+  const texts = Array.isArray(content)
+    ? content.map((entry) => entry && typeof entry === "object" && typeof (entry as { text?: unknown }).text === "string" ? (entry as { text: string }).text : "")
+    : [];
+  const text = texts.join(" ");
+  if (!RATE_LIMIT_TEXT.test(text)) return false;
+  if ((value as { isError?: unknown }).isError === true) return true;
+  const first = texts.find((entry) => entry.length > 0) ?? "";
+  try {
+    const parsed = JSON.parse(first) as unknown;
+    return !(parsed && typeof parsed === "object" && !Array.isArray(parsed) && "thread" in (parsed as Record<string, unknown>));
+  } catch {
+    return true;
+  }
+}
+
 function parseToolJson(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("app tool returned an invalid result");
   const content = (value as { content?: unknown }).content;
@@ -81,6 +106,9 @@ async function main() {
     let unreadable = listed.pinnedThreads !== undefined && !Array.isArray(listed.pinnedThreads) ? 1 : 0;
     const output: Array<{ threadId: string; status: string | null; updatedAt: number; observedAt: string; finalAgentMessage: string | null }> = [];
     const seen = new Set<string>();
+    // A read ChatGPT refuses with a rate limit ends the scan (it is incomplete then anyway): every further read would be
+    // refused too, and each one keeps the account limited, its owner's own ChatGPT use included (#385, 23 Oct).
+    let rateLimited = false;
     for (const summary of [...threads, ...pinned]) {
       // An entry that isn't a thread summary may be an in-range thread in another shape: the scan isn't complete.
       if (!summary || typeof summary !== "object" || Array.isArray(summary)) { unreadable += 1; continue; }
@@ -95,10 +123,12 @@ async function main() {
       if (seen.has(threadId)) continue;
       seen.add(threadId);
       try {
-        const root = parseToolJson(await app.callTool({
+        const result = await app.callTool({
           name: "read_thread",
           arguments: { threadId, turnLimit: 10, includeOutputs: false, maxOutputCharsPerItem: 20_000 },
-        }));
+        });
+        if (isRateLimited(result)) { unreadable += 1; rateLimited = true; break; }
+        const root = parseToolJson(result);
         const thread = root.thread;
         // The read must be this thread's (its id) with its turns; any other shape counts as unreadable, not as a thread
         // without a receipt (Codex review of c1d9b23e).
@@ -110,7 +140,10 @@ async function main() {
           ? String((thread as { status: { type: string } }).status.type) : null;
         if (status === null) { unreadable += 1; continue; }
         output.push({ threadId, status, updatedAt, observedAt: new Date().toISOString(), finalAgentMessage: finalAgentMessage(root) });
-      } catch { unreadable += 1; /* unreadable candidates cannot satisfy exact binding */ }
+      } catch (error) {
+        unreadable += 1; /* unreadable candidates cannot satisfy exact binding */
+        if (RATE_LIMIT_TEXT.test(error instanceof Error ? error.message : String(error))) { rateLimited = true; break; }
+      }
     }
     const reachesBack = threads.some((summary) => {
       if (!summary || typeof summary !== "object" || Array.isArray(summary)) return false;
@@ -119,7 +152,7 @@ async function main() {
       return (timestampMs(record.updatedAt ?? record.updated_at) ?? Infinity) < updatedAfter;
     });
     const complete = Array.isArray(listed.threads) && reachesBack && !sourcesUnavailable && unreadable === 0;
-    process.stdout.write(`${JSON.stringify({ threads: output, complete, truncated: !reachesBack, sourcesUnavailable, unreadable })}\n`);
+    process.stdout.write(`${JSON.stringify({ threads: output, complete, truncated: !reachesBack, sourcesUnavailable, unreadable, rateLimited })}\n`);
   } finally { await app.close(); }
 }
 main().catch((error: unknown) => { process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`); process.exitCode = 1; });
