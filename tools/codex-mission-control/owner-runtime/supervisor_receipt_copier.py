@@ -74,6 +74,7 @@ class WorkCandidate:
 class WorkSupervisorHandoff:
     block: str
     payload: dict[str, Any]
+    end: int = 0  # where the handoff's JSON ends in the reply: the public receipt is searched for only after it
 
 
 @dataclasses.dataclass(frozen=True)
@@ -280,13 +281,42 @@ def discover_work_candidates(events: list[dict[str, Any]], *, min_sequence: int 
     return sorted(candidates, key=lambda item: (item.sequence, item.dispatch_id))
 
 
-def extract_machine_block(text: str | None, prefix: str) -> tuple[str, dict[str, Any]] | None:
+def _work_block_starts(text: str, prefix: str, start: int) -> list[int]:
+    """Where a Work block's marker starts a block in `text` from `start`: the marker's name followed by its newline or,
+    as the Work prompt asks ("followed immediately by one strict JSON object"), by "{". The name inside the block's own
+    values (a privacy-safe code) is followed by neither and isn't counted (Codex review of 29f54e5a)."""
+    bare = prefix.rstrip("\n")
+    starts: list[int] = []
+    index = text.find(bare, start)
+    while index >= 0:
+        if text[index + len(bare):index + len(bare) + 1] in ("\n", "{"):
+            starts.append(index)
+        index = text.find(bare, index + len(bare))
+    return starts
+
+
+def extract_machine_block(
+    text: str | None, prefix: str, *, bare_marker: bool = False, start: int = 0,
+) -> tuple[str, dict[str, Any]] | None:
+    """The machine block at `prefix` (its marker line, then strict JSON, nothing after). With `bare_marker` (Work
+    blocks), the marker may also be followed immediately by its JSON, as the Work prompt asks; exactly one marker may
+    start a block from `start` on (two receipts, in any mix of forms, are refused: Codex review of 26439d35), and the
+    block is returned in the canonical form: the marker on its own line, then the JSON as written."""
     if not isinstance(text, str):
         return None
-    index = text.find(prefix)
-    if index < 0:
-        return None
-    block = text[index:].strip()
+    if bare_marker:
+        starts = _work_block_starts(text, prefix, start)
+        if not starts:
+            return None
+        if len(starts) > 1:
+            raise CopierError("more than one public Work receipt was emitted")
+        rest = text[starts[0] + len(prefix.rstrip("\n")):]
+        block = prefix + (rest[1:] if rest.startswith("\n") else rest).strip()
+    else:
+        index = text.find(prefix)
+        if index < 0:
+            return None
+        block = text[index:].strip()
     if not block.startswith(prefix):
         return None
     try:
@@ -556,22 +586,42 @@ def repair_decision_digest_only(
 def extract_private_work_handoff(text: str | None) -> WorkSupervisorHandoff | None:
     if not isinstance(text, str):
         return None
-    start = text.find(WORK_HANDOFF_PREFIX)
-    if start < 0:
-        return None
-    public_start = text.find(WORK_RECEIPT_PREFIX, start + len(WORK_HANDOFF_PREFIX))
-    if public_start < 0:
-        raise CopierError("private Work supervisor handoff is missing the required final public Work receipt")
-    if text.find(WORK_HANDOFF_PREFIX, start + len(WORK_HANDOFF_PREFIX)) >= 0:
-        raise CopierError("more than one private Work supervisor handoff was emitted")
-    block = text[start:public_start].strip()
+    # The first handoff marker that starts a block, in either form: with its newline, or followed immediately by its
+    # JSON, as the Work prompt asks (23 Oct: a live Work reply wrote both markers that way, and the copier saw neither).
+    # The handoff's JSON is decoded structurally, so a marker name inside its strings can't end it early, and only
+    # whitespace may then come before the public receipt's marker (Codex review of 1a376a2f).
+    marker = WORK_HANDOFF_PREFIX.rstrip("\n")
+    receipt_marker = WORK_RECEIPT_PREFIX.rstrip("\n")
+    search = 0
+    while True:
+        start = text.find(marker, search)
+        if start < 0:
+            return None
+        if text[start + len(marker):start + len(marker) + 1] in ("\n", "{"):
+            break
+        search = start + len(marker)
+    json_start = start + len(marker)
+    while json_start < len(text) and text[json_start].isspace():
+        json_start += 1
     try:
-        payload = json.loads(block[len(WORK_HANDOFF_PREFIX):])
+        payload, end = json.JSONDecoder().raw_decode(text, json_start)
     except json.JSONDecodeError as exc:
         raise CopierError("private Work supervisor handoff is not strict JSON") from exc
+    after = end
+    while after < len(text) and text[after].isspace():
+        after += 1
+    if text.startswith(marker, after):
+        raise CopierError("more than one private Work supervisor handoff was emitted")
+    # The receipt's marker must come next and start a block (followed by its newline or "{"), as the receipt reader
+    # requires (Codex review of f97e39a9): anything else between the handoff and a receipt is refused.
+    if (not text.startswith(receipt_marker, after)
+            or text[after + len(receipt_marker):after + len(receipt_marker) + 1] not in ("\n", "{")):
+        if not _work_block_starts(text, WORK_RECEIPT_PREFIX, end):
+            raise CopierError("private Work supervisor handoff is missing the required final public Work receipt")
+        raise CopierError("private Work supervisor handoff is not strict JSON")
     if not isinstance(payload, dict):
         raise CopierError("private Work supervisor handoff payload must be an object")
-    return WorkSupervisorHandoff(block=block, payload=payload)
+    return WorkSupervisorHandoff(block=WORK_HANDOFF_PREFIX + text[json_start:end], payload=payload, end=end)
 
 
 def validate_private_work_handoff(handoff: WorkSupervisorHandoff, candidate: WorkCandidate) -> dict[str, Any]:
@@ -1066,7 +1116,9 @@ def process_once(config: Config) -> dict[str, Any]:
         thread = read_thread(config, candidate.thread_id)
         final_message = thread.get("finalAgentMessage")
         private_handoff = extract_private_work_handoff(final_message)
-        parsed = extract_machine_block(final_message, WORK_RECEIPT_PREFIX)
+        # After a handoff, the receipt is searched for only past the handoff's JSON (its strings may name the marker).
+        parsed = extract_machine_block(final_message, WORK_RECEIPT_PREFIX, bare_marker=True,
+                                       start=private_handoff.end if private_handoff else 0)
         if not parsed:
             continue
         block, payload = parsed
