@@ -234,12 +234,15 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
    * start's own dispatch id, which its prompt carries and no other prompt does (a surface that reflows or trims the
    * message still matches), or one of `earlierMarkers`, the dispatch ids of the chain's earlier failed starts. A thread
    * is ruled out when its read shows it was made before the failed start (less the skew), or when all of its turns were
-   * read (its last page says no older turns are left) with at least one user message and no match.
+   * read (its last page says no older turns are left) with no match and either at least one user message or none at all
+   * among items of known types (a chat the assistant started: the failed start's thread begins with the prompt as a
+   * user message).
    *
    * NONE only when the listing has a thread list that reaches back before that (at least one ChatGPT or unknown-kind
    * thread last updated earlier) and every candidate was ruled out. A listing that reports any source unavailable, has
-   * no thread list or doesn't reach back, a temporary thread, one that can't be ruled out (no user message, or a page
-   * that doesn't say whether older turns are left), a rate limit, or more reads than PRIOR_SEARCH_MAX_READS is
+   * no thread list or doesn't reach back, a temporary thread, one that can't be ruled out (no user message and an item
+   * or turn of unknown shape, or a page that doesn't say whether older turns are left), a rate limit, or more reads than
+   * PRIOR_SEARCH_MAX_READS is
    * INCOMPLETE. No project or title narrows the search, and nothing is written to the app.
    *
    * ChatGPT may refuse reads for a while ("Too many requests") after only a few, so a search can be finished over
@@ -304,6 +307,8 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
       // failed start, or when every one of its turns was read (no older page left) and it has a user message.
       let cursor: string | null = null;
       let messages = 0;
+      // Whether every turn read so far is known to hold no user message (each turn's items all typed, none a user's).
+      let onlyOtherItems = true;
       let outcome: "MATCH" | "RULED_OUT" | "UNRESOLVED" | null = null;
       while (outcome === null) {
         if (reads >= PRIOR_SEARCH_MAX_READS) return "INCOMPLETE";
@@ -328,6 +333,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
         if (directThreadId(read) !== candidate.threadId) return "INCOMPLETE";
         const texts = userMessagesIn(read);
         messages += texts.length;
+        onlyOtherItems &&= turnsWithoutUserItems(read);
         if (texts.some((text) => promptReadbackMatches(input.prompt, text) || markers.some((marker) => text.includes(marker)))) {
           outcome = "MATCH";
           break;
@@ -338,7 +344,10 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
           break;
         }
         const older = olderTurns(read);
-        if (older === "NONE") outcome = messages > 0 ? "RULED_OUT" : "UNRESOLVED";
+        // A thread with every turn read is ruled out when it has a user message (none matched), or when every item of
+        // every turn is of a known type that isn't a user's message (an assistant-started chat): the failed start's
+        // thread begins with the prompt as a user message.
+        if (older === "NONE") outcome = messages > 0 || onlyOtherItems ? "RULED_OUT" : "UNRESOLVED";
         else if (older === "UNKNOWN") outcome = "UNRESOLVED";
         else cursor = older.cursor;
       }
@@ -1202,6 +1211,36 @@ function userMessagesIn(value: unknown): string[] {
     }
   }
   return texts;
+}
+
+/** The keys of a read_thread turn that carry no message of their own (its messages are in `items`). */
+const TURN_KEYS_WITHOUT_MESSAGES = new Set(["id", "status", "error", "startedAt", "completedAt", "durationMs", "items"]);
+/** read_thread item types known to be the assistant's, never a user's (lower-cased). Any other type proves nothing. */
+const ASSISTANT_ITEM_TYPES = new Set(["agentmessage"]);
+
+/**
+ * Whether a read page has turns and every one of them is known to hold no user message: each turn has only the keys of
+ * TURN_KEYS_WITHOUT_MESSAGES (no direct input, content, text, role or params), it has items, and every item is an
+ * object of an ASSISTANT_ITEM_TYPES type without a user role. False when the page has no turns, or a turn or item isn't
+ * of that shape (Codex reviews of 6cee1356, a turn's direct input may hold the prompt, and of 44f9d6b1, an item type
+ * that isn't recognized may be a user's).
+ */
+function turnsWithoutUserItems(value: unknown): boolean {
+  const lists = objectsIn(value).filter((object) => Array.isArray(object.turns));
+  const turns = lists.flatMap((object) => object.turns as unknown[]);
+  if (turns.length === 0) return false;
+  return turns.every((turn) => {
+    if (!turn || typeof turn !== "object" || Array.isArray(turn)) return false;
+    const turnObject = turn as Record<string, unknown>;
+    if (Object.keys(turnObject).some((key) => !TURN_KEYS_WITHOUT_MESSAGES.has(key))) return false;
+    if (!Array.isArray(turnObject.items) || turnObject.items.length === 0) return false;
+    return turnObject.items.every((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+      const type = stringField(item as Record<string, unknown>, "type")?.toLowerCase();
+      const role = stringField(item as Record<string, unknown>, "role", "authorRole", "author_role")?.toLowerCase();
+      return type !== undefined && ASSISTANT_ITEM_TYPES.has(type) && role !== "user";
+    });
+  });
 }
 
 /** The read thread's own creation time, from the object that carries its exact id; null when it shows none. */
