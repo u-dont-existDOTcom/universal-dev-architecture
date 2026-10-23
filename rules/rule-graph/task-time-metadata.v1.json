@@ -1609,7 +1609,7 @@
           },
           {
             "kind": "exact_text",
-            "text": "the final answer adds only what is new or changed, still carries what a rule requires of the final answer itself, and stands on its own when it is read alone: `patterns/worker-directive-delivery-and-chat-output-budget.md`."
+            "text": "the final answer adds only what is new or changed, still carries what a rule requires of the final answer itself, and stands on its own when it will be read alone: `patterns/worker-directive-delivery-and-chat-output-budget.md`."
           }
         ]
       },
@@ -1632,10 +1632,10 @@
       "obligations": [
         {
           "obligation_id": "no-repeat-of-interim-message",
-          "required_behavior": "Keep out of the final answer what an interim message of the same turn already showed the owner as written; add only what is new or changed, keep what a rule requires of the final answer itself, and make a final answer that will be read alone stand on its own.",
+          "required_behavior": "Keep out of the final answer what an interim message of the same turn already showed the owner as written; add only what is new or changed, keep what a rule requires of the final answer itself, and make a final answer known to go on alone stand on its own, which takes precedence over saying once.",
           "due_phase": "final-delivery",
           "destination": "owner-visible-final",
-          "acceptance_evidence": "Read against the turn's interim messages the owner saw as written, the final answer adds what is new or changed and at most points back to them; it still carries what a rule requires of the final answer itself (the timestamp, a required access failure, the direct answer first, a terminal status label, standing closing lines); a final answer read alone stands on its own.",
+          "acceptance_evidence": "Read against the turn's interim messages the owner saw as written, the final answer adds what is new or changed and at most points back to them; it still carries what a rule requires of the final answer itself (the timestamp, a required access failure, the direct answer first, a terminal status label, standing closing lines); a final answer known to go on alone carries a short self-contained summary of what its reader needs.",
           "non_substitutes": [
             "final answer restating the interim message",
             "the same steps sent twice in one turn",
