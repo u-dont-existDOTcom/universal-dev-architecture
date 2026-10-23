@@ -612,8 +612,11 @@ def extract_private_work_handoff(text: str | None) -> WorkSupervisorHandoff | No
         after += 1
     if text.startswith(marker, after):
         raise CopierError("more than one private Work supervisor handoff was emitted")
-    if not text.startswith(receipt_marker, after):
-        if text.find(receipt_marker, end) < 0:
+    # The receipt's marker must come next and start a block (followed by its newline or "{"), as the receipt reader
+    # requires (Codex review of f97e39a9): anything else between the handoff and a receipt is refused.
+    if (not text.startswith(receipt_marker, after)
+            or text[after + len(receipt_marker):after + len(receipt_marker) + 1] not in ("\n", "{")):
+        if not _work_block_starts(text, WORK_RECEIPT_PREFIX, end):
             raise CopierError("private Work supervisor handoff is missing the required final public Work receipt")
         raise CopierError("private Work supervisor handoff is not strict JSON")
     if not isinstance(payload, dict):

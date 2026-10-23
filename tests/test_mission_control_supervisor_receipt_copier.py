@@ -521,6 +521,11 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
         self.assertEqual(copier.extract_private_work_handoff("The " + bare_handoff + " block follows.\n" + bare_handoff + json.dumps(handoff) + bare_receipt + receipt_json).payload, handoff)
         with self.assertRaisesRegex(copier.CopierError, "not strict JSON"):
             copier.extract_private_work_handoff(bare_handoff + json.dumps(handoff) + " and then " + bare_receipt + receipt_json)
+        # The receipt's marker name after the handoff must start a block (Codex review of f97e39a9).
+        with self.assertRaisesRegex(copier.CopierError, "not strict JSON"):
+            copier.extract_private_work_handoff(bare_handoff + json.dumps(handoff) + "\n" + bare_receipt + " comes next.\n" + bare_receipt + receipt_json)
+        with self.assertRaisesRegex(copier.CopierError, "missing the required final public Work receipt"):
+            copier.extract_private_work_handoff(bare_handoff + json.dumps(handoff) + "\n" + bare_receipt + " comes next.")
         recorded: list[str] = []
         published: list[str] = []
         with tempfile.TemporaryDirectory() as directory, \
