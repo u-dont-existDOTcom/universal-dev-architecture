@@ -60,7 +60,7 @@
     },
     "AGENTS.md#per-turn-bootstrap-invariants": {
       "clause_count": 30,
-      "clauses_sha256": "a78ba766abf83ec76c31bfbf5fb0bd880b935d05b1362e79d652aa6431d00cf1"
+      "clauses_sha256": "c8c3c16e3dbcfebcdd88f31b8a71f2dc7e868b759751f7a893dff6217b85b006"
     },
     "AGENTS.md#pre-final-continuation-invariant": {
       "clause_count": 6,

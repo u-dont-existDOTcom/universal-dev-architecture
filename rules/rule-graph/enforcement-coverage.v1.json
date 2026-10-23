@@ -599,12 +599,12 @@
           "obligation_id": "file-for-long-reusable-output"
         },
         {
-          "sentence": "**Say each thing once:** what an interim message already told the owner in the same turn is not repeated in the final answer;",
+          "sentence": "**Say each thing once:** what an interim message already showed the owner as written in the same turn is not repeated in the final answer;",
           "record": "uda.kernel.say-once",
           "obligation_id": "no-repeat-of-interim-message"
         },
         {
-          "sentence": "the final answer adds only what is new or changed: `patterns/worker-directive-delivery-and-chat-output-budget.md`.",
+          "sentence": "the final answer adds only what is new or changed, still carries what every final answer must, and stands on its own when it is read alone: `patterns/worker-directive-delivery-and-chat-output-budget.md`.",
           "record": "uda.kernel.say-once",
           "obligation_id": "no-repeat-of-interim-message"
         }

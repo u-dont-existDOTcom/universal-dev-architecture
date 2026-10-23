@@ -16,7 +16,7 @@ For **every assistant turn** governed by this architecture, the **first line of 
 
 **Every turn:** reusable output over ~8,000 characters goes in a file, for any recipient; chat gets a summary: `patterns/worker-directive-delivery-and-chat-output-budget.md`.
 
-**Say each thing once:** what an interim message already told the owner in the same turn is not repeated in the final answer; the final answer adds only what is new or changed: `patterns/worker-directive-delivery-and-chat-output-budget.md`.
+**Say each thing once:** what an interim message already showed the owner as written in the same turn is not repeated in the final answer; the final answer adds only what is new or changed, still carries what every final answer must, and stands on its own when it is read alone: `patterns/worker-directive-delivery-and-chat-output-budget.md`.
 
 ## Pre-final continuation invariant
 

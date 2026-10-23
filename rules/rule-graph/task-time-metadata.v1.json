@@ -1605,11 +1605,11 @@
         "selectors": [
           {
             "kind": "exact_text",
-            "text": "**Say each thing once:** what an interim message already told the owner in the same turn is not repeated in the final answer;"
+            "text": "**Say each thing once:** what an interim message already showed the owner as written in the same turn is not repeated in the final answer;"
           },
           {
             "kind": "exact_text",
-            "text": "the final answer adds only what is new or changed: `patterns/worker-directive-delivery-and-chat-output-budget.md`."
+            "text": "the final answer adds only what is new or changed, still carries what every final answer must, and stands on its own when it is read alone: `patterns/worker-directive-delivery-and-chat-output-budget.md`."
           }
         ]
       },
@@ -1632,13 +1632,15 @@
       "obligations": [
         {
           "obligation_id": "no-repeat-of-interim-message",
-          "required_behavior": "Keep out of the final answer what an interim owner message in the same turn already said; add only what is new or changed.",
+          "required_behavior": "Keep out of the final answer what an interim message of the same turn already showed the owner as written; add only what is new or changed, keep what every final answer must carry, and make a final answer that will be read alone stand on its own.",
           "due_phase": "final-delivery",
           "destination": "owner-visible-final",
-          "acceptance_evidence": "Read against the turn's interim owner messages, the final answer restates none of their content and carries only what is new or changed.",
+          "acceptance_evidence": "Read against the turn's interim messages the owner saw as written, the final answer adds what is new or changed and at most points back to them; it still carries the timestamp, any access failure the bootstrap requires it to state and any standing closing line; a final answer read alone stands on its own.",
           "non_substitutes": [
             "final answer restating the interim message",
-            "the same steps sent twice in one turn"
+            "the same steps sent twice in one turn",
+            "a required final-answer line dropped because an interim message said it",
+            "a final answer read alone that points back to messages its reader never saw"
           ],
           "carry_through": "Retain this boundary and evidence across handoffs, compaction and rewrites; recheck changed inputs.",
           "repair": "Perform the required behavior at its due boundary and bind a fresh receipt to the repaired candidate.",

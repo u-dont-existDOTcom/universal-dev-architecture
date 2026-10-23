@@ -151,13 +151,18 @@ The file is for reusable operational detail. The chat remains the decision and n
 
 The owner got the same steps twice in one turn. The agent sent them in an interim message while it was still working, then wrote them out again in its final answer. The owner's read: the agent says what matters first, before it has finished, which can be a good thing, and then repeats it when it is done, as if it hadn't noticed it already said it.
 
-Anything sent to the owner before the final answer of the same turn counts as said: a progress note, an early instruction, a mid-task answer.
+What counts as said: a message of the same turn that reached the owner as written, in the same conversation, and stays in view above the final answer (a progress note, an early instruction, a mid-task answer). Text a surface summarizes, folds away or doesn't show as written (on some surfaces the narration between tool calls), reasoning and tool output were not said, so the final answer carries what the owner needs from them.
 
 - The final answer adds only what is new or changed since then. It may point back ("the steps above still stand") but does not restate them.
 - If part of the interim message turned out wrong or changed, the final answer says what changed, not the whole message again.
 - Before writing the final answer, reread what this turn already sent to the owner.
 - Saying something early is fine and often useful. Saying it twice is the failure.
-- This holds on every surface and for every recipient, not only in the chat where it was first noticed.
+
+Saying once never drops what every final answer must carry, even when an interim message said it already: the timestamp first line, an access failure the per-turn bootstrap requires the final answer to state, and any line a standing owner or surface rule puts in every final answer (a closing resume line, for example). These stay, kept short.
+
+A final answer that will be read alone stands on its own: when it is relayed, forwarded, posted or handed off without the interim messages (a receipt to a supervisor, a notification, a handoff to another agent), its reader gets what it needs from the final answer itself, and pointing back to messages that reader never saw is the failure.
+
+This holds on every surface and for every recipient who saw the interim messages as written. Work is not among this rule's actors: a Work job's result reaches its supervisor alone, as a receipt, so it stands on its own as the paragraph above says.
 
 ## Preserve substantive visibility
 
