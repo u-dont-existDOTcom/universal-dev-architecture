@@ -247,8 +247,13 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
    * out; a ruled-out thread stays so (its first message and creation time never change), so those aren't read again.
    * With it, a run reads at most PRIOR_SEARCH_MAX_READS pages and says INCOMPLETE while threads remain unread; it reads
    * on past a temporary thread or one it can't rule out (still INCOMPLETE at the end, unless a later thread matches), and
-   * stops at the first failed read or answer that isn't the thread asked for (a refusal may come either way).
-   * `readPauseMs` spaces the reads.
+   * past a read that fails for another reason than a rate limit (at most PRIOR_SEARCH_MAX_FAILED_READS times); it stops
+   * at a rate limit or an answer that isn't the thread asked for (a refusal may come either way). `readPauseMs` spaces
+   * the reads.
+   *
+   * `ownThreadIds` are Mission Control's own setup threads (the controller's executor thread, the threads its mutation
+   * route drives): the owner's setup made and named them for the controller to run in, so a Work create's new thread is
+   * never one of them, and they aren't candidates.
    */
   async searchForPrompt(input: {
     prompt: string;
@@ -257,6 +262,7 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     earlierMarkers?: readonly string[];
     ruledOut?: { has(threadId: string): boolean; add(threadId: string): void };
     readPauseMs?: number;
+    ownThreadIds?: readonly string[];
   }): Promise<"MATCH" | "NONE" | "INCOMPLETE"> {
     const markers = [
       ...(input.marker !== undefined && input.prompt.includes(input.marker) ? [input.marker] : []),
@@ -278,12 +284,15 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
     // An older thread of another surface proves nothing about ChatGPT's threads, which a listing may page apart.
     if (!threads.some((thread) => thread.kind !== "other" && thread.updatedMs !== null && thread.updatedMs < since)) return "INCOMPLETE";
     const ruledOut = input.ruledOut ?? null;
+    const own = new Set((input.ownThreadIds ?? []).filter((threadId) => threadId.length > 0));
     const candidates = threads.filter((thread) => thread.madeMs === null || thread.madeMs >= since)
+      .filter((thread) => !(thread.threadId && own.has(thread.threadId)))
       .filter((thread) => !(ruledOut && thread.threadId && ruledOut.has(thread.threadId)));
     // Without a record of earlier runs a search that can't read every candidate can never finish, so it reads nothing.
     if (!ruledOut && candidates.length > PRIOR_SEARCH_MAX_READS) return "INCOMPLETE";
     let complete = true;
     let reads = 0;
+    let failedReads = 0;
     for (const candidate of candidates) {
       if (!candidate.threadId || isTemporaryThreadId(candidate.threadId)) {
         if (!ruledOut) return "INCOMPLETE";
@@ -305,9 +314,16 @@ export class NativeChatGptWorkCloudExecutor implements WorkCloudAppExecutor {
           read = await this.read("read_thread", {
             threadId: candidate.threadId, turnLimit: PRIOR_SEARCH_TURN_PAGE, ...(cursor === null ? {} : { cursor }),
           });
-        } catch {
-          // A refused read (often "Too many requests") stops the run: more reads now would only be refused too.
-          return "INCOMPLETE";
+        } catch (error) {
+          // A rate limit ("Too many requests") stops the run: more reads now would only be refused too. Any other failed
+          // read (a conversation that times out loading, say) leaves this thread unresolved, and a run that keeps the
+          // search's progress reads on past it, at most PRIOR_SEARCH_MAX_FAILED_READS times, so one thread that never
+          // loads can't stop the others from being ruled out.
+          if (!ruledOut || isRateLimited(error)) return "INCOMPLETE";
+          failedReads += 1;
+          if (failedReads >= PRIOR_SEARCH_MAX_FAILED_READS) return "INCOMPLETE";
+          outcome = "UNRESOLVED";
+          break;
         }
         if (directThreadId(read) !== candidate.threadId) return "INCOMPLETE";
         const texts = userMessagesIn(read);
@@ -1084,6 +1100,8 @@ function chatGptCandidates(
 const PROVIDER_PROMPT_READBACK_LIMIT = 2_000;
 /** Turns per read_thread page in a retry's search (the tool's maximum). */
 const PRIOR_SEARCH_TURN_PAGE = 10;
+/** Failed reads (other than a rate limit) a run of a retry's search reads on past; each may take the app's 30 seconds. */
+const PRIOR_SEARCH_MAX_FAILED_READS = 2;
 /**
  * What rules a thread out in a retry's search. Threads ruled out under an older rule are read again: the version is part
  * of the name of the search's saved progress (scripts/dispatch-chatgpt-work-cloud.ts). 2: every turn is read (version 1
