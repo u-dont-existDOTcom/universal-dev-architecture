@@ -280,17 +280,20 @@ def discover_work_candidates(events: list[dict[str, Any]], *, min_sequence: int 
     return sorted(candidates, key=lambda item: (item.sequence, item.dispatch_id))
 
 
-def _bare_marker(text: str, prefix: str, *, last: bool) -> tuple[int, str] | None:
+def _bare_marker(text: str, prefix: str) -> tuple[int, str] | None:
     """A Work marker written as the Work prompt asks, "followed immediately by one strict JSON object" (no newline):
-    the marker's index and the text from the JSON on, or None. The marker without its newline must be followed by "{"."""
+    the index of the last such marker and the text from its JSON on, or None. An occurrence of the marker's name not
+    followed by "{" (inside the JSON's own values, say) is passed over (Codex review of 29f54e5a)."""
     bare = prefix.rstrip("\n")
-    index = text.rfind(bare) if last else text.find(bare)
-    if index < 0:
-        return None
-    rest = text[index + len(bare):]
-    if not rest.startswith("{"):
-        return None
-    return index, rest
+    end = len(text)
+    while True:
+        index = text.rfind(bare, 0, end)
+        if index < 0:
+            return None
+        rest = text[index + len(bare):]
+        if rest.startswith("{"):
+            return index, rest
+        end = index
 
 
 def extract_machine_block(
@@ -304,7 +307,7 @@ def extract_machine_block(
     index = text.find(prefix)
     if index >= 0:
         block = text[index:].strip()
-    elif bare_marker and (found := _bare_marker(text, prefix, last=True)) is not None:
+    elif bare_marker and (found := _bare_marker(text, prefix)) is not None:
         block = prefix + found[1].strip()
     else:
         return None

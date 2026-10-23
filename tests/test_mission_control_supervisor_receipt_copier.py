@@ -480,6 +480,10 @@ class MissionControlReceiptCopierTests(unittest.TestCase):
         self.assertEqual(parsed[1], receipt)
         candidate = copier.discover_work_candidates([request, result])[0]
         self.assertEqual(copier.validate_private_work_handoff(copier.extract_private_work_handoff(message), candidate), handoff)
+        # The marker's name inside the receipt's own values (a schema-valid code) is passed over (Codex review of 29f54e5a).
+        coded = dict(receipt, blockerCodes=["SUPERVISOR_REASONING_REQUIRED", bare_receipt])
+        coded_parsed = copier.extract_machine_block("Done.\n" + bare_receipt + json.dumps(coded), copier.WORK_RECEIPT_PREFIX, bare_marker=True)
+        self.assertEqual(coded_parsed, (copier.WORK_RECEIPT_PREFIX + json.dumps(coded), coded))
         # Only with bare_marker, only for a marker followed by its JSON, and trailing prose still fails.
         self.assertIsNone(copier.extract_machine_block(message, copier.WORK_RECEIPT_PREFIX))
         self.assertIsNone(copier.extract_machine_block(bare_receipt + " " + receipt_json, copier.WORK_RECEIPT_PREFIX, bare_marker=True))
