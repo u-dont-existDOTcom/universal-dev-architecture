@@ -169,8 +169,8 @@ test('transformed, decorated, or non-generated links fail closed', () => {
   }
 });
 
-test('generated plain-web and GitHub chips with nested empty icons preserve exact body bytes', () => {
-  const url = 'https://example.invalid/recovery/' + 'x'.repeat(26);
+test('generated plain-web, GitHub and OpenAI chips with nested empty icons preserve exact body bytes', () => {
+  let url = 'https://example.invalid/recovery/' + 'x'.repeat(26);
   assert.equal(url.length, 59);
   const richLink = (sourceApp, overrides = {}) => {
     const svg = element('svg', [element('path', [], { d: 'M0 0' })], {
@@ -196,7 +196,10 @@ test('generated plain-web and GitHub chips with nested empty icons preserve exac
     for (const node of [icon, link]) Object.defineProperty(node, 'textContent', { get: () => textContent(node) });
     return { link, icon, label, wrapper };
   };
-  for (const sourceApp of ['', 'github']) {
+  for (const sourceApp of ['', 'github', 'openai']) {
+    url = sourceApp === 'openai'
+      ? 'https://chatgpt.com/c/synthetic-conversation?messageId=synthetic-message'
+      : 'https://example.invalid/recovery/' + 'x'.repeat(26);
     const { link } = richLink(sourceApp);
     const lines = Array.from({ length: 10 }, (_, index) => `synthetic paragraph ${index}`);
     lines[4] = `before ${url} after`;
@@ -211,9 +214,11 @@ test('generated plain-web and GitHub chips with nested empty icons preserve exac
     (fixture) => { fixture.icon.childNodes.push(text('hidden text')); },
     (fixture) => { fixture.wrapper.childNodes.push(text('extra')); },
   ]) {
-    const fixture = richLink('');
-    mutate(fixture);
-    assert.equal(run(VERIFY_COMPOSER_FN, [composer(paragraph(fixture.link))], url).reason, 'COMPOSER_MARKUP_UNSUPPORTED');
+    for (const sourceApp of ['', 'github', 'openai']) {
+      const fixture = richLink(sourceApp);
+      mutate(fixture);
+      assert.equal(run(VERIFY_COMPOSER_FN, [composer(paragraph(fixture.link))], url).reason, 'COMPOSER_MARKUP_UNSUPPORTED');
+    }
   }
   for (const attributes of [
     { 'rich-link-source-app-id': 'other-app' },
