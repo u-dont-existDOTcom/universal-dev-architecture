@@ -75,6 +75,14 @@ A GREEN worker-to-contract state cannot make the root task GREEN when contract-t
 
 <Concrete contribution to the owner outcome. Do not restate an intermediate proxy as the final owner result.>
 
+### Research objective anchor
+
+- Main objective: <Stable original objective from the authoritative owner-outcome record; preserve its ID/epoch/hash above.>
+- Current contribution: <Current step and how it advances the main objective and remaining gap.>
+- Scope boundaries: <Permitted scope, constraints and non-goals; label side investigations as supporting work.>
+
+For long-range research, carry this compact anchor in every research turn and every research handoff, using only public-safe wording outside authorized private destinations. Follow `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md` §8.
+
 ### Derivation / outcome-coverage proof
 
 - Parent owner-outcome ID/epoch/hash:

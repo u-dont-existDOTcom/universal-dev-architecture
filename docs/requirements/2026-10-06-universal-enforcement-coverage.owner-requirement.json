@@ -346,10 +346,10 @@
       }
     },
     "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md": {
-      "clause_count": 158,
-      "clauses_sha256": "3488aa65d8a8569796990d5d77ebb2405bf56d3a6737720a68ebd95cec3a4031",
-      "bindings_sha256": "b5908e5dac1941fd3cd98bdec98019d1e04d9411b8326ca56d0743216c92d4ea",
-      "source_sha256": "842807c4b01338c2d070fbcdaa83ce13c89fe2a4bb829988aa80870a0e2b92bb",
+      "clause_count": 165,
+      "clauses_sha256": "3030ccf36c0b00b16e85bbfe7449b6c20ce6a0ad517e92b2e6d1458503393ed2",
+      "bindings_sha256": "59bd375a415f5d14c1be8592c3e8a2dfc2e19431c9516e584c8c99157cb64f10",
+      "source_sha256": "ea9e188c2d32297eb79abf23c75d0f0e8c06f055f4f0eed77f0ebb6673c4fcdd",
       "pre_section_sha256": "5ed6ebb67f016d5d295f1b84e62c172158b04c2c7583ca0eb20ed2cac4b7ab8c",
       "sections": {
         "1-normative-correction": {
@@ -388,9 +388,9 @@
           "source_sha256": "24c56f30aec0cd66dabe01c648b4a2c3bd85e9e809b56246a8fd3123d52b525a"
         },
         "8-checkpoint-and-packet-requirements": {
-          "clause_count": 14,
-          "clauses_sha256": "50d102e306ee4d0988813b0916b21ed31ea65503baa53d6712e5a8bc18a2c52e",
-          "source_sha256": "f6b3e7ee7115224996c167a3b8a0f8668ca320decccf179b23f8793e62314b10"
+          "clause_count": 21,
+          "clauses_sha256": "da40c87a1f330af13ba69a64cdffc17e3778dc54f20ccdbf567df35f31ddcfd2",
+          "source_sha256": "59988dcc7bba4409c3c4976e176b81184cbf235e6b99e06737a1cd3d490ee1e8"
         },
         "9-supervisor-order-of-operations": {
           "clause_count": 10,

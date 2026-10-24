@@ -17,8 +17,9 @@ import type {
 } from "./operator-status-contract";
 import type { EventStore } from "./store";
 import type { StoredEvent } from "./schema";
-import { pendingDecisionRequests } from "./github-decision-receipts";
-import { UNSENT_PROVABLE_REQUEST_ID, WORK_QUESTION_REQUEST_ID, type SettledSendSubmissionState } from "./unsent-request-proof";
+import { pendingDecisionRequests, type GitHubReceiptPolicy } from "./github-decision-receipts";
+import { UNSENT_PROVABLE_REQUEST_ID, WORK_CONTINUATION_REQUEST_ID, WORK_QUESTION_REQUEST_ID, type SettledSendSubmissionState } from "./unsent-request-proof";
+import { refreshUnsentWorkContinuation } from "./work-continuation-refresh";
 
 // This ESM module is the runtime-neutral authority algorithm shared with its
 // deterministic relay contract tests. Mission Control is its only deployable
@@ -185,6 +186,7 @@ export class SubmissionAuthorityRuntime {
   private readonly relayHealthMaxAgeMs: number;
   private readonly hostLabels: Record<"PRIMARY" | "SECONDARY", string>;
   private readonly eventHistory: () => StoredEvent[];
+  private workContinuationWriterTail: Promise<unknown> = Promise.resolve();
 
   constructor(
     private readonly store: EventStore,
@@ -282,7 +284,7 @@ export class SubmissionAuthorityRuntime {
 
   async proveRequestUnsent(requestId: string) {
     if (!UNSENT_PROVABLE_REQUEST_ID.test(requestId)) {
-      throw new Error("Unsent-request proof requires one exact fleet-review or work-question request ID.");
+      throw new Error("Unsent-request proof requires one exact fleet-review, work-question or work-owner-continuation request ID.");
     }
     await this.requireScheduler();
     if (!this.stateStore || !this.pacingDomain) {
@@ -313,6 +315,18 @@ export class SubmissionAuthorityRuntime {
         && admissionRecords.length === 0,
       proofSha256: createHash("sha256").update(JSON.stringify(proof)).digest("hex"),
     };
+  }
+
+  /** Internal fixed maintenance action, serialized only against admissions of this known continuation kind. */
+  async refreshWorkContinuationContext(input: { worker: string; requestId: string; ownerContextMessageId?: string }, policy: GitHubReceiptPolicy | null) {
+    return this.withWorkContinuationWriter(() => refreshUnsentWorkContinuation(this.store, input,
+      (requestId) => this.proveRequestUnsent(requestId), policy, () => new Date(this.now()).toISOString()));
+  }
+
+  private withWorkContinuationWriter<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.workContinuationWriterTail.then(operation);
+    this.workContinuationWriterTail = result.catch(() => undefined);
+    return result;
   }
 
   /**
@@ -574,7 +588,24 @@ export class SubmissionAuthorityRuntime {
     if (operation === "relay-health") return this.recordRelayHealth(body, producer, scheduler);
     if (operation === "admissions") this.assertAdmissionScope(body, producer);
     if (operation === "admissions/validate") return scheduler.validateAdmission(body, producer.id);
-    if (operation === "admissions") return scheduler.admit(body, producer.id);
+    if (operation === "admissions") {
+      const requestId = body && typeof body === "object" && !Array.isArray(body)
+        ? (body as Record<string, unknown>).requestId : null;
+      if (typeof requestId === "string" && WORK_CONTINUATION_REQUEST_ID.test(requestId)) {
+        return this.withWorkContinuationWriter(async () => {
+          this.assertAdmissionScope(body, producer);
+          const matches = pendingDecisionRequests(this.eventHistory()).filter((request) => request.requestId === requestId
+            && request.supervisorId === (body as Record<string, unknown>).supervisorId
+            && request.taskId === (body as Record<string, unknown>).authorizationRef
+            && Date.parse(request.expiresAt) > this.now());
+          if (matches.length !== 1) throw new SubmissionSchedulerError("WORK_CONTINUATION_SOURCE_NOT_PENDING",
+            "The exact owner continuation is no longer one current unexpired pending source.", 409);
+          // The lane stays held until the scheduler commits, so a refresh cannot prove an in-flight admission absent.
+          return scheduler.admit(body, producer.id);
+        });
+      }
+      return scheduler.admit(body, producer.id);
+    }
     if (operation === "relay-target-transitions/begin") return scheduler.beginRelayTargetTransition(body, producer.id);
     if (operation === "relay-target-transitions/commit") return scheduler.commitRelayTargetTransition(body, producer.id);
     if (operation === "relay-target-transitions/abort") return scheduler.abortRelayTargetTransition(body, producer.id);

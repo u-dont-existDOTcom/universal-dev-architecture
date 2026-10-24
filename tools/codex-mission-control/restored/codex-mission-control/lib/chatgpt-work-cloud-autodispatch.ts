@@ -1,7 +1,7 @@
 import { canonicalJson, sha256 } from "./canonical";
 import { executionDirectiveArtifactCanonicalJson } from "./github-execution-directive";
 import { launchSelectionFor } from "./work-execution-profile";
-import type { StoredEvent } from "./schema";
+import { boundedExecutionResidueSchema, type StoredEvent } from "./schema";
 import { ruleGraphPromptBlock, workHandoffRuleGraphProjection, WORK_PROMPT_BUDGET_LABEL, WORK_PROMPT_MAX_BYTES } from "./rule-graph-contract";
 import { workQuestionContextForRequest } from "./owner-question-route";
 import { currentWorkCloudDispatch, workDirectiveHasRun } from "./chatgpt-work-cloud-retry";
@@ -155,6 +155,17 @@ export function discoverDirectWorkCloudDispatches(input: {
     const sourceQuestionRequestId = receipt.continuation_binding?.decision_request_id ?? receipt.request_id;
     const workQuestionContext = workQuestionContextForRequest(input.events, directive.worker, sourceQuestionRequestId);
     const bounded = receipt.bounded_execution;
+    // The artifact digest does not cover every execution bound (for example inputs
+    // and deadline). Bind the complete private envelope to the admitted receipt.
+    const exactDirective = canonicalJson(bounded);
+    const boundedSha256 = sha256(exactDirective);
+    if (!boundedExecutionResidueSchema.safeParse(bounded).success
+      || receipt.bounded_execution_sha256 !== boundedSha256
+      || proof.bounded_execution_sha256 !== boundedSha256
+      || receipt.worker !== directive.worker || receipt.task_id !== directive.task_id
+      || bounded.task_id !== directive.task_id) {
+      throw new Error(`Native Work directive ${directive.directive_id} has an invalid bounded execution envelope.`);
+    }
     const sourceDirective = {
       id: directive.directive_id,
       revision: directive.directive_revision,
@@ -185,7 +196,7 @@ export function discoverDirectWorkCloudDispatches(input: {
     const { dispatchId, prior } = currentWorkCloudDispatch(input.events, directive.worker, directive, firstDispatchId);
     // A retry is never started once a run of the job is on record (the store refuses its request too).
     if (prior && workDirectiveHasRun(input.events.filter((event) => event.worker === directive.worker), directive)) continue;
-    const promptFor = (id: string) => buildDirectWorkPrompt({
+    const promptFor = (id: string, envelope = exactDirective) => buildDirectWorkPrompt({
       dispatchId: id,
       worker: directive.worker,
       directiveId: directive.directive_id,
@@ -193,18 +204,10 @@ export function discoverDirectWorkCloudDispatches(input: {
       taskId: directive.task_id,
       sourceChat,
       receiptTarget: input.receiptTarget,
-      exactDirective: bounded.prompt,
+      exactDirective: envelope,
     });
-    const workPrompt = buildDirectWorkPrompt({
-      dispatchId,
-      worker: directive.worker,
-      directiveId: directive.directive_id,
-      directiveRevision: directive.directive_revision,
-      taskId: directive.task_id,
-      sourceChat,
-      receiptTarget: input.receiptTarget,
-      exactDirective: bounded.prompt,
-    });
+    let workPrompt: string | undefined;
+    let legacyReadOnly = false;
     const request = [...input.events].reverse().find((event) => event.worker === directive.worker
       && event.data.type === "chatgpt_work_cloud_dispatch_requested" && event.data.dispatch_id === dispatchId)?.data;
     const intent = [...input.events].reverse().find((event) => event.worker === directive.worker
@@ -218,12 +221,28 @@ export function discoverDirectWorkCloudDispatches(input: {
     if (result?.type === "chatgpt_work_cloud_dispatch_recorded") {
       if (result.status !== "PENDING_SETUP") continue;
       recoveryState = "PENDING_SETUP_READ_ONLY";
+      // An already-sent legacy request is only observed, never sent again. Keep
+      // its exact prompt so the immutable request file and lookup digest survive
+      // this transport upgrade. Unsent requests must not use the lossy format.
+      const legacyPrompt = promptFor(dispatchId, bounded.prompt);
+      if (request?.type === "chatgpt_work_cloud_dispatch_requested"
+        && request.prompt_sha256 === sha256(legacyPrompt)) {
+        workPrompt = legacyPrompt;
+        legacyReadOnly = true;
+      }
     } else if (!request) recoveryState = "NEW";
     else if (!intent) recoveryState = "REQUEST_ONLY_PROVEN_UNSENT";
     else continue; // provider-bound intent without outcome is ambiguous and never blocks another eligible worker.
+    // A legacy unsent request already has immutable prompt bytes recorded. Hold
+    // it for reconciliation, without replaying incomplete bounds or repeatedly
+    // selecting a request that cannot be materialized ahead of other workers.
+    if (recoveryState === "REQUEST_ONLY_PROVEN_UNSENT"
+      && request?.type === "chatgpt_work_cloud_dispatch_requested"
+      && request.prompt_sha256 === sha256(promptFor(dispatchId, bounded.prompt))) continue;
     // The supervisor authorized the job until its bounded deadline: a job not yet sent is never started at or after it
     // (lib/work-directive-expiry.ts; the fleet watch asks the supervisor again). Checking one already sent stays allowed.
     if (recoveryState !== "PENDING_SETUP_READ_ONLY" && Date.parse(input.requestedAt) >= Date.parse(bounded.deadline)) continue;
+    workPrompt ??= promptFor(dispatchId);
     candidates.push({
       worker: directive.worker,
       dispatchId,
@@ -254,7 +273,7 @@ export function discoverDirectWorkCloudDispatches(input: {
         requestedAt: request?.type === "chatgpt_work_cloud_dispatch_requested" ? request.requested_at : input.requestedAt,
         deadline: bounded.deadline,
         priorAttempt: prior ? (() => {
-          const priorPrompt = promptFor(prior.dispatchId);
+          const priorPrompt = promptFor(prior.dispatchId, legacyReadOnly ? bounded.prompt : exactDirective);
           return {
             dispatchId: prior.dispatchId,
             requestedAt: prior.request.requested_at,

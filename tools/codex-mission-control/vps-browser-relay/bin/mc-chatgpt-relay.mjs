@@ -14,7 +14,7 @@ import { MissionControlClient } from '../src/mission-control.mjs';
 import { RelayRuntime, ambiguityResolutionExitCode } from '../src/relay.mjs';
 import { StateStore } from '../src/state.mjs';
 import { relayCommandLockOptions } from '../src/relay-lock.mjs';
-import { classifyMemoryPressure, oneShotExitCode, resolveMemoryPolicy } from '../src/core.mjs';
+import { classifyMemoryPressure, exactRelayRequestScope, oneShotExitCode, resolveMemoryPolicy } from '../src/core.mjs';
 import { readMemoryMetrics } from '../src/memory.mjs';
 import { CentralSubmissionScheduler } from '../src/submission-pacing.mjs';
 import { SubmissionSchedulerClient } from '../src/submission-scheduler-client.mjs';
@@ -165,13 +165,8 @@ try {
     print(result);
     process.exitCode = oneShotExitCode(result);
   } else if (command === 'once-request') {
-    const workerId = process.argv[3];
-    const requestId = process.argv[4];
-    if (!workerId || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,179}$/.test(workerId)
-      || !requestId || !/^fleet-review:[a-f0-9]{32}$/.test(requestId)) {
-      throw new Error('Usage: mc-chatgpt-relay once-request <worker> <fleet-review-request-id>');
-    }
-    const result = await runtime.cycle({ skipCodexExecution: true, exactRequest: { workerId, requestId } });
+    const exactRequest = exactRelayRequestScope(process.argv[3], process.argv[4]);
+    const result = await runtime.cycle({ skipCodexExecution: true, exactRequest });
     print(result);
     process.exitCode = oneShotExitCode(result);
   } else if (command === 'journal-work') {

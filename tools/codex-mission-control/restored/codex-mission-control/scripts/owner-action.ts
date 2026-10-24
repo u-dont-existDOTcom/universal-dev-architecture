@@ -25,6 +25,9 @@ const USAGE = `Usage: owner-action <action> [options]
                                                       retire one proven-unsent stale request and queue one current evidence-bound review
   work-question-reissue --worker W [--request R]      reissue one Work question that expired before anything sent it
                                                       (R, or the worker's only expired one) with a fresh answer window
+  work-continuation-refresh --worker W --request R [--owner-context-message-id M]
+                                                      recover canonical source bounds for one provably unsent continuation;
+                                                      optional M names one existing detached OWNER_ATTESTED source message
   work-question-resend --worker W --request R [--discard-finished-reply yes]
                                                       re-send Work question R once: it was sent, but its answer window
                                                       closed with no accepted answer; the supervisor is asked again.
@@ -151,6 +154,19 @@ export async function runOwnerAction(argv: string[]): Promise<{ status: number; 
       return jsonResult(await daemonFetch(`/fleet-supervisor/${encodeURIComponent(project)}/reasoning-retire-unsent`, {
         method: "POST", headers: daemonMutationHeaders(owner(), { "content-type": "application/json" }),
         body: JSON.stringify({ request_id: requestId, evidence_event_id: evidenceEventId }),
+      }));
+    }
+    case "work-continuation-refresh": {
+      const opts = options(rest, ["worker", "request", "owner-context-message-id"]);
+      const worker = required(opts, "worker");
+      const requestId = required(opts, "request");
+      if (!/^[a-z0-9][a-z0-9_-]{0,79}$/.test(worker)) throw new UsageError("--worker must be one exact native Work worker ID.");
+      if (!/^work-owner-continuation:[a-f0-9]{32}$/.test(requestId)) throw new UsageError("--request must be one exact work-owner-continuation request ID.");
+      const contextId = opts["owner-context-message-id"];
+      if (contextId !== undefined && !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,179}$/.test(contextId)) throw new UsageError("--owner-context-message-id must be one exact stored message ID.");
+      return jsonResult(await daemonFetch(`/workers/${encodeURIComponent(worker)}/work-continuations/refresh-context`, {
+        method: "POST", headers: daemonMutationHeaders(owner(), { "content-type": "application/json" }),
+        body: JSON.stringify({ request_id: requestId, ...(contextId ? { owner_context_message_id: contextId } : {}) }),
       }));
     }
     case "work-question-reissue": {

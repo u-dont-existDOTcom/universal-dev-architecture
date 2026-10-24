@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { sha256 } from "../lib/canonical";
+import { canonicalJson, sha256 } from "../lib/canonical";
 import { discoverDirectWorkCloudDispatches, selectWorkCloudDispatchCandidate } from "../lib/chatgpt-work-cloud-autodispatch";
 import {
   NativeChatGptWorkCloudExecutor,
@@ -287,14 +287,14 @@ function workerEvents(worker: string): StoredEvent[] {
   return [
     event(1, worker, receiptId, {
       type: "github_decision_receipt_ingested", worker, request_id: `request:${worker}`, task_id: b.task_id,
-      reasoning_lane: "EXTRA_HIGH_DIRECT", supervisor_id: "mc-project-manager", bounded_execution: b,
+      reasoning_lane: "EXTRA_HIGH_DIRECT", supervisor_id: "mc-project-manager", bounded_execution: b, bounded_execution_sha256: sha256(canonicalJson(b)),
     }),
     event(2, worker, `directive-event:${worker}`, {
       type: "execution_directive_recorded", worker, directive_id: sourceDirective.id, directive_revision: 1,
       task_id: b.task_id, directive_schema_version: 3, source_message_id: sourceDirective.sourceMessageId,
       source_body_sha256: sourceDirective.sourceBodySha256, directive_artifact_sha256: sha256(artifact),
       execution_surface: "CHATGPT_WORK_CLOUD", work_execution_profile: profile(), status: "ACTIVE",
-      validated_decision_proof: { authority_path: "VALIDATED_GITHUB_SUPERVISORY_DECISION", receipt_event_id: receiptId },
+      validated_decision_proof: { authority_path: "VALIDATED_GITHUB_SUPERVISORY_DECISION", receipt_event_id: receiptId, bounded_execution_sha256: sha256(canonicalJson(b)) },
     }),
   ];
 }
@@ -335,8 +335,30 @@ test("the dispatcher follows the owner's retry to a new dispatch and hands the c
   assert.equal(retry.controllerRequest.mode, "CREATE");
   assert.match(retry.workPrompt, new RegExp(retry.dispatchId));
   assert.notEqual(retry.workPrompt, first.workPrompt);
+  assert.deepEqual(JSON.parse(retry.workPrompt.split("EXACT_BOUNDED_DIRECTIVE_BEGIN\n")[1]!
+    .split("\nEXACT_BOUNDED_DIRECTIVE_END")[0]!), bounded("alpha"));
+  // Older prompt-only requests keep their recorded digest. Never substitute the
+  // new full-envelope prompt as evidence that the old attempt was not sent.
+  const legacyPrompt = first.workPrompt.replace(canonicalJson(bounded("alpha")), bounded("alpha").prompt);
+  const legacyRetry = discover([...base, ...failedStart(3, first.dispatchId, sha256(legacyPrompt)), authorization(6, first.dispatchId)])[0]!;
+  assert.equal(legacyRetry.controllerRequest.priorAttempt?.prompt, null);
+  assert.equal(legacyRetry.controllerRequest.priorAttempt?.promptSha256, sha256(legacyPrompt));
+  assert.deepEqual(JSON.parse(legacyRetry.workPrompt.split("EXACT_BOUNDED_DIRECTIVE_BEGIN\n")[1]!
+    .split("\nEXACT_BOUNDED_DIRECTIVE_END")[0]!), bounded("alpha"));
   const priorAttempt = { dispatchId: first.dispatchId, requestedAt: FAILED_AT, resultRecordedAt: BEFORE, promptSha256: sha256(first.workPrompt), prompt: first.workPrompt };
   assert.deepEqual(retry.controllerRequest.priorAttempt, priorAttempt);
+  // A legacy retry already awaiting setup must also reconstruct its prior search
+  // evidence in the legacy format, without building an unnecessary full prompt.
+  const legacyRetryPrompt = retry.workPrompt.replace(canonicalJson(bounded("alpha")), bounded("alpha").prompt);
+  const legacyPending = discover([...base, ...failedStart(3, first.dispatchId, sha256(legacyPrompt)), authorization(6, first.dispatchId),
+    event(7, "alpha", "request:legacy-retry", { worker: "alpha", dispatch_id: retry.dispatchId,
+      type: "chatgpt_work_cloud_dispatch_requested", requested_at: BEFORE, prompt_sha256: sha256(legacyRetryPrompt) }),
+    event(8, "alpha", "result:legacy-retry", { worker: "alpha", dispatch_id: retry.dispatchId,
+      type: "chatgpt_work_cloud_dispatch_recorded", status: "PENDING_SETUP" })])[0]!;
+  assert.equal(legacyPending.recoveryState, "PENDING_SETUP_READ_ONLY");
+  assert.equal(legacyPending.workPrompt, legacyRetryPrompt);
+  assert.equal(legacyPending.controllerRequest.priorAttempt?.prompt, legacyPrompt);
+  assert.equal(legacyPending.controllerRequest.priorAttempt?.promptSha256, sha256(legacyPrompt));
   // A failed start whose recorded prompt can't be rebuilt: no prompt here (the watcher reads it from the failed start's
   // private request file, and the controller holds the retry without it).
   const unknown = discover([...base, ...failedStart(3, first.dispatchId, "f".repeat(64)), authorization(6, first.dispatchId)])[0]!;

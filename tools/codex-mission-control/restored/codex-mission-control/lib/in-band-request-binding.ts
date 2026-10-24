@@ -1,4 +1,5 @@
 import { canonicalJson, sha256 } from "./canonical";
+import { decisionMachinePrefix, singleWrapperRemovalOperation } from "./single-decision-wrapper";
 import type {
   GitHubDecisionCandidate,
   GitHubDecisionReceiptRelocation,
@@ -234,10 +235,14 @@ export function assertInBandRequestExecution(
         && hasRefs(event, {
           request: request.requestId, supervisor: request.supervisorId, provider_session: decision.provider_session_id,
           source_machine_block_sha256: sourceMachineBlockSha256, transformed_machine_block_sha256: machineBlockSha256,
-          operation: inBandDigestRepairOperation, decision_exact_text_sha256: decision.decision_block.sha256,
+          decision_exact_text_sha256: decision.decision_block.sha256,
           writer_mode: "EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", reinterpretation_allowed: "false",
           semantic_authority: "false",
-        }));
+        }) && (exactRef(event, "operation") === inBandDigestRepairOperation
+          || (exactRef(event, "operation") === singleWrapperRemovalOperation
+            && /^[a-f0-9]{64}$/.test(exactRef(event, "source_authorization_sha256") ?? "")
+            && candidate.body.startsWith(decisionMachinePrefix)
+            && exactRef(event, "preserved_json_sha256") === sha256(candidate.body.slice(decisionMachinePrefix.length)))));
       if (transforms.length !== 1) fail("provider machine-block transformation is missing or ambiguous");
       machineTransform = transforms[0]!;
     }

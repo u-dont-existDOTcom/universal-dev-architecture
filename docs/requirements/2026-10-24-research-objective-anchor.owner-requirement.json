@@ -1,0 +1,45 @@
+{
+  "requirement_id": "2026-10-24-research-objective-anchor",
+  "date": "2026-10-24",
+  "source": "Current owner correction, preserved in the authorized maintenance task.",
+  "owner_statement": "another thing i notice with long-range research we need to fix, the main objective always tends to slide into something else, so we need to include the main objective as an anchor with every turn as a reminder",
+  "problem": "Checkpoint and supervision-packet rules preserve the owner outcome but do not require a compact original-objective reminder in each research turn; supporting investigations can displace the main objective between checkpoints.",
+  "required_behavior": [
+    "Every long-range research turn and every research handoff carries the stable original main objective, current contribution and scope boundaries in the message or handoff itself.",
+    "An earlier turn's anchor does not satisfy a later turn, including after interruption or compaction.",
+    "Only an explicit owner amendment changes the authoritative outcome epoch.",
+    "Side investigations remain supporting work and do not silently replace or close the unmet main objective.",
+    "Private objective context stays in authorized private destinations; public anchors disclose no private locators, manifests, bindings or audit details."
+  ],
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "implementation": "Extend the existing owner-outcome pattern and two task/recovery templates, align retrieval metadata, and retain exact partial-coverage source pins."
+  },
+  "scope": "Long-range research turns and research handoffs governed by the universal architecture; this grants no execution, publication or scope-expansion authority.",
+  "source_pin_review": {
+    "reviewer": "Primary integrating agent",
+    "reviewed": "Policy clauses and mapping intent for the seven new prose-governed obligations; the existing owner-outcome source manifest and generated lock are refreshed for that reviewed change.",
+    "limit": "This source review does not establish universal live per-turn runtime enforcement."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md section 8, LESSON-INDEX.md entry 32 and rules/UDA-RULE-GRAPH.json",
+      "disposition": "IMPLEMENTED_NOT_LIVE_VERIFIED"
+    },
+    {
+      "surface": "templates/CURRENT-STATE.md and templates/CODEX-TASK.md",
+      "disposition": "IMPLEMENTED_NOT_LIVE_VERIFIED"
+    },
+    {
+      "surface": "Per-turn runtime interception and semantic admission across all research consumers",
+      "disposition": "NOT_IMPLEMENTED",
+      "reason": "This bounded policy change preserves the existing deferred admission records and prompt budget."
+    }
+  ],
+  "nonclaims": [
+    "Source, routing, template and mutation tests do not prove that every live assistant carries or obeys an anchor.",
+    "The owner-outcome pattern remains STRUCTURED_PARTIAL and the new clauses remain explicit prose-governed obligations.",
+    "No runtime registration, deployment, research dispatch or new research authority is supplied by this change."
+  ]
+}

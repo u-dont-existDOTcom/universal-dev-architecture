@@ -71,3 +71,11 @@ Before claiming success, test typing, visible contrast, approval/rejection/revis
 These controls reduce owner feedback friction; they do not expand the assistant's substantive editing, publishing, source-authority, or merge permissions. For complicated article changes, the project's stronger commentable-diff and owner-lock protocols still govern. Do not turn one simple question into a giant form.
 
 Origin: owner request on 2026-10-23 for approve/revise/reject pages when ordinary feedback would be difficult, followed by the owner's report that a generated community-article review's note text was white on white. The interface repair restored 25 exact decisions and treated a separate model's review as advisory. This failure mode is portable across projects.
+
+### Recurrent native-control failure: executable guard (2026-10-24)
+
+A prior instruction-only fix remained on an unmerged branch and did not enter the next generated review. A saved rule is not an installed component. For light review forms, reuse `templates/review-form-controls.css` inline. It pairs foreground/background colors for inputs, textareas, selects/options/optgroups, carets and placeholders, including WebKit text fill, while retaining forced-colors accessibility. Do not apply this light palette silently to a deliberately dark product.
+
+For article review generation, the consumer is `joel-articles/project-sources/review_interface_template.html.txt`; its generator selftest and browser test enforce the control style. Other standalone questionnaires must reuse this asset or an equivalent tested theme. Inspect closed select values and option text, and actually type into every distinct editable control class under light and dark browser preferences. Include a negative fixture recreating the original white-background/unspecified-text defect. Keep contrast/rendering and export/import results tied to the exact delivered bytes. JSON export alone cannot close a visibility defect.
+
+A repaired page must preload the owner's returned answers verbatim, including stable case IDs, source identity, all notes and unresolved choices. Do not make the owner repeat completed review work. A review-branch fix remains proposed until its integration status is verified.

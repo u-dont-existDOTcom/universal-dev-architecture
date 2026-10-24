@@ -1,0 +1,6 @@
+/* review-form-controls-v1: paired colors for light review forms. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="hidden"]),textarea,select,option,optgroup,[contenteditable="true"]{color-scheme:only light!important;color:#1f2937!important;-webkit-text-fill-color:#1f2937!important;background-color:#ffffff!important;caret-color:#1f2937!important}
+input::placeholder,textarea::placeholder{color:#526174!important;-webkit-text-fill-color:#526174!important;opacity:1}
+select option:checked{color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;background-color:#244e72!important}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,[contenteditable="true"]:focus-visible{outline:3px solid #2458a6;outline-offset:2px}
+@media(forced-colors:active){input,textarea,select,option,optgroup,[contenteditable="true"]{forced-color-adjust:auto;color:CanvasText!important;-webkit-text-fill-color:CanvasText!important;background-color:Canvas!important;caret-color:CanvasText!important}input::placeholder,textarea::placeholder{color:GrayText!important;-webkit-text-fill-color:GrayText!important}select option:checked{color:HighlightText!important;-webkit-text-fill-color:HighlightText!important;background-color:Highlight!important}}

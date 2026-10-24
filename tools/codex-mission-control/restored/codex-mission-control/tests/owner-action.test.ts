@@ -67,6 +67,32 @@ test("watches and watch-enroll call the fixed daemon routes as the owner and nev
   });
 });
 
+test("continuation refresh accepts fixed request and optional stored message identity, never caller prose", async () => {
+  await withServer(async (base, seen) => {
+    const requestId = `work-owner-continuation:${"c".repeat(32)}`;
+    const accepted = await run(["work-continuation-refresh", "--worker", "worker-a", "--request", requestId], env(base));
+    assert.equal(accepted.code, 0, accepted.stderr);
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].url, "/workers/worker-a/work-continuations/refresh-context");
+    assert.equal(seen[0].method, "POST");
+    assert.deepEqual(JSON.parse(seen[0].body), { request_id: requestId });
+    assert.equal(seen[0].headers["x-mission-control-producer-kind"], "OWNER_AUTHORITY");
+    const withContext = await run(["work-continuation-refresh", "--worker", "worker-a", "--request", requestId,
+      "--owner-context-message-id", "owner-objective:synthetic"], env(base));
+    assert.equal(withContext.code, 0, withContext.stderr);
+    assert.deepEqual(JSON.parse(seen[1].body), { request_id: requestId, owner_context_message_id: "owner-objective:synthetic" });
+    for (const args of [
+      ["work-continuation-refresh", "--worker", "worker-a"],
+      ["work-continuation-refresh", "--worker", "worker-a", "--request", `work-question:${"c".repeat(32)}`],
+      ["work-continuation-refresh", "--worker", "worker-a", "--request", requestId, "--context", "caller prose"],
+      ["work-continuation-refresh", "--worker", "worker-a", "--request", requestId, "--deadline", "tomorrow"],
+      ["work-continuation-refresh", "--worker", "worker-a", "--request", requestId, "--owner-context-message-id", "caller prose"],
+    ]) assert.notEqual((await run(args, env(base))).code, 0);
+    assert.equal(seen.length, 2);
+    assert.ok(!accepted.stdout.includes(INTERNAL_TOKEN) && !accepted.stdout.includes(OWNER_TOKEN));
+  });
+});
+
 test("reasoning replacement posts only the exact bounded identity and sealed failure digest", async () => {
   await withServer(async (base, seen) => {
     const requestId = `fleet-review:${"a".repeat(32)}`;
