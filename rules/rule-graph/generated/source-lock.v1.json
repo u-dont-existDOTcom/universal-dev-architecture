@@ -1,7 +1,7 @@
 {
   "catalog_sha256": "cb4e6af30693401b74014192a3aaeb5744e64d5d15004cb0fd205ceef8e1e21a",
   "compiler_sha256": "7ea7e14d49c8e2d10a5c015119a71b4457392fb6090a30f4cb38c9777be10509",
-  "content_sha256": "3c973baf910cfba17dceda449fad5cab4ddb18812b3e3caee66193521878a96d",
+  "content_sha256": "b591ae69f2ad8c87fe77dbbbbd247728daf24be95389efba03beccac3e8b5788",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
@@ -1654,9 +1654,9 @@
     {
       "extracted_sha256": "3fc5fd4b57e96e2024fad5036b5bfecf3de6ad205c7c7185ef6ba29362d8bcdf",
       "extracted_utf8_bytes": 436,
-      "git_blob_sha1": "29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "git_blob_sha1": "a538d811066a37983b775834512ae502265e39ce",
       "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
-      "repository_revision": "BLOB:29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "repository_revision": "BLOB:a538d811066a37983b775834512ae502265e39ce",
       "rule_id": "uda.owner-outcome.child-parent-closure",
       "selectors": [
         {
@@ -1680,9 +1680,9 @@
     {
       "extracted_sha256": "4973eca758b87bac4267d2121ae97777b9b4620d5995df12b30f9546d40a418d",
       "extracted_utf8_bytes": 2267,
-      "git_blob_sha1": "29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "git_blob_sha1": "a538d811066a37983b775834512ae502265e39ce",
       "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
-      "repository_revision": "BLOB:29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "repository_revision": "BLOB:a538d811066a37983b775834512ae502265e39ce",
       "rule_id": "uda.owner-outcome.derived-contract",
       "selectors": [
         {
@@ -1770,9 +1770,9 @@
     {
       "extracted_sha256": "3370cd4dbacdb9f93fa5a264e9d1dc0a941f4dc56cce1e8eb5f88152bea9f763",
       "extracted_utf8_bytes": 462,
-      "git_blob_sha1": "29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "git_blob_sha1": "a538d811066a37983b775834512ae502265e39ce",
       "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
-      "repository_revision": "BLOB:29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "repository_revision": "BLOB:a538d811066a37983b775834512ae502265e39ce",
       "rule_id": "uda.owner-outcome.epoch-amendment",
       "selectors": [
         {
@@ -1804,9 +1804,9 @@
     {
       "extracted_sha256": "62b9dccbd5ee82dc360a2a563f4fdfd2037798a9546e91d34ddd237b9d2a4c62",
       "extracted_utf8_bytes": 769,
-      "git_blob_sha1": "29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "git_blob_sha1": "a538d811066a37983b775834512ae502265e39ce",
       "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
-      "repository_revision": "BLOB:29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "repository_revision": "BLOB:a538d811066a37983b775834512ae502265e39ce",
       "rule_id": "uda.owner-outcome.supervisor-order",
       "selectors": [
         {
@@ -1854,9 +1854,9 @@
     {
       "extracted_sha256": "448c57cdf233c58813d9b25f7e5b6549ecef32c082ff0bc0c48df08c503c8d73",
       "extracted_utf8_bytes": 1003,
-      "git_blob_sha1": "29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "git_blob_sha1": "a538d811066a37983b775834512ae502265e39ce",
       "path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
-      "repository_revision": "BLOB:29adcc48d7abde4b177c377a9aa6eb311061b2f7",
+      "repository_revision": "BLOB:a538d811066a37983b775834512ae502265e39ce",
       "rule_id": "uda.owner-outcome.terminal-evidence",
       "selectors": [
         {
