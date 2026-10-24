@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { canonicalJson, sha256 } from "../lib/canonical";
+import { singleWrapperRemovalOperation, decisionMachinePrefix } from "../lib/single-decision-wrapper";
 import {
   buildGitHubDecisionReceiptEnvelope,
   canonicalDecisionCommentPrefix,
@@ -972,5 +973,46 @@ test("V6 Work-question canonical admission requires explicit owner classificatio
     if (resolvedEnvelope.data.type !== "github_decision_receipt_ingested") return;
     assert.equal(resolvedEnvelope.data.owner_action?.kind, "NONE");
     assert.equal(resolvedEnvelope.data.bounded_execution?.execution_surface, "CHATGPT_WORK_CLOUD");
+  } finally { f.store.close(); }
+});
+
+
+test("V6 source-authorized wrapper removal retains exact JSON and separate transform provenance", () => {
+  const f = fixture();
+  try {
+    const candidate = { ...f.candidate, commentId: 5744000103, createdAt: time("06.000"),
+      immutableUrl: `https://github.com/${policy.repository}/issues/53#issuecomment-5744000103` };
+    const sourceMachineSha = "6".repeat(64);
+    const events = structuredClone(f.events);
+    const readback = evidence(f.store, "wrapper-readback", inBandAppReadbackSummary, [
+      "status:COMPLETE", `machine_block_sha256:${sourceMachineSha}`, `provider_prompt_sha256:${promptSha256}`,
+      `conversation_url:${conversation}`, "thread_surface:chatgpt", "app_thread_id_sha256:" + "8".repeat(64),
+      "source_reader_app:GitHub", "source_reader_mode:READ_ONLY", "semantic_authority:false",
+      "readback_method:APP_OWNED_THREAD_EXACT_MACHINE_BLOCK",
+    ], time("04.500"), inBandAppReadbackProducerId);
+    const transform = evidence(f.store, "wrapper-transform", inBandMachineTransformSummary, [
+      `source_machine_block_sha256:${sourceMachineSha}`, `transformed_machine_block_sha256:${sha256(candidate.body)}`,
+      `operation:${singleWrapperRemovalOperation}`, `decision_exact_text_sha256:${f.decision.decision_block.sha256}`,
+      "source_authorization_sha256:" + "9".repeat(64),
+      `preserved_json_sha256:${sha256(candidate.body.slice(decisionMachinePrefix.length))}`,
+      "writer_mode:EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", "reinterpretation_allowed:false", "semantic_authority:false",
+    ], time("05.000"), inBandAppReadbackProducerId);
+    events.push(readback, transform);
+    const build = (values: typeof events) => buildGitHubDecisionReceiptEnvelope(values, candidate, policy, time("07.000"), { submissionAuthorityState: f.authority });
+    assert.equal(build(events).data.type, "github_decision_receipt_ingested");
+    for (const mutation of ["missing-authorization", "wrong-json", "wrong-operation", "semantic-rewrite"]) {
+      const bad = structuredClone(events);
+      const t = bad.find(e => e.eventId === transform.eventId)!;
+      if (t.data.type === "evidence_receipt_recorded") {
+        if (mutation === "missing-authorization") t.data.refs = t.data.refs.filter(ref => !ref.startsWith("source_authorization_sha256:"));
+        if (mutation === "wrong-json") t.data.refs = t.data.refs.map(ref => ref.startsWith("preserved_json_sha256:") ? "preserved_json_sha256:" + "0".repeat(64) : ref);
+        if (mutation === "wrong-operation") t.data.refs = t.data.refs.map(ref => ref.startsWith("operation:") ? "operation:HTML_REWRITE" : ref);
+        if (mutation === "semantic-rewrite") t.data.refs = t.data.refs.map(ref => ref === "reinterpretation_allowed:false" ? "reinterpretation_allowed:true" : ref);
+      }
+      assert.throws(() => build(bad), /transformation is missing/, mutation);
+    }
+    const duplicate = structuredClone(transform);
+    duplicate.eventId += "-duplicate";
+    assert.throws(() => build([...events, duplicate]), /transformation is missing or ambiguous/);
   } finally { f.store.close(); }
 });
