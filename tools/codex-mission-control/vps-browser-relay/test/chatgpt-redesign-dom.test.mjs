@@ -26,7 +26,7 @@ import { h, miniDocument, runInPage } from './fixtures/mini-dom.mjs';
 // attributes are the page's; message text is never part of these fixtures.
 const ROOT = 'https://chatgpt.com/';
 
-function composerForm({ open = false, effortLabel = 'Medium', chips = [], extra = [] } = {}) {
+function composerForm({ open = false, openLabel = 'Thinking effort', effortLabel = 'Medium', chips = [], extra = [] } = {}) {
   const textbox = h('div', { contenteditable: 'true', role: 'textbox', 'aria-label': 'Ask ChatGPT', class: 'ProseMirror', 'data-composer-markdown': '' },
     [h('p', { 'data-empty-paragraph': 'true' }, [h('br', { class: 'ProseMirror-trailingBreak' })])]);
   const model = h('button', {
@@ -34,7 +34,7 @@ function composerForm({ open = false, effortLabel = 'Medium', chips = [], extra 
     'aria-expanded': String(open), 'data-state': open ? 'open' : 'closed', 'data-codex-intelligence-trigger': 'true',
     'data-composer-navigation-target': 'reasoning', 'data-selected-reasoning-effort': effortLabel.toLowerCase(),
     ...(open ? { 'aria-controls': 'radix-_r_1a_' } : {}),
-  }, [], { text: open ? 'Thinking effort' : effortLabel });
+  }, [], { text: open ? openLabel : effortLabel });
   return h('form', { 'data-chatgpt-composer': '', 'data-composer-placement': 'home' }, [
     h('div', {}, [textbox]),
     ...chips.map((label) => h('button', { type: 'button', 'aria-label': `Remove ${label}` }, [], { text: label })),
@@ -148,6 +148,59 @@ test('Extra High, 4 of 5 on the Power slider verifies the current consumer contr
   assert.equal(verified.modelVisibleLabel, 'Latest');
   assert.equal(verified.thinkingVisibleLabel, 'Extra High');
   assert.equal(verified.thinkingOrdinal, '4 of 5');
+});
+
+// October 2026 keeps the same dedicated Power slider/status structure but no longer
+// changes the composer button's text to "Thinking effort" when the menu opens.
+function currentPowerObservation({ label = 'Extra High', position = 3, alter = () => {} } = {}) {
+  const menu = modelMenu({ position, label });
+  menu.querySelector('[role="menuitemradio"]')._text = 'GPT-6';
+  alter(menu);
+  return runInPage(MODEL_MENU_STATE_FN, page([composerForm({ open: true, openLabel: 'Extra High' }), menu]),
+    [null, 'Thinking effort', 'Extra High']);
+}
+
+test('a dedicated Power slider identifies thinking effort when the composer keeps its effort text', () => {
+  const observation = currentPowerObservation();
+  const verified = consumerControlSelectionState({ modelVisibleLabel: 'GPT-6', modelSelectorIndex: 0 }, observation, CURRENT_CONSUMER_CONTROLS);
+  assert.equal(verified.status, 'CURRENT_CONSUMER_CONTROLS_VERIFIED');
+  assert.equal(verified.modelVisibleLabel, 'GPT-6');
+  assert.equal(verified.thinkingVisibleLabel, 'Extra High');
+  assert.equal(verified.thinkingOrdinal, '4 of 5');
+  assert.equal(observation.thinkingControlAccessibleLabel, 'Power');
+});
+
+test('Power without the dedicated marker or one linked status cannot identify thinking effort', () => {
+  for (const alter of [
+    (menu) => menu.querySelector('[data-reasoning-slider]').setAttribute('data-reasoning-slider', 'false'),
+    (menu) => menu.querySelector('[data-reasoning-slider]').setAttribute('aria-describedby', 'missing-status'),
+    (menu) => {
+      menu.querySelector('[role="menu"]').append(h('span', { id: 'second-status' }, [], { text: 'Extra High, 4 of 5.' }));
+      menu.querySelector('[data-reasoning-slider]').setAttribute('aria-describedby', '_r_84_ second-status');
+    },
+  ]) {
+    const observation = currentPowerObservation({ alter });
+    assert.throws(() => consumerControlSelectionState({ modelVisibleLabel: 'GPT-6', modelSelectorIndex: 0 }, observation, CURRENT_CONSUMER_CONTROLS),
+      /Thinking effort slider is unavailable or ambiguous/);
+  }
+});
+
+test('ambiguous Power controls or sliders remain rejected after the composer label changes', () => {
+  for (const alter of [
+    (menu) => menu.querySelector('[role="menu"]').append(h('div', { role: 'menuitem', 'aria-label': 'Power', 'data-reasoning-slider': 'true' }, [h('span', { role: 'slider' })])),
+    (menu) => menu.querySelector('[data-reasoning-slider]').append(h('span', { role: 'slider' })),
+  ]) {
+    const observation = currentPowerObservation({ alter });
+    assert.throws(() => consumerControlSelectionState({ modelVisibleLabel: 'GPT-6', modelSelectorIndex: 0 }, observation, CURRENT_CONSUMER_CONTROLS),
+      /Thinking effort slider is unavailable or ambiguous/);
+  }
+});
+
+test('the identified Power control still requires exact effort and matching ordinal evidence', () => {
+  const high = currentPowerObservation({ label: 'High', position: 2 });
+  assert.throws(() => consumerControlSelectionState({ modelVisibleLabel: 'GPT-6', modelSelectorIndex: 0 }, high, CURRENT_CONSUMER_CONTROLS), /thinking label mismatch/);
+  const skewed = currentPowerObservation({ alter: (menu) => { menu.querySelector('[role="status"]')._text = 'Extra High, 3 of 5.'; } });
+  assert.throws(() => consumerControlSelectionState({ modelVisibleLabel: 'GPT-6', modelSelectorIndex: 0 }, skewed, CURRENT_CONSUMER_CONTROLS), /disagrees with the slider/);
 });
 
 test('the documented three-label journal calibration verifies exact controls', () => {

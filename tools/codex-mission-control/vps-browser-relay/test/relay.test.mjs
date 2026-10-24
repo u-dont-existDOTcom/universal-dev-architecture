@@ -21,6 +21,7 @@ import {
   STAGE_LIVENESS_SUMMARY,
   SUPERVISORY_CYCLE_ROUTE_PREFIX,
   defaultState,
+  exactRelayRequestScope,
 } from '../src/core.mjs';
 import { RelayRuntime, ambiguityResolutionExitCode } from '../src/relay.mjs';
 import { CentralSubmissionScheduler, GlobalSubmissionPacer } from '../src/submission-pacing.mjs';
@@ -165,6 +166,23 @@ test('exact request one-shot fails closed when the named request is unavailable'
     exactRequest: { workerId: 'worker-a', requestId: 'fleet-review:22222222222222222222222222222222' },
   });
   assert.equal(result.status, 'EXACT_REQUEST_ROUTE_UNAVAILABLE');
+  assert.equal(browser.submitCalls, 0);
+});
+
+test('one-shot Work owner continuation selects only the exact fresh request over an unrelated queued route', async () => {
+  const requestId = `work-owner-continuation:${'3'.repeat(32)}`;
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence(), routes: [
+    routeEvent(`fleet-review:${'1'.repeat(32)}`, 'other-route', 'EXTRA_HIGH_DIRECT', 'task-other'),
+    routeEvent(requestId, 'owner-continuation-route', 'EXTRA_HIGH_DIRECT', 'task-current'),
+  ] });
+  const browser = new FakeBrowser();
+  const result = await makeRuntime({ store, mc, browser, submitEnabled: false }).cycle({
+    skipCodexExecution: true, exactRequest: exactRelayRequestScope('worker-a', requestId),
+  });
+  assert.equal(result.status, 'DRY_RUN_ROUTE_READY');
+  assert.equal(result.route.requestId, requestId);
+  assert.equal(result.route.taskId, 'task-current');
   assert.equal(browser.submitCalls, 0);
 });
 
