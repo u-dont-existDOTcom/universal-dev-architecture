@@ -748,7 +748,7 @@ export function composerTextState(element, expectedBody, expectedMentions = []) 
           const label = wrapperChildren[1];
           const href = node.getAttribute('text-link-href');
           if (attributes.length !== allowed.length || !attributes.every((name) => allowed.includes(name))
-            || !['github', ''].includes(node.getAttribute('rich-link-source-app-id'))
+            || !['github', 'openai', ''].includes(node.getAttribute('rich-link-source-app-id'))
             || node.getAttribute('data-appearance') !== 'inline-mention'
             || node.getAttribute('data-layout') !== 'inline-flow'
             || node.getAttribute('data-breakable-url') !== ''
@@ -758,7 +758,7 @@ export function composerTextState(element, expectedBody, expectedMentions = []) 
             || icon.getAttribute('data-inline-url-icon') !== '' || icon.getAttribute('aria-hidden') !== 'true'
             || icon.getAttribute('contenteditable') !== 'false' || icon.textContent !== ''
             || label?.nodeType !== 3 || !href || label.nodeValue !== href || node.textContent !== href) return null;
-          // ChatGPT's generated app or plain-web URL chip is accepted only when
+          // ChatGPT's generated GitHub, OpenAI or plain-web URL chip is accepted only when
           // its exact text remains identical to the underlying URL.
           text += href;
           continue;
