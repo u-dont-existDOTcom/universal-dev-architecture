@@ -293,6 +293,12 @@ export function buildOwnerAnswerContinuationRoute(
   const requestId = `work-owner-continuation:${continuation.binding.continuation_id.slice(0, 32)}`;
   const nonce = `work-owner-continuation-nonce:${sha256(requestId + ":" + origin.root.ownerOutcome.sha256).slice(0, 32)}`;
   const decisionRequested = "Apply the exact owner answer to the prior Work question. Return owner_action {kind:NONE} and one CHATGPT_WORK_CLOUD bounded_execution that continues the exact existing Work thread. Do not request another owner decision unless the owner answer itself introduces a genuinely new tradeoff.";
+  // A new request answers through today's channel; the original route remains immutable.
+  const githubReceipt = {
+    repository: policy.repository,
+    issueNumber: policy.decisionIssueNumber,
+    stageIssueNumber: policy.stageIssueNumber,
+  };
   const root = {
     ...origin.root,
     requestId,
@@ -302,6 +308,7 @@ export function buildOwnerAnswerContinuationRoute(
     queuedAt: recordedAt,
     expiresAt,
     ownerRelayRequired: false,
+    githubReceipt,
     factualPacket: {
       ...origin.root.factualPacket,
       packetId: `work-owner-continuation-packet:${sha256(requestId).slice(0, 32)}`,
@@ -310,6 +317,7 @@ export function buildOwnerAnswerContinuationRoute(
         ...origin.root.factualPacket.supervisoryCycle,
         nonce,
         expiresAt,
+        githubReceipt,
       },
     },
     continuationBinding: continuation.binding,
