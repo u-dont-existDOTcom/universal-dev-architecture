@@ -19,7 +19,8 @@ import { buildPostWorkReasoningRouteEnvelope, POST_EXECUTION_REASONING_ROUTER_PR
 import type { GitHubReconciliationTokenProvider } from "./github-app-auth";
 import { recordOwnerMessage } from "./worker-channel";
 import { workQuestionContextForRequest, workQuestionRequestIdForDispatch } from "./owner-question-route";
-import { retirementProducerFor, WORK_QUESTION_REQUEST_ID, WORK_QUESTION_RETIREMENT_PRODUCER_ID } from "./unsent-request-proof";
+import { retiredUnsentRequests, WORK_QUESTION_REQUEST_ID, WORK_QUESTION_RETIREMENT_PRODUCER_ID } from "./unsent-request-proof";
+export { retiredUnsentRequests, supervisoryRequestRetiredUnsentSummary } from "./unsent-request-proof";
 
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
 export const stagedSupervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V3\n";
@@ -41,7 +42,6 @@ export const providerSessionMcpSummary = "MISSION_CONTROL_PROVIDER_SESSION_MCP_R
 export const bindingCapsuleSummary = "MISSION_CONTROL_BINDING_CAPSULE_V1";
 export const bindingEnvelopeSummary = "MISSION_CONTROL_BINDING_ENVELOPE_V1";
 export const ownerDirectionReceiptSummary = "MISSION_CONTROL_GITHUB_OWNER_DIRECTION_V1";
-export const supervisoryRequestRetiredUnsentSummary = "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1";
 export const supervisoryRequestRetiredAfterSendSummary = "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_AFTER_SEND_V1";
 export const providerInvalidCanonicalDecisionSummary = "MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1";
 export const reasoningReplacementProofSummary = "MISSION_CONTROL_REASONING_REPLACEMENT_PROOF_V1";
@@ -873,27 +873,6 @@ export function retiredAfterSendRequests(events: StoredEvent[]): Set<string> {
  * newest such receipt's `retirement_reason`, or null without one. The pending set and the owner's supervisor-activity
  * view both read this.
  */
-export function retiredUnsentRequests(events: StoredEvent[]): Map<string, string | null> {
-  const newest = new Map<string, { reason: string | null; sequence: number }>();
-  for (const event of events) {
-    const data = event.data;
-    if (data.type !== "evidence_receipt_recorded"
-      || data.summary !== supervisoryRequestRetiredUnsentSummary
-      || data.verified !== true
-      || data.producer_role !== "VERIFIER"
-      || !data.refs.includes("lifecycle_status:RETIRED_UNSENT")
-      || !data.refs.includes("provider_send_boundary:NOT_CROSSED")
-      || !data.refs.includes("submission_authority_queue_records:0")
-      || !data.refs.includes("submission_authority_admission_records:0")
-      || !data.refs.includes("provider_transport_evidence_records:0")) continue;
-    const requestId = exactRefValue(data.refs, "request:");
-    if (!requestId || retirementProducerFor(requestId) !== data.producer_id) continue;
-    const prior = newest.get(requestId);
-    if (!prior || event.sequence > prior.sequence) newest.set(requestId, { reason: exactRefValue(data.refs, "retirement_reason:"), sequence: event.sequence });
-  }
-  return new Map([...newest].map(([requestId, { reason }]) => [requestId, reason]));
-}
-
 /**
  * The supervisory cycle requests (V2-V6) Mission Control admits, in ledger order: each route packet its request parser
  * accepts, except a replacement that doesn't validly supersede an admitted request; and the admitted requests such a

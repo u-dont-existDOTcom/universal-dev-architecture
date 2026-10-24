@@ -4,8 +4,11 @@ import { inBandRequestRoutePrefix } from "./in-band-request-binding";
 import type { AuthenticatedProducer } from "./ingestion-auth";
 import { requestRouteEventId } from "./request-bound-supervision";
 import { deriveOwnerResponseContinuation } from "./owner-response-continuation";
+import { validatedGitHubDecisionDirectiveProof } from "./github-execution-directive";
 import { parseRouteContinuation } from "./owner-response-continuation-schema";
 import { decisionRouteStates } from "./reasoning-message-state";
+import { boundedExecutionResidueSchema } from "./schema";
+import { retiredUnsentRequests, WORK_CONTINUATION_REQUEST_ID } from "./unsent-request-proof";
 import type { AppendEnvelope, StoredEvent } from "./schema";
 
 export const WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID = "system:work-supervisor-question-router";
@@ -271,28 +274,69 @@ export function buildOwnerAnswerContinuationRoute(
     schema_version: 2, event_id: existing.eventId, mission_id: existing.missionId,
     occurred_at: existing.occurredAt, data: existing.data,
   };
+  return buildFreshOwnerAnswerContinuationRoute(events, input, policy);
+}
+
+/** Pure construction only; the fixed refresh operation must first prove and recheck that the old request is unsent. */
+export function buildOwnerAnswerContinuationContextRefreshRoute(
+  events: StoredEvent[], input: { worker: string; requestId: string; recordedAt: string; ownerContextMessageId?: string }, policy: GitHubReceiptPolicy | null,
+): AppendEnvelope {
+  if (!WORK_CONTINUATION_REQUEST_ID.test(input.requestId)) throw new Error("Context refresh requires one exact Work owner-continuation request.");
+  const source = findWorkQuestionRoute(events, input.worker, input.requestId);
+  if (!source || source.root.actionBlockedOrRouted !== "OWNER_RESPONSE_REVIEW") throw new Error("The exact owner-continuation route is missing.");
+  const continuation = parseRouteContinuation(source.root);
+  if (!continuation) throw new Error("Context refresh requires the exact authoritative owner continuation.");
+  const facts = JSON.parse(source.root.factualPacket.exactFactualState);
+  if (facts.recovered_source_bounds !== undefined) throw new Error("The owner continuation already carries recovered source bounds.");
+  const current = ownerAnswerContinuationRoute(events, input.worker, continuation.binding.decision_request_id);
+  if (current?.data.type !== "worker_message_recorded"
+    || JSON.parse(current.data.body.slice(inBandRequestRoutePrefix.length)).requestId !== input.requestId) {
+    throw new Error("The owner continuation is not the current non-retired route for this owner answer.");
+  }
+  return buildFreshOwnerAnswerContinuationRoute(events, {
+    worker: input.worker, resumeDecisionRequestId: continuation.binding.decision_request_id, recordedAt: input.recordedAt,
+  }, policy, { requestId: input.requestId, root: source.root, ownerContextMessageId: input.ownerContextMessageId });
+}
+
+function buildFreshOwnerAnswerContinuationRoute(
+  events: StoredEvent[], input: { worker: string; resumeDecisionRequestId: string; recordedAt: string },
+  policy: GitHubReceiptPolicy | null, refresh?: { requestId: string; root: any; ownerContextMessageId?: string },
+): AppendEnvelope {
   if (!policy?.requestBound?.enabled) throw new Error("Owner-answer continuation requires in-band routing.");
   const worker = stableId(input.worker, "worker");
   const resumeDecisionRequestId = stableId(input.resumeDecisionRequestId, "resumeDecisionRequestId");
   const recordedAt = timestamp(input.recordedAt, "recordedAt");
-  const origin = findWorkQuestionRoute(events, worker, resumeDecisionRequestId);
+  const origin = refresh ? { root: refresh.root } : findWorkQuestionRoute(events, worker, resumeDecisionRequestId);
   if (!origin) throw new Error("Owner-answer continuation requires the exact originating Work question route.");
   const windowMs = Date.parse(origin.root.expiresAt) - Date.parse(origin.root.queuedAt);
   if (!Number.isFinite(windowMs) || windowMs <= 0) throw new Error("Owner-answer continuation has no valid route window.");
   const expiresAt = new Date(Date.parse(recordedAt) + windowMs).toISOString();
+  const recovered = recoverWorkQuestionSourceBounds(events, worker, refresh?.requestId ?? resumeDecisionRequestId, origin.root, recordedAt,
+    refresh?.ownerContextMessageId);
   const continuation = deriveOwnerResponseContinuation(events, {
     worker,
     resumeDecisionRequestId,
     supervisorId: origin.root.destinationSupervisorId,
     ownerOutcome: origin.root.ownerOutcome,
-    evidenceCapsule: origin.root.evidenceCapsule,
+    evidenceCapsule: recovered.evidenceCapsule,
     issuedAt: recordedAt,
     expiresAt,
   }, recordedAt);
   // Causal identity stays stable even when concurrent attempts allocate different validity windows.
-  const requestId = `work-owner-continuation:${continuation.binding.continuation_id.slice(0, 32)}`;
+  const requestId = `work-owner-continuation:${refresh
+    ? sha256(canonicalJson({ context_refresh_of: refresh.requestId, recovered_capsule_sha256: recovered.evidenceCapsule.sha256,
+      continuation_id: continuation.binding.continuation_id })).slice(0, 32)
+    : continuation.binding.continuation_id.slice(0, 32)}`;
   const nonce = `work-owner-continuation-nonce:${sha256(requestId + ":" + origin.root.ownerOutcome.sha256).slice(0, 32)}`;
-  const decisionRequested = "Apply the exact owner answer to the prior Work question. Return owner_action {kind:NONE} and one CHATGPT_WORK_CLOUD bounded_execution that continues the exact existing Work thread. Do not request another owner decision unless the owner answer itself introduces a genuinely new tradeoff.";
+  const decisionRequested = [
+    "Apply the exact owner answer to the prior Work question using the recovered historical source bounds and canonical evidence reference.",
+    ...(refresh?.ownerContextMessageId ? ["Reconcile the separately attributed owner objective context with the unchanged historical scope; do not silently replace or expand that scope or treat context as an execution grant."] : []),
+    "The historical execution deadline is not renewed; a fresh valid execution deadline requires your semantic decision.",
+    "When existing authority determines the continuation, return owner_action {kind:NONE} and one CHATGPT_WORK_CLOUD bounded_execution that continues the exact existing Work thread.",
+    refresh?.ownerContextMessageId
+      ? "Do not request another owner decision unless the owner answer or explicit owner objective context introduces a genuinely new irreducible tradeoff."
+      : "Do not request another owner decision unless the owner answer itself introduces a genuinely new tradeoff.",
+  ].join(" ");
   // A new request answers through today's channel; the original route remains immutable.
   const githubReceipt = {
     repository: policy.repository,
@@ -301,6 +345,8 @@ export function buildOwnerAnswerContinuationRoute(
   };
   const root = {
     ...origin.root,
+    ...(refresh ? { contextRefreshOfRequestId: refresh.requestId } : {}),
+    ...(refresh?.ownerContextMessageId ? { ownerContextMessageId: refresh.ownerContextMessageId } : {}),
     requestId,
     nonce,
     actionBlockedOrRouted: "OWNER_RESPONSE_REVIEW",
@@ -309,15 +355,19 @@ export function buildOwnerAnswerContinuationRoute(
     expiresAt,
     ownerRelayRequired: false,
     githubReceipt,
+    evidenceCapsule: recovered.evidenceCapsule,
     factualPacket: {
       ...origin.root.factualPacket,
       packetId: `work-owner-continuation-packet:${sha256(requestId).slice(0, 32)}`,
+      exactFactualState: recovered.exactFactualState,
+      evidenceRefs: recovered.evidenceRefs,
       decisionRequested,
       supervisoryCycle: {
         ...origin.root.factualPacket.supervisoryCycle,
         nonce,
         expiresAt,
         githubReceipt,
+        evidenceCapsule: recovered.evidenceCapsule,
       },
     },
     continuationBinding: continuation.binding,
@@ -345,6 +395,104 @@ export function buildOwnerAnswerContinuationRoute(
   };
 }
 
+// This is server-derived historical evidence, never a new grant or caller-supplied owner prose.
+// Existing queued routes return before this helper so their exact bytes remain immutable.
+function recoverWorkQuestionSourceBounds(
+  events: StoredEvent[], worker: string, requestId: string, origin: any, recordedAt: string, ownerContextMessageId?: string,
+): { exactFactualState: string; evidenceRefs: string[]; evidenceCapsule: { id: string; sha256: string } } {
+  const fail = (): never => { throw new Error("Owner-answer continuation cannot verify the exact historical Work source bounds."); };
+  const context = workQuestionContextForRequest(events, worker, requestId);
+  if (!context) return fail();
+  const dispatches = events.filter((event) => event.worker === worker
+    && event.data.type === "chatgpt_work_cloud_dispatch_requested" && event.data.dispatch_id === context.sourceDispatchId);
+  const dispatch = dispatches.length === 1 ? dispatches[0]!.data : null;
+  if (!dispatch || dispatch.type !== "chatgpt_work_cloud_dispatch_requested") return fail();
+  const directives = events.filter((event) => event.worker === worker && event.data.type === "execution_directive_recorded"
+    && event.data.directive_id === dispatch.directive_id && event.data.directive_revision === dispatch.directive_revision
+    && event.data.task_id === dispatch.task_id);
+  const directive = directives.length === 1 ? directives[0]! : null;
+  if (!directive || directive.data.type !== "execution_directive_recorded") return fail();
+  let proof;
+  try { proof = validatedGitHubDecisionDirectiveProof(events, directive); } catch { return fail(); }
+  if (!proof) return fail();
+  const receipt = events.find((event) => event.eventId === proof.receipt_event_id)?.data;
+  if (!receipt || receipt.type !== "github_decision_receipt_ingested" || receipt.worker !== worker
+    || receipt.task_id !== dispatch.task_id || receipt.supervisor_id !== origin.destinationSupervisorId
+    || receipt.owner_outcome_id !== origin.ownerOutcome.id || receipt.owner_outcome_epoch !== origin.ownerOutcome.epoch
+    || receipt.owner_outcome_sha256 !== origin.ownerOutcome.sha256
+    || dispatch.directive_artifact_sha256 !== directive.data.directive_artifact_sha256
+    || dispatch.source_message_id !== directive.data.source_message_id
+    || dispatch.source_body_sha256 !== directive.data.source_body_sha256) return fail();
+  const bounded = boundedExecutionResidueSchema.safeParse(receipt.bounded_execution);
+  if (!bounded.success || bounded.data.execution_surface !== "CHATGPT_WORK_CLOUD"
+    || sha256(canonicalJson(bounded.data)) !== proof.bounded_execution_sha256) return fail();
+  const source = receipt.github_receipt;
+  if (!source || typeof source.repository !== "string" || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(source.repository)) return fail();
+  const immutableUrl = `https://github.com/${source.repository}/issues/${source.issue_number}#issuecomment-${source.comment_id}`;
+  if (source.immutable_url !== immutableUrl || !Number.isInteger(source.issue_number) || source.issue_number < 1
+    || !Number.isInteger(source.comment_id) || source.comment_id < 1) return fail();
+  const oldFacts = origin.factualPacket.exactFactualState;
+  if (typeof oldFacts !== "string" || sha256(oldFacts) !== origin.evidenceCapsule.sha256) return fail();
+  let factual: unknown;
+  try { factual = JSON.parse(oldFacts); } catch { return fail(); }
+  if (!isRecord(factual) || factual.review_kind !== "WORK_SUPERVISOR_QUESTION"
+    || factual.source_work_dispatch_id !== context.sourceDispatchId) return fail();
+  let ownerObjectiveContext: Record<string, unknown> | null = null;
+  if (ownerContextMessageId !== undefined) {
+    const messages = events.filter((event) => event.worker === worker && event.data.type === "reasoning_message_recorded"
+      && event.data.message_id === ownerContextMessageId);
+    const message = messages.length === 1 ? messages[0]! : null;
+    const data = message?.data;
+    if (!data || data.type !== "reasoning_message_recorded" || message!.producerKind !== "OWNER_AUTHORITY"
+      || data.author_role !== "OWNER" || !["SUPERVISOR", "PROJECT_MANAGER"].includes(data.surface_role)
+      || data.stable_supervisor_id !== origin.destinationSupervisorId || data.parent_message_id !== null
+      || data.decision_request_id !== null || data.owner_direction_id !== null
+      || data.acquisition_method !== "OWNER_ATTESTED" || data.provenance_status !== "OWNER_ATTESTED"
+      || !data.exact_visible_body || sha256(data.exact_visible_body) !== data.body_sha256) {
+      throw new Error("Owner objective context must be one exact detached, source-attributed OWNER_ATTESTED message for this supervisor and worker.");
+    }
+    ownerObjectiveContext = {
+      source_event_id: message!.eventId, message_id: data.message_id, exact_owner_text: data.exact_visible_body,
+      body_sha256: data.body_sha256, source_locator: data.immutable_provider_locator, sent_at_source: data.sent_at_source,
+      provider_surface: data.provider_surface, surface_role: data.surface_role,
+      acquisition_method: data.acquisition_method, provenance_status: data.provenance_status, limitations: data.limitations,
+      existing_owner_outcome_unchanged: true, existing_owner_choice_unchanged: true,
+      execution_or_deadline_authority: false, requires_supervisor_scope_reconciliation: true,
+    };
+  }
+  const exactFactualState = canonicalJson({
+    ...factual,
+    ...(ownerObjectiveContext ? { owner_objective_context: ownerObjectiveContext } : {}),
+    recovered_source_bounds: {
+      kind: "HISTORICAL_BOUNDED_EXECUTION_EVIDENCE",
+      semantic_authority: false,
+      source_dispatch_id: context.sourceDispatchId,
+      existing_work_thread_id: context.workThreadId,
+      source_directive_id: directive.data.directive_id,
+      source_directive_revision: directive.data.directive_revision,
+      source_receipt_event_id: proof.receipt_event_id,
+      canonical_envelope_sha256: proof.canonical_envelope_sha256,
+      bounded_execution_sha256: proof.bounded_execution_sha256,
+      canonical_receipt_url: immutableUrl,
+      prior_evidence_capsule: origin.evidenceCapsule,
+      inputs: bounded.data.inputs,
+      workspace: bounded.data.workspace,
+      historical_execution_deadline: bounded.data.deadline,
+      historical_deadline_expired_at_recovery: Date.parse(bounded.data.deadline) <= Date.parse(recordedAt),
+      historical_grant_is_not_renewed: true,
+      fresh_execution_deadline_required: true,
+    },
+  });
+  const digest = sha256(exactFactualState);
+  const refs = origin.factualPacket.evidenceRefs;
+  if (!Array.isArray(refs) || refs.some((ref) => typeof ref !== "string")) return fail();
+  return {
+    exactFactualState,
+    evidenceRefs: [...new Set([...refs, immutableUrl])],
+    evidenceCapsule: { id: `work-owner-source-bounds:${digest.slice(0, 32)}`, sha256: digest },
+  };
+}
+
 export function ownerAnswerContinuationRoute(
   events: StoredEvent[], worker: string, decisionRequestId: string,
 ): StoredEvent | null {
@@ -353,12 +501,14 @@ export function ownerAnswerContinuationRoute(
   const delivery = state?.supervisorResponse;
   const owner = state?.projectManagerResponse ?? delivery;
   if (!state || !delivery || !owner || state.status === "INVALID_BINDING") return null;
-  for (const event of events) {
+  const retired = retiredUnsentRequests(events);
+  for (const event of [...events].reverse()) {
     if (event.worker !== worker || event.producerKind !== "SYSTEM"
       || event.producerId !== WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID
       || event.data.type !== "worker_message_recorded" || !event.data.body.startsWith(inBandRequestRoutePrefix)) continue;
     try {
       const root = JSON.parse(event.data.body.slice(inBandRequestRoutePrefix.length));
+      if (typeof root.requestId !== "string" || retired.has(root.requestId)) continue;
       const continuation = parseRouteContinuation(root);
       const binding = continuation?.binding;
       if (!binding || root.worker !== worker || root.producerId !== WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID

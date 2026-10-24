@@ -274,6 +274,28 @@ const server = http.createServer(async (request, response) => {
       }
     }
     const workQuestionReissueMatch = url.pathname.match(/^\/workers\/([^/]+)\/work-questions\/reissue-expired$/);
+    const workContinuationRefreshMatch = url.pathname.match(/^\/workers\/([^/]+)\/work-continuations\/refresh-context$/);
+    if (request.method === "POST" && workContinuationRefreshMatch) {
+      const producer = authorizeMutation(request);
+      if (!["OWNER_AUTHORITY", "UI"].includes(producer.kind)) return json(response, 403, { error: "Only an authenticated owner surface may refresh an unsent Work continuation." });
+      const worker = decodeURIComponent(workContinuationRefreshMatch[1]);
+      if (!producer.workerScopes.includes("*") && !producer.workerScopes.includes(worker)) return json(response, 403, { error: "Owner surface scope does not cover this worker." });
+      const body = await readJson(request) as Record<string, unknown>;
+      if (!body || Object.keys(body).some((key) => !["request_id", "owner_context_message_id"].includes(key))
+        || typeof body.request_id !== "string"
+        || body.owner_context_message_id !== undefined && typeof body.owner_context_message_id !== "string") {
+        return json(response, 400, { error: "Only exact request_id and optional stored owner_context_message_id are accepted." });
+      }
+      try {
+        const result = await submissionAuthority.refreshWorkContinuationContext({ worker, requestId: body.request_id,
+          ...(typeof body.owner_context_message_id === "string" ? { ownerContextMessageId: body.owner_context_message_id } : {}) }, githubPolicy);
+        if (!result.duplicate) notifications.emit("event", { type: "work_continuation_context_refreshed", worker, requestId: result.requestId });
+        return json(response, result.duplicate ? 200 : 201, result);
+      } catch (error) {
+        if (error instanceof SubmissionAuthorityDisabledError) return json(response, 503, { error: error.message });
+        return json(response, 409, { error: error instanceof Error ? error.message : "The Work continuation context refresh was rejected." });
+      }
+    }
     if (request.method === "POST" && workQuestionReissueMatch) {
       const producer = authorizeMutation(request);
       if (!["OWNER_AUTHORITY", "UI"].includes(producer.kind)) return json(response, 403, { error: "Only an authenticated owner surface may reissue an expired Work question." });

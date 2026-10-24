@@ -289,7 +289,14 @@ export const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, 
     : [];
   const statusLabel = statusMatches.length === 1 ? statusMatches[0][1] : null;
   const statusOrdinal = statusMatches.length === 1 ? statusMatches[0][2] + ' of ' + statusMatches[0][3] : null;
-  const controlThinkingLabel = [accessibleLabel(control), visibleLabel(control)].includes(thinkingControlLabel)
+  // The composer may keep its effort text while this menu is open. The dedicated
+  // Power slider and its unique linked status still identify the thinking control;
+  // a generic Power label alone is insufficient. Preserve its raw label below.
+  const dedicatedThinkingControl = thinkingControlLabel === 'Thinking effort'
+    && reasoningSlider && sliders.length === 1
+    && accessibleLabel(powerControls[0]) === 'Power'
+    && statusMatches.length === 1 && supportedThinkingLabels.has(statusLabel);
+  const controlThinkingLabel = [accessibleLabel(control), visibleLabel(control)].includes(thinkingControlLabel) || dedicatedThinkingControl
     ? thinkingControlLabel
     : accessibleLabel(control);
   return {
@@ -307,6 +314,7 @@ export const MODEL_MENU_STATE_FN = `function(labelWanted, thinkingControlLabel, 
       ? (statusLabel === thinkingLabelWanted ? 1 : 0)
       : thinkingLabelMatches.length,
     sliderCount: sliders.length,
+    thinkingControlAccessibleLabel: powerControls.length === 1 ? accessibleLabel(powerControls[0]) : null,
     thinkingControlObservedLabel: controlThinkingLabel === thinkingControlLabel
       ? controlThinkingLabel
       : (powerControls.length === 1 ? accessibleLabel(powerControls[0]) : null),

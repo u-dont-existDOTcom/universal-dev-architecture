@@ -1,11 +1,15 @@
-// The submission authority's proof that a supervisory request never reached the provider, shared by the two kinds of
+import type { StoredEvent } from "./schema";
+
+// The submission authority's proof that a supervisory request never reached the provider, shared by the known kinds of
 // request that may be retired unsent: an hourly fleet review and a Work thread's question to its supervisor. Also its
 // account of a Work question that was (or may have been) sent and has no send still open, for the owner's re-send.
 
 /** Request ids the submission authority may prove unsent. */
-export const UNSENT_PROVABLE_REQUEST_ID = /^(?:fleet-review|work-question):[a-f0-9]{32}$/;
+export const UNSENT_PROVABLE_REQUEST_ID = /^(?:fleet-review|work-question|work-owner-continuation):[a-f0-9]{32}$/;
 export const WORK_QUESTION_REQUEST_ID = /^work-question:[a-f0-9]{32}$/;
+export const WORK_CONTINUATION_REQUEST_ID = /^work-owner-continuation:[a-f0-9]{32}$/;
 export const FLEET_REVIEW_REQUEST_ID = /^fleet-review:[a-f0-9]{32}$/;
+export const supervisoryRequestRetiredUnsentSummary = "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1";
 
 /** Verifier identities that may retire a request unsent, one per request kind. */
 export const FLEET_REQUEST_RETIREMENT_PRODUCER_ID = "verifier:fleet-supervisor-request-retirement";
@@ -60,5 +64,28 @@ export function validSettledSendProof(proof: SettledSendSubmissionState | undefi
 export function retirementProducerFor(requestId: string): string | null {
   if (FLEET_REVIEW_REQUEST_ID.test(requestId)) return FLEET_REQUEST_RETIREMENT_PRODUCER_ID;
   if (WORK_QUESTION_REQUEST_ID.test(requestId)) return WORK_QUESTION_RETIREMENT_PRODUCER_ID;
+  if (WORK_CONTINUATION_REQUEST_ID.test(requestId)) return WORK_QUESTION_RETIREMENT_PRODUCER_ID;
   return null;
+}
+
+/** Shared projection used by admission and owner-answer replay; verifier/proof requirements stay identical. */
+export function retiredUnsentRequests(events: readonly StoredEvent[]): Map<string, string | null> {
+  const newest = new Map<string, { reason: string | null; sequence: number }>();
+  const one = (refs: string[], prefix: string) => {
+    const values = refs.filter((ref) => ref.startsWith(prefix)).map((ref) => ref.slice(prefix.length));
+    return values.length === 1 ? values[0]! : null;
+  };
+  for (const event of events) {
+    const data = event.data;
+    if (data.type !== "evidence_receipt_recorded" || data.summary !== supervisoryRequestRetiredUnsentSummary
+      || data.verified !== true || data.producer_role !== "VERIFIER"
+      || !data.refs.includes("lifecycle_status:RETIRED_UNSENT") || !data.refs.includes("provider_send_boundary:NOT_CROSSED")
+      || !data.refs.includes("submission_authority_queue_records:0") || !data.refs.includes("submission_authority_admission_records:0")
+      || !data.refs.includes("provider_transport_evidence_records:0")) continue;
+    const requestId = one(data.refs, "request:");
+    if (!requestId || retirementProducerFor(requestId) !== data.producer_id) continue;
+    const prior = newest.get(requestId);
+    if (!prior || event.sequence > prior.sequence) newest.set(requestId, { reason: one(data.refs, "retirement_reason:"), sequence: event.sequence });
+  }
+  return new Map([...newest].map(([requestId, { reason }]) => [requestId, reason]));
 }

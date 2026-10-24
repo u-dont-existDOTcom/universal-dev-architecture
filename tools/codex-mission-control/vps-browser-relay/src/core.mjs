@@ -1,5 +1,14 @@
 import { createHash, randomUUID } from 'node:crypto';
 
+/** The one-shot CLI accepts only the two known request kinds it can select without a legacy directive. */
+export function exactRelayRequestScope(workerId, requestId) {
+  if (typeof workerId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,179}$/.test(workerId)
+    || typeof requestId !== 'string' || !/^(?:fleet-review|work-owner-continuation):[a-f0-9]{32}$/.test(requestId)) {
+    throw new Error('Usage: mc-chatgpt-relay once-request <worker> <fleet-review-or-work-owner-continuation-request-id>');
+  }
+  return { workerId, requestId };
+}
+
 export const INTERNAL_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISOR_ROUTE_V1\n';
 export const SUPERVISORY_CYCLE_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V2\n';
 export const PROVIDER_SESSION_CYCLE_ROUTE_PREFIX = 'MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n';
