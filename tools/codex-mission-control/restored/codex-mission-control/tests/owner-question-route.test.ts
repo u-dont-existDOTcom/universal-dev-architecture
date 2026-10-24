@@ -232,6 +232,7 @@ test("owner-action classification requires a real option and recommendation bind
 
 test("dashboard owner answer remains retryable until a matching supervisor continuation is durable", async (t) => {
   const events = baseEvents();
+  const originalPolicy = { ...policy(), repository: "example/public-receipts", decisionIssueNumber: 59, stageIssueNumber: 61 };
   const built = buildWorkSupervisorQuestionRoute(events, {
     worker,
     sourceDispatchId: dispatchId,
@@ -240,10 +241,11 @@ test("dashboard owner answer remains retryable until a matching supervisor conti
     exactQuestion: "A genuine owner preference is required.",
     factualState: "Two materially different options remain.",
     recordedAt: now,
-  }, policy());
+  }, originalPolicy);
   if (built.route.data.type !== "worker_message_recorded") throw new Error("Expected route");
   const packet = JSON.parse(built.route.data.body.slice(inBandRequestRoutePrefix.length));
   const routeEvent = stored(7, built.route.event_id, built.route.data, WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID, "SYSTEM");
+  assert.ok(routeEvent.data.type === "worker_message_recorded");
   const originText = "Owner decision required: choose A or B.";
   const origin = stored(8, "supervisor-owner-question:alpha", {
     type: "reasoning_message_recorded",
@@ -347,6 +349,16 @@ test("dashboard owner answer remains retryable until a matching supervisor conti
   }, policy());
   assert.ok(continuation.data.type === "worker_message_recorded");
   const continuationPacket = JSON.parse(continuation.data.body.slice(inBandRequestRoutePrefix.length));
+  const currentReceipt = { repository: policy().repository, issueNumber: policy().decisionIssueNumber,
+    stageIssueNumber: policy().stageIssueNumber };
+  assert.deepEqual(continuationPacket.githubReceipt, currentReceipt);
+  assert.deepEqual(continuationPacket.factualPacket.supervisoryCycle.githubReceipt, currentReceipt);
+  // A fresh continuation uses the current channel without rewriting historical authority or evidence.
+  assert.equal(packet.githubReceipt.repository, originalPolicy.repository);
+  assert.equal(JSON.parse(routeEvent.data.body.slice(inBandRequestRoutePrefix.length)).githubReceipt.repository, originalPolicy.repository);
+  assert.deepEqual(continuationPacket.evidenceCapsule, packet.evidenceCapsule);
+  assert.deepEqual(continuationPacket.ownerOutcome, packet.ownerOutcome);
+  assert.equal(continuationPacket.factualPacket.exactFactualState, packet.factualPacket.exactFactualState);
   assert.equal(continuationPacket.destinationSupervisorId, supervisorId);
   assert.equal(continuationPacket.ownerRelayRequired, false);
   assert.equal(continuationPacket.continuationOwnerResponseExactText, "A");
@@ -375,6 +387,9 @@ test("dashboard owner answer remains retryable until a matching supervisor conti
     assert.equal(concurrent.event_id, continuation.event_id);
     assert.equal(concurrent.occurred_at, later.recordedAt); // An unqueued answer can still get a fresh valid window.
     assert.deepEqual(buildOwnerAnswerContinuationRoute([...answered, queued], later, policy()), continuation);
+    // Replaying a queued continuation is read-only even if the configured channel moves again.
+    assert.deepEqual(buildOwnerAnswerContinuationRoute([...answered, queued], later,
+      { ...policy(), repository: "example/another-private-channel", decisionIssueNumber: 8, stageIssueNumber: 9 }), continuation);
   });
 
   await t.test("owner-decision POST recovers failed appends and returns the existing route after a lost response", async (context) => {

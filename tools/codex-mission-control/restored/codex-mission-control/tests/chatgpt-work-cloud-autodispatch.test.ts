@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { sha256 } from "../lib/canonical";
+import { canonicalJson, sha256 } from "../lib/canonical";
 import { discoverDirectWorkCloudDispatches, parseWorkCloudAutodispatchWorkers, WORK_CLOUD_EXECUTION_RECEIPT_PREFIX, WORK_CLOUD_SUPERVISOR_HANDOFF_PREFIX } from "../lib/chatgpt-work-cloud-autodispatch";
 import { executionDirectiveArtifactCanonicalJson } from "../lib/github-execution-directive";
 import type { StoredEvent } from "../lib/schema";
@@ -51,14 +51,14 @@ function workerEvents(worker: string, sequence = 1): StoredEvent[] {
   return [
     event(sequence, worker, receiptId, {
       type: "github_decision_receipt_ingested", worker, request_id: `request:${worker}`, task_id: b.task_id,
-      reasoning_lane: "EXTRA_HIGH_DIRECT", supervisor_id: "mc-project-manager", bounded_execution: b,
+      reasoning_lane: "EXTRA_HIGH_DIRECT", supervisor_id: "mc-project-manager", bounded_execution: b, bounded_execution_sha256: sha256(canonicalJson(b)),
     }),
     event(sequence + 1, worker, `directive-event:${worker}`, {
       type: "execution_directive_recorded", worker, directive_id: sourceDirective.id, directive_revision: 1,
       task_id: b.task_id, directive_schema_version: 3, source_message_id: sourceDirective.sourceMessageId,
       source_body_sha256: sourceDirective.sourceBodySha256, directive_artifact_sha256: sha256(artifact),
       execution_surface: "CHATGPT_WORK_CLOUD", work_execution_profile: profile(), status: "ACTIVE",
-      validated_decision_proof: { authority_path: "VALIDATED_GITHUB_SUPERVISORY_DECISION", receipt_event_id: receiptId },
+      validated_decision_proof: { authority_path: "VALIDATED_GITHUB_SUPERVISORY_DECISION", receipt_event_id: receiptId, bounded_execution_sha256: sha256(canonicalJson(b)) },
     }),
   ];
 }
@@ -89,6 +89,14 @@ test("direct autodispatch derives one exact current-controller request and priva
   assert.equal(candidates.length, 1);
   const candidate = candidates[0]!;
   assert.equal(candidate.recoveryState, "NEW");
+  assert.deepEqual(envelopeFrom(candidate.workPrompt), bounded("alpha"));
+  assert.equal(candidate.controllerRequest.prompt, candidate.workPrompt);
+  // The public receipt template remains control-plane-only, not the private envelope.
+  const receiptLine = candidate.workPrompt.split("\n").find((line) => line.startsWith("Receipt JSON shape: "))!;
+  for (const privateValue of [bounded("alpha").workspace, bounded("alpha").inputs[0]!.ref,
+    bounded("alpha").inputs[0]!.sha256, bounded("alpha").prompt, bounded("alpha").deadline]) {
+    assert.ok(!receiptLine.includes(privateValue));
+  }
   assert.equal(candidate.controllerRequest.requestedWorkTitle, "Work — Mission Control Fleet Watch");
   assert.equal(candidate.controllerRequest.sourceChatUrl, "chatgpt-conversation://abc-123");
   assert.equal(candidate.controllerRequest.binding.directiveArtifactSha256, sha256(candidate.directiveArtifactText));
@@ -197,7 +205,7 @@ test("supervisor resolution after a Work question continues the exact existing n
   const receiptId = "receipt:alpha:continue";
   const continuationReceipt = event(5, "alpha", receiptId, {
     type: "github_decision_receipt_ingested", worker: "alpha", request_id: "work-owner-continuation:alpha",
-    task_id: b.task_id, reasoning_lane: "EXTRA_HIGH_DIRECT", supervisor_id: "mc-project-manager", bounded_execution: b,
+    task_id: b.task_id, reasoning_lane: "EXTRA_HIGH_DIRECT", supervisor_id: "mc-project-manager", bounded_execution: b, bounded_execution_sha256: sha256(canonicalJson(b)),
     continuation_binding: { decision_request_id: workQuestionRequestId },
   });
   const continuationDirective = event(6, "alpha", "directive-event:alpha:continue", {
@@ -205,12 +213,77 @@ test("supervisor resolution after a Work question continues the exact existing n
     task_id: b.task_id, directive_schema_version: 3, source_message_id: sourceDirective.sourceMessageId,
     source_body_sha256: sourceDirective.sourceBodySha256, directive_artifact_sha256: sha256(artifact),
     execution_surface: "CHATGPT_WORK_CLOUD", work_execution_profile: profile(), status: "ACTIVE",
-    validated_decision_proof: { authority_path: "VALIDATED_GITHUB_SUPERVISORY_DECISION", receipt_event_id: receiptId },
+    validated_decision_proof: { authority_path: "VALIDATED_GITHUB_SUPERVISORY_DECISION", receipt_event_id: receiptId, bounded_execution_sha256: sha256(canonicalJson(b)) },
   });
 
   const candidate = discover([...base, ready, workQuestionRoute, continuationReceipt, continuationDirective])[0]!;
+  assert.deepEqual(envelopeFrom(candidate.workPrompt), b);
   assert.equal(candidate.controllerRequest.mode, "CONTINUE");
   assert.equal(candidate.controllerRequest.existingWorkThreadId, "stable-work-alpha");
   assert.equal(candidate.controllerRequest.binding.directiveRevision, 2);
   assert.equal(candidate.sourceSupervisorId, "mc-project-manager");
+});
+
+function envelopeFrom(prompt: string): unknown {
+  return JSON.parse(prompt.split("EXACT_BOUNDED_DIRECTIVE_BEGIN\n")[1]!.split("\nEXACT_BOUNDED_DIRECTIVE_END")[0]!);
+}
+
+test("omitted, altered, or rebound private envelopes are refused before dispatch", () => {
+  const mutations: Array<(events: any[]) => void> = [
+    (events) => { delete events[0].data.bounded_execution.deadline; },
+    (events) => { delete events[0].data.bounded_execution.inputs; },
+    (events) => { events[0].data.bounded_execution.inputs[0].sha256 = "9".repeat(64); },
+    (events) => { events[0].data.bounded_execution.deadline = "2099-01-01T00:00:00.000Z"; },
+    (events) => { delete events[0].data.bounded_execution_sha256; },
+    (events) => { events[1].data.validated_decision_proof.bounded_execution_sha256 = "9".repeat(64); },
+    (events) => { events[0].data.worker = "beta"; },
+    (events) => { events[0].data.task_id = "task:beta"; },
+    (events) => { events[1].data.task_id = "task:beta"; },
+  ];
+  for (const mutate of mutations) {
+    const events = workerEvents("alpha");
+    mutate(events);
+    assert.throws(() => discover(events), /invalid bounded execution envelope/);
+  }
+  // Even matching digests do not make an incomplete envelope executable.
+  const incomplete: any[] = workerEvents("alpha");
+  delete incomplete[0].data.bounded_execution.deadline;
+  const digest = sha256(canonicalJson(incomplete[0].data.bounded_execution));
+  incomplete[0].data.bounded_execution_sha256 = digest;
+  incomplete[1].data.validated_decision_proof.bounded_execution_sha256 = digest;
+  assert.throws(() => discover(incomplete), /invalid bounded execution envelope/);
+});
+
+test("an expired complete envelope cannot launch and a recorded result cannot duplicate", () => {
+  const events = workerEvents("alpha");
+  assert.equal(discoverDirectWorkCloudDispatches({ events, sourceChats, allowedWorkers: new Set(["alpha"]), receiptTarget,
+    requestedAt: bounded("alpha").deadline, artifactPathFor: () => "/private/synthetic.json" }).length, 0);
+  const first = discover(events)[0]!;
+  assert.equal(discover([...events, event(3, "alpha", "result:synthetic", {
+    type: "chatgpt_work_cloud_dispatch_recorded", worker: "alpha", dispatch_id: first.dispatchId,
+    status: "READY", surface_verification: "VERIFIED_NATIVE_WORK", work_thread_id: "synthetic-thread",
+  })]).length, 0);
+});
+
+
+test("legacy pending setup keeps exact read-only request bytes without downgrading new execution", () => {
+  const base = workerEvents("alpha");
+  const first = discover(base)[0]!;
+  const legacyPrompt = first.workPrompt.replace(canonicalJson(bounded("alpha")), bounded("alpha").prompt);
+  const request = event(3, "alpha", "request:legacy", {
+    type: "chatgpt_work_cloud_dispatch_requested", worker: "alpha", dispatch_id: first.dispatchId,
+    prompt_sha256: sha256(legacyPrompt), requested_at: now,
+  });
+  const pending = event(4, "alpha", "result:legacy", {
+    type: "chatgpt_work_cloud_dispatch_recorded", worker: "alpha", dispatch_id: first.dispatchId, status: "PENDING_SETUP",
+  });
+  const recovery = discover([...base, request, pending])[0]!;
+  assert.equal(recovery.recoveryState, "PENDING_SETUP_READ_ONLY");
+  assert.equal(recovery.dispatchId, first.dispatchId);
+  assert.deepEqual(recovery.controllerRequest, { ...first.controllerRequest, prompt: legacyPrompt });
+  assert.equal(recovery.workPromptSha256, sha256(legacyPrompt));
+  // An unsent legacy request is held for explicit reconciliation, without
+  // silently downgrading it or starving another fresh worker.
+  assert.equal(discover([...base, request]).length, 0);
+  assert.deepEqual(discover([...base, request, ...workerEvents("beta", 20)]).map((item) => item.worker), ["beta"]);
 });

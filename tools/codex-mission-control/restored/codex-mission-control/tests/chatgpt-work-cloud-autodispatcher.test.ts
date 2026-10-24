@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { sha256 } from "../lib/canonical";
+import { canonicalJson, sha256 } from "../lib/canonical";
 import { executionDirectiveArtifactCanonicalJson } from "../lib/github-execution-directive";
 import { WORK_MODEL_ROUTING_POLICY_BASE_COMMIT, WORK_MODEL_ROUTING_POLICY_REF } from "../lib/work-execution-profile";
 
@@ -56,12 +56,13 @@ async function runWatcherOnce(allowedWorkersJson: string | undefined) {
   const events = [
     { eventId: "receipt:mc-selfdev", worker, sequence: 1, data: { type: "github_decision_receipt_ingested", worker,
       request_id: "request:mc-selfdev", task_id: bounded.task_id, supervisor_id: supervisorId, reasoning_lane: "EXTRA_HIGH_DIRECT",
-      bounded_execution: bounded } },
+      bounded_execution: bounded, bounded_execution_sha256: sha256(canonicalJson(bounded)) } },
     { eventId: "directive-event:mc-selfdev", worker, sequence: 2, data: { type: "execution_directive_recorded", worker,
       directive_id: sourceDirective.id, directive_revision: 1, task_id: bounded.task_id, directive_schema_version: 3,
       source_message_id: sourceDirective.sourceMessageId, source_body_sha256: sourceDirective.sourceBodySha256,
       directive_artifact_sha256: sha256(artifact), execution_surface: "CHATGPT_WORK_CLOUD", work_execution_profile: profile(), status: "ACTIVE",
-      validated_decision_proof: { authority_path: "VALIDATED_GITHUB_SUPERVISORY_DECISION", receipt_event_id: "receipt:mc-selfdev" } } },
+      validated_decision_proof: { authority_path: "VALIDATED_GITHUB_SUPERVISORY_DECISION", receipt_event_id: "receipt:mc-selfdev",
+        bounded_execution_sha256: sha256(canonicalJson(bounded)) } } },
   ];
   const server = http.createServer((request, response) => {
     if (request.url === "/events") {
@@ -101,14 +102,14 @@ async function runWatcherOnce(allowedWorkersJson: string | undefined) {
       child.once("exit", (code) => { clearTimeout(timer); resolve(code); });
     });
     const controllerCalled = await stat(capturePath).then(() => true, () => false);
-    return { exitCode, stdout, stderr, capturePath, privateRoot, controllerCalled };
+    return { exitCode, stdout, stderr, capturePath, privateRoot, controllerCalled, bounded };
   } finally {
     server.close();
   }
 }
 
 test("unattended watcher derives and invokes current direct Work controller from durable state", async () => {
-  const { exitCode, stdout, stderr, capturePath, privateRoot } = await runWatcherOnce(JSON.stringify(["another-task", worker]));
+  const { exitCode, stdout, stderr, capturePath, privateRoot, bounded } = await runWatcherOnce(JSON.stringify(["another-task", worker]));
   assert.equal(exitCode, 0, stderr);
   const output = JSON.parse(stdout.trim());
   assert.equal(output.status, "DISPATCH_CYCLE");
@@ -119,6 +120,8 @@ test("unattended watcher derives and invokes current direct Work controller from
   assert.equal(request.sourceChatUrl, "chatgpt-conversation://abc-123");
   assert.equal(request.binding.directiveArtifactSha256, sha256(await readFile(request.directiveArtifactPath, "utf8")));
   assert.match(request.prompt, /EXACT SELF-DEVELOPMENT CANARY DIRECTIVE/);
+  assert.deepEqual(JSON.parse(request.prompt.split("EXACT_BOUNDED_DIRECTIVE_BEGIN\n")[1]
+    .split("\nEXACT_BOUNDED_DIRECTIVE_END")[0]), bounded);
   assert.equal((await stat(request.directiveArtifactPath)).mode & 0o077, 0);
   assert.equal(path.dirname(request.directiveArtifactPath), privateRoot);
 });
