@@ -57,6 +57,8 @@ Task-time records: 78, sourced from 13 files, with 2 mechanical and 86 semantic 
 
 Six root sections, the two review/merge patterns and exclusive active-task locks are STRUCTURED_ENFORCED. Context-compaction resilience and terminal admission are STRUCTURED_PARTIAL with exact operative remainders, alongside the six earlier partial sources. Slice 2b also makes the owner-outcome invariant STRUCTURED_PARTIAL with exact server and Work-budget remainders. The parent owner outcome remains OPEN for operating-system slice 2c and later priorities.
 
+The 2026-10-24 owner correction adds a compact main-objective/current-contribution/scope-boundaries anchor to every long-range research turn and research handoff. Its seven exact clauses remain prose-governed in the owner-outcome pattern's partial remainder, with template and index routing tests and independent source pins. No per-turn runtime interceptor or task-time record is activated; the three budget-deferred records and representative rendered Work prompt remain unchanged. See `docs/requirements/2026-10-24-research-objective-anchor.owner-requirement.json`.
+
 The immutable baseline pins 84 identities. Corrected backlog falls from 78 before slice 2a to 77: only the task-lock pattern is a complete promotion. Seven baseline identities are removed. The owner-required cross-account continuity pattern adds one exact authorized legacy identity; the baseline pin is unchanged. P1 is 15, P2 is 48 and P3 is 15. The two review/merge identities never belonged to the baseline. The owner explicitly required correcting overstated dispositions; the requirement records that authority and pins partial clause maps without authorizing new baseline identities.
 
 ## Kernel slice 1 obligation map
@@ -376,7 +378,7 @@ All original index text, labels and numbers were preserved. The original 31 trig
 | 29 | `patterns/codex-pro-supervision-mission-control.md` | When designing or operating supervised repository execution, |
 | 30 | `patterns/codex-supervision-intelligence-routing-and-context-lifecycle.md` | When allocating supervision reasoning or managing related chat context, |
 | 31 | `patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md` | When routing scarce execution resources, accounts or browser automation, |
-| 32 | `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md` | Before defining task contracts, handoffs or completion criteria from an owner request, |
+| 32 | `patterns/owner-outcome-invariant-and-contract-laundering-prevention.md` | Before each long-range research turn or handoff and before defining task contracts or completion criteria from an owner request, |
 | 33 | `patterns/supervision-assurance-planes-and-pro-meta-review.md` | When supervising worker alignment, research assurance or supervision-design changes, |
 | 35 | `patterns/chat-led-reasoning-codex-execution-separation.md` | When assigning reasoning and bounded execution across agent roles, |
 | 36 | `patterns/structured-output-failure-boundary.md` | When a structured evaluator artifact fails parsing or validation, |
@@ -989,7 +991,7 @@ Operative remainder: Unselected operative clauses retained in prose after consol
 
 ## Owner-outcome migration slice 2b
 
-The unchanged owner-outcome pattern has 158 mapped clause rows across all 17 level-two sections. Section 3’s references are explanatory established-work context; its closing adaptation directive is operative and stays legacy. Incident narrative and the worked scenario's Given material, illustrative epoch/dashboard examples and relationship lists are not obligations. Failure, repair, limits and conflict-authority clauses remain mapped. Whole-source, pre-section, per-section, clause and carrier pins are independent of regenerable source locks. The map has 48 worker-record rows, 14 exact existing Mission Control implementation/test rows, 96 literal legacy rows and zero exceptions. This is STRUCTURED_PARTIAL; reference validation, compilation and bound receipts do not prove semantic truth or universal live invocation.
+The owner-outcome pattern has 165 mapped clause rows across all 17 level-two sections, including the seven prose-governed research objective-anchor clauses added on 2026-10-24. Section 3’s references are explanatory established-work context; its closing adaptation directive is operative and stays legacy. Incident narrative and the worked scenario's Given material, illustrative epoch/dashboard examples and relationship lists are not obligations. Failure, repair, limits and conflict-authority clauses remain mapped. Whole-source, pre-section, per-section, clause and carrier pins are independent of regenerable source locks. The map has 48 worker-record rows, 14 exact existing Mission Control implementation/test rows, 103 literal legacy rows and zero exceptions. This is STRUCTURED_PARTIAL; reference validation, compilation and bound receipts do not prove semantic truth or universal live invocation.
 
 The five active semantic records are `uda.owner-outcome.epoch-amendment`, `uda.owner-outcome.derived-contract`, `uda.owner-outcome.supervisor-order`, `uda.owner-outcome.terminal-evidence` and `uda.owner-outcome.child-parent-closure`. Epoch amendment is due before accepting materially changed authority; derived-contract comparison is due before acceptance; supervisor ordering is due before its verdict; exact-candidate terminal evidence and parent-open child closure are due in the actual closure payload. Only epoch amendment permits bound NOT_APPLICABLE for a correction that does not amend the outcome. Neither parent integrity nor required completion evidence permits N/A. No mechanical predicate is used to judge semantic equivalence.
 
@@ -1008,7 +1010,7 @@ The validator accepts exactly one clause carrier: task-time record, existing imp
 | 5. Required owner-outcome schema | 3 | 0 | 0 | 0 | 3 |
 | 6. Derived task-contract requirements | 10 | 10 | 0 | 0 | 0 |
 | 7. Outcome-preservation proof | 9 | 9 | 0 | 0 | 0 |
-| 8. Checkpoint and packet requirements | 14 | 0 | 0 | 0 | 14 |
+| 8. Checkpoint and packet requirements | 21 | 0 | 0 | 0 | 21 |
 | 9. Supervisor order of operations | 10 | 10 | 0 | 0 | 0 |
 | 10. Deterministic terminal-state comparator | 21 | 6 | 2 | 0 | 13 |
 | 11. Workflow-state semantics | 5 | 2 | 0 | 0 | 3 |
@@ -1018,7 +1020,7 @@ The validator accepts exactly one clause carrier: task-time record, existing imp
 | 15. Required implementation tests | 22 | 0 | 2 | 0 | 20 |
 | 16. Limits | 5 | 5 | 0 | 0 | 0 |
 | 17. Required relationship to other Mission Control patterns | 1 | 0 | 0 | 0 | 1 |
-| Total | 158 | 48 | 14 | 0 | 96 |
+| Total | 165 | 48 | 14 | 0 | 103 |
 
 ### Work budget and exact deferred candidates
 
@@ -1107,6 +1109,13 @@ The following table is the inventory's complete obligation_map, including litera
 | 7-outcome-preservation-proof | - any unaddressed outcome remains explicitly owned by an open parent task; | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
 | 7-outcome-preservation-proof | - no terminal state is reachable while a required root outcome is unowned. | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
 | 7-outcome-preservation-proof | If semantic equivalence cannot be determined deterministically, route the bounded comparison to Extra High or Pro according to the intelligence-routing policy. The comparison must include both the verbatim owner outcome and the derived contract. | uda.owner-outcome.derived-contract / derived-contract-at-boundary |
+| 8-checkpoint-and-packet-requirements | Every long-range research turn and every research handoff must carry a compact objective anchor in the research message or outgoing handoff itself; an earlier turn's anchor does not cover a later turn, including after interruption or compaction. | LEGACY: handoff → research-message-or-handoff |
+| 8-checkpoint-and-packet-requirements | - Main objective: preserve the original main objective from the authoritative owner-outcome record, with its ID, epoch and hash when available; do not substitute the current subtask. | LEGACY: handoff → research-message-or-handoff |
+| 8-checkpoint-and-packet-requirements | - Current contribution: name the current step and explain how it advances the main objective and its remaining gap. | LEGACY: handoff → research-message-or-handoff |
+| 8-checkpoint-and-packet-requirements | - Scope boundaries: carry the applicable permitted scope, constraints and non-goals into the current step and handoff. | LEGACY: handoff → research-message-or-handoff |
+| 8-checkpoint-and-packet-requirements | Keep the main objective stable across turns; only an explicit owner amendment changes its authoritative outcome epoch. | LEGACY: handoff → research-message-or-handoff |
+| 8-checkpoint-and-packet-requirements | Label side investigations as supporting work, retain the unmet main objective, and do not silently replace it or close it with the side investigation's result. | LEGACY: handoff → research-message-or-handoff |
+| 8-checkpoint-and-packet-requirements | Keep private objective context in authorized private destinations; public anchors must use public-safe wording and must not disclose private locators, manifests, bindings or audit details. | LEGACY: handoff → research-message-or-handoff |
 | 8-checkpoint-and-packet-requirements | Every meaningful checkpoint and every supervision packet must carry: | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.checkpoint-packet |
 | 8-checkpoint-and-packet-requirements | ```text<br>owner_outcome_id / epoch / SHA-256<br>verbatim owner request<br>normalized final result<br>required owner outcomes<br>current evidence for each required outcome<br>current gap to each required outcome<br>unmet and unknown required outcomes<br>known non-satisfying proxies<br>current derived-contract mapping<br>proposed workflow/terminal state<br>terminal-comparator result<br>``` | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.checkpoint-packet |
 | 8-checkpoint-and-packet-requirements | A compact packet may reference content-addressed records, but it may not omit the effective owner outcome. | LEGACY: persistence → durable-task-checkpoint; budget proposal uda.owner-outcome.checkpoint-packet |

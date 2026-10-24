@@ -230,6 +230,20 @@ If semantic equivalence cannot be determined deterministically, route the bounde
 
 ## 8. Checkpoint and packet requirements
 
+### Research objective anchor
+
+Every long-range research turn and every research handoff must carry a compact objective anchor in the research message or outgoing handoff itself; an earlier turn's anchor does not cover a later turn, including after interruption or compaction.
+
+- Main objective: preserve the original main objective from the authoritative owner-outcome record, with its ID, epoch and hash when available; do not substitute the current subtask.
+- Current contribution: name the current step and explain how it advances the main objective and its remaining gap.
+- Scope boundaries: carry the applicable permitted scope, constraints and non-goals into the current step and handoff.
+
+Keep the main objective stable across turns; only an explicit owner amendment changes its authoritative outcome epoch.
+
+Label side investigations as supporting work, retain the unmet main objective, and do not silently replace it or close it with the side investigation's result.
+
+Keep private objective context in authorized private destinations; public anchors must use public-safe wording and must not disclose private locators, manifests, bindings or audit details.
+
 Every meaningful checkpoint and every supervision packet must carry:
 
 ```text

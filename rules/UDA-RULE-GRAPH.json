@@ -273,7 +273,7 @@
       "rule_id": "owner-outcome-invariant-and-contract-laundering-prevention",
       "canonical_path": "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
       "status": "active",
-      "trigger": "A derived task, contract, checkpoint, acceptance criterion, or completion claim could drift from the owner's outcome.",
+      "trigger": "Each long-range research turn or handoff needs a stable main objective, current contribution and scope boundaries; a derived task, contract, checkpoint, acceptance criterion or completion claim could drift from the owner's outcome.",
       "requires": [],
       "inherits": [],
       "supersedes": [],
