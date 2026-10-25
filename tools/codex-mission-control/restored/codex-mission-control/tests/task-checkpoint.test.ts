@@ -338,6 +338,25 @@ test("a step the supervisor starts, a real owner decision or an owner blocker is
     const directive = { ...decision(2), eventId: "directive:2", data: { type: "execution_directive_recorded", worker } as StoredEvent["data"] };
     assert.equal(registeredTaskHold([...history, decision(1), directive]), null, "nor one a directive followed");
     assert.equal(registeredTaskHold([...history, { ...directive, sequence: last.sequence }, decision(3)]), null, "nor a task that has had a directive");
+    // After a Work job of the latest directive ran and its receipt was recorded, a later decision that starts no step
+    // (the supervisor's review of the receipt) holds the task; a receipt for another directive or revision, or a
+    // decision before the receipt, does not.
+    const ranDirective = { ...decision(5), eventId: "directive:5", data: { type: "execution_directive_recorded", worker,
+      directive_id: "github-execution:ran", directive_revision: 3 } as StoredEvent["data"] };
+    const receiptFor = (n: number, directiveId: string, revision: number): StoredEvent => ({ ...decision(n), eventId: `work-receipt:${n}`,
+      data: { type: "chatgpt_work_cloud_execution_receipt_recorded", worker, dispatch_id: "work-cloud:ran", directive_id: directiveId,
+        directive_revision: revision, task_id: `task:${worker}`, status: "BLOCKED" } as StoredEvent["data"] });
+    const reviewed = [...history, ranDirective, receiptFor(6, "github-execution:ran", 3), decision(7)];
+    assert.equal(registeredTaskHold(reviewed)?.decision.eventId, "decision:7");
+    assert.equal(projectWorker(reviewed).correction.ownerAction.reason_code, OWNER_TASK_HELD_BY_SUPERVISOR_REASON);
+    assert.equal(classifyFleetSupervisorTick(watch, reviewed, store.verifyChain()).trigger, "SUPERVISOR_HOLD");
+    assert.equal(registeredTaskHold([...history, ranDirective, decision(6), receiptFor(7, "github-execution:ran", 3)]), null, "a decision before the receipt");
+    assert.equal(registeredTaskHold([...history, ranDirective, receiptFor(6, "github-execution:other", 3), decision(7)]), null, "another directive's receipt");
+    assert.equal(registeredTaskHold([...history, ranDirective, receiptFor(6, "github-execution:ran", 2), decision(7)]), null, "another revision's receipt");
+    const completed = { ...receiptFor(6, "github-execution:ran", 3), data: { ...receiptFor(6, "github-execution:ran", 3).data, status: "COMPLETED" } as StoredEvent["data"] };
+    assert.equal(registeredTaskHold([...history, ranDirective, completed, decision(7)]), null, "a completed job's review may end the task");
+    assert.equal(registeredTaskHold([...history, ranDirective, receiptFor(6, "github-execution:ran", 3),
+      decision(7, { bounded_execution: { strategy_id: "s" } })]), null, "a review that starts a step");
     const asks = decision(4, { owner_action: { kind: "DECISION_REQUIRED", question: "A or B?" } });
     assert.equal(registeredTaskHold([...history, asks]), null, "a decision that asks the owner is the owner's, not a hold");
     assert.notEqual(projectWorker([...history, asks]).correction.ownerAction.reason_code, OWNER_TASK_HELD_BY_SUPERVISOR_REASON);

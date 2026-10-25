@@ -214,13 +214,22 @@ export function registeredTaskHold(events: readonly StoredEvent[]): RegisteredTa
   const decision = events.findLast((event) => event.data.type === "github_decision_receipt_ingested");
   if (!decision || decision.data.type !== "github_decision_receipt_ingested" || decision.data.bounded_execution) return null;
   if (decision.data.owner_action?.kind === "DECISION_REQUIRED") return null;
-  // A task that has had a directive is held again only when its latest directive's job expired unrun, Mission Control
-  // recorded that, and the supervisor's answer after the record started no new step (lib/work-directive-expiry.ts).
+  // A task that has had a directive is held again only when its latest directive's job is over and the supervisor's
+  // answer after that started no new step: either the job expired unrun and Mission Control recorded that
+  // (lib/work-directive-expiry.ts), or the job ran and ended BLOCKED, FAILED or PARTIAL in a recorded Work receipt (the
+  // supervisor's review of it). A completed job's review that starts no step may end the task, so it is not a hold.
   const latestDirective = events.findLast((event) => event.data.type === "execution_directive_recorded");
-  if (latestDirective) {
+  if (latestDirective && latestDirective.data.type === "execution_directive_recorded") {
     const expiryRecord = events.find((event) => isBoundWorkDirectiveExpiry(events, event)
       && (event.data as { receipt_id: string }).receipt_id === workDirectiveExpiryEventId(latestDirective));
-    if (!expiryRecord || decision.sequence < expiryRecord.sequence) return null;
+    const { directive_id: directiveId, directive_revision: directiveRevision } = latestDirective.data;
+    const workReceipt = events.findLast((event) => event.sequence > latestDirective.sequence
+      && event.data.type === "chatgpt_work_cloud_execution_receipt_recorded"
+      && event.data.directive_id === directiveId && event.data.directive_revision === directiveRevision
+      && ["BLOCKED", "FAILED", "PARTIAL"].includes(event.data.status));
+    const heldAfterExpiry = Boolean(expiryRecord && decision.sequence >= expiryRecord.sequence);
+    const heldAfterWorkReceipt = Boolean(workReceipt && decision.sequence > workReceipt.sequence);
+    if (!heldAfterExpiry && !heldAfterWorkReceipt) return null;
   }
   const checkpointAfter = events.findLast((event) => event.sequence > decision.sequence && isVerifiedTaskCheckpoint(event)) ?? null;
   return { decision, checkpointAfter };
