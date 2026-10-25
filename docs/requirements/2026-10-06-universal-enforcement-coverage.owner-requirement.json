@@ -705,7 +705,9 @@
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "owner_request": "2026-10-25 approved distinct research proxy-loop rule, first-source identity rather than silent baseline rewrite",
       "test_classes": "18 runnable portable behavioral regressions; no universal runtime interceptor",
-      "semantic_admission_scope": "Repeated support-only tasks blocked absent real outcome/unblock; real/source tasks admitted with independent consent gates."
+      "semantic_admission_scope": "Repeated support-only tasks blocked absent real outcome/unblock; real/source tasks admitted with independent consent gates.",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "Owner-authorized direct-evidence research stop-loss added without changing task-time Work selection; representative Work 32680/37194 -> 32706/unmeasured bytes (rendered/injected), current source-locked generated contract."
     }
   ],
   "learning_state_at_merge": [
