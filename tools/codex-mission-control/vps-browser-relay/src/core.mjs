@@ -1,10 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 
-/** The one-shot CLI accepts only the two known request kinds it can select without a legacy directive. */
+/** The one-shot CLI accepts only the known request kinds it can select without a legacy directive: a fleet review, a
+ * Work owner continuation, and Mission Control's post-Work review of a Work receipt. */
 export function exactRelayRequestScope(workerId, requestId) {
   if (typeof workerId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,179}$/.test(workerId)
-    || typeof requestId !== 'string' || !/^(?:fleet-review|work-owner-continuation):[a-f0-9]{32}$/.test(requestId)) {
-    throw new Error('Usage: mc-chatgpt-relay once-request <worker> <fleet-review-or-work-owner-continuation-request-id>');
+    || typeof requestId !== 'string' || !/^(?:fleet-review|work-owner-continuation|post-work-review):[a-f0-9]{32}$/.test(requestId)) {
+    throw new Error('Usage: mc-chatgpt-relay once-request <worker> <fleet-review, work-owner-continuation or post-work-review request id>');
   }
   return { workerId, requestId };
 }
