@@ -22,6 +22,7 @@ import {
   type PendingDecisionRequest,
 } from "./github-decision-receipts";
 import {
+  inBandBrowserDomReadbackMethod,
   inBandBrowserDomReadbackProducerId,
   inBandBrowserDomReadbackSummary,
   inBandPreSendSummary,
@@ -106,8 +107,8 @@ export function recordedWorkContinuationCorrection(events: readonly StoredEvent[
  * Builds the retirement and the successor. Refuses unless: the request is one trusted, current owner-continuation route
  * with no successor, decision, or newer directive, Work dispatch or decision for the worker; the submission authority
  * shows it sent (at least one crossed admission) with no send of it still open; the relay's receipts show it sent once
- * in one session and that session completed; one trusted readback of that session, for the exact delivered prompt,
- * recorded the given bytes; and Mission Control's canonical decision parser rejects those bytes. The successor keeps
+ * in one session and that session completed; one trusted, read-only browser-DOM readback of that session's bound
+ * conversation, for the exact delivered prompt, recorded the given bytes; and Mission Control's canonical decision parser rejects those bytes. The successor keeps
  * the source route's factual packet and evidence capsule and derives a fresh continuation binding from the current
  * events, so the owner answer, outcome and supervisor are checked again.
  */
@@ -177,7 +178,7 @@ export function buildWorkContinuationCorrection(
     throw new Error("Submission authority did not show the owner continuation sent with no send of it still open.");
   }
   const transport = inBandTransportEvidence(history, request, policy, recordedAt);
-  if (!transport || transport.duplicateSend || !transport.providerSessionId || !transport.finishedAt) {
+  if (!transport || transport.duplicateSend || !transport.providerSessionId || !transport.finishedAt || !transport.conversationUrl) {
     throw new Error("The relay's receipts don't show the owner continuation sent once and finished in one session.");
   }
   const sessionId = transport.providerSessionId;
@@ -206,6 +207,14 @@ export function buildWorkContinuationCorrection(
     || one(readback.data.refs, "request:") !== requestId || one(readback.data.refs, "supervisor:") !== request.supervisorId
     || one(readback.data.refs, "provider_session:") !== sessionId || one(readback.data.refs, "status:") !== "COMPLETE"
     || one(readback.data.refs, "provider_prompt_sha256:") !== promptSha256
+    || one(readback.data.refs, "conversation_url:") !== transport.conversationUrl
+    || one(readback.data.refs, "thread_surface:") !== "chatgpt"
+    || one(readback.data.refs, "browser_capture_surface:") !== "EXISTING_BOUND_CONVERSATION_DOM"
+    || one(readback.data.refs, "assistant_message_selection:") !== "UNIQUE_CANONICAL_BLOCK"
+    || one(readback.data.refs, "source_reader_mode:") !== "READ_ONLY"
+    || !["GitHub", "Remote Desktop Commander"].includes(one(readback.data.refs, "source_reader_app:") ?? "")
+    || !/^[a-f0-9]{64}$/.test(one(readback.data.refs, "browser_target_id_sha256:") ?? "")
+    || one(readback.data.refs, "readback_method:") !== inBandBrowserDomReadbackMethod
     || one(readback.data.refs, "semantic_authority:") !== "false"
     || one(readback.data.refs, "machine_block_sha256:") !== rejectedResponseSha256
     || readback.data.exact_candidate_sha256 !== rejectedResponseSha256

@@ -4,6 +4,7 @@ import test from "node:test";
 import { canonicalJson, sha256 } from "../lib/canonical";
 import { boundedExecutionResidueSchema, canonicalOwnerActionSchema, type StoredEvent } from "../lib/schema";
 import {
+  inBandBrowserDomReadbackMethod,
   inBandBrowserDomReadbackProducerId,
   inBandBrowserDomReadbackSummary,
   inBandPreSendSummary,
@@ -991,7 +992,10 @@ test("dashboard owner answer remains retryable until a matching supervisor conti
     const id = `browser-dom-readback-evidence:${sha256(`${digest}:${producer.id}:${at}:${requestId}`).slice(0, 32)}`;
     const refs = [`request:${requestId}`, `supervisor:${supervisorId}`, `provider_session:${correctionSession}`, "status:COMPLETE",
       `machine_block_sha256:${digest}`, `provider_prompt_sha256:${correctionPrompt}`, `conversation_url:${correctionChat}`,
-      "semantic_authority:false"];
+      "thread_surface:chatgpt", "source_reader_app:Remote Desktop Commander", "source_reader_mode:READ_ONLY",
+      `browser_target_id_sha256:${"7".repeat(64)}`, "browser_capture_surface:EXISTING_BOUND_CONVERSATION_DOM",
+      "assistant_message_selection:UNIQUE_CANONICAL_BLOCK", "semantic_authority:false",
+      `readback_method:${inBandBrowserDomReadbackMethod}`];
     store.append({ schema_version: 2, event_id: id, mission_id: "mission-control-live", occurred_at: at, data: {
       type: "evidence_receipt_recorded", worker, receipt_id: id, producer_id: producer.id, producer_role: "COLLECTOR",
       evidence_class: "ARTIFACT", independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: overrides.candidate ?? digest,
@@ -1123,6 +1127,12 @@ test("dashboard owner answer remains retryable until a matching supervisor conti
       (refs: string[]) => refs.map((ref) => ref === "status:COMPLETE" ? "status:PARTIAL" : ref),
       (refs: string[]) => refs.map((ref) => ref === "semantic_authority:false" ? "semantic_authority:true" : ref),
       (refs: string[]) => refs.filter((ref) => !ref.startsWith("machine_block_sha256:")),
+      (refs: string[]) => refs.map((ref) => ref.startsWith("conversation_url:") ? "conversation_url:https://chatgpt.com/c/synthetic-other" : ref),
+      (refs: string[]) => refs.map((ref) => ref === "source_reader_mode:READ_ONLY" ? "source_reader_mode:INTERACTIVE" : ref),
+      (refs: string[]) => refs.map((ref) => ref.startsWith("source_reader_app:") ? "source_reader_app:Unapproved" : ref),
+      (refs: string[]) => refs.filter((ref) => !ref.startsWith("browser_target_id_sha256:")),
+      (refs: string[]) => refs.filter((ref) => !ref.startsWith("readback_method:")),
+      (refs: string[]) => [...refs, `machine_block_sha256:${"6".repeat(64)}`],
     ]) {
       await refuse(exactly, (store, id) => ({ body: rejectedAnswer(id), readbackEventId: recordReadback(store, id, rejectedAnswer(id), { refs: change }) }));
     }
