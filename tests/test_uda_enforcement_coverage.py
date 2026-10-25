@@ -460,6 +460,7 @@ class EnforcementCoverageTests(unittest.TestCase):
             "patterns/terminal-response-admission-and-autonomous-continuation.md",
             "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
             "patterns/owner-goal-followup-and-requirement-accretion.md",
+            "patterns/research-outcome-proximity-and-proxy-stoploss.md",
             "AGENTS.md#follow-up-goal-derivation-and-assistant-added-requirements",
             "patterns/chatgpt-client-surface-capability-and-thread-recovery.md",
             "patterns/worker-directive-delivery-and-chat-output-budget.md", "AGENTS.md#owner-facing-operational-references",

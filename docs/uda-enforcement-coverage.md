@@ -39,11 +39,11 @@ The systemic gap fits existing logic-map entries: LF-2.1 for unloaded/stale guid
 
 ## Current counts
 
-Inventory entries: 99
+Inventory entries: 100
 
-Indexed patterns: 85
+Indexed patterns: 86
 
-Migration backlog: 78
+Migration backlog: 79
 
 Task-time records: 78, sourced from 13 files, with 2 mechanical and 86 semantic obligations. Corrected slice 2a adds 28 records and extends three continuity records; its 31 records carry 32 semantic behaviors and 281 mapped clause rows.
 
@@ -52,14 +52,14 @@ Task-time records: 78, sourced from 13 files, with 2 mechanical and 86 semantic 
 | STRUCTURED_ENFORCED | 9 |
 | STRUCTURED_PARTIAL | 9 |
 | WORKFLOW_ONLY | 10 |
-| LEGACY_UNSTRUCTURED | 69 |
+| LEGACY_UNSTRUCTURED | 70 |
 | NOT_ACTIVE | 2 |
 
 Six root sections, the two review/merge patterns and exclusive active-task locks are STRUCTURED_ENFORCED. Context-compaction resilience and terminal admission are STRUCTURED_PARTIAL with exact operative remainders, alongside the six earlier partial sources. Slice 2b also makes the owner-outcome invariant STRUCTURED_PARTIAL with exact server and Work-budget remainders. The parent owner outcome remains OPEN for operating-system slice 2c and later priorities.
 
 The 2026-10-24 owner correction adds a compact main-objective/current-contribution/scope-boundaries anchor to every long-range research turn and research handoff. Its seven exact clauses remain prose-governed in the owner-outcome pattern's partial remainder, with template and index routing tests and independent source pins. No per-turn runtime interceptor or task-time record is activated; the three budget-deferred records and representative rendered Work prompt remain unchanged. See `docs/requirements/2026-10-24-research-objective-anchor.owner-requirement.json`.
 
-The immutable baseline pins 84 identities. Corrected backlog falls from 78 before slice 2a to 77: only the task-lock pattern is a complete promotion. Seven baseline identities are removed. The owner-required cross-account continuity pattern adds one exact authorized legacy identity; the baseline pin is unchanged. P1 is 15, P2 is 48 and P3 is 15. The two review/merge identities never belonged to the baseline. The owner explicitly required correcting overstated dispositions; the requirement records that authority and pins partial clause maps without authorizing new baseline identities.
+The immutable baseline pins 84 identities. Corrected backlog falls from 78 before slice 2a to 77: only the task-lock pattern is a complete promotion. Seven baseline identities are removed. The owner-required cross-account continuity pattern adds one exact authorized legacy identity; the baseline pin is unchanged. P1 is 16, P2 is 48 and P3 is 15. The two review/merge identities never belonged to the baseline. The owner explicitly required correcting overstated dispositions; the requirement records that authority and pins partial clause maps without authorizing new baseline identities.
 
 ## Kernel slice 1 obligation map
 
@@ -240,11 +240,11 @@ Clauses 33; consolidated obligations 7; structured clauses 33; excepted 0; remai
 | Before switching methods, declaring progress complete, or ending a substantial pass, verify what observable result proves each promised operation actually occurred. | uda.kernel.operation-commitments / keep-promised-operation-open |
 | If a still-valid promised step was displaced by later work, execute it before continuing. | uda.kernel.operation-commitments / keep-promised-operation-open |
 
-The 2026-10-07 maintainer-handoff addition in `patterns/suggested-fix-queue.md` remains text-only coverage within its existing `LEGACY_UNSTRUCTURED` identity. Its tests protect step 9, the `uda-lane` label and README/index routing; they do not enforce live handoff, maintainer check-ins or filing-agent edit restrictions. The inventory records those limits and the migration work; the backlog remains 84 identities.
+The 2026-10-07 maintainer-handoff addition in `patterns/suggested-fix-queue.md` remains text-only coverage within its existing `LEGACY_UNSTRUCTURED` identity. Its tests protect step 9, the `uda-lane` label and README/index routing; they do not enforce live handoff, maintainer check-ins or filing-agent edit restrictions. The inventory records those limits and the migration work; the backlog remains 79 identities.
 
 ## Exact migration backlog
 
-P1 retains 15 high-leverage identities; P2 has 47 and P3 has 15. Every P1 entry is behavioral. Corrected partial compaction and terminal-admission coverage stays visible here.
+P1 retains 16 high-leverage identities; P2 has 48 and P3 has 15. Every P1 entry is behavioral. Corrected partial compaction and terminal-admission coverage stays visible here.
 
 Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_TURN, FREQUENT, CONDITIONAL, SPECIALIST; use the id only to break ties. Frequency classes are declared routing estimates, not measured usage. Each entry retains its specific next step. The report uses this same order.
 
@@ -263,6 +263,7 @@ Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_
 | `patterns/cross-family-reasoning-check.md` | P1 | CONDITIONAL |
 | `patterns/logic-failure-map.md` | P1 | CONDITIONAL |
 | `patterns/owner-goal-followup-and-requirement-accretion.md` | P1 | CONDITIONAL |
+| `patterns/research-outcome-proximity-and-proxy-stoploss.md` | P1 | CONDITIONAL |
 | `patterns/recommendation-preflight-integrity.md` | P1 | CONDITIONAL |
 | `patterns/shopping-research.md` | P1 | CONDITIONAL |
 | `AGENTS.md#authority` | P2 | EVERY_TURN |
@@ -1223,3 +1224,5 @@ The following table is the inventory's complete obligation_map, including litera
 ## Cross-account continuity integration
 
 `patterns/cross-account-continuity.md` is LEGACY_UNSTRUCTURED with an index trigger and P2 conditional migration priority. Its tests preserve the four rules, owner quotation, privacy exclusions and routes; they do not prove live Git persistence, handoff updates or account continuity. The exact addition is recorded separately from the unchanged baseline identities. No task-time records, source locks or generated contracts change.
+
+The owner's 2026-10-25 research stop-loss adds one owner-authorized legacy identity (not in the frozen baseline), independently executable source/logic regression tests, and a task-time index route. Historical snapshots remain unchanged; current identity totals are 100, backlog 79 and P1 16. This is not a universal runtime interceptor.
