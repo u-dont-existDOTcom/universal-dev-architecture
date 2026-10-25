@@ -30,6 +30,7 @@ import { SubmissionAuthorityDisabledError, SubmissionAuthorityRuntime, Submissio
 import {
   checkDecisionIssueBeforeDiscard, DiscardReconciliationError, reconcileBeforeDiscard, reissueExpiredWorkQuestion, resendSentWorkQuestion,
 } from "../lib/work-question-reissue";
+import { recordedWorkContinuationCorrection } from "../lib/work-continuation-correction";
 import { buildWorkRoutingCheckpointEnvelopes } from "../lib/work-execution-runtime";
 import { daemonLiveness, daemonReadiness } from "../lib/daemon-health";
 import { GitHubReconciliationCoordinator } from "../lib/github-reconciliation-coordinator";
@@ -313,6 +314,52 @@ const server = http.createServer(async (request, response) => {
       } catch (error) {
         if (error instanceof SubmissionAuthorityDisabledError) return json(response, 503, { error: error.message });
         return json(response, 409, { error: error instanceof Error ? error.message : "The Work question reissue was rejected." });
+      }
+    }
+    // The owner's one correction of a sent Work owner-continuation whose answer Mission Control's canonical parser
+    // rejected: it queues one successor to the same supervisor, so it takes the owner's credential, one exact named
+    // request, the trusted readback that recorded the rejected answer, and that answer's exact bytes (checked, never stored).
+    const workContinuationCorrectionMatch = url.pathname.match(/^\/workers\/([^/]+)\/work-continuations\/correct-rejected-response$/);
+    if (request.method === "POST" && workContinuationCorrectionMatch) {
+      const producer = authorizeMutation(request);
+      if (producer.kind !== "OWNER_AUTHORITY") return json(response, 403, { error: "Only the owner may correct a sent Work continuation." });
+      const worker = decodeURIComponent(workContinuationCorrectionMatch[1]);
+      if (!producer.workerScopes.includes("*") && !producer.workerScopes.includes(worker)) return json(response, 403, { error: "Owner scope does not cover this worker." });
+      const body = await readJson(request) as Record<string, unknown>;
+      if (!body || Object.keys(body).some((key) => !["request_id", "readback_event_id", "rejected_response_body"].includes(key))
+        || typeof body.request_id !== "string" || typeof body.readback_event_id !== "string"
+        || typeof body.rejected_response_body !== "string") {
+        return json(response, 400, { error: "Exactly request_id, readback_event_id and rejected_response_body are accepted." });
+      }
+      const requestId = body.request_id;
+      const correct = () => submissionAuthority.correctRejectedWorkContinuation({
+        worker, requestId, readbackEventId: body.readback_event_id as string,
+        rejectedResponseBody: body.rejected_response_body as string, authorizedBy: producer.id,
+      }, githubPolicy);
+      try {
+        // A first correction runs with no decision copy in flight, after one GitHub reconciliation (which takes in an
+        // answer already posted) and a read of the decision issue: any comment there naming the request stops it.
+        const exclusive = <T>(section: () => Promise<T>) => providerDecisionCopier ? providerDecisionCopier.exclusive(section) : section();
+        const result = recordedWorkContinuationCorrection(store.workerEvents(worker), worker, requestId) ? await correct()
+          : await exclusive(async () => {
+            // A correction that raced this one and finished first is reported as the duplicate it is.
+            if (recordedWorkContinuationCorrection(store.workerEvents(worker), worker, requestId)) return correct();
+            await reconcileBeforeDiscard(githubReconciliationCoordinator);
+            if (!githubPolicy) throw new DiscardReconciliationError("A correction needs the GitHub decision channel, and none is configured.");
+            const queuedAt = pendingDecisionRequests(store.workerEvents(worker)).find((pending) => pending.requestId === requestId)?.queuedAt;
+            if (!queuedAt) throw new Error("The owner continuation is not pending; it can't be corrected.");
+            await checkDecisionIssueBeforeDiscard({
+              repository: githubPolicy.repository, decisionIssueNumber: githubPolicy.decisionIssueNumber, requestId,
+              since: new Date(Date.parse(queuedAt) - 10 * 60_000).toISOString(), tokenProvider: githubReconciliationTokenProvider,
+            });
+            return correct();
+          });
+        if (!result.duplicate) notifications.emit("event", { type: "work_continuation_corrected", worker, requestId: result.requestId });
+        return json(response, result.duplicate ? 200 : 201, result);
+      } catch (error) {
+        if (error instanceof SubmissionAuthorityDisabledError) return json(response, 503, { error: error.message });
+        if (error instanceof DiscardReconciliationError) return json(response, 503, { error: error.message });
+        return json(response, 409, { error: error instanceof Error ? error.message : "The Work continuation correction was rejected." });
       }
     }
     // The owner's one re-send of a sent Work question whose answer window closed without an accepted answer. It sends

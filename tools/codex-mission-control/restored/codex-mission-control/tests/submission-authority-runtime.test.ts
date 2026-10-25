@@ -681,7 +681,7 @@ test("exact unsent proof covers Work questions and known owner continuations, re
   }
 });
 
-test("a settled-send proof needs an admission of the Work question and no send of it still open", async () => {
+test("a settled-send proof needs an admission of the Work question or owner continuation and no send of it still open", async () => {
   const store = new EventStore(":memory:");
   const now = { value: origin };
   try {
@@ -712,8 +712,15 @@ test("a settled-send proof needs an admission of the Work question and no send o
     assert.match(crossed.proofSha256, /^[a-f0-9]{64}$/);
     assert.notEqual(crossed.proofSha256, open.proofSha256);
 
-    for (const other of [`fleet-review:${"8".repeat(32)}`, `work-question:${"8".repeat(31)}`]) {
-      await assert.rejects(authority.proveRequestSendSettled(other), /exact work-question request ID/);
+    // A Work owner-continuation has the same settled-send proof, for the owner's correction of a rejected answer.
+    const continuation = `work-owner-continuation:${"9".repeat(32)}`;
+    const unsentContinuation = await authority.proveRequestSendSettled(continuation);
+    assert.equal(unsentContinuation.requestId, continuation);
+    assert.equal(unsentContinuation.settled, false);
+    assert.deepEqual(unsentContinuation.admissions, []);
+
+    for (const other of [`fleet-review:${"8".repeat(32)}`, `work-question:${"8".repeat(31)}`, `work-owner-continuation:${"9".repeat(31)}`]) {
+      await assert.rejects(authority.proveRequestSendSettled(other), /exact work-question or work-owner-continuation request ID/);
     }
   } finally {
     store.close();

@@ -7,6 +7,7 @@ import {
   admittedCycleRequests, parseGitHubReceiptPolicy, retiredUnsentRequests, type GitHubReceiptPolicy, type PendingDecisionRequest,
 } from "./github-decision-receipts";
 import { inBandTransportEvidence } from "./in-band-request-binding";
+import { retiredAfterRejectedResponseRequests } from "./unsent-request-proof";
 import { requestBoundTransportEvidence } from "./request-bound-supervision";
 import { correctionStatusLabel } from "./correction-lifecycle";
 import { driftConfig, DriftConfig } from "./drift-config";
@@ -317,9 +318,11 @@ export function supervisorRequestAdmission(events: StoredEvent[], now: Date, rel
   // expired request on its own (reason REQUEST_EXPIRED), and any other retirement is a deliberate withdrawal.
   const retired = new Map([...retiredUnsentRequests(events)].map(([requestId, reason]) =>
     [requestId, reason === "REQUEST_EXPIRED" ? "EXPIRED_UNSENT" as const : "WITHDRAWN" as const]));
+  // A sent owner continuation the owner corrected after its answer was rejected is replaced by its successor.
+  const replaced = new Set([...superseded, ...retiredAfterRejectedResponseRequests(events)]);
   return {
     admitted: new Map([...first].map(([requestId, request]) => [requestId, request.sourceEventSequence!])),
-    replaced: superseded, retired, tracksTransport: relay.policy !== null,
+    replaced, retired, tracksTransport: relay.policy !== null,
     transport: supervisorTransport(first.values(), events, now, relay),
   };
 }

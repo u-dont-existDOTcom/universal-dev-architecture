@@ -9,6 +9,7 @@
 // bounded JSON result. Callers (the owner, Chat, Claude, Work) never see, pass, or copy a credential.
 // It is deliberately not a generic authenticated HTTP client: every action has a fixed method, path
 // and validated arguments.
+import { readFileSync, statSync } from "node:fs";
 import { daemonFetch, daemonMutationHeaders } from "../lib/daemon-client";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
 import { FLEET_ENROLL_PROJECT_ID, parseFleetWatchEnrollment } from "../lib/fleet-watch-enrollment";
@@ -36,6 +37,12 @@ const USAGE = `Usage: owner-action <action> [options]
                                                       unless it read a Work answer Mission Control refuses, found on the
                                                       decision issue); Mission Control first runs one GitHub
                                                       reconciliation, so a reply already posted is taken in instead
+  work-continuation-correct --worker W --request R --readback-event E --rejected-body-file F
+                                                      correct once a sent Work owner-continuation R whose answer the
+                                                      canonical parser rejected: F holds the rejected answer's exact bytes,
+                                                      which trusted readback E recorded; R is retired (the answer stays
+                                                      preserved, never admitted) and one successor asks the same supervisor
+                                                      afresh with a fresh binding and window
   work-start-retry --worker W                         retry once the worker's latest native Work start that failed at the
                                                       ChatGPT app (UNAVAILABLE or FAILED), while its authorization is open;
                                                       the dispatcher first searches the app for a Work thread of it
@@ -193,6 +200,26 @@ export async function runOwnerAction(argv: string[]): Promise<{ status: number; 
       return jsonResult(await daemonFetch(`/workers/${encodeURIComponent(worker)}/work-questions/resend-sent`, {
         method: "POST", headers: daemonMutationHeaders(owner(), { "content-type": "application/json" }),
         body: JSON.stringify(discard === "yes" ? { request_id: requestId, discard_finished_reply: true } : { request_id: requestId }),
+      }));
+    }
+    case "work-continuation-correct": {
+      // The file's bytes are only compared with a recorded readback digest and parsed to show the rejection; Mission
+      // Control never forwards or stores them.
+      const opts = options(rest, ["worker", "request", "readback-event", "rejected-body-file"]);
+      const worker = required(opts, "worker");
+      const requestId = required(opts, "request");
+      const readbackEventId = required(opts, "readback-event");
+      const file = required(opts, "rejected-body-file");
+      if (!/^[a-z0-9][a-z0-9_-]{0,79}$/.test(worker)) throw new UsageError("--worker must be one exact native Work worker ID.");
+      if (!/^work-owner-continuation:[a-f0-9]{32}$/.test(requestId)) throw new UsageError("--request must be one exact work-owner-continuation request ID.");
+      if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,179}$/.test(readbackEventId)) throw new UsageError("--readback-event must be one exact durable event ID.");
+      let size: number;
+      try { size = statSync(file).size; } catch { throw new UsageError("--rejected-body-file must name a readable file."); }
+      if (size < 1 || size > 200_000) throw new UsageError("--rejected-body-file must hold the rejected answer's exact bytes (at most 200000).");
+      const rejectedResponseBody = readFileSync(file, "utf8");
+      return jsonResult(await daemonFetch(`/workers/${encodeURIComponent(worker)}/work-continuations/correct-rejected-response`, {
+        method: "POST", headers: daemonMutationHeaders(owner(), { "content-type": "application/json" }),
+        body: JSON.stringify({ request_id: requestId, readback_event_id: readbackEventId, rejected_response_body: rejectedResponseBody }),
       }));
     }
     case "work-start-retry": {

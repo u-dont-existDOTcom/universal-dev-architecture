@@ -10,6 +10,8 @@ export const WORK_QUESTION_REQUEST_ID = /^work-question:[a-f0-9]{32}$/;
 export const WORK_CONTINUATION_REQUEST_ID = /^work-owner-continuation:[a-f0-9]{32}$/;
 export const FLEET_REVIEW_REQUEST_ID = /^fleet-review:[a-f0-9]{32}$/;
 export const supervisoryRequestRetiredUnsentSummary = "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_UNSENT_V1";
+/** A sent Work owner-continuation whose one answer Mission Control's parser rejected, retired by the owner's correction. */
+export const supervisoryRequestRetiredAfterRejectedResponseSummary = "MISSION_CONTROL_SUPERVISORY_REQUEST_RETIRED_AFTER_REJECTED_RESPONSE_V1";
 
 /** Verifier identities that may retire a request unsent, one per request kind. */
 export const FLEET_REQUEST_RETIREMENT_PRODUCER_ID = "verifier:fleet-supervisor-request-retirement";
@@ -88,4 +90,28 @@ export function retiredUnsentRequests(events: readonly StoredEvent[]): Map<strin
     if (!prior || event.sequence > prior.sequence) newest.set(requestId, { reason: one(data.refs, "retirement_reason:"), sequence: event.sequence });
   }
   return new Map([...newest].map(([requestId, { reason }]) => [requestId, reason]));
+}
+
+/**
+ * The Work owner-continuations the owner's correction retired after their one answer was rejected
+ * (`lib/work-continuation-correction.ts`): a verified retirement from the Work-question retirement verifier carrying the
+ * explicit one-time authorization, the send's settled record and the rejected answer's digest. Such a request stops
+ * being pending, so no late answer to it can be accepted; its successor asks the same supervisor afresh.
+ */
+export function retiredAfterRejectedResponseRequests(events: readonly StoredEvent[]): Set<string> {
+  const retired = new Set<string>();
+  for (const event of events) {
+    const data = event.data;
+    if (data.type !== "evidence_receipt_recorded" || data.summary !== supervisoryRequestRetiredAfterRejectedResponseSummary
+      || data.verified !== true || data.producer_role !== "VERIFIER" || data.producer_id !== WORK_QUESTION_RETIREMENT_PRODUCER_ID
+      || event.producerKind !== "VERIFIER" || event.producerId !== WORK_QUESTION_RETIREMENT_PRODUCER_ID
+      || !data.refs.includes("lifecycle_status:RETIRED_AFTER_REJECTED_RESPONSE")
+      || !data.refs.includes("authorization:OWNER_EXPLICIT_ONE_CORRECTION")
+      || !data.refs.includes("submission_authority_open_records:0")
+      || !data.refs.includes("decision_receipts_ingested:0")
+      || !data.refs.includes("canonical_decision_admitted:false")) continue;
+    const requests = data.refs.filter((ref) => ref.startsWith("request:")).map((ref) => ref.slice("request:".length));
+    if (requests.length === 1 && WORK_CONTINUATION_REQUEST_ID.test(requests[0]!)) retired.add(requests[0]!);
+  }
+  return retired;
 }

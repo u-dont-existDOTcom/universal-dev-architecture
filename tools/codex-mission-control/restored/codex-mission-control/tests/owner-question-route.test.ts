@@ -3,17 +3,28 @@ import test from "node:test";
 
 import { canonicalJson, sha256 } from "../lib/canonical";
 import { boundedExecutionResidueSchema, canonicalOwnerActionSchema, type StoredEvent } from "../lib/schema";
-import { inBandRequestRoutePrefix } from "../lib/in-band-request-binding";
+import {
+  inBandBrowserDomReadbackMethod,
+  inBandBrowserDomReadbackProducerId,
+  inBandBrowserDomReadbackSummary,
+  inBandPreSendSummary,
+  inBandRequestBindingEnvelope,
+  inBandRequestRoutePrefix,
+  inBandRequestStep,
+} from "../lib/in-band-request-binding";
 import { continuationId } from "../lib/owner-response-continuation-schema";
+import { validateOwnerResponseContinuation } from "../lib/owner-response-continuation";
 import { producerMayEmit, type AuthenticatedProducer } from "../lib/ingestion-auth";
 import { latestOwnerAction } from "../lib/terminal-comparator";
 import { buildExecutionDirectiveFromGitHubDecision } from "../lib/github-execution-directive";
 import { WORK_MODEL_ROUTING_POLICY_BASE_COMMIT, WORK_MODEL_ROUTING_POLICY_REF } from "../lib/work-execution-profile";
 import { EventStore } from "../lib/store";
 import { refreshUnsentWorkContinuation } from "../lib/work-continuation-refresh";
-import { pendingDecisionRequests } from "../lib/github-decision-receipts";
+import { canonicalDecisionCommentPrefix, pendingDecisionRequests, providerSessionSummary } from "../lib/github-decision-receipts";
+import { buildWorkContinuationCorrection, correctRejectedWorkContinuation } from "../lib/work-continuation-correction";
 import { WORK_QUESTION_RETIREMENT_PRODUCER_ID } from "../lib/unsent-request-proof";
 import { SubmissionAuthorityRuntime } from "../lib/submission-authority-runtime";
+import { supervisorRequestAdmission } from "../lib/projection";
 import {
   buildOwnerAnswerContinuationRoute,
   buildWorkSupervisorQuestionRoute,
@@ -902,6 +913,336 @@ test("dashboard owner answer remains retryable until a matching supervisor conti
       assert.equal(first.requestId, fresh.requestId); assert.equal(second.requestId, fresh.requestId);
       assert.equal(first.duplicate, true); assert.equal(second.duplicate, true);
     } finally { store.close(); }
+  });
+
+  // The owner's one correction of a sent owner-continuation whose answer came back and was rejected by the parser.
+  const correctionSession = "provider-session:correction";
+  const correctionChat = "https://chatgpt.com/c/synthetic-correction";
+  const correctionPrompt = "9".repeat(64);
+  const correctedAt = "2026-10-07T13:00:00.000Z";
+  const relayCollector: AuthenticatedProducer = { id: "collector:relay", kind: "COLLECTOR", workerScopes: [worker], taskScopes: ["*"] };
+  const domReader: AuthenticatedProducer = { id: inBandBrowserDomReadbackProducerId, kind: "COLLECTOR", workerScopes: [worker], taskScopes: ["*"] };
+  const sentControls = [
+    "model_visible_label:GPT-5.6 Sol", "thinking_control_label:Thinking effort", "thinking_visible_label:Extra High",
+    "thinking_ordinal:4 of 5", "account_plan_label:Pro", "account_plan_role:PROVENANCE_METADATA_ONLY",
+    "account_plan_is_reasoning_mode:false", "backend_model_identity_claimed:false", "assistant_content_observed:false",
+  ];
+  const settled = (requestId: string, overrides: Record<string, unknown> = {}) => ({ schemaVersion: 1 as const, requestId,
+    pacingDomain: "chatgpt:test", ledgerValid: true,
+    admissions: [{ admissionId: "send-admission:correction", status: "BOUNDARY_RECORDED", boundaryKind: "CLICKED" }],
+    openAdmissionCount: 0, openQueueRecordCount: 0, crossedAdmissionCount: 1, settled: true, proofSha256: "d".repeat(64), ...overrides }) as any;
+  const answerFor = (requestId: string, bindingDigest: string) => {
+    const exact = "Proceed with the bounded pilot.";
+    return canonicalDecisionCommentPrefix + JSON.stringify({
+      schema_version: 5, envelope_kind: "MISSION_CONTROL_CANONICAL_DECISION", request_id: requestId, supervisor_id: supervisorId,
+      provider_session_id: correctionSession, nonce: "nonce:correction", in_band_binding_sha256: bindingDigest,
+      execution_provenance: "IN_BAND_REQUEST_BINDING_GITHUB_OBSERVED", evidence_capsule: { id: "capsule:correction", sha256: "b".repeat(64) },
+      owner_outcome: { id: "outcome:alpha", epoch: 2, sha256: outcomeSha }, reasoning_lane: "EXTRA_HIGH_DIRECT",
+      decision_block: { decision_id: "decision:correction", exact_text: exact, sha256: sha256(exact) },
+      pro_decision_block: { used: false, model_mode: null, exact_text: null, sha256: null },
+      writer_contract: { mode: "EXACT_COPY_OR_STRUCTURED_TRANSFORMATION_ONLY", reinterpretation_allowed: false },
+    });
+  };
+  // One digest copied with 63 hexadecimal characters, as on 24 October.
+  const rejectedAnswer = (requestId: string) => answerFor(requestId, "a".repeat(63));
+
+  /** A refreshed owner continuation the relay sent once in one session; with `complete`, that session also finished. */
+  async function sentContinuation(options: { relay?: boolean; complete?: boolean; beforeComplete?: (store: EventStore, requestId: string) => void } = {}) {
+    const fixture = recoveryStore();
+    const { store, legacy } = fixture;
+    const sent = await refreshUnsentWorkContinuation(store, { worker, requestId: legacy.requestId },
+      async (id) => noSend(id), policy(), () => recoveryAt);
+    const request = pendingDecisionRequests(store.workerEvents(worker)).find((item) => item.requestId === sent.requestId)!;
+    const binding = inBandRequestBindingEnvelope(request, correctionSession, policy());
+    let n = 0;
+    const relayEvidence = (summary: string, refs: string[], minute: string) => store.append({ schema_version: 2,
+      event_id: `evidence:correction-${++n}`, mission_id: "mission-control-live", occurred_at: `2026-10-07T12:${minute}:00.000Z`, data: {
+        type: "evidence_receipt_recorded", worker, receipt_id: `correction-${n}`, producer_id: relayCollector.id, producer_role: "COLLECTOR",
+        evidence_class: "ARTIFACT", independence: "SAME_PROVENANCE", freshness: "CURRENT", exact_candidate_sha256: null,
+        summary, refs: [`request:${sent.requestId}`, `supervisor:${supervisorId}`, `provider_session:${correctionSession}`, ...refs],
+        verified: true, changed_path_manifest: null,
+      } }, `2026-10-07T12:${minute}:00.000Z`, relayCollector);
+    if (options.relay !== false) {
+      const stage = (state: "STARTED" | "COMPLETE") => [`step:${inBandRequestStep}`, "message_ordinal:1", "first_message:true",
+        `conversation_url:${correctionChat}`, `prompt_sha256:${correctionPrompt}`, `generation_state:${state}`, "selected_app:GitHub",
+        "semantic_authority:false", ...sentControls];
+      const session = (status: "ACTIVE" | "COMPLETE") => ["session_role:IN_BAND_REQUEST_DECISION_SESSION", "message_ordinal:1",
+        `lifecycle_status:${status}`, "url_binding_status:EXACT", `conversation_url:${correctionChat}`];
+      relayEvidence("MISSION_CONTROL_PROVIDER_SESSION_MODEL_UI_V1", ["session_role:IN_BAND_REQUEST_DECISION_SESSION", ...sentControls], "21");
+      relayEvidence(inBandPreSendSummary, ["binding_protocol:IN_BAND_REQUEST_BINDING_V1", `binding_schema:${binding.binding_schema}`,
+        `in_band_binding_sha256:${binding.in_band_binding_sha256}`, `provider_body_sha256:${correctionPrompt}`,
+        `decision_receipt_target:${binding.decision_receipt_target.immutable_issue_url}`, `trusted_relay_producer:${relayCollector.id}`,
+        "semantic_authority:false"], "22");
+      relayEvidence("MISSION_CONTROL_RELAY_STAGE_V1", stage("STARTED"), "23");
+      relayEvidence(providerSessionSummary, session("ACTIVE"), "24");
+      options.beforeComplete?.(store, sent.requestId);
+      if (options.complete !== false) {
+        relayEvidence("MISSION_CONTROL_RELAY_STAGE_V1", stage("COMPLETE"), "30");
+        relayEvidence(providerSessionSummary, session("COMPLETE"), "30");
+      }
+    }
+    return { ...fixture, sent };
+  }
+
+  /** The browser-DOM readback of one answer for the delivered session and prompt; overrides make it wrong. */
+  function recordReadback(store: EventStore, requestId: string, body: string, overrides: {
+    refs?: (refs: string[]) => string[]; at?: string; producer?: AuthenticatedProducer; candidate?: string;
+  } = {}) {
+    const digest = sha256(body);
+    const producer = overrides.producer ?? domReader;
+    const at = overrides.at ?? "2026-10-07T12:40:00.000Z";
+    const id = `browser-dom-readback-evidence:${sha256(`${digest}:${producer.id}:${at}:${requestId}`).slice(0, 32)}`;
+    const refs = [`request:${requestId}`, `supervisor:${supervisorId}`, `provider_session:${correctionSession}`, "status:COMPLETE",
+      `machine_block_sha256:${digest}`, `provider_prompt_sha256:${correctionPrompt}`, `conversation_url:${correctionChat}`,
+      "thread_surface:chatgpt", "source_reader_app:Remote Desktop Commander", "source_reader_mode:READ_ONLY",
+      `browser_target_id_sha256:${"7".repeat(64)}`, "browser_capture_surface:EXISTING_BOUND_CONVERSATION_DOM",
+      "assistant_message_selection:UNIQUE_CANONICAL_BLOCK", "semantic_authority:false",
+      `readback_method:${inBandBrowserDomReadbackMethod}`];
+    store.append({ schema_version: 2, event_id: id, mission_id: "mission-control-live", occurred_at: at, data: {
+      type: "evidence_receipt_recorded", worker, receipt_id: id, producer_id: producer.id, producer_role: "COLLECTOR",
+      evidence_class: "ARTIFACT", independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: overrides.candidate ?? digest,
+      summary: inBandBrowserDomReadbackSummary, refs: overrides.refs ? overrides.refs(refs) : refs, verified: true, changed_path_manifest: null,
+    } }, at, producer);
+    return id;
+  }
+
+  await t.test("owner correction retires one sent, parser-rejected continuation and queues exactly one fresh successor to the same supervisor", async () => {
+    const { store, sent } = await sentContinuation();
+    try {
+      const body = rejectedAnswer(sent.requestId);
+      const readbackEventId = recordReadback(store, sent.requestId, body);
+      const sentBody = (store.eventByEventId(sent.routeEventId)!.data as any).body as string;
+      const prior = JSON.parse(sentBody.slice(inBandRequestRoutePrefix.length));
+      const before = store.count();
+      const input = { worker, requestId: sent.requestId, readbackEventId, rejectedResponseBody: body, authorizedBy: "owner:primary" };
+      const proved: string[] = [];
+      const corrected = await correctRejectedWorkContinuation(store, input,
+        async (id) => { proved.push(id); return settled(id); }, policy(), () => correctedAt);
+      assert.equal(corrected.status, "WORK_CONTINUATION_CORRECTION_QUEUED");
+      assert.equal(corrected.duplicate, false);
+      assert.equal(corrected.rejectedResponseAdmitted, false);
+      assert.equal(corrected.historicalRequestPreserved, true);
+      assert.equal(corrected.rejectedResponseSha256, sha256(body));
+      assert.deepEqual(proved, [sent.requestId]);
+      assert.equal(store.count(), before + 2);
+
+      // The sent request and its rejected answer's readback stay exactly as they were; only the successor is pending.
+      assert.equal((store.eventByEventId(sent.routeEventId)!.data as any).body, sentBody);
+      assert.equal((store.eventByEventId(readbackEventId)!.data as any).exact_candidate_sha256, sha256(body));
+      const pending = pendingDecisionRequests(store.workerEvents(worker));
+      assert.deepEqual(pending.map((item) => item.requestId), [corrected.requestId]);
+      assert.equal(pending[0]!.supervisorId, supervisorId);
+      // Ingestion re-derives the successor's binding from the stored history; only a fresh answer echoing it can be admitted.
+      const successor = pending[0]!;
+      assert.ok(successor.continuation);
+      assert.doesNotThrow(() => validateOwnerResponseContinuation(store.workerEvents(worker), {
+        worker, resumeDecisionRequestId: successor.continuation!.binding.decision_request_id, supervisorId: successor.supervisorId,
+        ownerOutcome: successor.ownerOutcome, evidenceCapsule: successor.evidenceCapsule,
+        issuedAt: successor.queuedAt, expiresAt: successor.expiresAt,
+      }, successor.continuation!, "2026-10-07T13:10:00.000Z"));
+      assert.equal(workQuestionContextForRequest(store.workerEvents(worker), worker, corrected.requestId)?.workThreadId, workThreadId);
+
+      // The successor: same owner answer, facts, capsule and outcome; a fresh binding and window; the rejection's lineage.
+      const routeEvent = store.eventByEventId(corrected.routeEventId)!;
+      assert.equal(routeEvent.producerId, WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID);
+      const next = JSON.parse((routeEvent.data as any).body.slice(inBandRequestRoutePrefix.length));
+      assert.equal(next.requestId, corrected.requestId);
+      assert.equal(next.destinationSupervisorId, prior.destinationSupervisorId);
+      assert.equal(next.correctionOfRequestId, sent.requestId);
+      assert.deepEqual(next.rejectedResponse, {
+        canonicalBodySha256: sha256(body), validationErrorSha256: next.rejectedResponse.validationErrorSha256,
+        failedFieldPaths: ["in_band_binding_sha256"], readbackEventId, providerSessionId: correctionSession,
+        providerPromptSha256: correctionPrompt, admitted: false,
+      });
+      assert.match(next.rejectedResponse.validationErrorSha256, /^[a-f0-9]{64}$/);
+      assert.equal(next.queuedAt, correctedAt);
+      assert.equal(Date.parse(next.expiresAt) - Date.parse(next.queuedAt), Date.parse(prior.expiresAt) - Date.parse(prior.queuedAt));
+      assert.equal(next.continuationBinding.issued_at, next.queuedAt);
+      assert.equal(next.continuationBinding.expires_at, next.expiresAt);
+      assert.equal(next.continuationBindingSha256, sha256(canonicalJson(next.continuationBinding)));
+      assert.notEqual(next.continuationBindingSha256, prior.continuationBindingSha256);
+      const { continuation_id: nextContinuationId, ...nextCausal } = next.continuationBinding;
+      assert.equal(nextContinuationId, continuationId(nextCausal));
+      assert.equal(next.continuationOwnerResponseExactText, prior.continuationOwnerResponseExactText);
+      assert.deepEqual(next.evidenceCapsule, prior.evidenceCapsule);
+      assert.deepEqual(next.ownerOutcome, prior.ownerOutcome);
+      assert.equal(next.factualPacket.exactFactualState, prior.factualPacket.exactFactualState);
+      assert.notEqual(next.nonce, prior.nonce);
+      assert.ok(next.factualPacket.decisionRequested.startsWith(`${prior.factualPacket.decisionRequested} Correction: your earlier answer to ${sent.requestId}`));
+      assert.match(next.factualPacket.decisionRequested, /not authority; nobody has edited or repaired it/);
+      assert.match(next.factualPacket.decisionRequested, /must be set afresh and lie in the future/);
+      // The rejected answer's bytes are never stored.
+      assert.equal(store.workerEvents(worker).some((event) => JSON.stringify(event.data).includes("Proceed with the bounded pilot.")), false);
+
+      // The owner's supervision view shows the sent request as replaced, not still waiting for the supervisor.
+      const admission = supervisorRequestAdmission(store.workerEvents(worker), new Date("2026-10-07T13:10:00.000Z"));
+      assert.equal(admission.replaced.has(sent.requestId), true);
+      assert.equal(admission.replaced.has(corrected.requestId), false);
+
+      const retirement = store.eventByEventId(corrected.retirementEventId)!;
+      assert.equal(retirement.producerKind, "VERIFIER");
+      assert.equal(retirement.producerId, WORK_QUESTION_RETIREMENT_PRODUCER_ID);
+      for (const ref of [`request:${sent.requestId}`, `successor_request:${corrected.requestId}`, "lifecycle_status:RETIRED_AFTER_REJECTED_RESPONSE",
+        "canonical_decision_admitted:false", "decision_receipts_ingested:0", "submission_authority_open_records:0",
+        `rejected_response_sha256:${sha256(body)}`, `readback_event:${readbackEventId}`, "rejected_field:in_band_binding_sha256",
+        "authorized_by:owner:primary", "historical_request_preserved:true", "rejected_response_preserved_unchanged:true"]) {
+        assert.ok((retirement.data as any).refs.includes(ref), ref);
+      }
+
+      // A repeat reports the recorded successor without proving or appending; different bytes are refused.
+      const repeat = await correctRejectedWorkContinuation(store, input,
+        async () => { throw new Error("A repeat must not re-prove."); }, policy(), () => "2026-10-07T13:05:00.000Z");
+      assert.equal(repeat.status, "WORK_CONTINUATION_ALREADY_CORRECTED");
+      assert.equal(repeat.requestId, corrected.requestId);
+      assert.equal(repeat.duplicate, true);
+      await assert.rejects(correctRejectedWorkContinuation(store, { ...input, rejectedResponseBody: `${body} ` },
+        async (id) => settled(id), policy(), () => correctedAt), /already corrected for a different rejected answer/);
+      // The corrected request can't be refreshed, corrected again by a direct build, or answered.
+      await assert.rejects(refreshUnsentWorkContinuation(store, { worker, requestId: sent.requestId },
+        async (id) => noSend(id), policy(), () => correctedAt));
+      assert.throws(() => buildWorkContinuationCorrection(store.workerEvents(worker), { ...input, recordedAt: correctedAt },
+        settled(sent.requestId), policy()), /already corrected/);
+      assert.equal(store.count(), before + 2);
+    } finally { store.close(); }
+  });
+
+  await t.test("correction refuses unmatched bytes, foreign readbacks, parser-accepted answers, open or unsent sends and missing completion", async () => {
+    const refuse = async (pattern: RegExp, setup: (store: EventStore, requestId: string) => {
+      body: string; readbackEventId: string; proof?: unknown; receiptPolicy?: GitHubReceiptPolicy; requestId?: string;
+    }, options: Parameters<typeof sentContinuation>[0] = {}) => {
+      const { store, sent } = await sentContinuation(options);
+      try {
+        const made = setup(store, sent.requestId);
+        const before = store.count();
+        const requestId = made.requestId ?? sent.requestId;
+        await assert.rejects(correctRejectedWorkContinuation(store, { worker, requestId, readbackEventId: made.readbackEventId,
+          rejectedResponseBody: made.body, authorizedBy: "owner:primary" },
+          async (id) => (made.proof ?? settled(id)) as any, made.receiptPolicy ?? policy(), () => correctedAt), pattern);
+        assert.equal(store.count(), before);
+        assert.deepEqual(pendingDecisionRequests(store.workerEvents(worker)).map((item) => item.requestId), [sent.requestId]);
+      } finally { store.close(); }
+    };
+    const exactly = /not exactly what one trusted readback recorded/;
+    // Bytes other than the ones the readback recorded.
+    await refuse(exactly, (store, id) => ({ body: answerFor(id, "c".repeat(63)), readbackEventId: recordReadback(store, id, rejectedAnswer(id)) }));
+    // A readback from a producer that is not the browser-DOM reader, of another session or prompt, not complete,
+    // with a different candidate digest, claiming authority, or taken before the session finished.
+    await refuse(exactly, (store, id) => ({ body: rejectedAnswer(id), readbackEventId: recordReadback(store, id, rejectedAnswer(id), { producer: relayCollector }) }));
+    for (const change of [
+      (refs: string[]) => refs.map((ref) => ref.startsWith("provider_session:") ? "provider_session:provider-session:other" : ref),
+      (refs: string[]) => refs.map((ref) => ref.startsWith("provider_prompt_sha256:") ? `provider_prompt_sha256:${"8".repeat(64)}` : ref),
+      (refs: string[]) => refs.map((ref) => ref === "status:COMPLETE" ? "status:PARTIAL" : ref),
+      (refs: string[]) => refs.map((ref) => ref === "semantic_authority:false" ? "semantic_authority:true" : ref),
+      (refs: string[]) => refs.filter((ref) => !ref.startsWith("machine_block_sha256:")),
+      (refs: string[]) => refs.map((ref) => ref.startsWith("conversation_url:") ? "conversation_url:https://chatgpt.com/c/synthetic-other" : ref),
+      (refs: string[]) => refs.map((ref) => ref === "source_reader_mode:READ_ONLY" ? "source_reader_mode:INTERACTIVE" : ref),
+      (refs: string[]) => refs.map((ref) => ref.startsWith("source_reader_app:") ? "source_reader_app:Unapproved" : ref),
+      (refs: string[]) => refs.filter((ref) => !ref.startsWith("browser_target_id_sha256:")),
+      (refs: string[]) => refs.filter((ref) => !ref.startsWith("readback_method:")),
+      (refs: string[]) => [...refs, `machine_block_sha256:${"6".repeat(64)}`],
+    ]) {
+      await refuse(exactly, (store, id) => ({ body: rejectedAnswer(id), readbackEventId: recordReadback(store, id, rejectedAnswer(id), { refs: change }) }));
+    }
+    await refuse(exactly, (store, id) => ({ body: rejectedAnswer(id), readbackEventId: recordReadback(store, id, rejectedAnswer(id), { candidate: "e".repeat(64) }) }));
+    await refuse(exactly, (store, id) => ({ body: rejectedAnswer(id), readbackEventId: recordReadback(store, id, rejectedAnswer(id), { at: "2026-10-07T12:25:00.000Z" }) }));
+    await refuse(exactly, (_store, id) => ({ body: rejectedAnswer(id), readbackEventId: "browser-dom-readback-evidence:missing" }));
+    // An answer Mission Control's parser accepts is out of scope.
+    await refuse(/canonical parser accepts the answer/, (store, id) => {
+      const valid = answerFor(id, "a".repeat(64));
+      return { body: valid, readbackEventId: recordReadback(store, id, valid) };
+    });
+    // The submission authority must show it sent, with nothing still open.
+    for (const proof of [{ settled: false, openAdmissionCount: 1 }, { openQueueRecordCount: 1 }, { crossedAdmissionCount: 0 },
+      { admissions: [], crossedAdmissionCount: 0 }, { ledgerValid: false }, { requestId: `work-owner-continuation:${"0".repeat(32)}` },
+      { crossedAdmissionCount: 2, admissions: [
+        { admissionId: "send-admission:one", status: "BOUNDARY_RECORDED", boundaryKind: "CLICKED" },
+        { admissionId: "send-admission:two", status: "BOUNDARY_RECORDED", boundaryKind: "CLICKED" }] }]) {
+      await refuse(/Submission authority did not show the owner continuation sent/, (store, id) => ({
+        body: rejectedAnswer(id), readbackEventId: recordReadback(store, id, rejectedAnswer(id)), proof: settled(id, proof) }));
+    }
+    // The relay must show it sent once in one finished session.
+    await refuse(/sent once and finished in one session/, (store, id) => ({ body: rejectedAnswer(id), readbackEventId: recordReadback(store, id, rejectedAnswer(id)) }),
+      { complete: false });
+    await refuse(/sent once and finished in one session/, (store, id) => ({ body: rejectedAnswer(id), readbackEventId: recordReadback(store, id, rejectedAnswer(id)) }),
+      { relay: false });
+    // Only the exact work-owner-continuation kind, under the request-bound policy.
+    await refuse(/exact worker and work-owner-continuation/, (store, id) => ({ body: rejectedAnswer(id),
+      readbackEventId: recordReadback(store, id, rejectedAnswer(id)), requestId: `work-question:${"c".repeat(32)}` }));
+    await refuse(/request-bound relay policy/, (store, id) => ({ body: rejectedAnswer(id), readbackEventId: recordReadback(store, id, rejectedAnswer(id)),
+      receiptPolicy: { ...policy(), requestBound: { enabled: false, relayProducerIds: [] } } }));
+    // A readback the ledger holds before the session finished, whatever time it claims.
+    await refuse(exactly, (store) => {
+      const id = (store as any).readbackBeforeCompletion as string;
+      return { body: rejectedAnswer((store as any).sentRequestId), readbackEventId: id };
+    }, { beforeComplete: (store, id) => Object.assign(store, { sentRequestId: id,
+      readbackBeforeCompletion: recordReadback(store, id, rejectedAnswer(id), { at: "2026-10-07T12:45:00.000Z" }) }) });
+    // Bytes that are not a framed canonical decision for this request, supervisor and session, even if read back.
+    for (const frame of [
+      (id: string) => `Visible timestamp 12:31\n${rejectedAnswer(id)}`,
+      (id: string) => rejectedAnswer(id).slice(0, 200),
+      (id: string) => rejectedAnswer(id).replace(`"request_id":"${id}"`, `"request_id":"work-owner-continuation:${"0".repeat(32)}"`),
+      (id: string) => rejectedAnswer(id).replace(`"provider_session_id":"${correctionSession}"`, '"provider_session_id":"provider-session:other"'),
+      (id: string) => rejectedAnswer(id).replace(`"supervisor_id":"${supervisorId}"`, '"supervisor_id":"another-supervisor"'),
+    ]) {
+      await refuse(/not a framed canonical decision for this request, supervisor and session/, (store, id) => {
+        const body = frame(id);
+        assert.notEqual(body, rejectedAnswer(id));
+        return { body, readbackEventId: recordReadback(store, id, body) };
+      });
+    }
+    // Any other record of the answer naming other bytes, or any transform of it, stops the correction.
+    const otherRecord = (store: EventStore, id: string, summary: string, refs: string[]) => store.append({ schema_version: 2,
+      event_id: `evidence:other-${summary}`, mission_id: "mission-control-live", occurred_at: "2026-10-07T12:41:00.000Z", data: {
+        type: "evidence_receipt_recorded", worker, receipt_id: `other-${summary}`, producer_id: "collector:other", producer_role: "COLLECTOR",
+        evidence_class: "ARTIFACT", independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: null, summary,
+        refs: [`request:${id}`, `supervisor:${supervisorId}`, `provider_session:${correctionSession}`, ...refs], verified: true, changed_path_manifest: null,
+      } }, "2026-10-07T12:41:00.000Z", { id: "collector:other", kind: "COLLECTOR", workerScopes: [worker], taskScopes: ["*"] });
+    for (const [summary, refs, pattern] of [
+      ["MISSION_CONTROL_PROVIDER_SESSION_APP_READBACK_V1", [`machine_block_sha256:${"4".repeat(64)}`], /names different bytes/],
+      ["MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1", [`canonical_body_sha256:${"4".repeat(64)}`], /names different bytes/],
+      ["MISSION_CONTROL_PROVIDER_SESSION_MACHINE_TRANSFORM_V1", [`transformed_machine_block_sha256:${"4".repeat(64)}`], /transform of the answer/],
+    ] as const) {
+      await refuse(pattern, (store, id) => {
+        const readbackEventId = recordReadback(store, id, rejectedAnswer(id));
+        otherRecord(store, id, summary, [...refs]);
+        return { body: rejectedAnswer(id), readbackEventId };
+      });
+    }
+    // A matching invalid-decision receipt from the relay is consistent and doesn't stop it.
+    {
+      const { store, sent } = await sentContinuation();
+      try {
+        const readbackEventId = recordReadback(store, sent.requestId, rejectedAnswer(sent.requestId));
+        otherRecord(store, sent.requestId, "MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1",
+          [`canonical_body_sha256:${sha256(rejectedAnswer(sent.requestId))}`]);
+        const input = { worker, requestId: sent.requestId, readbackEventId, rejectedResponseBody: rejectedAnswer(sent.requestId), authorizedBy: "owner:primary" };
+        const corrected = await correctRejectedWorkContinuation(store, input, async (id) => settled(id), policy(), () => correctedAt);
+        assert.equal(corrected.status, "WORK_CONTINUATION_CORRECTION_QUEUED");
+        // A repeat naming another readback of the same bytes is refused.
+        const other = recordReadback(store, sent.requestId, rejectedAnswer(sent.requestId), { at: "2026-10-07T12:50:00.000Z" });
+        await assert.rejects(correctRejectedWorkContinuation(store, { ...input, readbackEventId: other }, async (id) => settled(id), policy(),
+          () => correctedAt), /different rejected answer or readback/);
+      } finally { store.close(); }
+    }
+    // A newer decision or an amended owner outcome makes the request stale.
+    await refuse(/newer directive, Work dispatch or decision|answered, superseded or retired/, (store, id) => {
+      const readbackEventId = recordReadback(store, id, rejectedAnswer(id));
+      const receipt: any = structuredClone(store.workerEvents(worker).find((event) => event.data.type === "github_decision_receipt_ingested")!.data);
+      delete receipt.bounded_execution; delete receipt.bounded_execution_sha256;
+      Object.assign(receipt, { request_id: "another-review:alpha", receipt_id: "github-comment:newer" });
+      store.append({ schema_version: 2, event_id: "decision:newer", mission_id: "mission-control-live", occurred_at: "2026-10-07T12:42:00.000Z", data: receipt },
+        "2026-10-07T12:42:00.000Z", { id: "system:github-decision-receipts", kind: "SYSTEM", workerScopes: [worker], taskScopes: [taskId] });
+      return { body: rejectedAnswer(id), readbackEventId };
+    });
+    await refuse(/stale against the current owner outcome/, (store, id) => {
+      const readbackEventId = recordReadback(store, id, rejectedAnswer(id));
+      const outcome: any = structuredClone(store.workerEvents(worker).find((event) => event.data.type === "owner_outcome_recorded")!.data);
+      Object.assign(outcome, { epoch: 3, supersedes: outcome.owner_outcome_id, supersedes_outcome_sha256: outcome.owner_outcome_sha256,
+        owner_outcome_sha256: "e".repeat(64) });
+      store.append({ schema_version: 2, event_id: "owner-outcome:amended", mission_id: "mission-control-live", occurred_at: "2026-10-07T12:42:00.000Z", data: outcome },
+        "2026-10-07T12:42:00.000Z", { id: "owner:test", kind: "OWNER_AUTHORITY", workerScopes: [worker], taskScopes: [taskId] });
+      return { body: rejectedAnswer(id), readbackEventId };
+    });
   });
 
   await t.test("owner-decision POST recovers failed appends and returns the existing route after a lost response", async (context) => {
