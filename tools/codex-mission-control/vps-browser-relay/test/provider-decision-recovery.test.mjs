@@ -189,10 +189,11 @@ test('a deferred-anchor send whose page shows no user turn reads back its one ke
       userTurnKeySource: undefined,
     },
   };
-  const assistantOnly = (change = {}) => {
+  const assistantOnly = (change = {}, rawCounts = { turnKeyRoots: 1, userBubbles: 0, searchUnits: 1, authorRoleNodes: 0, conversationTurnArticles: 0 }) => {
     const observed = structuralObservation();
     observed.turns.shift();
     Object.assign(observed.turns[0], change);
+    observed.rawCounts = rawCounts;
     return observed;
   };
   const result = validateRecoveredDecisionObservation(assistantOnly(), deferred);
@@ -217,6 +218,16 @@ test('a deferred-anchor send whose page shows no user turn reads back its one ke
   assert.throws(() => validateRecoveredDecisionObservation(doubled, deferred), (error) => error.classification === 'READBACK_UNRESOLVED');
   assert.throws(() => validateRecoveredDecisionObservation(assistantOnly({ contentRootCount: 2 }), deferred),
     (error) => error.classification === 'READBACK_UNRESOLVED');
+  // A page holding more than one exchange, or no raw counts at all, stays unresolved, and says what it held.
+  for (const rawCounts of [{ turnKeyRoots: 3, userBubbles: 0, searchUnits: 1, authorRoleNodes: 0, conversationTurnArticles: 0 },
+    { turnKeyRoots: 1, userBubbles: 0, searchUnits: 1, authorRoleNodes: 0, conversationTurnArticles: 4 }, null]) {
+    assert.throws(() => validateRecoveredDecisionObservation(assistantOnly({}, rawCounts), deferred), (error) => error.classification === 'READBACK_UNRESOLVED'
+      && error.structure.rawCounts.turnKeyRoots === (rawCounts?.turnKeyRoots ?? null));
+  }
+  // Refusals in the deferred path record the structure too, without text.
+  assert.throws(() => validateRecoveredDecisionObservation(assistantOnly({ text: 'not canonical' }), deferred),
+    (error) => error.classification === 'ASSISTANT_RESPONSE_PRESENT_BUT_INVALID' && error.structure.turns[0].canonicalMarker === false
+      && error.structure.turns[0].textLength === 'not canonical'.length && !JSON.stringify(error.structure).includes('not canonical'));
   for (const change of [{ request_id: 'fleet-review:' + '0'.repeat(32) }, { provider_session_id: 'provider-session:other' },
     { nonce: 'nonce:other' }, { in_band_binding_sha256: 'e'.repeat(64) }]) {
     assert.throws(() => validateRecoveredDecisionObservation(assistantOnly({ text: body(change) }), deferred),

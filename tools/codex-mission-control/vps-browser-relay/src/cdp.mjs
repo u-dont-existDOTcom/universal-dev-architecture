@@ -1119,8 +1119,17 @@ export const BOUND_TURN_READBACK_FN = `function(expectedUrl, expectedMention) {
     .filter((root) => root.hasAttribute('data-turn-key')
       ? Boolean(root.querySelector('[data-user-message-bubble]'))
       : (root.querySelector('[data-conversation-role]')?.getAttribute('data-conversation-role') || textOf(root.querySelector('[data-conversation-role]'))) === 'assistant');
+  // Every turn-like element on the page, counted before any filter (counts only), so a reply read without a visible
+  // user turn can still show that the page holds one exchange and nothing more.
+  const rawCounts = {
+    turnKeyRoots: document.querySelectorAll('[data-turn-key]').length,
+    userBubbles: document.querySelectorAll('[data-user-message-bubble]').length,
+    searchUnits: document.querySelectorAll('[data-chatgpt-search-unit-key][data-content-search-unit-key]').length,
+    authorRoleNodes: legacyRoleNodes.length,
+    conversationTurnArticles: document.querySelectorAll('article[data-testid^="conversation-turn-"], article[data-turn-id]').length,
+  };
   if (legacyRoleNodes.length > 0 && modernRoots.length > 0) {
-    return { urlMismatch: false, structureAmbiguous: true, currentUrl: location.href, turns: [] };
+    return { urlMismatch: false, structureAmbiguous: true, currentUrl: location.href, turns: [], rawCounts };
   }
   const turns = [];
   if (modernRoots.length > 0) {
@@ -1145,7 +1154,7 @@ export const BOUND_TURN_READBACK_FN = `function(expectedUrl, expectedMention) {
         });
       }
     }
-    return { urlMismatch: false, structureAmbiguous: false, structureKind: 'CHATGPT_DATA_TURN_KEY_V1', currentUrl: location.href, turns };
+    return { urlMismatch: false, structureAmbiguous: false, structureKind: 'CHATGPT_DATA_TURN_KEY_V1', currentUrl: location.href, turns, rawCounts };
   }
   const seenContainers = new Set();
   for (const roleNode of legacyRoleNodes) {
@@ -1161,7 +1170,7 @@ export const BOUND_TURN_READBACK_FN = `function(expectedUrl, expectedMention) {
       text: roots.map(textOf).join(''), mentionBinding: role === 'user' ? mentionState(roleNode) : null,
       contentRootCount: role === 'assistant' ? contentRoots.length : 1 });
   }
-  return { urlMismatch: false, structureAmbiguous: false, structureKind: 'CHATGPT_LEGACY_AUTHOR_ROLE_V1', currentUrl: location.href, turns };
+  return { urlMismatch: false, structureAmbiguous: false, structureKind: 'CHATGPT_LEGACY_AUTHOR_ROLE_V1', currentUrl: location.href, turns, rawCounts };
 }`;
 
 export const SUBMITTED_USER_TURN_ANCHOR_FN = `function(expectedUrl, expectedMention) {

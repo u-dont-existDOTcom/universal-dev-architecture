@@ -27,6 +27,16 @@ export function extractCanonicalDecisionBlock(assistantText) {
 }
 
 export function validateRecoveredDecisionObservation(observation, expected) {
+  try {
+    return validateObservation(observation, expected);
+  } catch (error) {
+    // Every refusal after the page was read carries what the page showed (structure only), for diagnosis.
+    if (observation && error && typeof error === 'object' && !error.structure) error.structure = observationStructure(observation);
+    throw error;
+  }
+}
+
+function validateObservation(observation, expected) {
   if (!observation || observation.urlMismatch) throw recoveryError('READBACK_UNRESOLVED', 'Bound provider conversation URL is not available.');
   if (observation.structureAmbiguous) throw recoveryError('READBACK_UNRESOLVED', 'Provider turn structure is ambiguous across supported DOM schemas.');
   if (!Array.isArray(observation.turns)) throw recoveryError('READBACK_UNRESOLVED', 'Provider turn structure is unavailable.');
@@ -103,7 +113,11 @@ function selectBoundUserTurn(observation, expected) {
   // A send whose page showed no user turn while the reply generated (its anchor was deferred) may still show none.
   // In this fresh, exact-bound first-message session the one keyed assistant turn is then the reply; the decision's
   // own request, session, nonce and per-session binding digest, checked below, tie it to this exact prompt.
-  if (binding.anchorDeferredNoUserTurnShown === true && observation.turns.length === 1 && users.length === 0
+  // The page's own turn elements, counted before any filter, must still be at most one exchange.
+  const raw = observation.rawCounts;
+  const oneExchange = raw && Number.isInteger(raw.turnKeyRoots) && raw.turnKeyRoots <= 2
+    && Number.isInteger(raw.conversationTurnArticles) && raw.conversationTurnArticles <= 2;
+  if (binding.anchorDeferredNoUserTurnShown === true && oneExchange && observation.turns.length === 1 && users.length === 0
     && assistants.length === 1 && typeof assistants[0].key === 'string' && assistants[0].key.length > 0) {
     return { candidates: [], assistant: assistants[0], mode: 'DEFERRED_ANCHOR_SINGLE_ASSISTANT_TURN' };
   }
@@ -113,9 +127,7 @@ function selectBoundUserTurn(observation, expected) {
     && typeof assistants[0].key === 'string' && assistants[0].key.length > 0
     && users[0].mentionBinding?.exact === true;
   if (!shapeMatches) {
-    const error = recoveryError('READBACK_UNRESOLVED', 'The pre-anchor request does not have one uniquely ordered, structurally bound user/assistant turn pair.');
-    error.structure = observationStructure(observation);
-    throw error;
+    throw recoveryError('READBACK_UNRESOLVED', 'The pre-anchor request does not have one uniquely ordered, structurally bound user/assistant turn pair.');
   }
   return { candidates: users, mode: binding.mode };
 }
@@ -123,8 +135,12 @@ function selectBoundUserTurn(observation, expected) {
 /** The turn structure a readback saw, for diagnosis: roles, keys present, counts and yes/no, never text. */
 export function observationStructure(observation) {
   const turns = Array.isArray(observation?.turns) ? observation.turns : [];
+  const raw = observation?.rawCounts && typeof observation.rawCounts === 'object' ? observation.rawCounts : {};
   return {
     structureKind: typeof observation?.structureKind === 'string' ? observation.structureKind : null,
+    structureAmbiguous: observation?.structureAmbiguous === true,
+    rawCounts: Object.fromEntries(['turnKeyRoots', 'userBubbles', 'searchUnits', 'authorRoleNodes', 'conversationTurnArticles']
+      .map((name) => [name, Number.isInteger(raw[name]) ? raw[name] : null])),
     turnCount: turns.length,
     turns: turns.slice(0, 8).map((turn) => ({
       role: turn?.role === 'user' || turn?.role === 'assistant' ? turn.role : 'other',
