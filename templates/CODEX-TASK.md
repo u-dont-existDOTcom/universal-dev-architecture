@@ -115,6 +115,20 @@ If the parent outcome is already `SATISFIED`, do not relabel an optional improve
 
 Follow `patterns/owner-goal-followup-and-requirement-accretion.md`.
 
+### Research outcome-proximity / proxy-work stop-loss
+
+When this is an empirical or predictive research task with repeated source/mock/instrument work, apply `patterns/research-outcome-proximity-and-proxy-stoploss.md` before the next work package. This is not a mandatory extra form for ordinary programming or explicitly owner-requested source audits.
+
+- Literal owner evidence target and what a genuine negative result would look like:
+- Independent direct observations before and now (no synthetic participants counted):
+- Consecutive material source/simulation/quality-only phases with zero direct delta:
+- Proposed next evidence class: `DIRECT_OUTCOME_EVIDENCE` / `NECESSARY_ENABLEMENT` / `SOURCE_EVIDENCE` / `SUPPORTING_QUALITY` / `ACCESS_OR_CONSENT_GATE`
+- Exact real test unblocked by proposed work, strongest simpler route and proven necessity:
+- Consent/data/source access boundary and next authorized actor/action:
+- Next-step disposition: `ADMIT_DIRECT_TEST` / `ADMIT_ONE_BOUNDED_REPAIR` / `ADMIT_OWNER_SOURCE_TASK` / `REJECT_PROXY_LOOP` / `EXTERNAL_EVIDENCE_GATE` / other explained disposition:
+
+A positive code-test count is not the observed owner outcome; record the direct owner-evidence class even when this source/engineering subtask passes every test. Use optional `scripts/research_progress_admission.py` on a compact input JSON for a machine-readable diagnostic if already tracking multi-session work.
+
 ## Baseline
 
 - Repository:

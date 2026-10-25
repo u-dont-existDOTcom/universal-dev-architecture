@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-25",
+  "source": "2026-10-25 owner correction in humandesign chat",
+  "owner_quote": "ok well fix UDA so that doesn't happen again, and continue with the work",
+  "owner_context": "Following repeated source and synthetic-only Gene Keys continuations that did not produce direct independent predictive evidence, the owner explicitly corrected the assistant for wasting time on preparatory work.",
+  "owner_target": "Stop substituting synthetic tests, method refinement and reports for independent predictive validity; continue the nearest authorized real evidence or exact human/data boundary.",
+  "classification": "OWNER_REQUIRED",
+  "nonclaims": [
+    "This records a reusable control, not a guaranteed always-on runtime policy for sessions that never load UDA.",
+    "The control cannot create consent or suitable unseen human outcomes.",
+    "Full source/text research requested by the owner remains a valid separate task."
+  ],
+  "authorized_implementation": [
+    "patterns/research-outcome-proximity-and-proxy-stoploss.md",
+    "scripts/research_progress_admission.py",
+    "tests/test_research_progress_stoploss.py",
+    "LESSON-INDEX.md",
+    "AGENTS.md",
+    "patterns/codex-github-operating-system.md",
+    "patterns/outcome-advancement-and-strategy-efficacy.md",
+    "patterns/long-range-research-mission-supervision.md",
+    "templates/CODEX-TASK.md"
+  ]
+}

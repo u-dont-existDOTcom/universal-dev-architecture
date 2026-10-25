@@ -4,6 +4,8 @@
 **Date:** 2026-08-31  
 **Authority:** Current owner correction plus the Somatic R15 no-progress incident recorded in `u-dont-existDOTcom/joel-articles` PR #73
 
+**Research-specific continuation admission:** `patterns/research-outcome-proximity-and-proxy-stoploss.md` operationalizes this plane when an empirical owner goal has accrued mock cohorts, passing source/engineering tests or instrument versions but **no independent target observations**. It distinguishes source-acquisition goals (where source coverage is direct) from predictive-validity goals (where simulation is only supporting), and stops another self-generated proxy round without a demonstrated unlock. This adds no new excuse to omit current project-declared tests or ethics/consent requirements.
+
 ## 1. Normative correction
 
 Mission Control must not treat either of these as proof that the owner outcome is advancing:

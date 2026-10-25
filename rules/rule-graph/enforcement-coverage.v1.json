@@ -8248,6 +8248,66 @@
       }
     },
     {
+      "id": "patterns/research-outcome-proximity-and-proxy-stoploss.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "for empirical, longitudinal or predictive research"
+      },
+      "actors": [
+        "research task author",
+        "reasoning supervisor",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "final-delivery"
+      ],
+      "destinations": [
+        "research follow-up task decision",
+        "owner-outcome evidence status",
+        "consent or data boundary handoff"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/research-outcome-proximity-and-proxy-stoploss.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "scripts/research_progress_admission.py",
+          "class": "ADMISSION"
+        },
+        {
+          "path": "tests/test_research_progress_stoploss.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "docs/requirements/2026-10-25-research-proxy-stoploss.owner-requirement.json",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "review_notes": "Owner-requested semantic continuation control is routed through live UDA kernel and index, with a callable decision aid and behavioral fixtures. It is NOT a universal installed interceptor; not every task runner has proved task-time invocation. No task-time structured mapping claimed.",
+      "migration": {
+        "priority": "P1",
+        "next_step": "Bind a correctly classified direct-versus-supporting research evidence receipt to actual work-package admission in an adopter, verify that repeated proxy-only work is rejected and real authorized/source-scoped work is admitted.",
+        "trigger_frequency": "CONDITIONAL"
+      }
+    },
+    {
       "id": "patterns/rule-graph-activation-and-dependency-resolution.md",
       "kind": "pattern",
       "indexed": true,
