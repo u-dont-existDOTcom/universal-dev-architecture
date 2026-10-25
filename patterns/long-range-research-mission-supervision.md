@@ -110,6 +110,10 @@ Each work package must declare:
 
 A package can finish while the parent remains open. Report `SUBTASK_COMPLETE_PARENT_OPEN` unless root closure is independently proven.
 
+### Outcome-proximity continuation stop-loss
+
+When a research mission is seeking external predictive or empirical evidence, apply `patterns/research-outcome-proximity-and-proxy-stoploss.md` at every new material work package and bare "continue" after repeated preparation-only work. Report independent actual observations, source evidence, simulated outputs, and software test counts separately; retain the nearest direct observation and its external consent/access status. A worker may complete another source package under explicit source-acquisition authority, but cannot convert synthetic reenactments into a closed empirical mission.
+
 ## 5. Safe parallelism
 
 Parallelism is allowed when the mission records:

@@ -90,6 +90,8 @@ If a newly added control blocks or degrades a previously working owner-aligned p
 
 This gate runs at follow-up-task authoring, before the new framing is handed to Work or another executor. A later worker faithfully executing a substituted goal is too late. At experiment launch, apply the operational owner-method contract to the actual runnable configuration.
 
+For repeated research or bare "continue" after synthetic/engineering-only progress, activate `patterns/research-outcome-proximity-and-proxy-stoploss.md` before generating a new work package. A green source/test suite is not evidence of real-world prediction; choose the closest independent owner observation or exact legitimate human gate, and stop another self-authored proxy-work cycle when it cannot change that result. Preserve current project-declared tests, sources and consent controls.
+
 ## Owner-facing operational references
 
 In user-facing prose, never make repository identifiers the primary explanation. Pull-request numbers, issue numbers, branch names, commit SHAs, workflow/run/job IDs, and similar opaque references are locating metadata, not semantic referents.

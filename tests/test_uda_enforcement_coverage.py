@@ -460,6 +460,7 @@ class EnforcementCoverageTests(unittest.TestCase):
             "patterns/terminal-response-admission-and-autonomous-continuation.md",
             "patterns/owner-outcome-invariant-and-contract-laundering-prevention.md",
             "patterns/owner-goal-followup-and-requirement-accretion.md",
+            "patterns/research-outcome-proximity-and-proxy-stoploss.md",
             "AGENTS.md#follow-up-goal-derivation-and-assistant-added-requirements",
             "patterns/chatgpt-client-surface-capability-and-thread-recovery.md",
             "patterns/worker-directive-delivery-and-chat-output-budget.md", "AGENTS.md#owner-facing-operational-references",
@@ -511,7 +512,7 @@ class EnforcementCoverageTests(unittest.TestCase):
         self.assertEqual(removed, report["removed_since_baseline"])
         self.assertEqual(7, len(removed))
         self.assertEqual(84, report["baseline_backlog_count"])
-        self.assertEqual(78, report["backlog_count"])
+        self.assertEqual(79, report["backlog_count"])
 
     def test_documented_counts_match_report(self):
         report = coverage.report(self.root)

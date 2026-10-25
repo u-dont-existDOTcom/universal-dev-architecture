@@ -141,6 +141,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-10.6 | Multi-worker supervision loses a single authority or context boundary, so execution and judgment are routed to the wrong agent. | Trace each directive and decision to its owner, worker, and supervisory lane. | `patterns/codex-pro-supervision-mission-control.md`; `patterns/codex-supervision-intelligence-routing-and-context-lifecycle.md` | |
 | LF-10.7 | Multiple relay hosts send the same item, or failover resumes without a fenced authority. | Verify one durable sender admission, global pacing, and a fenced failover epoch before each send. | `patterns/mission-control-multi-host-submission-scheduling.md`; `patterns/shared-provider-submission-queue.md` | |
 | LF-10.8 | A fix for another project delivered as a pull request the owner must answer first, or as a file he must relay. | File it in that project's lane; its own agent decides first. | `patterns/suggested-fix-queue.md` | |
+| LF-10.9 | Preparatory research, new synthetic participants and many green unit tests accumulate while the owner's independent empirical outcome remains unmeasured. | Rebind to the owner evidence target and stop new unblocking-free proxy loops; preserve explicit source-only tasks. | `patterns/research-outcome-proximity-and-proxy-stoploss.md`; `patterns/outcome-advancement-and-strategy-efficacy.md` | |
 
 ## Keeping the map complete
 
