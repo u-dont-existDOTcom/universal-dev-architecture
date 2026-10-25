@@ -350,6 +350,16 @@ test("a step the supervisor starts, a real owner decision or an owner blocker is
     assert.equal(registeredTaskHold(reviewed)?.decision.eventId, "decision:7");
     assert.equal(projectWorker(reviewed).correction.ownerAction.reason_code, OWNER_TASK_HELD_BY_SUPERVISOR_REASON);
     assert.equal(classifyFleetSupervisorTick(watch, reviewed, store.verifyChain()).trigger, "SUPERVISOR_HOLD");
+    // An owner decision answered before the hold is done; the hold still shows, and a still-open one still comes first.
+    const ownerDecision = (status: "COMPLETED" | "OPEN"): StoredEvent => ({ ...decision(5), eventId: `owner-decision:${status}`, sequence: last.sequence + 4,
+      data: { type: "supervisor_assessment_recorded", worker, owner_action: { kind: "DECISION_REQUIRED", exact_text: "A or B?",
+        reason_code: "SUPERVISOR_OWNER_DECISION_REQUIRED", subject_id: `worker:${worker}`, blocking_scope: ["next step"],
+        source_event_ids: ["decision:1"], due_at: null, escalation_at: null, status } } as StoredEvent["data"] });
+    const answeredFirst = [...history, ownerDecision("COMPLETED"), ranDirective, receiptFor(6, "github-execution:ran", 3), decision(7)];
+    assert.equal(projectWorker(answeredFirst).correction.ownerAction.reason_code, OWNER_TASK_HELD_BY_SUPERVISOR_REASON);
+    assert.equal(classifyFleetSupervisorTick(watch, answeredFirst, store.verifyChain()).trigger, "SUPERVISOR_HOLD");
+    const stillOpen = [...history, ownerDecision("OPEN"), ranDirective, receiptFor(6, "github-execution:ran", 3), decision(7)];
+    assert.equal(projectWorker(stillOpen).correction.ownerAction.reason_code, "SUPERVISOR_OWNER_DECISION_REQUIRED");
     assert.equal(registeredTaskHold([...history, ranDirective, decision(6), receiptFor(7, "github-execution:ran", 3)]), null, "a decision before the receipt");
     assert.equal(registeredTaskHold([...history, ranDirective, receiptFor(6, "github-execution:other", 3), decision(7)]), null, "another directive's receipt");
     assert.equal(registeredTaskHold([...history, ranDirective, receiptFor(6, "github-execution:ran", 2), decision(7)]), null, "another revision's receipt");

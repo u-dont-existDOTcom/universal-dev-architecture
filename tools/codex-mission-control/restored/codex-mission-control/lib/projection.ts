@@ -1276,9 +1276,10 @@ function effectiveOwnerAction(
     escalation_at: null,
     status: "OPEN",
   };
-  // A registered task its supervisor held: nothing reports an owner action, because the supervisor's decision started
-  // no step. It stays fail-closed (no work starts) under its own reason, so the owner sees a hold, not missing telemetry.
-  if (!recorded && heldBySupervisor) return {
+  // A registered task its supervisor held: nothing reports an open owner action, because the supervisor's decision
+  // started no step (an owner decision answered earlier is done, and the hold came after it). It stays fail-closed (no
+  // work starts) under its own reason, so the owner sees a hold, not missing telemetry or a finished owner decision.
+  if ((!recorded || recorded.status === "COMPLETED") && heldBySupervisor) return {
     kind: "MANUAL_INTERVENTION_REQUIRED",
     exact_text: "Held by its supervisor: its latest decision started no work. Mission Control asks the supervisor again once a checkpoint of what that decision asked for is verified.",
     reason_code: OWNER_TASK_HELD_BY_SUPERVISOR_REASON,
