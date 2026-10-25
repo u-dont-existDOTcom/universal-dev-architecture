@@ -315,6 +315,33 @@ const server = http.createServer(async (request, response) => {
         return json(response, 409, { error: error instanceof Error ? error.message : "The Work question reissue was rejected." });
       }
     }
+    // The owner's one correction of a sent Work owner-continuation whose answer Mission Control's canonical parser
+    // rejected: it queues one successor to the same supervisor, so it takes the owner's credential, one exact named
+    // request, the trusted readback that recorded the rejected answer, and that answer's exact bytes (checked, never stored).
+    const workContinuationCorrectionMatch = url.pathname.match(/^\/workers\/([^/]+)\/work-continuations\/correct-rejected-response$/);
+    if (request.method === "POST" && workContinuationCorrectionMatch) {
+      const producer = authorizeMutation(request);
+      if (producer.kind !== "OWNER_AUTHORITY") return json(response, 403, { error: "Only the owner may correct a sent Work continuation." });
+      const worker = decodeURIComponent(workContinuationCorrectionMatch[1]);
+      if (!producer.workerScopes.includes("*") && !producer.workerScopes.includes(worker)) return json(response, 403, { error: "Owner scope does not cover this worker." });
+      const body = await readJson(request) as Record<string, unknown>;
+      if (!body || Object.keys(body).some((key) => !["request_id", "readback_event_id", "rejected_response_body"].includes(key))
+        || typeof body.request_id !== "string" || typeof body.readback_event_id !== "string"
+        || typeof body.rejected_response_body !== "string") {
+        return json(response, 400, { error: "Exactly request_id, readback_event_id and rejected_response_body are accepted." });
+      }
+      try {
+        const result = await submissionAuthority.correctRejectedWorkContinuation({
+          worker, requestId: body.request_id, readbackEventId: body.readback_event_id,
+          rejectedResponseBody: body.rejected_response_body, authorizedBy: producer.id,
+        }, githubPolicy);
+        if (!result.duplicate) notifications.emit("event", { type: "work_continuation_corrected", worker, requestId: result.requestId });
+        return json(response, result.duplicate ? 200 : 201, result);
+      } catch (error) {
+        if (error instanceof SubmissionAuthorityDisabledError) return json(response, 503, { error: error.message });
+        return json(response, 409, { error: error instanceof Error ? error.message : "The Work continuation correction was rejected." });
+      }
+    }
     // The owner's one re-send of a sent Work question whose answer window closed without an accepted answer. It sends
     // the same question to the supervisor again, so it takes the owner's credential and one exact named request.
     const workQuestionResendMatch = url.pathname.match(/^\/workers\/([^/]+)\/work-questions\/resend-sent$/);

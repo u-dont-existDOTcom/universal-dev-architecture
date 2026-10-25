@@ -93,6 +93,45 @@ test("continuation refresh accepts fixed request and optional stored message ide
   });
 });
 
+test("continuation correction posts the named request, readback event and the file's exact bytes, nothing else", async () => {
+  await withServer(async (base, seen) => {
+    const requestId = `work-owner-continuation:${"c".repeat(32)}`;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "owner-action-correction-"));
+    try {
+      const file = path.join(dir, "rejected.txt");
+      const bytes = "MISSION_CONTROL_CANONICAL_DECISION_V1\n{\"request_id\":\"synthetic\"}\n";
+      fs.writeFileSync(file, bytes);
+      const empty = path.join(dir, "empty.txt");
+      fs.writeFileSync(empty, "");
+      const large = path.join(dir, "large.txt");
+      fs.writeFileSync(large, "x".repeat(200_001));
+      const baseArgs = ["work-continuation-correct", "--worker", "worker-a", "--request", requestId,
+        "--readback-event", "browser-dom-readback-evidence:synthetic"];
+      const accepted = await run([...baseArgs, "--rejected-body-file", file], env(base));
+      assert.equal(accepted.code, 0, accepted.stderr);
+      assert.equal(seen.length, 1);
+      assert.equal(seen[0].method, "POST");
+      assert.equal(seen[0].url, "/workers/worker-a/work-continuations/correct-rejected-response");
+      assert.equal(seen[0].headers["x-mission-control-producer-kind"], "OWNER_AUTHORITY");
+      assert.deepEqual(JSON.parse(seen[0].body), { request_id: requestId,
+        readback_event_id: "browser-dom-readback-evidence:synthetic", rejected_response_body: bytes });
+      assert.ok(!accepted.stdout.includes(INTERNAL_TOKEN) && !accepted.stdout.includes(OWNER_TOKEN));
+      for (const args of [
+        [...baseArgs],
+        [...baseArgs, "--rejected-body-file", path.join(dir, "missing.txt")],
+        [...baseArgs, "--rejected-body-file", empty],
+        [...baseArgs, "--rejected-body-file", large],
+        [...baseArgs, "--rejected-body-file", file, "--deadline", "tomorrow"],
+        ["work-continuation-correct", "--worker", "worker-a", "--request", `work-question:${"c".repeat(32)}`,
+          "--readback-event", "browser-dom-readback-evidence:synthetic", "--rejected-body-file", file],
+        ["work-continuation-correct", "--worker", "worker-a", "--request", requestId,
+          "--readback-event", "caller prose", "--rejected-body-file", file],
+      ]) assert.notEqual((await run(args, env(base))).code, 0, args.join(" "));
+      assert.equal(seen.length, 1);
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
 test("reasoning replacement posts only the exact bounded identity and sealed failure digest", async () => {
   await withServer(async (base, seen) => {
     const requestId = `fleet-review:${"a".repeat(32)}`;

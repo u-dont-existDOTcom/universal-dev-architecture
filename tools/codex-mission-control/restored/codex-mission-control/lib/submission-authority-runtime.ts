@@ -20,6 +20,7 @@ import type { StoredEvent } from "./schema";
 import { pendingDecisionRequests, type GitHubReceiptPolicy } from "./github-decision-receipts";
 import { UNSENT_PROVABLE_REQUEST_ID, WORK_CONTINUATION_REQUEST_ID, WORK_QUESTION_REQUEST_ID, type SettledSendSubmissionState } from "./unsent-request-proof";
 import { refreshUnsentWorkContinuation } from "./work-continuation-refresh";
+import { correctRejectedWorkContinuation, type WorkContinuationCorrectionInput } from "./work-continuation-correction";
 
 // This ESM module is the runtime-neutral authority algorithm shared with its
 // deterministic relay contract tests. Mission Control is its only deployable
@@ -323,6 +324,15 @@ export class SubmissionAuthorityRuntime {
       (requestId) => this.proveRequestUnsent(requestId), policy, () => new Date(this.now()).toISOString()));
   }
 
+  /**
+   * The owner's one correction of a sent Work owner-continuation whose answer the canonical parser rejected
+   * (lib/work-continuation-correction.ts), serialized with this continuation kind's other writers.
+   */
+  async correctRejectedWorkContinuation(input: WorkContinuationCorrectionInput, policy: GitHubReceiptPolicy | null) {
+    return this.withWorkContinuationWriter(() => correctRejectedWorkContinuation(this.store, input,
+      (requestId) => this.proveRequestSendSettled(requestId), policy, () => new Date(this.now()).toISOString()));
+  }
+
   private withWorkContinuationWriter<T>(operation: () => Promise<T>): Promise<T> {
     const result = this.workContinuationWriterTail.then(operation);
     this.workContinuationWriterTail = result.catch(() => undefined);
@@ -330,13 +340,14 @@ export class SubmissionAuthorityRuntime {
   }
 
   /**
-   * Every admission of one Work question and whether any send of it is still open, for the owner's re-send of a
-   * question whose answer window closed without an accepted answer. Settled means: the ledger verifies, the question
+   * Every admission of one Work question (or Work owner-continuation) and whether any send of it is still open, for the
+   * owner's re-send of a question whose answer window closed without an accepted answer, or the owner's correction of a
+   * continuation whose answer was rejected. Settled means: the ledger verifies, the question
    * has at least one admission, and no queue item or admission of it is still open.
    */
   async proveRequestSendSettled(requestId: string): Promise<SettledSendSubmissionState> {
-    if (!WORK_QUESTION_REQUEST_ID.test(requestId)) {
-      throw new Error("A settled-send proof requires one exact work-question request ID.");
+    if (!WORK_QUESTION_REQUEST_ID.test(requestId) && !WORK_CONTINUATION_REQUEST_ID.test(requestId)) {
+      throw new Error("A settled-send proof requires one exact work-question or work-owner-continuation request ID.");
     }
     await this.requireScheduler();
     if (!this.stateStore || !this.pacingDomain) {

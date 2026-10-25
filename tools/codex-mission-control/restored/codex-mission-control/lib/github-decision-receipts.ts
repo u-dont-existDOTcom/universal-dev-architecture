@@ -19,7 +19,7 @@ import { buildPostWorkReasoningRouteEnvelope, POST_EXECUTION_REASONING_ROUTER_PR
 import type { GitHubReconciliationTokenProvider } from "./github-app-auth";
 import { recordOwnerMessage } from "./worker-channel";
 import { workQuestionContextForRequest, workQuestionRequestIdForDispatch } from "./owner-question-route";
-import { retiredUnsentRequests, WORK_QUESTION_REQUEST_ID, WORK_QUESTION_RETIREMENT_PRODUCER_ID } from "./unsent-request-proof";
+import { retiredAfterRejectedResponseRequests, retiredUnsentRequests, WORK_QUESTION_REQUEST_ID, WORK_QUESTION_RETIREMENT_PRODUCER_ID } from "./unsent-request-proof";
 export { retiredUnsentRequests, supervisoryRequestRetiredUnsentSummary } from "./unsent-request-proof";
 
 export const supervisoryCycleRoutePrefix = "MISSION_CONTROL_INTERNAL_SUPERVISORY_CYCLE_V4\n";
@@ -834,10 +834,12 @@ export function pendingDecisionRequests(events: StoredEvent[]): PendingDecisionR
   const completed = new Set(events.flatMap((e) => e.data.type === "github_decision_receipt_ingested" ? [e.data.request_id] : []));
   const retiredUnsent = retiredUnsentRequests(events);
   const retiredAfterSend = retiredAfterSendRequests(events);
+  const retiredAfterRejectedResponse = retiredAfterRejectedResponseRequests(events);
   const { admitted, superseded } = admittedCycleRequests(events);
   return admitted.filter((request) => !completed.has(request.requestId)
     && !retiredUnsent.has(request.requestId)
     && !retiredAfterSend.has(request.requestId)
+    && !retiredAfterRejectedResponse.has(request.requestId)
     && !superseded.has(request.requestId));
 }
 
