@@ -24,6 +24,7 @@ import { canonicalDecisionCommentPrefix, pendingDecisionRequests, providerSessio
 import { buildWorkContinuationCorrection, correctRejectedWorkContinuation } from "../lib/work-continuation-correction";
 import { WORK_QUESTION_RETIREMENT_PRODUCER_ID } from "../lib/unsent-request-proof";
 import { SubmissionAuthorityRuntime } from "../lib/submission-authority-runtime";
+import { supervisorRequestAdmission } from "../lib/projection";
 import {
   buildOwnerAnswerContinuationRoute,
   buildWorkSupervisorQuestionRoute,
@@ -1071,6 +1072,11 @@ test("dashboard owner answer remains retryable until a matching supervisor conti
       assert.match(next.factualPacket.decisionRequested, /must be set afresh and lie in the future/);
       // The rejected answer's bytes are never stored.
       assert.equal(store.workerEvents(worker).some((event) => JSON.stringify(event.data).includes("Proceed with the bounded pilot.")), false);
+
+      // The owner's supervision view shows the sent request as replaced, not still waiting for the supervisor.
+      const admission = supervisorRequestAdmission(store.workerEvents(worker), new Date("2026-10-07T13:10:00.000Z"));
+      assert.equal(admission.replaced.has(sent.requestId), true);
+      assert.equal(admission.replaced.has(corrected.requestId), false);
 
       const retirement = store.eventByEventId(corrected.retirementEventId)!;
       assert.equal(retirement.producerKind, "VERIFIER");
