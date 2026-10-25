@@ -342,6 +342,8 @@ const server = http.createServer(async (request, response) => {
         const exclusive = <T>(section: () => Promise<T>) => providerDecisionCopier ? providerDecisionCopier.exclusive(section) : section();
         const result = recordedWorkContinuationCorrection(store.workerEvents(worker), worker, requestId) ? await correct()
           : await exclusive(async () => {
+            // A correction that raced this one and finished first is reported as the duplicate it is.
+            if (recordedWorkContinuationCorrection(store.workerEvents(worker), worker, requestId)) return correct();
             await reconcileBeforeDiscard(githubReconciliationCoordinator);
             if (!githubPolicy) throw new DiscardReconciliationError("A correction needs the GitHub decision channel, and none is configured.");
             const queuedAt = pendingDecisionRequests(store.workerEvents(worker)).find((pending) => pending.requestId === requestId)?.queuedAt;

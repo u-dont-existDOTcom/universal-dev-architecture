@@ -225,7 +225,7 @@ export function buildWorkContinuationCorrection(
     || one(readback.data.refs, "machine_block_sha256:") !== rejectedResponseSha256
     || readback.data.exact_candidate_sha256 !== rejectedResponseSha256
     || Date.parse(readback.occurredAt) < Date.parse(transport.finishedAt)
-    || readback.sequence <= Math.max(...completeSessions.map((event) => event.sequence))) {
+    || readback.sequence <= Math.min(...completeSessions.map((event) => event.sequence))) {
     throw new Error("The rejected answer is not exactly what one trusted readback recorded for the delivered session and prompt.");
   }
   // Every other record of the answer must name the same bytes, and none may be a repair of it.
