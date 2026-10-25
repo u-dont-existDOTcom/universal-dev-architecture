@@ -1146,6 +1146,8 @@ export class RelayRuntime {
           status,
           recoveryClassification: classification,
           recoveryError: redactError(error),
+          // The page's turn structure as the readback saw it (roles, counts and yes/no only, never text).
+          recoveryStructure: error?.structure ?? null,
           recoveryBlockedAt: retryable ? null : new Date().toISOString(),
           recoveryVersion: IN_BAND_STRUCTURAL_RECOVERY_VERSION,
           ...(failureReceiptSha256 ? { failureReceiptSha256 } : {}),
@@ -1718,6 +1720,8 @@ function providerTurnBindingForRecovery({ route, prior, session, target, promptS
     ...common,
     mode: 'BOUND_SINGLE_TURN_COMPOUND_ANCHOR',
     generationStartedAt: prior.generationStartedAt,
+    // The send deferred its anchor because the page showed no user turn while the reply generated.
+    anchorDeferredNoUserTurnShown: deferred,
     submissionAdmissionId: prior.submissionAdmissionId ?? null,
   };
 }

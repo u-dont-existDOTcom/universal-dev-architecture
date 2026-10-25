@@ -176,3 +176,50 @@ test('pre-anchor compound recovery is unique, ordered, exact-bound, and restart-
   assert.throws(() => validateRecoveredDecisionObservation(missingUser, fallback),
     (error) => error.classification === 'READBACK_UNRESOLVED');
 });
+
+test('a deferred-anchor send whose page shows no user turn reads back its one keyed assistant turn, and nothing looser', () => {
+  const deferred = {
+    ...structuralExpected,
+    turnBinding: {
+      ...structuralExpected.turnBinding,
+      mode: 'BOUND_SINGLE_TURN_COMPOUND_ANCHOR',
+      generationStartedAt: '2026-10-05T00:00:00.000Z',
+      anchorDeferredNoUserTurnShown: true,
+      userTurnKey: undefined,
+      userTurnKeySource: undefined,
+    },
+  };
+  const assistantOnly = (change = {}) => {
+    const observed = structuralObservation();
+    observed.turns.shift();
+    Object.assign(observed.turns[0], change);
+    return observed;
+  };
+  const result = validateRecoveredDecisionObservation(assistantOnly(), deferred);
+  assert.equal(result.turnBindingMode, 'DEFERRED_ANCHOR_SINGLE_ASSISTANT_TURN');
+  assert.equal(result.canonicalBody, body());
+  assert.equal(result.renderedUserTextSha256, null);
+  assert.equal(result.renderedUserTextMatchesSource, false);
+  assert.equal(result.userTurnKeySha256, sha256(''));
+  // The same page without the deferral, or with a wrong target, conversation, unkeyed or doubled assistant, or a
+  // decision for another request, session, nonce or binding, stays unresolved or invalid.
+  const strict = { ...deferred, turnBinding: { ...deferred.turnBinding, anchorDeferredNoUserTurnShown: false } };
+  assert.throws(() => validateRecoveredDecisionObservation(assistantOnly(), strict), (error) => error.classification === 'READBACK_UNRESOLVED'
+    && error.structure.turnCount === 1 && error.structure.turns[0].role === 'assistant' && error.structure.turns[0].canonicalMarker === true
+    && !JSON.stringify(error.structure).includes('Proceed'));
+  assert.throws(() => validateRecoveredDecisionObservation({ ...assistantOnly(), boundTargetId: 'wrong-target' }, deferred),
+    (error) => error.classification === 'READBACK_UNRESOLVED');
+  assert.throws(() => validateRecoveredDecisionObservation({ ...assistantOnly(), currentUrl: 'https://chatgpt.com/c/wrong' }, deferred),
+    (error) => error.classification === 'READBACK_UNRESOLVED');
+  assert.throws(() => validateRecoveredDecisionObservation(assistantOnly({ key: '' }), deferred), (error) => error.classification === 'READBACK_UNRESOLVED');
+  const doubled = assistantOnly();
+  doubled.turns.push({ ...doubled.turns[0], key: 'second-assistant' });
+  assert.throws(() => validateRecoveredDecisionObservation(doubled, deferred), (error) => error.classification === 'READBACK_UNRESOLVED');
+  assert.throws(() => validateRecoveredDecisionObservation(assistantOnly({ contentRootCount: 2 }), deferred),
+    (error) => error.classification === 'READBACK_UNRESOLVED');
+  for (const change of [{ request_id: 'fleet-review:' + '0'.repeat(32) }, { provider_session_id: 'provider-session:other' },
+    { nonce: 'nonce:other' }, { in_band_binding_sha256: 'e'.repeat(64) }]) {
+    assert.throws(() => validateRecoveredDecisionObservation(assistantOnly({ text: body(change) }), deferred),
+      (error) => error.classification === 'ASSISTANT_RESPONSE_PRESENT_BUT_INVALID');
+  }
+});
