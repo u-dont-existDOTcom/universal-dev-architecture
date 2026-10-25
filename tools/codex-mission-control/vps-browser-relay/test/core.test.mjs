@@ -262,8 +262,13 @@ test('V6 carries exact request authority in-band and selects GitHub without any 
   assert.equal(nextSupervisoryCycleAction(route, { status: IN_BAND_RECOVERY_BLOCKED_STATUS }).type, 'RECOVER_AND_PUBLISH');
   assert.equal(nextSupervisoryCycleAction(route, {
     status: IN_BAND_RECOVERY_BLOCKED_STATUS,
-    recoveryVersion: 'STRUCTURAL_TURN_BINDING_V1',
+    recoveryVersion: 'STRUCTURAL_TURN_BINDING_V2',
   }).recovery, 'STRUCTURAL_READBACK_RECOVERY_EXHAUSTED_NO_RESEND');
+  // A delivery blocked under the earlier reader gets one more no-resend readback.
+  assert.deepEqual(nextSupervisoryCycleAction(route, {
+    status: IN_BAND_RECOVERY_BLOCKED_STATUS,
+    recoveryVersion: 'STRUCTURAL_TURN_BINDING_V1',
+  }), { type: 'RECOVER_AND_PUBLISH', step: IN_BAND_REQUEST_STEP, recovery: 'EXACT_BOUND_STRUCTURAL_READBACK_ONLY_NO_RESEND' });
 });
 
 test('canonical project manager is fleet-wide while specialist routing remains worker-bound', () => {

@@ -27,18 +27,31 @@ export function extractCanonicalDecisionBlock(assistantText) {
 }
 
 export function validateRecoveredDecisionObservation(observation, expected) {
+  try {
+    return validateObservation(observation, expected);
+  } catch (error) {
+    // Every refusal after the page was read carries what the page showed (structure only), for diagnosis.
+    if (observation && error && typeof error === 'object' && !error.structure) error.structure = observationStructure(observation);
+    throw error;
+  }
+}
+
+function validateObservation(observation, expected) {
   if (!observation || observation.urlMismatch) throw recoveryError('READBACK_UNRESOLVED', 'Bound provider conversation URL is not available.');
   if (observation.structureAmbiguous) throw recoveryError('READBACK_UNRESOLVED', 'Provider turn structure is ambiguous across supported DOM schemas.');
   if (!Array.isArray(observation.turns)) throw recoveryError('READBACK_UNRESOLVED', 'Provider turn structure is unavailable.');
   const prompt = normalizeProviderText(expected.prompt);
   if (sha256(prompt) !== expected.promptSha256) throw new Error('Locally reconstructed provider prompt hash does not match the frozen pre-send hash.');
-  const { candidates, mode } = selectBoundUserTurn(observation, expected);
-  const userIndex = observation.turns.indexOf(candidates[0]);
+  const { candidates, mode, assistant: boundAssistant } = selectBoundUserTurn(observation, expected);
   const following = [];
-  for (let index = userIndex + 1; index < observation.turns.length; index += 1) {
-    const turn = observation.turns[index];
-    if (turn.role === 'user') break;
-    if (turn.role === 'assistant') following.push(turn);
+  if (boundAssistant) following.push(boundAssistant);
+  else {
+    const userIndex = observation.turns.indexOf(candidates[0]);
+    for (let index = userIndex + 1; index < observation.turns.length; index += 1) {
+      const turn = observation.turns[index];
+      if (turn.role === 'user') break;
+      if (turn.role === 'assistant') following.push(turn);
+    }
   }
   if (following.length === 0) throw recoveryError('EMPTY_PROVIDER_COMPLETION', 'The exact submitted request has no assistant turn.');
   if (following.length !== 1) throw recoveryError('READBACK_UNRESOLVED', `The exact submitted request has ${following.length} candidate assistant turns.`);
@@ -56,10 +69,10 @@ export function validateRecoveredDecisionObservation(observation, expected) {
     canonicalBody: canonical.body,
     canonicalBodySha256: canonical.bodySha256,
     turnBindingMode: mode,
-    renderedUserTextSha256: typeof candidates[0].text === 'string' ? sha256(normalizeProviderText(candidates[0].text)) : null,
-    renderedUserTextMatchesSource: typeof candidates[0].text === 'string'
+    renderedUserTextSha256: typeof candidates[0]?.text === 'string' ? sha256(normalizeProviderText(candidates[0].text)) : null,
+    renderedUserTextMatchesSource: typeof candidates[0]?.text === 'string'
       && sha256(normalizeProviderText(candidates[0].text)) === expected.promptSha256,
-    userTurnKeySha256: sha256(String(candidates[0].key ?? '')),
+    userTurnKeySha256: sha256(String(candidates[0]?.key ?? '')),
     assistantTurnKeySha256: sha256(String(assistant.key ?? '')),
   };
 }
@@ -97,6 +110,17 @@ function selectBoundUserTurn(observation, expected) {
     throw recoveryError('READBACK_UNRESOLVED', 'Provider turn binding mode is unsupported or incomplete.');
   }
   const assistants = observation.turns.filter((turn) => turn.role === 'assistant');
+  // A send whose page showed no user turn while the reply generated (its anchor was deferred) may still show none.
+  // In this fresh, exact-bound first-message session the one keyed assistant turn is then the reply; the decision's
+  // own request, session, nonce and per-session binding digest, checked below, tie it to this exact prompt.
+  // The page's own turn elements, counted before any filter, must still be at most one exchange.
+  const raw = observation.rawCounts;
+  const oneExchange = raw && Number.isInteger(raw.turnKeyRoots) && raw.turnKeyRoots <= 2
+    && Number.isInteger(raw.conversationTurnArticles) && raw.conversationTurnArticles <= 2;
+  if (binding.anchorDeferredNoUserTurnShown === true && oneExchange && observation.turns.length === 1 && users.length === 0
+    && assistants.length === 1 && typeof assistants[0].key === 'string' && assistants[0].key.length > 0) {
+    return { candidates: [], assistant: assistants[0], mode: 'DEFERRED_ANCHOR_SINGLE_ASSISTANT_TURN' };
+  }
   const shapeMatches = observation.turns.length === 2 && users.length === 1 && assistants.length === 1
     && observation.turns[0] === users[0] && observation.turns[1] === assistants[0]
     && typeof users[0].key === 'string' && users[0].key.length > 0
@@ -106,6 +130,29 @@ function selectBoundUserTurn(observation, expected) {
     throw recoveryError('READBACK_UNRESOLVED', 'The pre-anchor request does not have one uniquely ordered, structurally bound user/assistant turn pair.');
   }
   return { candidates: users, mode: binding.mode };
+}
+
+/** The turn structure a readback saw, for diagnosis: roles, keys present, counts and yes/no, never text. */
+export function observationStructure(observation) {
+  const turns = Array.isArray(observation?.turns) ? observation.turns : [];
+  const raw = observation?.rawCounts && typeof observation.rawCounts === 'object' ? observation.rawCounts : {};
+  return {
+    structureKind: typeof observation?.structureKind === 'string' ? observation.structureKind : null,
+    structureAmbiguous: observation?.structureAmbiguous === true,
+    rawCounts: Object.fromEntries(['turnKeyRoots', 'userBubbles', 'searchUnits', 'authorRoleNodes', 'conversationTurnArticles']
+      .map((name) => [name, Number.isInteger(raw[name]) ? raw[name] : null])),
+    turnCount: turns.length,
+    turns: turns.slice(0, 8).map((turn) => ({
+      role: turn?.role === 'user' || turn?.role === 'assistant' ? turn.role : 'other',
+      keyPresent: typeof turn?.key === 'string' && turn.key.length > 0,
+      keySource: typeof turn?.keySource === 'string' ? turn.keySource.slice(0, 60) : null,
+      contentRootCount: Number.isInteger(turn?.contentRootCount) ? turn.contentRootCount : null,
+      mentionCount: Number.isInteger(turn?.mentionBinding?.count) ? turn.mentionBinding.count : null,
+      mentionExact: typeof turn?.mentionBinding?.exact === 'boolean' ? turn.mentionBinding.exact : null,
+      textLength: typeof turn?.text === 'string' ? turn.text.length : null,
+      canonicalMarker: typeof turn?.text === 'string' && turn.text.includes(CANONICAL_DECISION_PREFIX),
+    })),
+  };
 }
 
 function validateDecision(value, expected) {

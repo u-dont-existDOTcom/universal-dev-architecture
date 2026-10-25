@@ -39,7 +39,9 @@ export const IN_BAND_PRE_SEND_SUMMARY = 'MISSION_CONTROL_IN_BAND_REQUEST_BINDING
 export const IN_BAND_COPY_PENDING_STATUS = `${IN_BAND_REQUEST_STEP}_COMPLETE_PENDING_COPY`;
 export const IN_BAND_COPY_CONFIRMED_STATUS = `${IN_BAND_REQUEST_STEP}_COPY_CONFIRMED`;
 export const IN_BAND_RECOVERY_BLOCKED_STATUS = `${IN_BAND_REQUEST_STEP}_RECOVERY_BLOCKED`;
-export const IN_BAND_STRUCTURAL_RECOVERY_VERSION = 'STRUCTURAL_TURN_BINDING_V1';
+// V2: a send whose page never showed the submitted user turn may be read back from its single assistant turn (see
+// provider-decision-recovery.mjs); a delivery blocked under V1 gets one more no-resend readback.
+export const IN_BAND_STRUCTURAL_RECOVERY_VERSION = 'STRUCTURAL_TURN_BINDING_V2';
 export const MANAGED_CHATGPT_STEADY_STATE_TABS = 1;
 export const MANAGED_CHATGPT_TRANSITION_MAX_TABS = 2;
 export const MANAGED_CHATGPT_HARD_CEILING_TABS = 3;
