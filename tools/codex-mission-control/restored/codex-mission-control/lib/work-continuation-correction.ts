@@ -15,16 +15,20 @@
 import { canonicalJson, sha256 } from "./canonical";
 import {
   admittedCycleRequests,
+  canonicalDecisionCommentPrefix,
   parseCanonicalDecisionComment,
   pendingDecisionRequests,
+  providerInvalidCanonicalDecisionSummary,
   providerSessionSummary,
   type GitHubReceiptPolicy,
   type PendingDecisionRequest,
 } from "./github-decision-receipts";
 import {
+  inBandAppReadbackSummary,
   inBandBrowserDomReadbackMethod,
   inBandBrowserDomReadbackProducerId,
   inBandBrowserDomReadbackSummary,
+  inBandMachineTransformSummary,
   inBandPreSendSummary,
   inBandRequestRoutePrefix,
   inBandTransportEvidence,
@@ -49,6 +53,7 @@ export const WORK_CONTINUATION_CORRECTION_REASON = "SUPERVISOR_RESPONSE_REJECTED
 const MIN_WINDOW_MS = 60_000;
 const MAX_WINDOW_MS = 24 * 60 * 60_000;
 const MAX_REJECTED_RESPONSE_BYTES = 200_000;
+const CORRECTION_NOTE_START = " Correction: your earlier answer to";
 
 export interface WorkContinuationCorrectionInput {
   worker: string;
@@ -89,7 +94,7 @@ export interface WorkContinuationCorrectionResult {
 
 /** The correction already recorded for this request: its retirement names the successor it queued. */
 export function recordedWorkContinuationCorrection(events: readonly StoredEvent[], worker: string, requestId: string): {
-  retirementEventId: string; requestId: string; rejectedResponseSha256: string | null;
+  retirementEventId: string; requestId: string; rejectedResponseSha256: string | null; readbackEventId: string | null;
 } | null {
   const retirements = events.filter((event) => event.worker === worker
     && event.producerKind === "VERIFIER" && event.producerId === WORK_QUESTION_RETIREMENT_PRODUCER_ID
@@ -100,7 +105,8 @@ export function recordedWorkContinuationCorrection(events: readonly StoredEvent[
   if (!retirement || retirement.data.type !== "evidence_receipt_recorded") return null;
   const successor = one(retirement.data.refs, "successor_request:");
   return successor ? { retirementEventId: retirement.eventId, requestId: successor,
-    rejectedResponseSha256: one(retirement.data.refs, "rejected_response_sha256:") } : null;
+    rejectedResponseSha256: one(retirement.data.refs, "rejected_response_sha256:"),
+    readbackEventId: one(retirement.data.refs, "readback_event:") } : null;
 }
 
 /**
@@ -174,8 +180,8 @@ export function buildWorkContinuationCorrection(
   if (Date.parse(recordedAt) <= Date.parse(root.queuedAt)) throw new Error("The correction must follow the corrected request.");
 
   // Sent, and settled: the submission authority's own record, then the relay's receipts for the one delivered session.
-  if (!validSettledSendProof(sendProof, requestId) || sendProof!.crossedAdmissionCount < 1) {
-    throw new Error("Submission authority did not show the owner continuation sent with no send of it still open.");
+  if (!validSettledSendProof(sendProof, requestId) || sendProof!.crossedAdmissionCount !== 1) {
+    throw new Error("Submission authority did not show the owner continuation sent exactly once with no send of it still open.");
   }
   const transport = inBandTransportEvidence(history, request, policy, recordedAt);
   if (!transport || transport.duplicateSend || !transport.providerSessionId || !transport.finishedAt || !transport.conversationUrl) {
@@ -218,8 +224,30 @@ export function buildWorkContinuationCorrection(
     || one(readback.data.refs, "semantic_authority:") !== "false"
     || one(readback.data.refs, "machine_block_sha256:") !== rejectedResponseSha256
     || readback.data.exact_candidate_sha256 !== rejectedResponseSha256
-    || Date.parse(readback.occurredAt) < Date.parse(transport.finishedAt)) {
+    || Date.parse(readback.occurredAt) < Date.parse(transport.finishedAt)
+    || readback.sequence <= Math.max(...completeSessions.map((event) => event.sequence))) {
     throw new Error("The rejected answer is not exactly what one trusted readback recorded for the delivered session and prompt.");
+  }
+  // Every other record of the answer must name the same bytes, and none may be a repair of it.
+  for (const event of history) {
+    if (event.data.type !== "evidence_receipt_recorded" || one(event.data.refs, "request:") !== requestId) continue;
+    const { summary, refs } = event.data;
+    if (summary === inBandMachineTransformSummary) throw new Error("A transform of the answer is recorded; a repaired answer is never corrected away.");
+    const digest = summary === inBandAppReadbackSummary || summary === inBandBrowserDomReadbackSummary ? one(refs, "machine_block_sha256:")
+      : summary === providerInvalidCanonicalDecisionSummary ? one(refs, "canonical_body_sha256:") : undefined;
+    if (digest !== undefined && digest !== rejectedResponseSha256) {
+      throw new Error("Another record of the answer names different bytes; the correction needs every record to name the rejected answer.");
+    }
+  }
+  // The bytes must be a canonical decision for this request, supervisor and session: framed, readable JSON that
+  // names them. Bytes outside that frame (a whole page, a partial copy) are never taken for the answer.
+  let framed: unknown = null;
+  if (input.rejectedResponseBody.startsWith(canonicalDecisionCommentPrefix)) {
+    try { framed = JSON.parse(input.rejectedResponseBody.slice(canonicalDecisionCommentPrefix.length)); } catch { framed = null; }
+  }
+  if (!isRecord(framed) || framed.request_id !== requestId || framed.supervisor_id !== request.supervisorId
+    || framed.provider_session_id !== sessionId) {
+    throw new Error("The rejected bytes are not a framed canonical decision for this request, supervisor and session.");
   }
   // Mission Control's own parser must refuse those bytes. An answer it parses is out of this correction's scope.
   let rejection: string | null = null;
@@ -254,7 +282,7 @@ export function buildWorkContinuationCorrection(
   const nonce = `work-owner-continuation-nonce:${sha256(`${successorId}:${request.ownerOutcome.sha256}`).slice(0, 32)}`;
   const githubReceipt = { repository: policy.repository, issueNumber: policy.decisionIssueNumber, stageIssueNumber: policy.stageIssueNumber };
   const correctionNote = [
-    `Correction: your earlier answer to ${requestId} (SHA-256 ${rejectedResponseSha256}) was not admitted, because Mission Control's canonical decision parser rejected it`
+    `${CORRECTION_NOTE_START.trim()} ${requestId} (SHA-256 ${rejectedResponseSha256}) was not admitted, because Mission Control's canonical decision parser rejected it`
       + (rejectedFieldPaths.length ? ` at ${rejectedFieldPaths.join(", ")}.` : "."),
     "That answer is preserved unchanged and is not authority; nobody has edited or repaired it, and nothing in it, including any deadline it proposed, was admitted.",
     "Answer this request afresh with one complete canonical decision that echoes this request's continuation binding and digests exactly, every SHA-256 as 64 lowercase hexadecimal characters.",
@@ -280,7 +308,7 @@ export function buildWorkContinuationCorrection(
     factualPacket: {
       ...root.factualPacket,
       packetId: `work-owner-continuation-packet:${sha256(successorId).slice(0, 32)}`,
-      decisionRequested: `${root.factualPacket.decisionRequested} ${correctionNote}`,
+      decisionRequested: `${String(root.factualPacket.decisionRequested).split(CORRECTION_NOTE_START)[0]} ${correctionNote}`,
       supervisoryCycle: { ...root.factualPacket.supervisoryCycle, nonce, expiresAt, githubReceipt, evidenceCapsule: request.evidenceCapsule },
     },
     continuationBinding: fresh.binding,
@@ -347,8 +375,8 @@ export async function correctRejectedWorkContinuation(
     throw new Error("A correction requires one exact worker and work-owner-continuation request ID.");
   }
   const already = (recorded: NonNullable<ReturnType<typeof recordedWorkContinuationCorrection>>): WorkContinuationCorrectionResult => {
-    if (recorded.rejectedResponseSha256 !== sha256(input.rejectedResponseBody ?? "")) {
-      throw new Error("This Work continuation was already corrected for a different rejected answer.");
+    if (recorded.rejectedResponseSha256 !== sha256(input.rejectedResponseBody ?? "") || recorded.readbackEventId !== input.readbackEventId) {
+      throw new Error("This Work continuation was already corrected for a different rejected answer or readback.");
     }
     return {
       status: "WORK_CONTINUATION_ALREADY_CORRECTED", worker, retiredRequestId: requestId, requestId: recorded.requestId,
@@ -362,7 +390,22 @@ export async function correctRejectedWorkContinuation(
   const proof = await proveRequestSendSettled(requestId);
   const raced = recordedWorkContinuationCorrection(store.workerEvents(worker), worker, requestId);
   if (raced) return already(raced);
-  const built = buildWorkContinuationCorrection(store.workerEvents(worker), { ...input, recordedAt: now() }, proof, policy);
+  const events = store.workerEvents(worker);
+  const built = buildWorkContinuationCorrection(events, { ...input, recordedAt: now() }, proof, policy);
+  // Check the outcome before anything is written: with the two records, the sent request is no longer pending and
+  // exactly one successor is.
+  const last = events.at(-1);
+  const preview = (envelope: AppendEnvelope, producerId: string, producerKind: StoredEvent["producerKind"], offset: number) => ({
+    ...(last ?? {}), id: (last?.id ?? 0) + offset, sequence: (last?.sequence ?? 0) + offset, eventId: envelope.event_id,
+    schemaVersion: 2, missionId: envelope.mission_id, worker, type: envelope.data.type, occurredAt: envelope.occurred_at,
+    receivedAt: built.queuedAt, producerId, producerKind, data: envelope.data,
+  }) as StoredEvent;
+  const previewed = pendingDecisionRequests([...events,
+    preview(built.retirement, WORK_QUESTION_RETIREMENT_PRODUCER_ID, "VERIFIER", 1),
+    preview(built.route, WORK_SUPERVISOR_QUESTION_ROUTER_PRODUCER_ID, "SYSTEM", 2)]);
+  if (previewed.some((item) => item.requestId === requestId) || previewed.filter((item) => item.requestId === built.requestId).length !== 1) {
+    throw new Error("The correction would not retire the sent request and admit exactly one successor; nothing was written.");
+  }
   const scopes = { workerScopes: [worker], taskScopes: [built.taskId, `task:${worker}`] };
   const producers: { retirement: AuthenticatedProducer; route: AuthenticatedProducer } = {
     retirement: { id: WORK_QUESTION_RETIREMENT_PRODUCER_ID, kind: "VERIFIER", ...scopes },

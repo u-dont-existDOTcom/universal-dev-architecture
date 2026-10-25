@@ -947,7 +947,7 @@ test("dashboard owner answer remains retryable until a matching supervisor conti
   const rejectedAnswer = (requestId: string) => answerFor(requestId, "a".repeat(63));
 
   /** A refreshed owner continuation the relay sent once in one session; with `complete`, that session also finished. */
-  async function sentContinuation(options: { relay?: boolean; complete?: boolean } = {}) {
+  async function sentContinuation(options: { relay?: boolean; complete?: boolean; beforeComplete?: (store: EventStore, requestId: string) => void } = {}) {
     const fixture = recoveryStore();
     const { store, legacy } = fixture;
     const sent = await refreshUnsentWorkContinuation(store, { worker, requestId: legacy.requestId },
@@ -975,6 +975,7 @@ test("dashboard owner answer remains retryable until a matching supervisor conti
         "semantic_authority:false"], "22");
       relayEvidence("MISSION_CONTROL_RELAY_STAGE_V1", stage("STARTED"), "23");
       relayEvidence(providerSessionSummary, session("ACTIVE"), "24");
+      options.beforeComplete?.(store, sent.requestId);
       if (options.complete !== false) {
         relayEvidence("MISSION_CONTROL_RELAY_STAGE_V1", stage("COMPLETE"), "30");
         relayEvidence(providerSessionSummary, session("COMPLETE"), "30");
@@ -1108,7 +1109,7 @@ test("dashboard owner answer remains retryable until a matching supervisor conti
   await t.test("correction refuses unmatched bytes, foreign readbacks, parser-accepted answers, open or unsent sends and missing completion", async () => {
     const refuse = async (pattern: RegExp, setup: (store: EventStore, requestId: string) => {
       body: string; readbackEventId: string; proof?: unknown; receiptPolicy?: GitHubReceiptPolicy; requestId?: string;
-    }, options: { relay?: boolean; complete?: boolean } = {}) => {
+    }, options: Parameters<typeof sentContinuation>[0] = {}) => {
       const { store, sent } = await sentContinuation(options);
       try {
         const made = setup(store, sent.requestId);
@@ -1152,7 +1153,10 @@ test("dashboard owner answer remains retryable until a matching supervisor conti
     });
     // The submission authority must show it sent, with nothing still open.
     for (const proof of [{ settled: false, openAdmissionCount: 1 }, { openQueueRecordCount: 1 }, { crossedAdmissionCount: 0 },
-      { admissions: [], crossedAdmissionCount: 0 }, { ledgerValid: false }, { requestId: `work-owner-continuation:${"0".repeat(32)}` }]) {
+      { admissions: [], crossedAdmissionCount: 0 }, { ledgerValid: false }, { requestId: `work-owner-continuation:${"0".repeat(32)}` },
+      { crossedAdmissionCount: 2, admissions: [
+        { admissionId: "send-admission:one", status: "BOUNDARY_RECORDED", boundaryKind: "CLICKED" },
+        { admissionId: "send-admission:two", status: "BOUNDARY_RECORDED", boundaryKind: "CLICKED" }] }]) {
       await refuse(/Submission authority did not show the owner continuation sent/, (store, id) => ({
         body: rejectedAnswer(id), readbackEventId: recordReadback(store, id, rejectedAnswer(id)), proof: settled(id, proof) }));
     }
@@ -1166,6 +1170,79 @@ test("dashboard owner answer remains retryable until a matching supervisor conti
       readbackEventId: recordReadback(store, id, rejectedAnswer(id)), requestId: `work-question:${"c".repeat(32)}` }));
     await refuse(/request-bound relay policy/, (store, id) => ({ body: rejectedAnswer(id), readbackEventId: recordReadback(store, id, rejectedAnswer(id)),
       receiptPolicy: { ...policy(), requestBound: { enabled: false, relayProducerIds: [] } } }));
+    // A readback the ledger holds before the session finished, whatever time it claims.
+    await refuse(exactly, (store) => {
+      const id = (store as any).readbackBeforeCompletion as string;
+      return { body: rejectedAnswer((store as any).sentRequestId), readbackEventId: id };
+    }, { beforeComplete: (store, id) => Object.assign(store, { sentRequestId: id,
+      readbackBeforeCompletion: recordReadback(store, id, rejectedAnswer(id), { at: "2026-10-07T12:45:00.000Z" }) }) });
+    // Bytes that are not a framed canonical decision for this request, supervisor and session, even if read back.
+    for (const frame of [
+      (id: string) => `Visible timestamp 12:31\n${rejectedAnswer(id)}`,
+      (id: string) => rejectedAnswer(id).slice(0, 200),
+      (id: string) => rejectedAnswer(id).replace(`"request_id":"${id}"`, `"request_id":"work-owner-continuation:${"0".repeat(32)}"`),
+      (id: string) => rejectedAnswer(id).replace(`"provider_session_id":"${correctionSession}"`, '"provider_session_id":"provider-session:other"'),
+      (id: string) => rejectedAnswer(id).replace(`"supervisor_id":"${supervisorId}"`, '"supervisor_id":"another-supervisor"'),
+    ]) {
+      await refuse(/not a framed canonical decision for this request, supervisor and session/, (store, id) => {
+        const body = frame(id);
+        assert.notEqual(body, rejectedAnswer(id));
+        return { body, readbackEventId: recordReadback(store, id, body) };
+      });
+    }
+    // Any other record of the answer naming other bytes, or any transform of it, stops the correction.
+    const otherRecord = (store: EventStore, id: string, summary: string, refs: string[]) => store.append({ schema_version: 2,
+      event_id: `evidence:other-${summary}`, mission_id: "mission-control-live", occurred_at: "2026-10-07T12:41:00.000Z", data: {
+        type: "evidence_receipt_recorded", worker, receipt_id: `other-${summary}`, producer_id: "collector:other", producer_role: "COLLECTOR",
+        evidence_class: "ARTIFACT", independence: "INDEPENDENT", freshness: "CURRENT", exact_candidate_sha256: null, summary,
+        refs: [`request:${id}`, `supervisor:${supervisorId}`, `provider_session:${correctionSession}`, ...refs], verified: true, changed_path_manifest: null,
+      } }, "2026-10-07T12:41:00.000Z", { id: "collector:other", kind: "COLLECTOR", workerScopes: [worker], taskScopes: ["*"] });
+    for (const [summary, refs, pattern] of [
+      ["MISSION_CONTROL_PROVIDER_SESSION_APP_READBACK_V1", [`machine_block_sha256:${"4".repeat(64)}`], /names different bytes/],
+      ["MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1", [`canonical_body_sha256:${"4".repeat(64)}`], /names different bytes/],
+      ["MISSION_CONTROL_PROVIDER_SESSION_MACHINE_TRANSFORM_V1", [`transformed_machine_block_sha256:${"4".repeat(64)}`], /transform of the answer/],
+    ] as const) {
+      await refuse(pattern, (store, id) => {
+        const readbackEventId = recordReadback(store, id, rejectedAnswer(id));
+        otherRecord(store, id, summary, [...refs]);
+        return { body: rejectedAnswer(id), readbackEventId };
+      });
+    }
+    // A matching invalid-decision receipt from the relay is consistent and doesn't stop it.
+    {
+      const { store, sent } = await sentContinuation();
+      try {
+        const readbackEventId = recordReadback(store, sent.requestId, rejectedAnswer(sent.requestId));
+        otherRecord(store, sent.requestId, "MISSION_CONTROL_PROVIDER_INVALID_CANONICAL_DECISION_V1",
+          [`canonical_body_sha256:${sha256(rejectedAnswer(sent.requestId))}`]);
+        const input = { worker, requestId: sent.requestId, readbackEventId, rejectedResponseBody: rejectedAnswer(sent.requestId), authorizedBy: "owner:primary" };
+        const corrected = await correctRejectedWorkContinuation(store, input, async (id) => settled(id), policy(), () => correctedAt);
+        assert.equal(corrected.status, "WORK_CONTINUATION_CORRECTION_QUEUED");
+        // A repeat naming another readback of the same bytes is refused.
+        const other = recordReadback(store, sent.requestId, rejectedAnswer(sent.requestId), { at: "2026-10-07T12:50:00.000Z" });
+        await assert.rejects(correctRejectedWorkContinuation(store, { ...input, readbackEventId: other }, async (id) => settled(id), policy(),
+          () => correctedAt), /different rejected answer or readback/);
+      } finally { store.close(); }
+    }
+    // A newer decision or an amended owner outcome makes the request stale.
+    await refuse(/newer directive, Work dispatch or decision|answered, superseded or retired/, (store, id) => {
+      const readbackEventId = recordReadback(store, id, rejectedAnswer(id));
+      const receipt: any = structuredClone(store.workerEvents(worker).find((event) => event.data.type === "github_decision_receipt_ingested")!.data);
+      delete receipt.bounded_execution; delete receipt.bounded_execution_sha256;
+      Object.assign(receipt, { request_id: "another-review:alpha", receipt_id: "github-comment:newer" });
+      store.append({ schema_version: 2, event_id: "decision:newer", mission_id: "mission-control-live", occurred_at: "2026-10-07T12:42:00.000Z", data: receipt },
+        "2026-10-07T12:42:00.000Z", { id: "system:github-decision-receipts", kind: "SYSTEM", workerScopes: [worker], taskScopes: [taskId] });
+      return { body: rejectedAnswer(id), readbackEventId };
+    });
+    await refuse(/stale against the current owner outcome/, (store, id) => {
+      const readbackEventId = recordReadback(store, id, rejectedAnswer(id));
+      const outcome: any = structuredClone(store.workerEvents(worker).find((event) => event.data.type === "owner_outcome_recorded")!.data);
+      Object.assign(outcome, { epoch: 3, supersedes: outcome.owner_outcome_id, supersedes_outcome_sha256: outcome.owner_outcome_sha256,
+        owner_outcome_sha256: "e".repeat(64) });
+      store.append({ schema_version: 2, event_id: "owner-outcome:amended", mission_id: "mission-control-live", occurred_at: "2026-10-07T12:42:00.000Z", data: outcome },
+        "2026-10-07T12:42:00.000Z", { id: "owner:test", kind: "OWNER_AUTHORITY", workerScopes: [worker], taskScopes: [taskId] });
+      return { body: rejectedAnswer(id), readbackEventId };
+    });
   });
 
   await t.test("owner-decision POST recovers failed appends and returns the existing route after a lost response", async (context) => {
