@@ -18,7 +18,7 @@ class OneLineGithubHandoffContinuityTests(unittest.TestCase):
 
     def test_fail_closed_and_privacy(self):
         pattern = PATTERN.read_text(encoding="utf-8")
-        for expected in ("read back the exact GitHub checkpoint", "GitHub handoff: BLOCKED", 
+        for expected in ("Read back the exact GitHub checkpoint", "GitHub handoff: BLOCKED", 
                          "actually verified current GitHub destination", "private repository",
                          "Never publish raw emails", "STABLE", "unmerged"):
             if expected == "STABLE":  # avoid making prose case-dependent
