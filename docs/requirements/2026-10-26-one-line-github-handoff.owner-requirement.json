@@ -1,0 +1,22 @@
+{
+  "requirement_id": "2026-10-26-one-line-github-handoff",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "captured_on": "2026-10-26",
+    "scope": "UDA-governed per-turn owner responses"
+  },
+  "owner_statement": "continue and give me at the end of every turn a one-line github handoff in case chat is overflowed. make that a rule in UDA also",
+  "required_outcome": "Exactly one final-line, valid GitHub continuity handoff for every UDA-governed turn, with a usable checkpoint, current status and next action.",
+  "security_constraints": [
+    "Existing private data stays private in an authorized private repository",
+    "Do not fabricate GitHub links or claim unsuccessful writes",
+    "Maintain existing repo review/merge guards"
+  ],
+  "implementation": [
+    "patterns/one-line-github-handoff-continuity.md",
+    "LESSON-INDEX.md",
+    "AGENTS.md",
+    "tests/test_one_line_github_handoff_continuity.py"
+  ],
+  "assurance": "Static rule/tests and PR readback do not prove runtime compliance; actual final response requires direct check."
+}
