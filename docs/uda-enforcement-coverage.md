@@ -39,11 +39,11 @@ The systemic gap fits existing logic-map entries: LF-2.1 for unloaded/stale guid
 
 ## Current counts
 
-Inventory entries: 99
+Inventory entries: 100
 
-Indexed patterns: 85
+Indexed patterns: 86
 
-Migration backlog: 78
+Migration backlog: 79
 
 Task-time records: 78, sourced from 13 files, with 2 mechanical and 86 semantic obligations. Corrected slice 2a adds 28 records and extends three continuity records; its 31 records carry 32 semantic behaviors and 281 mapped clause rows.
 
@@ -52,12 +52,14 @@ Task-time records: 78, sourced from 13 files, with 2 mechanical and 86 semantic 
 | STRUCTURED_ENFORCED | 9 |
 | STRUCTURED_PARTIAL | 9 |
 | WORKFLOW_ONLY | 10 |
-| LEGACY_UNSTRUCTURED | 69 |
+| LEGACY_UNSTRUCTURED | 70 |
 | NOT_ACTIVE | 2 |
 
 Six root sections, the two review/merge patterns and exclusive active-task locks are STRUCTURED_ENFORCED. Context-compaction resilience and terminal admission are STRUCTURED_PARTIAL with exact operative remainders, alongside the six earlier partial sources. Slice 2b also makes the owner-outcome invariant STRUCTURED_PARTIAL with exact server and Work-budget remainders. The parent owner outcome remains OPEN for operating-system slice 2c and later priorities.
 
 The 2026-10-24 owner correction adds a compact main-objective/current-contribution/scope-boundaries anchor to every long-range research turn and research handoff. Its seven exact clauses remain prose-governed in the owner-outcome pattern's partial remainder, with template and index routing tests and independent source pins. No per-turn runtime interceptor or task-time record is activated; the three budget-deferred records and representative rendered Work prompt remain unchanged. See `docs/requirements/2026-10-24-research-objective-anchor.owner-requirement.json`.
+
+**2026-10-26 current-slice addition:** The owner-required one-line GitHub handoff pattern is the second explicitly authorized legacy identity (alongside cross-account continuity); frozen 84-identity baseline remains unchanged. Current totals are 100 inventory entries, 86 indexed patterns, 79 in backlog (including both owner-authorized additions), and 70 legacy unstructured. Current P2 count is 49; the earlier snapshot below is historical and is not rewritten as a baseline claim.
 
 The immutable baseline pins 84 identities. Corrected backlog falls from 78 before slice 2a to 77: only the task-lock pattern is a complete promotion. Seven baseline identities are removed. The owner-required cross-account continuity pattern adds one exact authorized legacy identity; the baseline pin is unchanged. P1 is 15, P2 is 48 and P3 is 15. The two review/merge identities never belonged to the baseline. The owner explicitly required correcting overstated dispositions; the requirement records that authority and pins partial clause maps without authorizing new baseline identities.
 
@@ -250,6 +252,7 @@ Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_
 
 | Entry id | Priority | Estimated trigger frequency |
 |---|---|---|
+| `patterns/one-line-github-handoff-continuity.md` | P2 | EVERY_TURN |
 | `patterns/chat-work-execution-routing-threshold.md` | P1 | FREQUENT |
 | `patterns/codex-github-operating-system.md` | P1 | FREQUENT |
 | `patterns/context-compaction-resilience.md` | P1 | FREQUENT |
