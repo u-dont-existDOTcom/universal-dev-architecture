@@ -18,7 +18,7 @@ This is a per-turn **owner-facing output and continuity requirement** in UDA-gov
 
 ## Enforcement and tests
 
-- **Activation:** the root `AGENTS.md` per-turn pointer and the `LESSON-INDEX.md` entry activate the rule.
+- **Activation:** root `AGENTS.md` requires reading `LESSON-INDEX.md` every turn; the universal index entry activates this per-turn rule. The optional extra root pointer was not admitted by this tool route.
 - **Pre-final check:** inspect the literal last line of the intended final answer for one `GitHub handoff:` prefix, an actually verified current GitHub destination or an honest `BLOCKED` marker, a state and next action; remove any subsequent text.
 - **Mechanical coverage:** repository unit tests can check the existence, route, format and privacy safeguards of this *instruction*. They cannot prove every deployed model response obeyed it; runtime response validation is a separate integration requirement.
 - **Cost/authority:** do not turn the handoff into a new research-validation or release gate. Continue safe work when saving fails and explicitly disclose the missing durability in the line.
