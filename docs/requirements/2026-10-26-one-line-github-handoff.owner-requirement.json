@@ -15,8 +15,11 @@
   "implementation": [
     "patterns/one-line-github-handoff-continuity.md",
     "LESSON-INDEX.md",
-    "AGENTS.md",
+    "rules/rule-graph/enforcement-coverage.v1.json",
+    "rules/rule-graph/enforcement-legacy-baseline.v1.json",
+    "patterns/logic-failure-map.md",
     "tests/test_one_line_github_handoff_continuity.py"
   ],
-  "assurance": "Static rule/tests and PR readback do not prove runtime compliance; actual final response requires direct check."
+  "assurance": "Static rule/tests and PR readback do not prove runtime compliance; actual final response requires direct check.",
+  "existing_kernel_route": "AGENTS.md requires loading LESSON-INDEX.md every turn, so the new indexed rule is discoverable without changing the root file; attempted root pointer was blocked by tool safety and is not claimed implemented."
 }
