@@ -687,6 +687,23 @@
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
       "implemented": "Owner bug report 2026-10-15 (docs/requirements/2026-10-15-answer-target-preservation.owner-requirement.json): two semantic task-time records for patterns/reasoning-selection.md, uda.reasoning.answer-first-target (question request kinds) and uda.reasoning.answer-first-target-correction (owner corrections, reason-bound not-applicable allowed); dispositions and backlog unchanged. Work 32680/37194 -> 32706/unmeasured bytes (rendered/injected; 37194 is the last injected measurement, taken before the 2026-10-11 turn stamp, and neither change re-measured the injected block with the Mission Control adapter; the Work envelope evaluates both records FALSE). No live enforcement claim."
+    },
+    {
+      "finding_id": "slice-2026-10-26-owner-handoff",
+      "date": "2026-10-26",
+      "identity_counts_by_disposition": {
+        "STRUCTURED_ENFORCED": 9,
+        "STRUCTURED_PARTIAL": 9,
+        "WORKFLOW_ONLY": 10,
+        "LEGACY_UNSTRUCTURED": 70,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 79,
+      "baseline_shrinkage": 7,
+      "root_owner_outcome": "OPEN",
+      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "Owner-required final-line GitHub continuity rule; activated through root-to-index route, added explicit owner-authorized legacy-pattern identity and failure-map row. Historical 84 identity baseline and prior slice findings unchanged. New tests confirm routing/privacy/format only, not live runtime admission."
     }
   ],
   "learning_state_at_merge": [

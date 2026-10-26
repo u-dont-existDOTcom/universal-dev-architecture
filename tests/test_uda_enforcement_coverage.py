@@ -511,7 +511,7 @@ class EnforcementCoverageTests(unittest.TestCase):
         self.assertEqual(removed, report["removed_since_baseline"])
         self.assertEqual(7, len(removed))
         self.assertEqual(84, report["baseline_backlog_count"])
-        self.assertEqual(78, report["backlog_count"])
+        self.assertEqual(79, report["backlog_count"])
 
     def test_documented_counts_match_report(self):
         report = coverage.report(self.root)

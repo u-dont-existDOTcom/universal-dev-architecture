@@ -5792,6 +5792,60 @@
       }
     },
     {
+      "id": "patterns/one-line-github-handoff-continuity.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "For every UDA-governed owner-facing turn"
+      },
+      "actors": [
+        "reasoning agent",
+        "workstream maintainer",
+        "chat"
+      ],
+      "phases": [
+        "persistence",
+        "handoff",
+        "final-delivery"
+      ],
+      "destinations": [
+        "current GitHub workstream checkpoint",
+        "owner-visible final line after other text"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/one-line-github-handoff-continuity.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_one_line_github_handoff_continuity.py",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "docs/requirements/2026-10-26-one-line-github-handoff.owner-requirement.json",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "migration": {
+        "priority": "P2",
+        "next_step": "Add a response-boundary final-line validator and GitHub checkpoint readback integration; static tests alone cannot prove runtime compliance.",
+        "trigger_frequency": "EVERY_TURN"
+      },
+      "review_notes": "Owner-requested per-turn GitHub handoff is routed through existing root-to-index bootstrap. The current tests assert rule existence and privacy fallback; they do not attest live per-response correctness or permit publication of private research state."
+    },
+    {
       "id": "patterns/outcome-advancement-and-strategy-efficacy.md",
       "kind": "pattern",
       "indexed": true,

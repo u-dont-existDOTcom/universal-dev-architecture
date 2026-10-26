@@ -94,6 +94,12 @@
       "owner_quote": "that's weird the owner question page wasn't stored on github? fix that in UDA rules then, anything that should be continuable between accounts needs to really be stored on github clearly and there should be the continuation handoff always stored in the claude-acceptance-transfer folder in my home folder, isn't that in UDA rules?",
       "date": "2026-10-10",
       "source": "docs/requirements/2026-10-10-cross-account-continuity.owner-requirement.json"
+    },
+    {
+      "id": "patterns/one-line-github-handoff-continuity.md",
+      "owner_quote": "continue and give me at the end of every turn a one-line github handoff in case chat is overflowed. make that a rule in UDA also",
+      "date": "2026-10-26",
+      "source": "docs/requirements/2026-10-26-one-line-github-handoff.owner-requirement.json"
     }
   ]
 }
