@@ -196,10 +196,12 @@ test('route-v4 binding envelope stays unchanged while fixed-control prompt bytes
   assert.ok(prompt.includes(`binding_envelope_sha256: ${ordinary.bindingCapsule.sha256}.`));
   assert.match(prompt, /schema_version 3/);
   // Frozen after the source-bound GPT-5.6 Sol / Extra High, 4 of 5 surface
-  // correction; the binding-envelope bytes above remain unchanged.
-  assert.equal(sha256(prompt), '10feacd611a37cd4e53fa2b098bc91c306fe5db2393af40d65bd385973116278');
+  // correction, then after the native Work capability rule (2026-10-28: a
+  // CHATGPT_WORK_CLOUD job names CHATGPT_WORK_NATIVE_TOOLS); the
+  // binding-envelope bytes above remain unchanged.
+  assert.equal(sha256(prompt), '2ac29f831aa487c4f3e57405447db10f8721b6b4472049bdcec954bafcd913fc');
   assert.equal(sha256(cycleControlPrompt(routeFrom(basePacket('PRO_ESCALATED')), 'PRO_DECISION')),
-    '3b6c2ab3f23514b137882725f9282d47bdd95df5f64122409b5ff171bb1851c3');
+    'fb56cfbb0183c4965b09fdff749187eacd34b9493fd78d899de255817efd6b2e');
 });
 
 function basePacket(reasoningLane = 'EXTRA_HIGH_DIRECT') {

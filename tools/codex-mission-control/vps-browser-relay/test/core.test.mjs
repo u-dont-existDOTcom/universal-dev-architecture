@@ -436,6 +436,10 @@ test('new direct routes contain only fresh preload and first-message decision st
     assert.match(prompt, /selectable composer chip is not required/);
     assert.match(prompt, /optional top-level bounded_execution/);
     assert.match(prompt, /Work must never fill, infer, or upgrade missing residue/);
+    // Native Work has no Mission Control browser: a Work-cloud job names Work's own tools (#385, 2026-10-28).
+    assert.match(prompt, /For CHATGPT_WORK_CLOUD it must be exactly \{"type":"BROWSER","name":"CHATGPT_WORK_NATIVE_TOOLS"\}/);
+    assert.match(prompt, /a CHATGPT_WORK_CLOUD job must not name EXAMPLE_TARGET_LIFECYCLE/);
+    assert.match(prompt, /For CODEX or an omitted execution_surface it must be either \{"type":"LOCAL_FILESYSTEM_COMMAND"\} or \{"type":"BROWSER","name":"EXAMPLE_TARGET_LIFECYCLE"\}/);
     assert.doesNotMatch(prompt, /MISSION_CONTROL_CHAT_STAGE_RECEIPT|EXTRA_HIGH_READER|EXTRA_HIGH_WRITER|get_stage_liveness_state/);
     assert.match(prompt, /Do not use or call Mission Control/);
   }

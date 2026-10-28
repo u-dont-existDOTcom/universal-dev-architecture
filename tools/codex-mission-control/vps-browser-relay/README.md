@@ -72,6 +72,13 @@ by deployment configuration; the job configuration contains no raw CDP
 endpoint. Unknown or broader browser capabilities use the existing legacy
 handler.
 
+That capability exists only on this Codex route. A native ChatGPT Work job
+(`execution_surface: CHATGPT_WORK_CLOUD`) names
+`{"type":"BROWSER","name":"CHATGPT_WORK_NATIVE_TOOLS"}`: the Work session's own
+browsing and tools, within the job's allowed and forbidden actions. Native Work
+has no Mission Control browser, origin, adapter or local workspace, so the
+decision prompt tells the supervisor never to ask Work for one.
+
 
 The accepted Personal Pro paths use one reusable browser tab and a new provider
 conversation for every mandatory external-tool stage:
