@@ -11,6 +11,7 @@ PATTERN = ROOT / "patterns" / "owner-questions-page.md"
 REQUIREMENT = ROOT / "docs" / "requirements" / "2026-09-30-owner-questions-page.owner-requirement.json"
 
 STATUS_COLOURS_REQUIREMENT = ROOT / "docs" / "requirements" / "2026-10-10-owner-page-status-colours.owner-requirement.json"
+LINK_REQUIREMENT = ROOT / "docs" / "requirements" / "2026-10-29-owner-page-link-with-every-question.owner-requirement.json"
 
 
 class OwnerQuestionsPageTests(unittest.TestCase):
@@ -41,6 +42,9 @@ class OwnerQuestionsPageTests(unittest.TestCase):
             "**Status at a glance.**",
             "a one-line legend under the header",
             "`> [!IMPORTANT]` for open questions",
+            "**Link the page with every question.**",
+            "gives the page's exact link in that same reply, next to the question's number",
+            "an authenticated read of that exact file is the check",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, self.pattern)
@@ -96,8 +100,27 @@ class OwnerQuestionsPageTests(unittest.TestCase):
         docs = (ROOT / "docs" / "INDEX.md").read_text(encoding="utf-8")
         self.assertIn("`requirements/2026-10-10-owner-page-status-colours.owner-requirement.json`", docs)
 
+    def test_link_requirement_quotes_the_owner(self) -> None:
+        data = json.loads(LINK_REQUIREMENT.read_text(encoding="utf-8"))
+        self.assertEqual(data["requirement_id"], "2026-10-29-owner-page-link-with-every-question")
+        self.assertEqual(
+            data["owner_statement"],
+            "can you link the questions page whenever you put a question for me? isn't that already in UDA rules? fix that durably",
+        )
+        self.assertEqual(data["origin"]["classification"], "OWNER_REQUIRED")
+        for surface in data["execution_surfaces"]:
+            if surface["disposition"] == "QUEUED":
+                with self.subTest(surface=surface["surface"]):
+                    self.assertTrue(surface.get("reason"))
+        self.assertNotIn("LIVE_VERIFIED", data["learning_state_at_merge"])
+        self.assertTrue(data["nonclaims"])
+        docs = (ROOT / "docs" / "INDEX.md").read_text(encoding="utf-8")
+        self.assertIn("`requirements/2026-10-29-owner-page-link-with-every-question.owner-requirement.json`", docs)
+        index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
+        self.assertIn("with the page's exact link in every reply that asks or mentions a question", index)
+
     def test_no_private_chat_locators(self) -> None:
-        for path in (PATTERN, REQUIREMENT, STATUS_COLOURS_REQUIREMENT):
+        for path in (PATTERN, REQUIREMENT, STATUS_COLOURS_REQUIREMENT, LINK_REQUIREMENT):
             with self.subTest(path=path.name):
                 text = path.read_text(encoding="utf-8")
                 self.assertNotIn("claude.ai/chat", text)

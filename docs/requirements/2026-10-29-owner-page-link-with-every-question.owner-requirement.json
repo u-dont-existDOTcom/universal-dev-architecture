@@ -1,0 +1,48 @@
+{
+  "requirement_id": "2026-10-29-owner-page-link-with-every-question",
+  "date": "2026-10-29",
+  "source": "Owner message on 2026-10-29 to the Claude session doing the UDA and Mission Control work, answering an owner-page question that the session's replies had named by number without linking the page.",
+  "owner_statement": "can you link the questions page whenever you put a question for me? isn't that already in UDA rules? fix that durably",
+  "problem": "Rule 1 told replies to point to the page, and rule 2 required the file's link only when a session in another account had updated it. Nothing required the link itself whenever a reply asked or mentioned a question, so replies named questions by number and the owner had to find the page himself.",
+  "required_behavior": [
+    "A reply that asks the owner a question, says one was added or changed, or says one is still waiting for him, gives the page's exact link in that same reply, next to the question's number.",
+    "The link is the one the owner can open from where he reads: the published view when it is current, otherwise the Git file's link.",
+    "The link is checked right before it is given; for a file in a private repository, an authenticated read of that exact file is the check."
+  ],
+  "basis": [
+    "The owner's statement above.",
+    "Rules 1 and 2 of patterns/owner-questions-page.md before this change, which covered pointing to the page but not linking it in every such reply."
+  ],
+  "scope": "Rule 10 and the status note of patterns/owner-questions-page.md, its LESSON-INDEX.md and docs/INDEX.md entries, this record, and their tests.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "The owner opens the page for any question he is told about in one step, from the reply itself.",
+    "notes": "Where the link sits in the reply (next to the question's number) is the assistant's choice of placement."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/owner-questions-page.md, reached through LESSON-INDEX.md and docs/INDEX.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "The UDA and Mission Control workstream's owner questions page",
+      "disposition": "PROJECTED",
+      "note": "The requesting session's turn-end step prints the page's link with the open questions' numbers, so its final answer carries the link."
+    },
+    {
+      "surface": "Other workstreams' sessions",
+      "disposition": "QUEUED",
+      "reason": "Each workstream's session applies the rule when it next loads this pattern and asks the owner something."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "No repository rule can force a session that never loaded UDA.",
+    "A link to a private repository opens only for someone signed in with access to it."
+  ]
+}
