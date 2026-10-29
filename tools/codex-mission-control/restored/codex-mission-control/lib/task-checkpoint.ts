@@ -207,7 +207,8 @@ export interface RegisteredTaskHold {
  * checkpoint verified after the decision is what the fleet watch takes back to the supervisor. A decision that asks the
  * owner to decide is the owner's, not a hold; a task that has had a directive is not treated as held here (a decision
  * may continue a directive without new bounded execution), and keeps the projection's other owner-action rules, unless
- * that directive's Work job expired unrun and the decision answered Mission Control's record of that.
+ * that directive's Work job expired unrun and the decision answered Mission Control's record of that, or the job ran and
+ * the decision is the supervisor's review of its receipt.
  */
 export function registeredTaskHold(events: readonly StoredEvent[]): RegisteredTaskHold | null {
   if (!workerHasOwnerTaskRegistration(events)) return null;
@@ -217,16 +218,21 @@ export function registeredTaskHold(events: readonly StoredEvent[]): RegisteredTa
   // A task that has had a directive is held again only when its latest directive's job is over and the supervisor's
   // answer after that started no new step: either the job expired unrun and Mission Control recorded that
   // (lib/work-directive-expiry.ts), or the job ran and ended BLOCKED, FAILED or PARTIAL in a recorded Work receipt (the
-  // supervisor's review of it). A completed job's review that starts no step may end the task, so it is not a hold.
+  // supervisor's review of it). A completed job's review that starts no step is a hold too while the task's owner outcome
+  // still has an open gap (#385, 2026-10-29: a completed diagnostic job's review held the task, and nothing could take
+  // the next checkpoint back); once the owner outcome records no gap, such a review may end the task.
   const latestDirective = events.findLast((event) => event.data.type === "execution_directive_recorded");
   if (latestDirective && latestDirective.data.type === "execution_directive_recorded") {
     const expiryRecord = events.find((event) => isBoundWorkDirectiveExpiry(events, event)
       && (event.data as { receipt_id: string }).receipt_id === workDirectiveExpiryEventId(latestDirective));
     const { directive_id: directiveId, directive_revision: directiveRevision } = latestDirective.data;
+    const outcome = events.findLast((event) => event.data.type === "owner_outcome_recorded")?.data;
+    const outcomeGapOpen = outcome?.type === "owner_outcome_recorded" && outcome.gap_status === "OPEN";
+    const holdingStatuses = outcomeGapOpen ? ["BLOCKED", "FAILED", "PARTIAL", "COMPLETED"] : ["BLOCKED", "FAILED", "PARTIAL"];
     const workReceipt = events.findLast((event) => event.sequence > latestDirective.sequence
       && event.data.type === "chatgpt_work_cloud_execution_receipt_recorded"
       && event.data.directive_id === directiveId && event.data.directive_revision === directiveRevision
-      && ["BLOCKED", "FAILED", "PARTIAL"].includes(event.data.status));
+      && holdingStatuses.includes(event.data.status));
     const heldAfterExpiry = Boolean(expiryRecord && decision.sequence >= expiryRecord.sequence);
     const heldAfterWorkReceipt = Boolean(workReceipt && decision.sequence > workReceipt.sequence);
     if (!heldAfterExpiry && !heldAfterWorkReceipt) return null;

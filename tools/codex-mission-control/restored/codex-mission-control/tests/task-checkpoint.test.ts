@@ -364,7 +364,15 @@ test("a step the supervisor starts, a real owner decision or an owner blocker is
     assert.equal(registeredTaskHold([...history, ranDirective, receiptFor(6, "github-execution:other", 3), decision(7)]), null, "another directive's receipt");
     assert.equal(registeredTaskHold([...history, ranDirective, receiptFor(6, "github-execution:ran", 2), decision(7)]), null, "another revision's receipt");
     const completed = { ...receiptFor(6, "github-execution:ran", 3), data: { ...receiptFor(6, "github-execution:ran", 3).data, status: "COMPLETED" } as StoredEvent["data"] };
-    assert.equal(registeredTaskHold([...history, ranDirective, completed, decision(7)]), null, "a completed job's review may end the task");
+    // A completed job's review that starts no step holds the task while its owner outcome still has an open gap (the
+    // registered task's outcome is OPEN), and may end it once the owner outcome records no gap.
+    assert.equal(registeredTaskHold([...history, ranDirective, completed, decision(7)])?.decision.eventId, "decision:7",
+      "a completed job's review holds an open owner outcome");
+    const outcomeEvent = history.findLast((event) => event.data.type === "owner_outcome_recorded")!;
+    const closed = { ...outcomeEvent, eventId: "owner-outcome:closed", sequence: last.sequence + 6,
+      data: { ...outcomeEvent.data, gap_status: "NONE" } as StoredEvent["data"] };
+    assert.equal(registeredTaskHold([...history, ranDirective, completed, closed, decision(7)]), null,
+      "a completed job's review may end the task once the owner outcome has no gap");
     assert.equal(registeredTaskHold([...history, ranDirective, receiptFor(6, "github-execution:ran", 3),
       decision(7, { bounded_execution: { strategy_id: "s" } })]), null, "a review that starts a step");
     const asks = decision(4, { owner_action: { kind: "DECISION_REQUIRED", question: "A or B?" } });
