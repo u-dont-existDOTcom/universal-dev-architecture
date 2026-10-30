@@ -9801,6 +9801,53 @@
         }
       ],
       "exception_reason": "The YouTube transcript extraction workflow is governed by scripts/yt-transcript.sh and its caption-first, download and cloud-transcription fallback; provider setup and extraction-version checks remain specialist executable maintenance rather than a universal semantic admission rule."
+    },
+    {
+      "id": "patterns/active-email-lane-reply-continuity.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When an active work lane has pending task-related outbound email, on every turn that lane resumes"
+      },
+      "actors": [
+        "reasoning agent",
+        "authorized mailbox worker"
+      ],
+      "phases": [
+        "retrieval",
+        "pre-action",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "private lane correspondence registry",
+        "verified live-mailbox read receipt",
+        "source-bound task frontier"
+      ],
+      "enforcement_types": [
+        "none"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/active-email-lane-reply-continuity.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_active_email_lane_reply_continuity.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "exception_reason": "Email response continuity is a provider- and authorization-scoped live mailbox workflow. It cannot be asserted or mechanically intercepted by UDA repository source alone; only an actual per-turn connected-mail read with exact thread coverage proves compliance. Its activation is routed through LESSON-INDEX, and regression tests guard the written contract.",
+      "review_notes": "Explicit owner 2026-10-30 instruction. Live Atlas example during adoption: all outstanding research threads queried, found one 550 5.1.1 hard bounce missed in previous turns; alternate published author address then contacted. Repository test/routing evidence must never be confused with guaranteed runtime email monitoring."
     }
   ]
 }
