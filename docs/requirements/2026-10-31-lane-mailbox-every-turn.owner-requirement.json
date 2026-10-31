@@ -1,0 +1,56 @@
+{
+  "requirement_id": "2026-10-31-lane-mailbox-every-turn",
+  "date": "2026-10-31",
+  "source": "Owner message on 2026-10-31 to the Claude session that maintains this repository and supervises Mission Control, after he asked whether a suggestion another lane had sent had arrived. It had been waiting as a labeled pull request for two and a half days.",
+  "owner_statement": "can we make sure you always check what is addressed to you in each turn? like checking ur mailbox? every lane should have its mailbox checked right",
+  "problem": "Step 4 of patterns/suggested-fix-queue.md had a project's agent read its lane once per work session, and step 9 had the maintainer lane list labeled pull requests at each of its check-ins. The maintainer lane had stopped holding separate check-ins, and nothing at the start or end of its turns looked at the label, so 41 pull requests and 3 issues labeled uda-lane were open on 2026-10-31, the oldest from 2026-10-09.",
+  "required_behavior": [
+    "At the start of every turn, before other work, a lane's agent checks its mailbox and lists what is new since its last check.",
+    "The mailbox is every place where something addressed to the lane arrives: its lane in this repository (for this repository's maintainer lane, open pull requests and issues labeled uda-lane), open issues and pull requests in its own repositories that it didn't open, edits others made to its handoff note and owner questions page since its last turn, and messages its runtime queues for it. The lane's handoff note or AGENTS.md names these places.",
+    "Each new item gets an outcome or a next step, and what it waits for, in that turn's handoff update. Items already waiting when a lane starts checking go into a backlog list with the same outcomes, worked oldest first with owner requests ahead; each turn's update says how many are left.",
+    "A lane with an end-of-turn step makes it refuse to finish a turn whose mailbox wasn't checked or whose new items have no outcome or next step.",
+    "Projects wired with the earlier text get an item in their lane to update their wiring section."
+  ],
+  "basis": [
+    "The owner's statement above.",
+    "Steps 4 and 9 of patterns/suggested-fix-queue.md before this change, which set the check once per work session and at each check-in."
+  ],
+  "scope": "Steps 4 and 9 and the compact rule of patterns/suggested-fix-queue.md, the wiring section in suggested-fixes/README.md and the three bootstrap templates, the LESSON-INDEX.md and docs/INDEX.md routes, the moved-text fixture, one item in the lane of each project wired through its own AGENTS.md, this record, and their tests.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "Nothing addressed to a lane waits without that lane seeing it; each lane looks at its mail every turn.",
+    "notes": "What counts as a lane's mailbox, the backlog handling and the end-of-turn refusal are the assistant's design for the owner's request; the every-turn check itself is the owner's."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/suggested-fix-queue.md, reached through LESSON-INDEX.md and docs/INDEX.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "The maintainer lane of this repository (the UDA and Mission Control workstream)",
+      "disposition": "PROJECTED",
+      "note": "Its turn-start step lists its mailbox, and its turn-end step refuses to finish a turn whose mailbox wasn't checked or whose new items have no outcome in the turn's update."
+    },
+    {
+      "surface": "Projects wired through their own AGENTS.md",
+      "disposition": "QUEUED",
+      "reason": "Each project's agent updates its wiring section when it next reads the item filed in its lane on 2026-10-31."
+    },
+    {
+      "surface": "Projects whose agents load this repository's root AGENTS.md every turn",
+      "disposition": "PROJECTED",
+      "note": "They reach the changed rule through LESSON-INDEX.md."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "No repository rule can force a session that never loads this repository or its project's AGENTS.md.",
+    "A lane's mailbox check finds only what was delivered to a place it names; mail left in a chat or another lane's own files is still lost, which step 9 already forbids.",
+    "The end-of-turn refusal exists only where a lane has an end-of-turn step that runs it."
+  ]
+}

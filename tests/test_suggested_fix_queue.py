@@ -14,6 +14,8 @@ PATTERN = ROOT / "patterns" / "suggested-fix-queue.md"
 LANES = ROOT / "suggested-fixes"
 README = LANES / "README.md"
 REQUIREMENT = ROOT / "docs" / "requirements" / "2026-09-30-suggested-fix-lanes.owner-requirement.json"
+MAILBOX_REQUIREMENT = ROOT / "docs" / "requirements" / "2026-10-31-lane-mailbox-every-turn.owner-requirement.json"
+MAILBOX_ITEM = "2026-10-31-mailbox-every-turn.md"
 HEADER_FIELDS = ("For", "Filed", "From", "Owner request", "Existing pull request", "Supersedes")
 SECTIONS = ("## What to do", "## Why", "## Check first")
 ITEM_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
@@ -100,7 +102,7 @@ class SuggestedFixQueueTests(unittest.TestCase):
             "`suggested-fixes/<repository>/`",
             "It does not open a pull request in the project or give the owner a file to relay.",
             "**Public by default.**",
-            "reads its lane before starting other fixes in that project, once per work session",
+            "At the start of every turn, before other work, a lane's agent checks its mailbox",
             "adopts it, adapts it, declines it with a reason, defers it until a named trigger, or puts a question with the tradeoffs on its owner questions page",
             "Items are advice, and the project's own authority decides.",
             "it asks the owner before declining or deferring it",
@@ -115,7 +117,7 @@ class SuggestedFixQueueTests(unittest.TestCase):
 
     def test_routes(self) -> None:
         assert_routed_rule(self, "patterns/suggested-fix-queue.md", (
-            "Before other fixes in a project, read its lane in `suggested-fixes/`; file suggestions for other projects there, not as pull requests in them: `patterns/suggested-fix-queue.md`.",
+            "At the start of every turn, check your mailbox, including your lane in `suggested-fixes/`; file suggestions for other projects there, not as pull requests in them: `patterns/suggested-fix-queue.md`.",
         ), compact=True)
         index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
         self.assertEqual(sum("`patterns/suggested-fix-queue.md` —" in line for line in index.splitlines()), 1)
@@ -135,7 +137,7 @@ class SuggestedFixQueueTests(unittest.TestCase):
             "adds the `uda-lane` label",
             "leaves one comment saying what remains",
             "The label hands the pull request to this repository's maintainer lane",
-            "lists labeled pull requests at each of its check-ins, then reviews and merges them",
+            "lists labeled pull requests at the start of every turn (step 4), then reviews and merges them",
             "After handing over, the filing agent changes the pull request only if the maintainer asks.",
             "Chats, handoff folders and files are not a handoff channel.",
         ):
@@ -218,6 +220,51 @@ class SuggestedFixQueueTests(unittest.TestCase):
                 self.assertEqual(positions, sorted(positions))
                 self.assertNotIn("claude.ai/chat", text)
                 self.assertNotIn("chatgpt.com/c/", text)
+
+    def test_every_turn_mailbox_check_quotes_the_owner(self) -> None:
+        data = json.loads(MAILBOX_REQUIREMENT.read_text(encoding="utf-8"))
+        self.assertEqual(data["owner_statement"], "can we make sure you always check what is addressed to you in each turn? like checking ur mailbox? every lane should have its mailbox checked right")
+        self.assertEqual(data["origin"]["classification"], "OWNER_REQUIRED")
+        for surface in data["execution_surfaces"]:
+            if surface["disposition"] in {"DEFERRED", "NOT_APPLICABLE", "QUEUED"}:
+                with self.subTest(surface=surface["surface"]):
+                    self.assertTrue(surface.get("reason"))
+        self.assertNotIn("LIVE_VERIFIED", data["learning_state_at_merge"])
+        self.assertTrue(data["nonclaims"])
+        pattern = PATTERN.read_text(encoding="utf-8")
+        step = pattern.split("4. **Checking the mailbox, every turn.**", 1)[1].split("\n5. ", 1)[0]
+        for phrase in (
+            "At the start of every turn, before other work, a lane's agent checks its mailbox and lists what is new since its last check.",
+            "**The mailbox** is every place where something addressed to the lane arrives.",
+            "the open pull requests and issues labeled `uda-lane` (step 9)",
+            "the edits others made to its handoff note and owner questions page since its last turn",
+            "**Nothing waits silently.**",
+            "Items already waiting when a lane starts checking go into a backlog list",
+            "**Machinery where the lane has it.**",
+            "refuse to finish a turn whose mailbox wasn't checked",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, step)
+        self.assertIn(f"`docs/requirements/{MAILBOX_REQUIREMENT.name}`", pattern)
+        index_entry = next(line for line in (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8").splitlines()
+                           if "`patterns/suggested-fix-queue.md` —" in line)
+        self.assertIn("at the start of every turn, check the lane's mailbox", index_entry)
+        self.assertIn(f"`requirements/{MAILBOX_REQUIREMENT.name}`", (ROOT / "docs" / "INDEX.md").read_text(encoding="utf-8"))
+
+    def test_wiring_checks_the_mailbox_every_turn_and_wired_projects_get_the_update(self) -> None:
+        readme = README.read_text(encoding="utf-8")
+        section = re.search(r"```markdown\n(## Suggested fixes from other projects\n.*?)\n```", readme, re.DOTALL).group(1)
+        self.assertIn("At the start of every turn, before other work, read this repository's lane", section)
+        self.assertIn("issues and pull requests here that you didn't open", section)
+        self.assertNotIn("Before starting other fixes here", section)
+        wired = re.findall(r"(?m)^\| `([^`]+)/` \| `u-dont-existDOTcom/[^`]+` \| wiring section in its `AGENTS.md` \|$", readme)
+        self.assertTrue(wired)
+        for lane in wired:
+            with self.subTest(lane=lane):
+                found = [path for path in (LANES / lane / MAILBOX_ITEM, LANES / lane / "done" / MAILBOX_ITEM) if path.exists()]
+                self.assertEqual(len(found), 1)
+                text = found[0].read_text(encoding="utf-8")
+                self.assertIn(section.replace("<repository>", lane), text)
 
     def test_requirement_quotes_the_owner(self) -> None:
         data = json.loads(REQUIREMENT.read_text(encoding="utf-8"))
