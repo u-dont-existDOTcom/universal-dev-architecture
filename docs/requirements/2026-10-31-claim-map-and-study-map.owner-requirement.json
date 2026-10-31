@@ -1,0 +1,45 @@
+{
+  "requirement_id": "2026-10-31-claim-map-and-study-map",
+  "date": "2026-10-31",
+  "source": "Owner answer on 2026-10-31 to question 5 of the UDA and Mission Control owner questions page, after the maintainer lane suggested improvements to the manifest-first reading receipts (#444) and how the idea could help AskRigor analyze studies.",
+  "owner_statement": "5c",
+  "owner_statement_context": "Question 5 asked which reading idea to take forward. Option A: file one suggestion in AskRigor's mailbox for a study map of the claims an answer rests on (study identifiers and cohorts, links such as same cohort or reanalysis, and each claim tied to the passage it came from). Option B: improve UDA's reading rule with a claim map for long texts (claims pinned to passages, typed links, a count of paragraphs read). Option C: both.",
+  "problem": "The manifest-first reading receipt maps concepts to passages. The September review failure was at the level of claims: the reviewer's reading of an article was written as the article's content. Research that combines studies fails across studies (overlapping cohorts counted twice, outcomes changed from the registry, one study repeated by several reviews), which a per-paper audit cannot see.",
+  "required_behavior": [
+    "For long or high-stakes texts, keep the ledger at the level of claims: each claim pinned to its passage, typed links between claims, a count of paragraphs read, absence claims as searches with a negative control, and drafting, judging and mechanical checks kept apart.",
+    "A criticism targets a pinned claim; a point that matches no pinned claim is labeled as the reviewer's reading.",
+    "AskRigor's lane receives one suggested-fix item for a study map of decision-important claims and decides its own implementation."
+  ],
+  "basis": [
+    "The owner's answer above.",
+    "patterns/whole-argument-reconstruction.md, manifest-first reading receipts (#444)."
+  ],
+  "scope": "A subsection of patterns/whole-argument-reconstruction.md, its LESSON-INDEX.md entry, one AskRigor suggested-fix item, this record, and their tests.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "Reviews and research answers say only what their sources say, and cross-study problems are caught before a conclusion rests on them.",
+    "notes": "The specific steps of the claim map and the study map are the assistant's design, chosen by the owner from the options offered."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/whole-argument-reconstruction.md, reached through LESSON-INDEX.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "AskRigor",
+      "disposition": "QUEUED",
+      "reason": "AskRigor's lane decides its implementation when it reads the item in its mailbox."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "The claim map is a reading method; nothing here shows that a reader applies it.",
+    "Mechanical checks of quotes and links do not certify that a link's meaning is right.",
+    "This record does not change AskRigor; its lane decides."
+  ]
+}

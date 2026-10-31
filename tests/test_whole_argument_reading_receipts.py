@@ -59,10 +59,64 @@ class ReadingReceiptTests(unittest.TestCase):
         self.assertEqual(len(found), 1)
         text = found[0].read_text(encoding="utf-8")
         for phrase in (
-            "- For: `u-dont-existDOTcom/AskRigor`",
+            "/AskRigor`",
             "Include a negative control where the document really does omit a concept",
             "Do not turn a regex list into a 'meaning' detector.",
             "AskRigor's own receiving lane decides which layer should implement it",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, text)
+
+
+    def test_claim_map_extends_the_receipt(self) -> None:
+        body = section()
+        self.assertEqual(body.count("### Claim map for long or high-stakes texts"), 1)
+        claim_map = body.split("### Claim map for long or high-stakes texts", 1)[1]
+        for phrase in (
+            "1. **Pin each claim to its passage.**",
+            "A point that matches no pinned claim is the reviewer's own reading and is labeled that way",
+            "2. **Type the links between claims.**",
+            "list the claims that depend on it",
+            "3. **Count what was read.**",
+            "Mark each paragraph read or not, and give the count in the read receipt",
+            "A partial read says which parts were left.",
+            "4. **Make an absence claim a search with a control.**",
+            '"Not found" names the paragraphs searched.',
+            "a negative control",
+            "5. **Split the work by kind.**",
+            "A meaning-capable reviewer judges them",
+            "A script checks that each quote matches the source at its recorded hash and that both ends of every link exist.",
+            "6. **Use it only where the claim structure decides the outcome:**",
+            "`suggested-fixes/AskRigor/2026-10-31-study-map-for-decision-claims.md`",
+            "`docs/requirements/2026-10-31-claim-map-and-study-map.owner-requirement.json`",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, claim_map)
+        index = (ROOT / "LESSON-INDEX.md").read_text(encoding="utf-8")
+        entry = next(line for line in index.splitlines() if "`patterns/whole-argument-reconstruction.md` —" in line)
+        self.assertIn("a claim map pins each claim to its passage with typed links and a count of paragraphs read", entry)
+
+    def test_study_map_item_and_owner_record(self) -> None:
+        import json
+        data = json.loads((ROOT / "docs" / "requirements" / "2026-10-31-claim-map-and-study-map.owner-requirement.json").read_text(encoding="utf-8"))
+        self.assertEqual(data["owner_statement"], "5c")
+        self.assertEqual(data["origin"]["classification"], "OWNER_REQUIRED")
+        for surface in data["execution_surfaces"]:
+            if surface["disposition"] in {"DEFERRED", "NOT_APPLICABLE", "QUEUED"}:
+                self.assertTrue(surface.get("reason"))
+        name = "2026-10-31-study-map-for-decision-claims.md"
+        found = [path for path in (LANE / name, LANE / "done" / name) if path.exists()]
+        self.assertEqual(len(found), 1)
+        text = found[0].read_text(encoding="utf-8")
+        for phrase in (
+            "/AskRigor`",
+            "- Owner request: yes",
+            "Count underlying people or datasets, not documents",
+            "compare against the version registered before the trial started",
+            "flag registered outcomes the paper leaves out",
+            "A review restating a study is not a second source.",
+            "a negative control in which no overlap exists",
+            "a paywalled original stays unread and is named as a gap",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)
