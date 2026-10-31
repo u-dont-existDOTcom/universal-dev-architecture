@@ -9,7 +9,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PATTERN = ROOT / "patterns" / "whole-argument-reconstruction.md"
-ITEM = ROOT / "suggested-fixes" / "AskRigor" / "2026-10-29-manifest-first-cross-section-reading.md"
+LANE = ROOT / "suggested-fixes" / "AskRigor"
+ITEM_NAME = "2026-10-29-manifest-first-cross-section-reading.md"
 HEADING = "## Manifest-first, concept-wide reading receipts"
 
 
@@ -53,7 +54,10 @@ class ReadingReceiptTests(unittest.TestCase):
                 self.assertIn(phrase, entries[0])
 
     def test_askrigor_item_keeps_the_negative_control_and_the_mechanical_limit(self) -> None:
-        text = ITEM.read_text(encoding="utf-8")
+        # The receiving lane may move a handled item to done/ (patterns/suggested-fix-queue.md, step 8).
+        found = [path for path in (LANE / ITEM_NAME, LANE / "done" / ITEM_NAME) if path.exists()]
+        self.assertEqual(len(found), 1)
+        text = found[0].read_text(encoding="utf-8")
         for phrase in (
             "- For: `u-dont-existDOTcom/AskRigor`",
             "Include a negative control where the document really does omit a concept",
