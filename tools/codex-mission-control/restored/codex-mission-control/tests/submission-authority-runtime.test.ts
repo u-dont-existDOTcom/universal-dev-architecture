@@ -460,6 +460,29 @@ test("renewal checks the lease inside the scheduler transaction, so time passing
   }
 });
 
+test("a safety halt stops renewal and leaves the lease as it was", async () => {
+  const store = new EventStore(":memory:");
+  const now = { value: origin };
+  try {
+    const live = runtime(store, now);
+    assert.equal((await live.status(producer)).schedulerState, "ACTIVE_LEASE");
+    const stateStore = (live as any).stateStore;
+    const before = await stateStore.read();
+    const read = stateStore.read.bind(stateStore);
+    // Renewal is due, but the scheduler is halted on a boundary inconsistency.
+    stateStore.read = async () => ({ ...(await read()), safetyHalt: { code: "GLOBAL_SUBMISSION_INTERVAL_VIOLATION" } });
+    const halted = await live.renewLeaseIfDue();
+    assert.equal(halted.renewed, false);
+    assert.equal(halted.reason, "SAFETY_HALT");
+    stateStore.read = read;
+    const after = await stateStore.read();
+    assert.equal(after.activeLease.expiresAt, before.activeLease.expiresAt);
+    assert.equal(after.leaseHistory.length, before.leaseHistory.length);
+  } finally {
+    store.close();
+  }
+});
+
 test("a configured successor that cannot activate stops renewal of the old lease", async () => {
   const store = new EventStore(":memory:");
   const now = { value: origin };
