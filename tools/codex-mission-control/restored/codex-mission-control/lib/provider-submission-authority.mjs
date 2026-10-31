@@ -129,6 +129,32 @@ export class CentralSubmissionScheduler {
     });
   }
 
+  // Automatic renewal (owner, 2026-10-31). Every check runs inside the serialized transaction, right before the write:
+  // the current lease must be the expected one, currently valid, single-active and not halted, with less than half of
+  // the window left. Only expiresAt changes. An expired lease is never revived here; an operator's renewal through
+  // activateLease is a separate, deliberate path.
+  async renewLeaseIfDue({ expected, windowMs }) {
+    if (!expected || !Number.isInteger(windowMs) || windowMs <= 0) throw new Error('Lease renewal needs the expected lease and a positive window.');
+    return this.#serialized(async () => {
+      const state = await this.stateStore.read();
+      const lease = state.activeLease;
+      const nowMs = this.now();
+      if (!lease) return { renewed: false, reason: 'NO_ACTIVE_LEASE', expiresAt: null };
+      if (!sameLeaseIdentity(lease, expected)) return { renewed: false, reason: 'NOT_THE_CONFIGURED_LEASE', expiresAt: lease.expiresAt };
+      if (lease.splitBrainStatus !== 'SINGLE_ACTIVE_CONFIRMED') return { renewed: false, reason: 'NOT_SINGLE_ACTIVE', expiresAt: lease.expiresAt };
+      if (Date.parse(lease.issuedAt) > nowMs || Date.parse(lease.expiresAt) <= nowMs) {
+        return { renewed: false, reason: 'LEASE_NOT_CURRENTLY_VALID', expiresAt: lease.expiresAt };
+      }
+      if (state.safetyHalt) return { renewed: false, reason: 'SAFETY_HALT', expiresAt: lease.expiresAt };
+      if (Date.parse(lease.expiresAt) - nowMs > windowMs / 2) return { renewed: false, reason: 'NOT_DUE', expiresAt: lease.expiresAt };
+      const renewed = { ...lease, expiresAt: new Date(nowMs + windowMs).toISOString() };
+      state.activeLease = renewed;
+      state.leaseHistory.push(renewed);
+      await this.stateStore.write(state);
+      return { renewed: true, reason: 'RENEWED', expiresAt: renewed.expiresAt };
+    });
+  }
+
   async status() {
     const state = await this.stateStore.read();
     return schedulerStatus(state, this.minIntervalMs, this.now());

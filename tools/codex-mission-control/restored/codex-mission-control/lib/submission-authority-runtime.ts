@@ -755,35 +755,17 @@ export class SubmissionAuthorityRuntime {
 
   /**
    * Keeps the configured deployment lease from running out while Mission Control runs (owner, 2026-10-31: "i don't see
-   * why sending permissions should end"). It renews only the lease this deployment configures, only while that lease
-   * is valid and single-active with no safety halt, and only once less than half the renewal window remains; the
-   * renewal extends expiresAt alone, as a same-lease renewal. An expired lease is never revived, and a configured
-   * successor lease stops renewal of the old one, so a takeover still waits out the old lease's expiry.
+   * why sending permissions should end"). The scheduler checks and renews in one serialized transaction: only the lease
+   * this deployment configures, only while it is valid and single-active with no safety halt, and only once less than
+   * half of the window remains, extending expiresAt alone. An expired lease is never revived, and a configured successor
+   * lease stops renewal of the old one, so a takeover still waits out the old lease's expiry.
    */
   async renewLeaseIfDue(): Promise<{ renewed: boolean; reason: string; expiresAt: string | null }> {
-    if (!this.enabled || this.leaseAutoRenewDays === null || !this.configuredLease || !this.stateStore) {
+    if (!this.enabled || this.leaseAutoRenewDays === null || !this.configuredLease) {
       return { renewed: false, reason: "AUTO_RENEWAL_OFF", expiresAt: null };
     }
     const scheduler = await this.requireScheduler();
-    const state = await this.stateStore.read();
-    const lease = state.activeLease;
-    if (!lease) return { renewed: false, reason: "NO_ACTIVE_LEASE", expiresAt: null };
-    const configured = this.configuredLease;
-    if (lease.leaseId !== configured.leaseId || lease.epoch !== configured.epoch
-      || lease.activeHostAlias !== configured.activeHostAlias || lease.activeHostRole !== configured.activeHostRole) {
-      return { renewed: false, reason: "NOT_THE_CONFIGURED_LEASE", expiresAt: lease.expiresAt };
-    }
-    const nowMs = this.now();
-    if (lease.splitBrainStatus !== "SINGLE_ACTIVE_CONFIRMED") return { renewed: false, reason: "NOT_SINGLE_ACTIVE", expiresAt: lease.expiresAt };
-    if (Date.parse(lease.issuedAt) > nowMs || Date.parse(lease.expiresAt) <= nowMs) {
-      return { renewed: false, reason: "LEASE_NOT_CURRENTLY_VALID", expiresAt: lease.expiresAt };
-    }
-    if (state.safetyHalt) return { renewed: false, reason: "SAFETY_HALT", expiresAt: lease.expiresAt };
-    const windowMs = this.leaseAutoRenewDays * 86_400_000;
-    if (Date.parse(lease.expiresAt) - nowMs > windowMs / 2) return { renewed: false, reason: "NOT_DUE", expiresAt: lease.expiresAt };
-    const expiresAt = new Date(nowMs + windowMs).toISOString();
-    await scheduler.activateLease({ ...lease, expiresAt });
-    return { renewed: true, reason: "RENEWED", expiresAt };
+    return scheduler.renewLeaseIfDue({ expected: this.configuredLease, windowMs: this.leaseAutoRenewDays * 86_400_000 });
   }
 
   private async requireScheduler(): Promise<any> {

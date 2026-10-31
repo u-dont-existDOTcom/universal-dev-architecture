@@ -417,6 +417,49 @@ test("renewal never revives an expired lease, and can be switched off", async ()
   }
 });
 
+test("renewal checks the lease inside the scheduler transaction, so time passing while it waits cannot revive it", async () => {
+  const store = new EventStore(":memory:");
+  const racedStore = new EventStore(":memory:");
+  try {
+    // Ten seconds before expiry the renewal is due, and it succeeds at once.
+    const now = { value: origin };
+    const live = runtime(store, now);
+    assert.equal((await live.status(producer)).schedulerState, "ACTIVE_LEASE");
+    now.value = Date.parse(primaryLease().expiresAt) - 10_000;
+    assert.equal((await live.renewLeaseIfDue()).renewed, true);
+
+    // The renewal is queued behind another scheduler transaction, and the lease runs out while it waits: the check
+    // inside its own transaction sees the later time and refuses.
+    const raced = { value: origin };
+    const racedRuntime = runtime(racedStore, raced);
+    assert.equal((await racedRuntime.status(producer)).schedulerState, "ACTIVE_LEASE");
+    raced.value = Date.parse(primaryLease().expiresAt) - 1_000;
+    const stateStore = (racedRuntime as any).stateStore;
+    const read = stateStore.read.bind(stateStore);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    let gated = true;
+    stateStore.read = async () => {
+      if (gated) { gated = false; await gate; }
+      return read();
+    };
+    const blocker = (racedRuntime as any).scheduler.activateLease(primaryLease()).catch(() => null);
+    const pending = racedRuntime.renewLeaseIfDue();
+    await new Promise((resolve) => setImmediate(resolve));
+    raced.value = Date.parse(primaryLease().expiresAt) + 1;
+    release();
+    await blocker;
+    const refused = await pending;
+    assert.equal(refused.renewed, false);
+    assert.equal(refused.reason, "LEASE_NOT_CURRENTLY_VALID");
+    stateStore.read = read;
+    assert.equal((await racedRuntime.status(producer)).schedulerState, "LEASE_STALE");
+  } finally {
+    store.close();
+    racedStore.close();
+  }
+});
+
 test("a configured successor that cannot activate stops renewal of the old lease", async () => {
   const store = new EventStore(":memory:");
   const now = { value: origin };

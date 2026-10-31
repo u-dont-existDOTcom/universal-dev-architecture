@@ -946,7 +946,7 @@ function startGitHubReconciliation(coordinator: GitHubReconciliationCoordinator 
   return timer;
 }
 
-// Hourly, and once shortly after start: renew the configured deployment lease when it is due (owner, 2026-10-31).
+// At start and then hourly: renew the configured deployment lease when it is due (owner, 2026-10-31).
 function startLeaseAutoRenewal() {
   if (!submissionAuthority.enabled || submissionAuthority.leaseAutoRenewDays === null) return null;
   const renew = (trigger: "STARTUP" | "INTERVAL") => submissionAuthority.renewLeaseIfDue().then(
@@ -959,7 +959,8 @@ function startLeaseAutoRenewal() {
       error: error instanceof Error ? error.message : "Unknown lease renewal failure",
     })),
   );
-  setTimeout(() => void renew("STARTUP"), 30_000).unref();
+  // At once (the renewal waits for the authority's startup), so a lease close to running out is renewed in time.
+  void renew("STARTUP");
   const timer = setInterval(() => void renew("INTERVAL"), 3_600_000);
   timer.unref();
   return timer;
