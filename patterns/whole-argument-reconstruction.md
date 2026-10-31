@@ -62,6 +62,19 @@ A substantial document critique can fail even with accurate excerpts if it silen
 
 The receipt is a compact provenance and evidence summary, not a new mandatory user-facing form. Scale it to the task: a one-paragraph answer needs far less machinery than a multi-version research audit or a proposed rewrite of an owner's long work. This refinement composes with existing claim-scope verification and coverage-before-depth; it does not replace them.
 
+### Claim map for long or high-stakes texts
+
+When a critique, edit or summary of a long or high-stakes text depends on what the text claims, keep step 3's ledger at the level of claims (owner choice, 2026-10-31: `docs/requirements/2026-10-31-claim-map-and-study-map.owner-requirement.json`).
+
+1. **Pin each claim to its passage.** Each claim the text makes is one entry, with its exact passage: the quote and where it sits. A criticism targets a pinned claim. A point that matches no pinned claim is the reviewer's own reading and is labeled that way, never presented as what the text says.
+2. **Type the links between claims.** *Supports*, *qualifies*, *contradicts*, *depends on*, *example of*: each link points to the passage that makes it. Before editing a passage, list the claims that depend on it, so a change to a setup doesn't silently break its payoff.
+3. **Count what was read.** Mark each paragraph read or not, and give the count in the read receipt ("41 of 41 paragraphs"). A partial read says which parts were left.
+4. **Make an absence claim a search with a control.** "Not found" names the paragraphs searched, and the method is checked on a text that really lacks the idea (the negative control of step 6).
+5. **Split the work by kind.** A cheaper model may draft entries and links. A meaning-capable reviewer judges them, as step 4 requires. A script checks that each quote matches the source at its recorded hash and that both ends of every link exist.
+6. **Use it only where the claim structure decides the outcome:** a long source, a contested reading, a proposed rewrite of the owner's text, or an omission or novelty claim. Where a project already keeps an architecture map that pins claims to passages, that map serves.
+
+For research that combines studies, the same idea becomes a study map: each study's identifiers and cohort, links such as same cohort or reanalysis, and each claim of the answer tied to the passage it rests on. AskRigor's item is `suggested-fixes/AskRigor/2026-10-31-study-map-for-decision-claims.md`.
+
 ## Never broaden the claim while paraphrasing it
 
 Preserve the operative object and modality. For example, a claim about **promising a future feeling** is not a claim about whether that feeling historically existed. A claim that something **usually biases** behavior is not a claim that it deterministically causes one outcome. A claim based on one person's experience is not automatically a universal rule.
@@ -196,6 +209,7 @@ If any answer is uncertain, the critique/edit remains provisional.
 - Promotion dates: 2026-08-17; claim-scope contradiction extension 2026-09-13; owner-writing review extension 2026-09-27 (`docs/requirements/2026-09-27-claim-anchoring-and-review-integrity.owner-requirement.json`)
 - Failure classes: multiple sentence-local readings broadened narrow claims, overlooked qualifications elsewhere, treated contextualization as retraction, temporarily dropped unchallenged proposals after selective feedback, and generalized evidence against a narrower mechanism into denial of a broader relation without entailment
 - Owner corrections: require exact prose, exact reading, full-source reconstruction, durable Mermaid mapping, natural integration, preservation of unaddressed accepted suggestions, and proposition-level scope matching before declaring contradiction
+- 2026-10-31 owner choice: the claim map for long or high-stakes texts, and a study map suggested to AskRigor (`docs/requirements/2026-10-31-claim-map-and-study-map.owner-requirement.json`). It came from the September review failure in which the reviewer's own reading of an article was written as the article's content; pinning claims to passages makes that difference visible.
 - 2026-10-29 owner-requested addition: a multi-version guide audit selected an earlier file as though current and inferred absence from conventional keywords despite the active source addressing the ideas under other headings. A project-local manifest-bound, cross-section concept ledger detected the failure and verified source anchors. Transfer is limited to source authority, read receipts, cross-cutting evidence, qualified absence claims and regression designs; the project-specific therapy content is not copied, and mechanical quote checks do not validate semantic completeness.
 
 The source article, personal examples, and project-specific candidate wording remain in their private project boundary. This pattern promotes only the transferable reasoning and review controls.
