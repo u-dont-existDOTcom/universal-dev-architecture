@@ -10,7 +10,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PATTERN = ROOT / "patterns" / "mission-control-multi-host-submission-scheduling.md"
 RECORD = ROOT / "docs" / "requirements" / "2026-10-31-mission-control-lease-auto-renewal.owner-requirement.json"
-RUNTIME = ROOT / "tools" / "codex-mission-control" / "restored" / "codex-mission-control" / "lib" / "submission-authority-runtime.ts"
+APP = ROOT / "tools" / "codex-mission-control" / "restored" / "codex-mission-control"
+RUNTIME = APP / "lib" / "submission-authority-runtime.ts"
+SCHEDULER = APP / "lib" / "provider-submission-authority.mjs"
 
 
 class LeaseAutoRenewalTests(unittest.TestCase):
@@ -32,11 +34,16 @@ class LeaseAutoRenewalTests(unittest.TestCase):
         self.assertIn("assistant's choice", data["origin"]["notes"])
         self.assertTrue(data["nonclaims"])
 
-    def test_runtime_never_revives_an_expired_lease(self) -> None:
-        text = RUNTIME.read_text(encoding="utf-8")
-        self.assertIn("async renewLeaseIfDue()", text)
-        self.assertIn('"LEASE_NOT_CURRENTLY_VALID"', text)
-        self.assertIn('"NOT_THE_CONFIGURED_LEASE"', text)
+    def test_scheduler_renews_inside_its_transaction_and_never_revives_an_expired_lease(self) -> None:
+        runtime = RUNTIME.read_text(encoding="utf-8")
+        self.assertIn("async renewLeaseIfDue()", runtime)
+        self.assertIn("return scheduler.renewLeaseIfDue(", runtime)
+        scheduler = SCHEDULER.read_text(encoding="utf-8")
+        method = scheduler.split("  async renewLeaseIfDue({ expected, windowMs }) {", 1)[1].split("\n  async ", 1)[0]
+        self.assertIn("return this.#serialized(async () => {", method)
+        for code in ("'LEASE_NOT_CURRENTLY_VALID'", "'NOT_THE_CONFIGURED_LEASE'", "'SAFETY_HALT'", "'NOT_DUE'"):
+            with self.subTest(code=code):
+                self.assertIn(code, method)
 
 
 if __name__ == "__main__":
