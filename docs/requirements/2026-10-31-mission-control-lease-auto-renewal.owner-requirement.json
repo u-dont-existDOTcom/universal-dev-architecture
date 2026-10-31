@@ -1,0 +1,43 @@
+{
+  "requirement_id": "2026-10-31-mission-control-lease-auto-renewal",
+  "date": "2026-10-31",
+  "source": "Owner message on 2026-10-31, answering question 6 of the UDA and Mission Control owner questions page, which asked whether to extend Mission Control's sending permission (its deployment lease) before it ran out on 2026-11-03.",
+  "owner_statement": "6 why don' we unlimit it, i don't see why sending permissions hould end",
+  "problem": "Mission Control's deployment lease names the one relay host allowed to send, with an expiry. It was renewed by hand with a settings change and a restart, so sending would stop whenever a renewal was missed.",
+  "required_behavior": [
+    "While Mission Control runs, its configured lease does not run out: the daemon renews it hourly when due, extending only the expiry once less than half of the renewal window remains.",
+    "An expired lease is never revived, and a configured successor lease stops renewal of the old one, so a takeover still waits out the old lease's expiry.",
+    "MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW=off switches renewal off; MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW_DAYS (2-60, default 14) sets the window."
+  ],
+  "basis": [
+    "The owner's statement above.",
+    "patterns/mission-control-multi-host-submission-scheduling.md, controlled takeover step 5, which binds a takeover to the old lease's expiry."
+  ],
+  "scope": "Mission Control's submission-authority runtime and daemon, their tests and settings example, the multi-host scheduling pattern, this record, and its test.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "Sending permission doesn't end while Mission Control runs.",
+    "notes": "The owner asked for no end at all. Renewal instead of no expiry is the assistant's choice: without an expiry, a controlled takeover could never complete, because step 5 waits for the old lease to run out."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "Mission Control's daemon (tools/codex-mission-control/restored/codex-mission-control)",
+      "disposition": "PROJECTED",
+      "note": "Active after the next deployment of this code."
+    },
+    {
+      "surface": "patterns/mission-control-multi-host-submission-scheduling.md",
+      "disposition": "PROJECTED"
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "Renewal does not make the relay host healthy or prove it is the only sender; the single-active confirmation still comes from the lease and the takeover procedure.",
+    "If Mission Control is down for longer than the remaining lease, the lease runs out and needs a deliberate renewal or takeover."
+  ]
+}

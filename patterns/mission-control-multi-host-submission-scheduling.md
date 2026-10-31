@@ -126,6 +126,16 @@ ownership.
 Recovery to the preferred primary uses the same transaction and a newer epoch;
 it is not a special bypass.
 
+**Lease renewal (owner, 2026-10-31).** Mission Control renews its configured
+active lease itself while that lease is valid and single-active with no safety
+halt: once less than half of the renewal window remains (default 14 days), it
+extends only the expiry, as a same-lease renewal. It never revives an expired
+lease, and a configured successor lease stops renewal of the old one. A
+controlled takeover therefore still works as above: configure the successor, or
+set `MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW=off`, let the old lease run out
+(step 5), then activate the successor. Owner requirement:
+`docs/requirements/2026-10-31-mission-control-lease-auto-renewal.owner-requirement.json`.
+
 Health, qualification, installer, and maintenance paths must observe the same
 outgoing-host fence. A health observation of a stopped or fenced browser reports
 unavailable without starting it. A maintenance path fails with an explicit
