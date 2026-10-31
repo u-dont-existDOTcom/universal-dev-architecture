@@ -122,6 +122,7 @@ const providerDecisionCopier = githubPolicy && githubDecisionCopyTokenProvider
   })
   : null;
 const submissionAuthority = new SubmissionAuthorityRuntime(store, process.env, Date.now, eventHistory);
+const leaseRenewalTimer = startLeaseAutoRenewal();
 // Each registered task's private checkpoint repository, the only repositories whose files Mission Control reads; a
 // reader (read-only access to that repository's files) is made the first time one is needed.
 const taskCheckpointRepositories = parseTaskCheckpointRepositories(process.env.MISSION_CONTROL_TASK_CHECKPOINT_REPOSITORIES_JSON);
@@ -810,6 +811,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     server.close(() => {
       liveSourceWatcher?.close();
       if (githubReconciliationTimer) clearInterval(githubReconciliationTimer);
+      if (leaseRenewalTimer) clearInterval(leaseRenewalTimer);
       fleetSupervisorLoop.stop();
       store.close();
       process.exit(0);
@@ -941,6 +943,25 @@ function startGitHubReconciliation(coordinator: GitHubReconciliationCoordinator 
   const timer = setInterval(() => void reconcile("INTERVAL"), configured);
   timer.unref();
   void reconcile("STARTUP");
+  return timer;
+}
+
+// Hourly, and once shortly after start: renew the configured deployment lease when it is due (owner, 2026-10-31).
+function startLeaseAutoRenewal() {
+  if (!submissionAuthority.enabled || submissionAuthority.leaseAutoRenewDays === null) return null;
+  const renew = (trigger: "STARTUP" | "INTERVAL") => submissionAuthority.renewLeaseIfDue().then(
+    (result) => {
+      if (result.renewed) console.log(JSON.stringify({ event: "submission_lease_auto_renewed", trigger, expiresAt: result.expiresAt }));
+    },
+    (error: unknown) => console.error(JSON.stringify({
+      event: "submission_lease_auto_renewal_failed",
+      trigger,
+      error: error instanceof Error ? error.message : "Unknown lease renewal failure",
+    })),
+  );
+  setTimeout(() => void renew("STARTUP"), 30_000).unref();
+  const timer = setInterval(() => void renew("INTERVAL"), 3_600_000);
+  timer.unref();
   return timer;
 }
 

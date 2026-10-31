@@ -188,6 +188,9 @@ export class SubmissionAuthorityRuntime {
   private readonly hostLabels: Record<"PRIMARY" | "SECONDARY", string>;
   private readonly eventHistory: () => StoredEvent[];
   private workContinuationWriterTail: Promise<unknown> = Promise.resolve();
+  /** Days a renewal extends the configured lease to; null when automatic renewal is off. */
+  readonly leaseAutoRenewDays: number | null;
+  private readonly configuredLease: Record<string, any> | null;
 
   constructor(
     private readonly store: EventStore,
@@ -210,6 +213,8 @@ export class SubmissionAuthorityRuntime {
       || env.MISSION_CONTROL_SUBMISSION_RELAY_ATTESTORS_JSON || env.MISSION_CONTROL_SUPERVISOR_CHAT_PROVISIONS_JSON);
     if (!leaseRaw && !domain && !partiallyConfigured) {
       this.enabled = false;
+      this.leaseAutoRenewDays = null;
+      this.configuredLease = null;
       this.pacingDomain = null;
       this.scheduler = null;
       this.initialization = Promise.resolve();
@@ -263,6 +268,8 @@ export class SubmissionAuthorityRuntime {
     this.chats = new Map(chats.map((chat) => [chat.supervisorId, chat]));
     this.relayBindings = new Map(Object.entries(relayBindings));
     const lease = parseDeploymentLease(JSON.parse(leaseRaw));
+    this.configuredLease = lease;
+    this.leaseAutoRenewDays = leaseAutoRenewalDays(env);
     this.initialization = this.stateStore.validateRecoveryProofs()
       .then(() => this.scheduler.activateLease(lease, { restorePersisted: true })).then(
       () => null,
@@ -746,6 +753,39 @@ export class SubmissionAuthorityRuntime {
     }).sort((left, right) => left.scope.localeCompare(right.scope) || left.supervisorId.localeCompare(right.supervisorId));
   }
 
+  /**
+   * Keeps the configured deployment lease from running out while Mission Control runs (owner, 2026-10-31: "i don't see
+   * why sending permissions should end"). It renews only the lease this deployment configures, only while that lease
+   * is valid and single-active with no safety halt, and only once less than half the renewal window remains; the
+   * renewal extends expiresAt alone, as a same-lease renewal. An expired lease is never revived, and a configured
+   * successor lease stops renewal of the old one, so a takeover still waits out the old lease's expiry.
+   */
+  async renewLeaseIfDue(): Promise<{ renewed: boolean; reason: string; expiresAt: string | null }> {
+    if (!this.enabled || this.leaseAutoRenewDays === null || !this.configuredLease || !this.stateStore) {
+      return { renewed: false, reason: "AUTO_RENEWAL_OFF", expiresAt: null };
+    }
+    const scheduler = await this.requireScheduler();
+    const state = await this.stateStore.read();
+    const lease = state.activeLease;
+    if (!lease) return { renewed: false, reason: "NO_ACTIVE_LEASE", expiresAt: null };
+    const configured = this.configuredLease;
+    if (lease.leaseId !== configured.leaseId || lease.epoch !== configured.epoch
+      || lease.activeHostAlias !== configured.activeHostAlias || lease.activeHostRole !== configured.activeHostRole) {
+      return { renewed: false, reason: "NOT_THE_CONFIGURED_LEASE", expiresAt: lease.expiresAt };
+    }
+    const nowMs = this.now();
+    if (lease.splitBrainStatus !== "SINGLE_ACTIVE_CONFIRMED") return { renewed: false, reason: "NOT_SINGLE_ACTIVE", expiresAt: lease.expiresAt };
+    if (Date.parse(lease.issuedAt) > nowMs || Date.parse(lease.expiresAt) <= nowMs) {
+      return { renewed: false, reason: "LEASE_NOT_CURRENTLY_VALID", expiresAt: lease.expiresAt };
+    }
+    if (state.safetyHalt) return { renewed: false, reason: "SAFETY_HALT", expiresAt: lease.expiresAt };
+    const windowMs = this.leaseAutoRenewDays * 86_400_000;
+    if (Date.parse(lease.expiresAt) - nowMs > windowMs / 2) return { renewed: false, reason: "NOT_DUE", expiresAt: lease.expiresAt };
+    const expiresAt = new Date(nowMs + windowMs).toISOString();
+    await scheduler.activateLease({ ...lease, expiresAt });
+    return { renewed: true, reason: "RENEWED", expiresAt };
+  }
+
   private async requireScheduler(): Promise<any> {
     if (!this.enabled || !this.scheduler) throw new SubmissionAuthorityDisabledError("Mission Control submission authority is not configured; all provider sends remain disabled.");
     const initializationError = await this.initialization;
@@ -920,6 +960,17 @@ function boundedLabel(value: string | undefined, fallback: string): string {
     throw new Error("Mission Control host labels must be plain text no longer than 80 characters.");
   }
   return label;
+}
+
+/**
+ * Automatic lease renewal is on unless MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW is "off"; each renewal extends the
+ * lease to MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW_DAYS (2-60, default 14) days ahead.
+ */
+export function leaseAutoRenewalDays(env: Record<string, string | undefined>): number | null {
+  const mode = env.MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW?.trim();
+  if (mode === "off") return null;
+  if (mode && mode !== "on") throw new Error("MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW must be on or off.");
+  return boundedInteger(env.MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW_DAYS, 14, 2, 60);
 }
 
 function boundedInteger(value: string | undefined, fallback: number, minimum: number, maximum: number): number {

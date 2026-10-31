@@ -7,7 +7,7 @@ import { createHash, createHmac } from "node:crypto";
 
 import { EventStore } from "../lib/store";
 import { defaultSchedulerState } from "../lib/provider-submission-authority.mjs";
-import { pacingDiagnostics, SubmissionAuthorityDisabledError, SubmissionAuthorityRuntime } from "../lib/submission-authority-runtime";
+import { leaseAutoRenewalDays, pacingDiagnostics, SubmissionAuthorityDisabledError, SubmissionAuthorityRuntime } from "../lib/submission-authority-runtime";
 import type { AuthenticatedProducer } from "../lib/ingestion-auth";
 
 const origin = Date.parse("2026-09-11T12:00:00.000Z");
@@ -367,6 +367,86 @@ test("expired same-owner lease stays fail-closed after a fresh healthy heartbeat
   } finally {
     store.close();
   }
+});
+
+test("the configured lease renews itself while valid, and a restart keeps the renewal", async () => {
+  const store = new EventStore(":memory:");
+  const now = { value: origin };
+  try {
+    const live = runtime(store, now);
+    assert.equal(live.leaseAutoRenewDays, 14);
+    // Three hours remain of a 14-day window, so renewal is due and extends only expiresAt.
+    const renewed = await live.renewLeaseIfDue();
+    assert.equal(renewed.renewed, true);
+    assert.equal(renewed.expiresAt, new Date(origin + 14 * 86_400_000).toISOString());
+    const status = await live.status(producer);
+    assert.equal(status.schedulerState, "ACTIVE_LEASE");
+    assert.equal(status.activeLease.expiresAt, renewed.expiresAt);
+    assert.equal(status.activeLease.leaseId, primaryLease().leaseId);
+    assert.equal(status.activeLease.epoch, primaryLease().epoch);
+    assert.equal((await live.renewLeaseIfDue()).reason, "NOT_DUE");
+
+    // A restart reads the older lease from its settings but keeps the renewed one, past the old expiry.
+    now.value = Date.parse(primaryLease().expiresAt) + 60_000;
+    const restarted = runtime(store, now);
+    const after = await restarted.status(producer);
+    assert.equal(after.schedulerState, "ACTIVE_LEASE");
+    assert.equal(after.activeLease.expiresAt, renewed.expiresAt);
+  } finally {
+    store.close();
+  }
+});
+
+test("renewal never revives an expired lease, and can be switched off", async () => {
+  const store = new EventStore(":memory:");
+  const now = { value: origin };
+  try {
+    const first = runtime(store, now, { MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW: "off" });
+    assert.equal((await first.status(producer)).schedulerState, "ACTIVE_LEASE");
+    assert.equal(first.leaseAutoRenewDays, null);
+    assert.equal((await first.renewLeaseIfDue()).reason, "AUTO_RENEWAL_OFF");
+
+    now.value = Date.parse(primaryLease().expiresAt) + 1;
+    const restarted = runtime(store, now);
+    const result = await restarted.renewLeaseIfDue();
+    assert.equal(result.renewed, false);
+    assert.equal(result.reason, "LEASE_NOT_CURRENTLY_VALID");
+    assert.equal((await restarted.status(producer)).schedulerState, "LEASE_STALE");
+  } finally {
+    store.close();
+  }
+});
+
+test("a configured successor that cannot activate stops renewal of the old lease", async () => {
+  const store = new EventStore(":memory:");
+  const now = { value: origin };
+  try {
+    await runtime(store, now).status(producer);
+    // A takeover lease is configured before the old lease has run out: activation fails closed, and nothing renews.
+    const successor = {
+      ...primaryLease(), leaseId: "lease:secondary:2", epoch: 2, activeHostAlias: "secondary-test", activeHostRole: "SECONDARY",
+      issuedAt: new Date(origin).toISOString(), expiresAt: new Date(origin + 86_400_000).toISOString(),
+      takeover: {
+        previousLeaseId: primaryLease().leaseId, previousEpoch: 1, previousHostAlias: "primary-test",
+        previousLeaseExpiresAt: primaryLease().expiresAt, priorHostQuiescence: "PROVEN",
+        provenAt: new Date(origin).toISOString(), pacingState: "FULL_INTERVAL_ELAPSED",
+        safetyIntervalCompletedAt: new Date(origin).toISOString(),
+      },
+    };
+    const pending = runtime(store, now, { MISSION_CONTROL_SUBMISSION_ACTIVE_LEASE_JSON: JSON.stringify(successor) });
+    await assert.rejects(() => pending.renewLeaseIfDue(), /expiry|expired/i);
+  } finally {
+    store.close();
+  }
+});
+
+test("lease renewal settings are bounded", () => {
+  assert.equal(leaseAutoRenewalDays({}), 14);
+  assert.equal(leaseAutoRenewalDays({ MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW: "on", MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW_DAYS: "30" }), 30);
+  assert.equal(leaseAutoRenewalDays({ MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW: "off", MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW_DAYS: "999" }), null);
+  assert.throws(() => leaseAutoRenewalDays({ MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW: "maybe" }), /on or off/);
+  assert.throws(() => leaseAutoRenewalDays({ MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW_DAYS: "1" }), /2-60/);
+  assert.throws(() => leaseAutoRenewalDays({ MISSION_CONTROL_SUBMISSION_LEASE_AUTO_RENEW_DAYS: "61" }), /2-60/);
 });
 
 test("unconfigured Mission Control authority fails closed", async () => {
