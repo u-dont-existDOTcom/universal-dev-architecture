@@ -186,6 +186,23 @@ test('one-shot Work owner continuation selects only the exact fresh request over
   assert.equal(browser.submitCalls, 0);
 });
 
+test('one-shot Work question selects only the exact request over an unrelated queued route', async () => {
+  const requestId = `work-question:${'4'.repeat(32)}`;
+  const store = new MemoryStateStore();
+  const mc = new FakeMissionControl({ evidence: capabilityEvidence(), routes: [
+    routeEvent(`fleet-review:${'1'.repeat(32)}`, 'other-route', 'EXTRA_HIGH_DIRECT', 'task-other'),
+    routeEvent(requestId, 'work-question-route', 'EXTRA_HIGH_DIRECT', 'task-current'),
+  ] });
+  const browser = new FakeBrowser();
+  const result = await makeRuntime({ store, mc, browser, submitEnabled: false }).cycle({
+    skipCodexExecution: true, exactRequest: exactRelayRequestScope('worker-a', requestId),
+  });
+  assert.equal(result.status, 'DRY_RUN_ROUTE_READY');
+  assert.equal(result.route.requestId, requestId);
+  assert.equal(result.route.taskId, 'task-current');
+  assert.equal(browser.submitCalls, 0);
+});
+
 test('an old completed route cannot preempt the one authoritative current pending route', async () => {
   const old = inBandRouteEvent('completed-old', 'completed-old-route', 'task-old');
   const current = inBandRouteEvent('current-request', 'current-route', 'task-current');
