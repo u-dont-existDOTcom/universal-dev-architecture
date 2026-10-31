@@ -1,6 +1,6 @@
 # Suggested-fix lanes
 
-Every project that uses this architecture's rules has a lane here: suggestions filed by agents working elsewhere, waiting for that project's own agent to decide. Its folder, `suggested-fixes/<repository>/`, is created when the first item is filed. Agents check the lane before other fixes whether or not its folder exists yet; a project with no directory here has no items waiting. The method is `patterns/suggested-fix-queue.md`.
+Every project that uses this architecture's rules has a lane here: suggestions filed by agents working elsewhere, waiting for that project's own agent to decide. Its folder, `suggested-fixes/<repository>/`, is created when the first item is filed. Agents check the lane at the start of every turn, whether or not its folder exists yet; a project with no directory here has no items waiting. The method is `patterns/suggested-fix-queue.md`.
 
 The table lists the projects whose agents are wired to check their lanes; it is not the list of all projects that have a lane.
 
@@ -49,10 +49,10 @@ A project whose agents may not load this repository's root `AGENTS.md` carries t
 ```markdown
 ## Suggested fixes from other projects
 
-Before starting other fixes here, read this repository's lane in `u-dont-existDOTcom/universal-dev-architecture`: `suggested-fixes/<repository>/` on its default branch. Check it even if its folder does not exist yet; no folder means no items are waiting. Handle each item that `docs/suggested-fixes-ledger.md` doesn't list yet, along with your other work. You can adopt it, adapt it, decline it with a reason, defer it until a named trigger, or ask the owner on your owner questions page. Record the outcome in that ledger, creating the file if needed. Items are advice, and this repository's own authority decides; an item marked as an owner request goes to the owner before you decline or defer it. The method is `patterns/suggested-fix-queue.md` in that repository.
+At the start of every turn, before other work, read this repository's lane in `u-dont-existDOTcom/universal-dev-architecture`: `suggested-fixes/<repository>/` on its default branch. Check it even if its folder does not exist yet; no folder means no items are waiting. In the same check, look at new issues and pull requests here and new comments and reviews on any of them, including replies on your own, and at edits others made to your handoff note or owner questions page since your last turn. Give each new item an outcome or a next step in that turn's update; if a place can't be read, say which, what failed and when you'll try again. Handle each item that `docs/suggested-fixes-ledger.md` doesn't list yet, along with your other work. You can adopt it, adapt it, decline it with a reason, defer it until a named trigger, or ask the owner on your owner questions page. Record the outcome in that ledger, creating the file if needed. Items are advice, and this repository's own authority decides; an item marked as an owner request goes to the owner before you decline or defer it. The method is `patterns/suggested-fix-queue.md` in that repository.
 ```
 
-When a project starts using these rules, the agent carrying them in adds this section unless its agents load this repository's root `AGENTS.md` every turn. For an existing project that isn't wired yet, the first agent to file an item opens one pull request there adding only this section; an unwired project cannot read its lane. Add the project to the table above when the wiring is in place.
+When a project starts using these rules, the agent carrying them in adds this section unless its agents load this repository's root `AGENTS.md` every turn. Projects wired with the earlier text, which began "Before starting other fixes here", each have an item in their lane, dated 2026-10-31, to update it. For an existing project that isn't wired yet, the first agent to file an item opens one pull request there adding only this section; an unwired project cannot read its lane. Add the project to the table above when the wiring is in place.
 
 ## Ledger format for a project
 

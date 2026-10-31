@@ -23,7 +23,7 @@
     },
     {
       "destination": "patterns/suggested-fix-queue.md",
-      "text": "Before other fixes in a project, read its lane in `suggested-fixes/`; file suggestions for other projects there, not as pull requests in them: `patterns/suggested-fix-queue.md`."
+      "text": "At the start of every turn, check your mailbox, including your lane in `suggested-fixes/`; file suggestions for other projects there, not as pull requests in them: `patterns/suggested-fix-queue.md`."
     },
     {
       "destination": "patterns/test-efficiency-and-verification-budget.md",
