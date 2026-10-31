@@ -31,7 +31,7 @@
     {
       "surface": "The maintainer lane of this repository (the UDA and Mission Control workstream)",
       "disposition": "PROJECTED",
-      "note": "Its turn-start step lists its mailbox, and its turn-end step refuses to finish a turn whose mailbox wasn't checked or whose new items have no outcome in the turn's update."
+      "note": "Its turn-start and turn-end steps run outside this repository, in the workstream's own scripts: the turn-start step lists the mailbox, and the turn-end step refuses to finish a turn whose mailbox wasn't checked or whose new items have no outcome in the turn's update. This repository holds no mechanical evidence of those scripts; they are described here, not verified."
     },
     {
       "surface": "Projects wired through their own AGENTS.md",
@@ -52,7 +52,8 @@
   "nonclaims": [
     "No repository rule can force a session that never loads this repository or its project's AGENTS.md.",
     "A lane's mailbox check finds only what was delivered to a place it names; mail left in a chat or another lane's own files is still lost, which step 9 already forbids.",
-    "The end-of-turn refusal exists only where a lane has an end-of-turn step that runs it."
+    "The end-of-turn refusal exists only where a lane has an end-of-turn step that runs it.",
+    "This record does not show the maintainer lane's scripts working; their evidence is outside this repository."
   ],
   "requirement_accretion": {
     "origin": "OWNER (the every-turn check and 'make sure'); the end-of-turn refusal is the assistant's design for 'make sure'",

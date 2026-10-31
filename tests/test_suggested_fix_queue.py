@@ -268,6 +268,8 @@ class SuggestedFixQueueTests(unittest.TestCase):
         self.assertIn("new comments and reviews on any of them, including replies on your own", section)
         self.assertIn("if a place can't be read, say which, what failed and when you'll try again", section)
         self.assertNotIn("didn't open", section)
+        self.assertIn("Apply step 4 of `patterns/suggested-fix-queue.md` in that repository in full", section)
+        self.assertIn("the messages your runtime queues for you", section)
         self.assertNotIn("Before starting other fixes here", section)
         wired = re.findall(r"(?m)^\| `([^`]+)/` \| `u-dont-existDOTcom/[^`]+` \| wiring section in its `AGENTS.md` \|$", readme)
         self.assertTrue(wired)
