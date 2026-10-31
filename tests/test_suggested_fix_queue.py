@@ -231,6 +231,11 @@ class SuggestedFixQueueTests(unittest.TestCase):
                     self.assertTrue(surface.get("reason"))
         self.assertNotIn("LIVE_VERIFIED", data["learning_state_at_merge"])
         self.assertTrue(data["nonclaims"])
+        accretion = data["requirement_accretion"]
+        for key in ("origin", "decision_it_changes", "why_simpler_is_insufficient", "scope"):
+            with self.subTest(key=key):
+                self.assertTrue(accretion[key])
+        self.assertIn("never blocks", accretion["scope"])
         pattern = PATTERN.read_text(encoding="utf-8")
         step = pattern.split("4. **Checking the mailbox, every turn.**", 1)[1].split("\n5. ", 1)[0]
         for phrase in (
@@ -242,6 +247,11 @@ class SuggestedFixQueueTests(unittest.TestCase):
             "Items already waiting when a lane starts checking go into a backlog list",
             "**Machinery where the lane has it.**",
             "refuse to finish a turn whose mailbox wasn't checked",
+            "new comments, reviews and mentions on any of them, including those it opened itself",
+            "**A place it can't reach doesn't stop the turn.**",
+            "the end-of-turn step accepts that record",
+            "**Why the refusal is needed.**",
+            "it never blocks on a place that is unreachable",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, step)
@@ -255,7 +265,9 @@ class SuggestedFixQueueTests(unittest.TestCase):
         readme = README.read_text(encoding="utf-8")
         section = re.search(r"```markdown\n(## Suggested fixes from other projects\n.*?)\n```", readme, re.DOTALL).group(1)
         self.assertIn("At the start of every turn, before other work, read this repository's lane", section)
-        self.assertIn("issues and pull requests here that you didn't open", section)
+        self.assertIn("new comments and reviews on any of them, including replies on your own", section)
+        self.assertIn("if a place can't be read, say which, what failed and when you'll try again", section)
+        self.assertNotIn("didn't open", section)
         self.assertNotIn("Before starting other fixes here", section)
         wired = re.findall(r"(?m)^\| `([^`]+)/` \| `u-dont-existDOTcom/[^`]+` \| wiring section in its `AGENTS.md` \|$", readme)
         self.assertTrue(wired)
@@ -265,6 +277,8 @@ class SuggestedFixQueueTests(unittest.TestCase):
                 self.assertEqual(len(found), 1)
                 text = found[0].read_text(encoding="utf-8")
                 self.assertIn(section.replace("<repository>", lane), text)
+                self.assertIn("If it does only part of it, keep what it has and add the rest.", text)
+                self.assertIn("never because a place was unreachable", text)
 
     def test_requirement_quotes_the_owner(self) -> None:
         data = json.loads(REQUIREMENT.read_text(encoding="utf-8"))

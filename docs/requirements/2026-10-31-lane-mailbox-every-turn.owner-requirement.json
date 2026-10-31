@@ -6,9 +6,10 @@
   "problem": "Step 4 of patterns/suggested-fix-queue.md had a project's agent read its lane once per work session, and step 9 had the maintainer lane list labeled pull requests at each of its check-ins. The maintainer lane had stopped holding separate check-ins, and nothing at the start or end of its turns looked at the label, so 41 pull requests and 3 issues labeled uda-lane were open on 2026-10-31, the oldest from 2026-10-09.",
   "required_behavior": [
     "At the start of every turn, before other work, a lane's agent checks its mailbox and lists what is new since its last check.",
-    "The mailbox is every place where something addressed to the lane arrives: its lane in this repository (for this repository's maintainer lane, open pull requests and issues labeled uda-lane), open issues and pull requests in its own repositories that it didn't open, edits others made to its handoff note and owner questions page since its last turn, and messages its runtime queues for it. The lane's handoff note or AGENTS.md names these places.",
+    "The mailbox is every place where something addressed to the lane arrives: its lane in this repository (for this repository's maintainer lane, open pull requests and issues labeled uda-lane); new issues and pull requests in its own repositories and new comments, reviews and mentions on any of them, including those it opened; edits others made to its handoff note and owner questions page since its last turn; and messages its runtime queues for it. The lane's handoff note or AGENTS.md names these places.",
     "Each new item gets an outcome or a next step, and what it waits for, in that turn's handoff update. Items already waiting when a lane starts checking go into a backlog list with the same outcomes, worked oldest first with owner requests ahead; each turn's update says how many are left.",
     "A lane with an end-of-turn step makes it refuse to finish a turn whose mailbox wasn't checked or whose new items have no outcome or next step.",
+    "A place that can't be read doesn't stop the turn: the check counts once the turn's update names the place, what failed and when it will be tried again, and the next check tries it first.",
     "Projects wired with the earlier text get an item in their lane to update their wiring section."
   ],
   "basis": [
@@ -52,5 +53,11 @@
     "No repository rule can force a session that never loads this repository or its project's AGENTS.md.",
     "A lane's mailbox check finds only what was delivered to a place it names; mail left in a chat or another lane's own files is still lost, which step 9 already forbids.",
     "The end-of-turn refusal exists only where a lane has an end-of-turn step that runs it."
-  ]
+  ],
+  "requirement_accretion": {
+    "origin": "OWNER (the every-turn check and 'make sure'); the end-of-turn refusal is the assistant's design for 'make sure'",
+    "decision_it_changes": "Whether a lane's turn may end without its mailbox having been checked, or with a new item left without an outcome or next step.",
+    "why_simpler_is_insufficient": "The written rule alone already existed (step 9: list labeled pull requests at each check-in) and items still waited up to three weeks; the owner found one by asking.",
+    "scope": "Only lanes that have an end-of-turn step; an unreachable place is recorded and never blocks the turn."
+  }
 }
