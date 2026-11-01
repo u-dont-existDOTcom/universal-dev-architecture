@@ -704,6 +704,23 @@
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
       "implemented": "Owner-requested browser survey autosave default. Added one specialist WORKFLOW_ONLY pattern and reusable JS module with tests for draft recovery; UDA's existing 84-identity baseline, migration backlog, and task-time record count are unchanged. The client and server patch are separate owner-specific deliverables, not live deployment proof. Work 32706/37194 -> 32706/unmeasured bytes (rendered / historical injected upper context; no selectors, task-time records, or generated Work contract changed)."
+    },
+    {
+      "finding_id": "slice-terminal-gh-handoff-2026-11-01",
+      "date": "2026-11-01",
+      "identity_counts_by_disposition": {
+        "STRUCTURED_ENFORCED": 9,
+        "STRUCTURED_PARTIAL": 9,
+        "WORKFLOW_ONLY": 12,
+        "LEGACY_UNSTRUCTURED": 69,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 78,
+      "baseline_shrinkage": 7,
+      "root_owner_outcome": "OPEN: UDA owner final-output preference documented but not mechanistically enforced in ChatGPT runtime",
+      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "Owner correction: in addition to saving a checkpoint-internal one-line resume instruction, every ongoing GitHub-backed task's final chat message ends with a verified one-line GH handoff. New indexed opt-in pattern, failure-map route, and non-runtime coverage disposition. Retains prior survey-draft autosave and all historical source-coverage snapshots; no claims of host-level enforcement."
     }
   ],
   "learning_state_at_merge": [
