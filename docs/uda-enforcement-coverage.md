@@ -39,9 +39,9 @@ The systemic gap fits existing logic-map entries: LF-2.1 for unloaded/stale guid
 
 ## Current counts
 
-Inventory entries: 99
+Inventory entries: 100
 
-Indexed patterns: 85
+Indexed patterns: 86
 
 Migration backlog: 78
 
@@ -51,9 +51,11 @@ Task-time records: 78, sourced from 13 files, with 2 mechanical and 86 semantic 
 |---|---:|
 | STRUCTURED_ENFORCED | 9 |
 | STRUCTURED_PARTIAL | 9 |
-| WORKFLOW_ONLY | 10 |
+| WORKFLOW_ONLY | 11 |
 | LEGACY_UNSTRUCTURED | 69 |
 | NOT_ACTIVE | 2 |
+
+The 2026-11-01 survey-draft resilience addition contributes one WORKFLOW_ONLY specialist pattern with a reusable browser autosave template and focused regression tests. It adds no task-time obligations or migration-backlog identities. Browser/runtime integration checks remain survey-specific and are not implied by static UDA coverage.
 
 Six root sections, the two review/merge patterns and exclusive active-task locks are STRUCTURED_ENFORCED. Context-compaction resilience and terminal admission are STRUCTURED_PARTIAL with exact operative remainders, alongside the six earlier partial sources. Slice 2b also makes the owner-outcome invariant STRUCTURED_PARTIAL with exact server and Work-budget remainders. The parent owner outcome remains OPEN for operating-system slice 2c and later priorities.
 
