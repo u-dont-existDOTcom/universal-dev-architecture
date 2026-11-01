@@ -153,6 +153,7 @@ The following cross-project workflows do not prevent a general logic failure; th
 - `patterns/living-mermaid-workflow-maps.md` — specialist method for maintaining visual workflow documentation.
 - `patterns/youtube-transcript-workflow.md` — specialist method for obtaining video transcripts.
 - `patterns/web-data-provider-escalation.md` — workflow for escalating public web retrieval to a metered provider within cost and access limits.
+- `patterns/survey-draft-persistence-and-reload-recovery.md` — specialist browser-survey workflow for preserving and restoring unfinished drafts and preventing retry duplicates.
 
 ## Requirement-accretion declaration
 
