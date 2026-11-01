@@ -687,6 +687,23 @@
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
       "implemented": "Owner bug report 2026-10-15 (docs/requirements/2026-10-15-answer-target-preservation.owner-requirement.json): two semantic task-time records for patterns/reasoning-selection.md, uda.reasoning.answer-first-target (question request kinds) and uda.reasoning.answer-first-target-correction (owner corrections, reason-bound not-applicable allowed); dispositions and backlog unchanged. Work 32680/37194 -> 32706/unmeasured bytes (rendered/injected; 37194 is the last injected measurement, taken before the 2026-10-11 turn stamp, and neither change re-measured the injected block with the Mission Control adapter; the Work envelope evaluates both records FALSE). No live enforcement claim."
+    },
+    {
+      "finding_id": "slice-terminal-gh-handoff-2026-11-01",
+      "date": "2026-11-01",
+      "identity_counts_by_disposition": {
+        "STRUCTURED_ENFORCED": 9,
+        "STRUCTURED_PARTIAL": 9,
+        "WORKFLOW_ONLY": 11,
+        "LEGACY_UNSTRUCTURED": 69,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 78,
+      "baseline_shrinkage": 7,
+      "root_owner_outcome": "OPEN: source-aware per-turn rule admission not universally enforced; recorded owner-specific user-visible handoff convention is routing-only",
+      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "2026-11-01 owner correction: saved research threads must close final answers with one verified GH checkpoint line, distinct from internal checkpoint resume instructions. New pattern, indexed trigger, logic failure map reference and explicit WORKFLOW_ONLY non-runtime coverage. Historical snapshots preserved; new entry tracks live counts, no further baseline backlog."
     }
   ],
   "learning_state_at_merge": [
