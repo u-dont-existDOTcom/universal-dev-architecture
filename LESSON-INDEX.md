@@ -94,6 +94,8 @@ Use this file as the entry point for cross-project lesson retrieval. This is a r
 
 85. `patterns/cross-account-continuity.md` — owner rule: when work may continue from another of the owner's accounts, keep everything a successor needs in GitHub at a path the bootstrap or checkpoint names (the checkpoint, open obligations, the owner's decisions, and the owner questions page as `OWNER-QUESTIONS.md`), with owner-private state in a private repository; treat artifacts, chats, memory and scratch files as views, never the only copy; and keep one handoff note per line of work in the owner's local handoff folder, updated every turn with a one-line resume instruction.
 
+86. `patterns/owner-requested-terminal-github-handoff.md` — When an owner explicitly requires each final answer on an ongoing GitHub-backed task to finish with a one-line GitHub handoff, first save and read back the current checkpoint; make the **last nonblank user-visible line** a direct verified file link plus the precise next action (or an honest unsaved/blocker line), distinct from the checkpoint-internal resume note. Applies only on owner opt-in.
+
 ## Kernel cross-reference
 
 - `AGENTS.md` → **Workflow** — When closing a substantive pass or switching methods, verify that every explicit commitment was executed or explicitly superseded; adjacent analysis or planning does not close it.
