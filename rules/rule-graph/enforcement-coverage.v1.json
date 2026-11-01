@@ -8806,16 +8806,16 @@
       "behavioral": true,
       "activation_route": {
         "kind": "INDEX_TRIGGER",
-        "detail": "When creating, modifying, repairing or reviewing a browser-based survey or substantial form"
+        "detail": "For every new or modified browser survey or substantial form"
       },
       "actors": [
         "reasoning agent",
         "execution worker"
       ],
       "phases": [
-        "implementation",
-        "verification",
-        "pre-release"
+        "reasoning",
+        "pre-action",
+        "final-delivery"
       ],
       "destinations": [
         "participant-facing survey form and submission endpoint"
