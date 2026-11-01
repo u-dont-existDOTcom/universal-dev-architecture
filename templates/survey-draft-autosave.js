@@ -11,12 +11,29 @@
     if (!form || !options.storagePrefix) throw new Error('form and storagePrefix required');
     const prefix = String(options.storagePrefix);
     const draftPrefix = prefix + ':draft:';
-    const activeKey = prefix + ':active-tab';
     const status = options.statusElement;
     const intervalMs = options.intervalMs || 10000;
     const browser = options.window || root;
     const doc = options.document || browser.document;
     const now = options.now || function () { return Date.now(); };
+
+    // History state belongs to the tab's navigation entry and survives reloads.
+    // Unlike sessionStorage, it isn't cloned from an opener into a new tab.
+    function tabToken() {
+      try {
+        const h = browser.history;
+        if (!h || typeof h.replaceState !== 'function') return '';
+        const slot = '__surveyDraftTab_' + prefix.replace(/[^a-zA-Z0-9]/g, '_');
+        const state = h.state;
+        if (state !== null && (typeof state !== 'object' || Array.isArray(state))) return '';
+        if (state && typeof state[slot] === 'string' && state[slot]) return state[slot];
+        const token = 'tab-' + Math.random().toString(36).slice(2) + '-' + now().toString(36);
+        h.replaceState(Object.assign({}, state || {}, { [slot]: token }), '');
+        return token;
+      } catch (_) { return ''; } // Restrictive sandbox: best-effort fallback.
+    }
+    const tabId = tabToken();
+    const activeKey = prefix + ':active-tab:' + (tabId || 'legacy');
     const stores = [];
     const ignored = { submittedAtClient: true, page: true };
     let lastFingerprint = '';
@@ -72,9 +89,9 @@
         return rec;
       } catch (_) { return null; }
     }
-    function findSavedDraft() {
-      // A refresh in the same tab should recover its own draft, even if another
-      // tab is editing a different report simultaneously.
+    function findSavedDraft(allowUnclaimed) {
+      // A reload recovers only this tab's draft. A different tab can explicitly
+      // choose to restore a different draft, but never takes it automatically.
       const session = stores.find(function (s) { return s.kind === 'sessionStorage'; });
       if (session) {
         try {
@@ -84,7 +101,8 @@
               (stores.map(function (s) { return readRecord(s, id); }).find(Boolean));
             if (own) return own;
           }
-        } catch (_) { /* Scan remaining drafts. */ }
+        } catch (_) { /* Storage unavailable. */ }
+        if (!allowUnclaimed) return null;
       }
       let newest = null;
       stores.forEach(function (provider) {
@@ -100,8 +118,8 @@
       });
       return newest;
     }
-    function restore() {
-      const rec = findSavedDraft();
+    function restore(allowUnclaimed) {
+      const rec = findSavedDraft(allowUnclaimed);
       if (!rec) return false;
       controls().forEach(function (el) {
         if (!el.name || ignored[el.name] || !(el.name in rec.fields)) return;
@@ -125,6 +143,8 @@
         new Date(rec.savedAt).toLocaleString() + ').');
       return true;
     }
+    function restoreLatest() { return restore(true); }
+    function hasSavedDraft() { return !!findSavedDraft(true); }
     function saveNow(force) {
       if ((!started || paused) && !force) return false;
       const fields = snapshot();
@@ -189,7 +209,7 @@
       saveNow(); // Synchronous save protects edits made just before a reload.
     }
     function start() {
-      const recovered = restore();
+      const recovered = restore(false);
       form.addEventListener('input', onEdit);
       form.addEventListener('change', onEdit);
       timer = browser.setInterval(function () { saveNow(); }, intervalMs);
@@ -202,7 +222,8 @@
       return recovered;
     }
     return { start: start, saveNow: saveNow, forget: forget, discard: discard,
-      fingerprint: fingerprint, afterSubmission: afterSubmission };
+      fingerprint: fingerprint, afterSubmission: afterSubmission,
+      restoreLatest: restoreLatest, hasSavedDraft: hasSavedDraft };
   }
 
   root.createSurveyDraftAutosave = createSurveyDraftAutosave;
