@@ -7763,6 +7763,47 @@
       }
     },
     {
+      "id": "patterns/owner-requested-terminal-github-handoff.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When an owner explicitly requires each final answer on an ongoing GitHub-backed task to finish with a one-line GitHub handoff"
+      },
+      "actors": [
+        "reasoning agent",
+        "repository research or engineering worker"
+      ],
+      "phases": [
+        "persistence",
+        "handoff",
+        "final-delivery"
+      ],
+      "destinations": [
+        "verified latest GitHub checkpoint",
+        "last nonblank user-visible response line"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/owner-requested-terminal-github-handoff.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "exception_reason": "The owner requested terminal GitHub handoff is a conversation presentation convention whose execution depends on the responding host; GitHub documents and routing alone cannot run a ChatGPT final-answer runtime interceptor, so adoption and exact last-line output require per-turn review.",
+      "review_notes": "Owner request on 2026-11-01 supplied direct activation. Distinct from checkpoint-internal resume line and from a compulsory formatting rule for other users. Classified WORKFLOW_ONLY because no honest runtime admission guard is installed: a static check proves only documentation and index routing; human-readable final response must still be checked on each turn."
+    },
+    {
       "id": "patterns/paid-workflow-safety.md",
       "kind": "pattern",
       "indexed": true,
