@@ -8799,6 +8799,53 @@
       }
     },
     {
+      "id": "patterns/survey-draft-persistence-and-reload-recovery.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When creating, modifying, repairing or reviewing a browser-based survey or substantial form"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "implementation",
+        "verification",
+        "pre-release"
+      ],
+      "destinations": [
+        "participant-facing survey form and submission endpoint"
+      ],
+      "enforcement_types": [
+        "none"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/survey-draft-persistence-and-reload-recovery.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "templates/survey-draft-autosave.js",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_survey_draft_autosave.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        }
+      ],
+      "exception_reason": "This is a specialist browser-form workflow with a concrete portable code template, automated draft-recovery tests and per-survey runtime acceptance tests. Its behavioral implementation is in the form and write endpoint, not a universal reasoning-agent semantic admission rule."
+    },
+    {
       "id": "patterns/targeted-artifact-edit-preservation.md",
       "kind": "pattern",
       "indexed": true,
