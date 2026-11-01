@@ -27,7 +27,7 @@ function emitter(obj={}) {
  obj.emit=name=>(handlers[name]||[]).forEach(cb=>cb());
  return obj;
 }
-function formFor(id,local,session) {
+function formFor(id,local,session,history) {
  const fields=[
    {name:'localReportId',type:'hidden',value:id},
    {name:'participantCode',type:'text',value:''},
@@ -42,7 +42,8 @@ function formFor(id,local,session) {
  ];
  const form=emitter({querySelectorAll:()=>fields});
  const doc=emitter({visibilityState:'visible'});
- const browser=emitter({document:doc,localStorage:local,sessionStorage:session,intervals:[],
+ const browser=emitter({document:doc,localStorage:local,sessionStorage:session,
+   history:history || {state:null,replaceState(state){this.state=state;}},intervals:[],
    setInterval(fn,ms){this.intervals.push({fn,ms});}});
  const status={textContent:'',style:{}};
  const api=createAutosave({form,storagePrefix:'test-survey:v1',statusElement:status,
@@ -66,7 +67,7 @@ one.mark('radio','B');
 const key='test-survey:v1:draft:report-1';
 assert.equal(JSON.parse(local.getItem(key)).fields.notes,'Multi-line text \n and other details');
 assert.equal(one.browser.intervals[0].ms,10000);
-const two=formFor('temporary-id',local,session);
+const two=formFor('temporary-id',local,session,one.browser.history);
 assert.equal(two.api.start(),true);
 assert.equal(two.element('localReportId').value,'report-1');
 assert.equal(two.element('notes').value,'Multi-line text \n and other details');
@@ -81,9 +82,16 @@ two.element('notes').value='Typed immediately before reload';
 two.browser.emit('pagehide');
 assert.equal(JSON.parse(local.getItem(key)).fields.notes,'Typed immediately before reload');
 const sessionOther=new Store();
+// Browsers may clone sessionStorage from the opener into a new tab.
+for (const [key,value] of session.map) sessionOther.setItem(key,value);
 const otherTab=formFor('report-2',local,sessionOther);
-otherTab.api.start();otherTab.change('notes','Other tab');
-const sameTabReload=formFor('new',local,session);
+assert.equal(otherTab.api.start(),false,'new tab must not load an existing tab draft');
+assert.equal(otherTab.element('localReportId').value,'report-2');
+assert.equal(otherTab.api.hasSavedDraft(),true);
+otherTab.change('notes','Other tab');
+assert.equal(JSON.parse(local.getItem('test-survey:v1:draft:report-2')).fields.notes,'Other tab');
+assert.equal(JSON.parse(local.getItem(key)).fields.notes,'Typed immediately before reload');
+const sameTabReload=formFor('new',local,session,one.browser.history);
 assert.equal(sameTabReload.api.start(),true);
 assert.equal(sameTabReload.element('localReportId').value,'report-1');
 sameTabReload.element('localReportId').value='report-3';
@@ -99,6 +107,14 @@ assert.equal(local.getItem('test-survey:v1:draft:report-3'),null);
 assert.equal(JSON.parse(local.getItem('test-survey:v1:draft:report-4')).fields.notes,'New unfinished report');
 sameTabReload.api.discard();
 assert.equal(local.getItem('test-survey:v1:draft:report-4'),null);
+const manualSession=new Store();
+const manualTab=formFor('manual-tab-id',local,manualSession);
+assert.equal(manualTab.api.start(),false,'fresh tab needs explicit recovery');
+assert.equal(manualTab.api.hasSavedDraft(),true);
+assert.equal(manualTab.api.restoreLatest(),true);
+assert.ok(['report-1','report-2'].includes(manualTab.element('localReportId').value));
+const manualReload=formFor('manual-new-id',local,manualSession,manualTab.browser.history);
+assert.equal(manualReload.api.start(),true,'manual recovery becomes the active tab draft');
 const fallback=formFor('session-only',new Store(true),new Store());
 fallback.api.start();fallback.change('notes','still here');
 assert.match(fallback.status.textContent,/tab only/);
