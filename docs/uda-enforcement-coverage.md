@@ -39,9 +39,9 @@ The systemic gap fits existing logic-map entries: LF-2.1 for unloaded/stale guid
 
 ## Current counts
 
-Inventory entries: 100
+Inventory entries: 101
 
-Indexed patterns: 86
+Indexed patterns: 87
 
 Migration backlog: 78
 
@@ -51,7 +51,7 @@ Task-time records: 78, sourced from 13 files, with 2 mechanical and 86 semantic 
 |---|---:|
 | STRUCTURED_ENFORCED | 9 |
 | STRUCTURED_PARTIAL | 9 |
-| WORKFLOW_ONLY | 11 |
+| WORKFLOW_ONLY | 12 |
 | LEGACY_UNSTRUCTURED | 69 |
 | NOT_ACTIVE | 2 |
 
