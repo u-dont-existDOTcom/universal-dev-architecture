@@ -703,7 +703,7 @@
       "root_owner_outcome": "OPEN",
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
-      "implemented": "Owner-requested browser survey autosave default. Added one specialist WORKFLOW_ONLY pattern and reusable JS module with tests for draft recovery; UDA's existing 84-identity baseline, migration backlog, and task-time record count are unchanged. The client and server patch are separate owner-specific deliverables, not live deployment proof."
+      "implemented": "Owner-requested browser survey autosave default. Added one specialist WORKFLOW_ONLY pattern and reusable JS module with tests for draft recovery; UDA's existing 84-identity baseline, migration backlog, and task-time record count are unchanged. The client and server patch are separate owner-specific deliverables, not live deployment proof. Work 32706/37194 -> 32706/unmeasured bytes (rendered / historical injected upper context; no selectors, task-time records, or generated Work contract changed)."
     }
   ],
   "learning_state_at_merge": [
