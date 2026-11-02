@@ -37,7 +37,7 @@
 
 - `python3 -m unittest discover -s tests -v`: **PASS**, 997 tests.
 - `python3 scripts/uda_enforcement_coverage.py validate`: VALID. `python3 scripts/uda_rule_graph.py validate`: PASS.
-- `GITHUB_HEAD_REF=claude/one-pull-request-to-merge-20261102 UDA_TASK_ID=pr-463 python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS**, 0 errors.
+- `GITHUB_HEAD_REF=claude/one-pull-request-to-merge-20261102 UDA_TASK_ID=pr-463 python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS**, 0 errors, 1 warning (a missing section in another task's record, already on main).
 
 ## Remaining
 
