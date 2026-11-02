@@ -51,7 +51,7 @@ class ReviewMergeSliceTests(unittest.TestCase):
 
     def test_complete_fixture_table_is_domain_neutral_and_hash_free(self):
         self.assertEqual({r["rule_id"] for r in self.records}, {p.name for p in FIXTURES.iterdir()})
-        self.assertEqual(14, len(self.records))
+        self.assertEqual(15, len(self.records))
         for folder, record, *_ in self.cases():
             with self.subTest(record=record["rule_id"]):
                 judgments = tt.read_json(folder / "verdicts.json")
@@ -178,7 +178,7 @@ class ReviewMergeSliceTests(unittest.TestCase):
         self.assertEqual(78, report["backlog_count"])
         self.assertEqual(7, len(report["removed_since_baseline"]))
         self.assertFalse(set(SOURCES).intersection(report["removed_since_baseline"]))
-        for source, expected in zip(SOURCES, (70, 58)):
+        for source, expected in zip(SOURCES, (70, 71)):
             entry = next(e for e in self.inventory["entries"] if e["id"] == source)
             self.assertEqual("STRUCTURED_ENFORCED", entry["disposition"])
             self.assertEqual(expected, len(entry["obligation_map"]))

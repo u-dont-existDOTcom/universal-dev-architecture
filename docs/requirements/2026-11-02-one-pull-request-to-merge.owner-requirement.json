@@ -1,0 +1,49 @@
+{
+  "requirement_id": "2026-11-02-one-pull-request-to-merge",
+  "date": "2026-11-02",
+  "source": "Owner message on 2026-11-02 to the Claude session doing the UDA and Mission Control work.",
+  "owner_statement": "add UDA rule that if possible i should be given all PRs in one single one to merge because when you give me a bunch it's really annoying as one changes the others so takes forever",
+  "problem": "Rule 4 of patterns/agent-completable-merge-gates.md batches unavoidable owner clicks into one step, but the pull requests stay separate. Each merge moves the base, so every remaining pull request must be brought up to date and checked again, and reviewed again when the update changes it, and some conflict; a batch of merges becomes a slow chain.",
+  "required_behavior": [
+    "When more than one change in the same repository waits for the owner to merge it, the agent combines them into one pull request before asking him: one branch from the current base, one review of its exact head, one run of the required checks, one merge.",
+    "Automated dependency updates are combined too.",
+    "Combining carries each change's commits and records over, settles every open review finding on the combined head, and closes each original with a link to the combined pull request.",
+    "A change stays apart only when combining has a real cost (different repositories, a different merge or deploy time, a review or rollback that must stay independent); the agent says why on the owner questions page, gives the merge order, and brings each next one up to date and checked before asking for it."
+  ],
+  "basis": [
+    "The owner's statement above.",
+    "Rule 4 of patterns/agent-completable-merge-gates.md before this change, which batched the clicks but not the pull requests."
+  ],
+  "scope": "Rule 5, the status note, a failure condition, the repair and the requirement-accretion declaration of patterns/agent-completable-merge-gates.md; its task-time record uda.merge-gate.one-pull-request with its clause map, independent pins and fixtures, and the regenerated source lock and Work projection; the coverage counts in docs/uda-enforcement-coverage.md, the universal-enforcement-coverage requirement and patterns/task-time-lesson-activation.md; its LESSON-INDEX.md and docs/INDEX.md entries; this record; their tests.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "The owner merges one pull request where he used to be handed several, and none of his merges waits on another to be brought up to date.",
+    "notes": "The examples of a real cost of combining, and closing the originals with a link, are the assistant's specification of the owner's 'if possible'."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/agent-completable-merge-gates.md, reached through LESSON-INDEX.md and docs/INDEX.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Task-time record uda.merge-gate.one-pull-request, selected when governance_required is true and action_classes contains merge_gate",
+      "disposition": "PROJECTED",
+      "note": "One semantic handoff obligation to the owner questions page; a reason-bound NOT_APPLICABLE receipt covers a repository with at most one pull request waiting for the owner."
+    },
+    {
+      "surface": "Sessions that hand the owner pull requests to merge",
+      "disposition": "QUEUED",
+      "reason": "Each session applies the rule the next time it loads this pattern with more than one change waiting for the owner's merge."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "No repository rule can force a session that never loaded UDA.",
+    "It doesn't decide which merges belong to the owner; a session that merges under the owner's standing approval keeps doing so."
+  ]
+}

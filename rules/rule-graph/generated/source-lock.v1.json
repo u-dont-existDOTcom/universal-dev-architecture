@@ -1,14 +1,14 @@
 {
-  "catalog_sha256": "cb4e6af30693401b74014192a3aaeb5744e64d5d15004cb0fd205ceef8e1e21a",
+  "catalog_sha256": "ffc790047defc24456cc600207fedb8f2afb45e8da1140d6dbdcf05586e2c295",
   "compiler_sha256": "7ea7e14d49c8e2d10a5c015119a71b4457392fb6090a30f4cb38c9777be10509",
-  "content_sha256": "b591ae69f2ad8c87fe77dbbbbd247728daf24be95389efba03beccac3e8b5788",
+  "content_sha256": "3f4572424b5dcc5600c2d0e7fb52c100f756ae5243ab1192ceb322b604328dbb",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
       "extracted_utf8_bytes": 268,
-      "git_blob_sha1": "08331124ed06269162af72c04a73d12f3d4dfc59",
+      "git_blob_sha1": "cd4720a6037e35eb2b94de99519db1eed3a748d0",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:08331124ed06269162af72c04a73d12f3d4dfc59",
+      "repository_revision": "BLOB:cd4720a6037e35eb2b94de99519db1eed3a748d0",
       "rule_id": "uda.active-contract.boundary-binding",
       "selectors": [
         {
@@ -1348,9 +1348,9 @@
     {
       "extracted_sha256": "479ddd4455cd99eec0a4aa8d10f28d14120d0e5e5ae19bf9b0ee80921effb253",
       "extracted_utf8_bytes": 924,
-      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "git_blob_sha1": "3cbf185a106bbe101fed9eeceb9a0cba9209caee",
       "path": "patterns/agent-completable-merge-gates.md",
-      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "repository_revision": "BLOB:3cbf185a106bbe101fed9eeceb9a0cba9209caee",
       "rule_id": "uda.merge-gate.authority",
       "selectors": [
         {
@@ -1394,9 +1394,9 @@
     {
       "extracted_sha256": "38f7714fa98a42c3926e874f9c3d68a539ec6c748970013ec623e2ba0e65c93f",
       "extracted_utf8_bytes": 1480,
-      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "git_blob_sha1": "3cbf185a106bbe101fed9eeceb9a0cba9209caee",
       "path": "patterns/agent-completable-merge-gates.md",
-      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "repository_revision": "BLOB:3cbf185a106bbe101fed9eeceb9a0cba9209caee",
       "rule_id": "uda.merge-gate.capability",
       "selectors": [
         {
@@ -1444,9 +1444,9 @@
     {
       "extracted_sha256": "c96ebd68e86b6b699c249757a29626f1398cc8f20e9c5811a9209530194ee6bc",
       "extracted_utf8_bytes": 202,
-      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "git_blob_sha1": "3cbf185a106bbe101fed9eeceb9a0cba9209caee",
       "path": "patterns/agent-completable-merge-gates.md",
-      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "repository_revision": "BLOB:3cbf185a106bbe101fed9eeceb9a0cba9209caee",
       "rule_id": "uda.merge-gate.failure-repair",
       "selectors": [
         {
@@ -1460,11 +1460,73 @@
       ]
     },
     {
+      "extracted_sha256": "85b2a80c742b1958b8c805addfcc4c974ba6be8c992e27f528115674c0286744",
+      "extracted_utf8_bytes": 1503,
+      "git_blob_sha1": "3cbf185a106bbe101fed9eeceb9a0cba9209caee",
+      "path": "patterns/agent-completable-merge-gates.md",
+      "repository_revision": "BLOB:3cbf185a106bbe101fed9eeceb9a0cba9209caee",
+      "rule_id": "uda.merge-gate.one-pull-request",
+      "selectors": [
+        {
+          "kind": "exact_text",
+          "text": "Hand the owner one pull request to merge, not several"
+        },
+        {
+          "kind": "exact_text",
+          "text": "When more than one change in the same repository waits for the owner to merge it, combine them into one pull request before asking him: one branch from the current base, one review of its exact head, one run of the required checks, and one merge."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Automated dependency updates count too."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Separate pull requests hold each other up: every merge moves the base, so each remaining one must be brought up to date and checked again, and reviewed again when the update changes it, and two that touch the same file can conflict."
+        },
+        {
+          "kind": "exact_text",
+          "text": "carry each change's commits and records onto the combined branch;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "settle every open review finding on the combined head;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "close each original with a link to the combined pull request, so nothing is merged twice."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Keep a change apart only when combining has a real cost, such as changes in different repositories, one that must merge or deploy at another time, or one whose review or rollback must stay independent."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Then say why on the owner questions page and give the merge order."
+        },
+        {
+          "kind": "exact_text",
+          "text": "Bring each next one up to date and checked before asking for it, so the owner never merges a pull request that has fallen behind."
+        },
+        {
+          "kind": "exact_text",
+          "text": "the owner is handed two or more pull requests to merge in one repository, with no stated reason they could not be one;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "combine the pull requests waiting for the owner into one, as in rule 5;"
+        },
+        {
+          "kind": "exact_text",
+          "text": "It is scoped to changes waiting for the owner's merge in one repository, and keeps a change apart for a stated cost."
+        }
+      ]
+    },
+    {
       "extracted_sha256": "542b0d53e9ed2d204699f551b4a17fa5c1a3251b72c38c077e67a1ec5169fe34",
       "extracted_utf8_bytes": 689,
-      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "git_blob_sha1": "3cbf185a106bbe101fed9eeceb9a0cba9209caee",
       "path": "patterns/agent-completable-merge-gates.md",
-      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "repository_revision": "BLOB:3cbf185a106bbe101fed9eeceb9a0cba9209caee",
       "rule_id": "uda.merge-gate.owner-clicks",
       "selectors": [
         {
@@ -1488,9 +1550,9 @@
     {
       "extracted_sha256": "4df2ccce2ed5d4a2aac2733d308ba0246dea11586d759222a322df972332f96f",
       "extracted_utf8_bytes": 2374,
-      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "git_blob_sha1": "3cbf185a106bbe101fed9eeceb9a0cba9209caee",
       "path": "patterns/agent-completable-merge-gates.md",
-      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "repository_revision": "BLOB:3cbf185a106bbe101fed9eeceb9a0cba9209caee",
       "rule_id": "uda.merge-gate.owner-decision",
       "selectors": [
         {
@@ -1606,9 +1668,9 @@
     {
       "extracted_sha256": "4dc985822ab729d3fbbc087065cc16a3b281f20ba2c6143b0248ddd2829a178c",
       "extracted_utf8_bytes": 985,
-      "git_blob_sha1": "3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "git_blob_sha1": "3cbf185a106bbe101fed9eeceb9a0cba9209caee",
       "path": "patterns/agent-completable-merge-gates.md",
-      "repository_revision": "BLOB:3a190421fa46729489cfa94499e1ef6ff327b64d",
+      "repository_revision": "BLOB:3cbf185a106bbe101fed9eeceb9a0cba9209caee",
       "rule_id": "uda.merge-gate.substance-check",
       "selectors": [
         {
@@ -1640,9 +1702,9 @@
     {
       "extracted_sha256": "20246d4cb4a4c9f5f46331555fae123081c44aa8fb779019e93784f7f4a0fd24",
       "extracted_utf8_bytes": 116,
-      "git_blob_sha1": "08331124ed06269162af72c04a73d12f3d4dfc59",
+      "git_blob_sha1": "cd4720a6037e35eb2b94de99519db1eed3a748d0",
       "path": "patterns/task-time-lesson-activation.md",
-      "repository_revision": "BLOB:08331124ed06269162af72c04a73d12f3d4dfc59",
+      "repository_revision": "BLOB:cd4720a6037e35eb2b94de99519db1eed3a748d0",
       "rule_id": "uda.owner-correction.reactivate",
       "selectors": [
         {

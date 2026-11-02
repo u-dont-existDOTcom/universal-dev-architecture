@@ -1,0 +1,1 @@
+The changes are combined into one pull request with a clean review and passing checks, but the five originals are left open beside it. a combined pull request whose originals stay open.

@@ -2,7 +2,7 @@
 
 ## Status
 
-Current universal pattern, promoted 2026-10-03 from one project's incident (see **Transfer rationale and limits**). It adds no gate and grants no authority. Changing a hosted gate stays the owner's decision.
+Current universal pattern, promoted 2026-10-03 from one project's incident (see **Transfer rationale and limits**). It adds no gate and grants no authority. Changing a hosted gate stays the owner's decision. Rule 5 is an owner rule, added 2026-11-02 (`docs/requirements/2026-11-02-one-pull-request-to-merge.owner-requirement.json`).
 
 ## Problem
 
@@ -19,6 +19,11 @@ Resolving a thread is a click that verifies nothing about the fix. The owner cli
    - **Keep the gate and the clicks,** (the recommendation for an approval gate) when the gate exists for a person's authorization or the owner wants a person to confirm each one. Rule 4 then applies, and the agent can attach the substance check's result so the approval rests on a verified result.
 3. **Do not hand the owner a recurring chore list.** An owner action that returns on every pull request signals a gate the agent cannot complete. Raise the gate once instead of treating each return as a new request; the one decision in rule 2 covers them all. Until the gate is removed or automated, it stays in force: list each instance that still needs the owner under **For you to do**, grouped into one step with exact links (rule 4), so the page stays the complete list of his work, and attach the substance check's result to each pull request so his clicks rest on a verified result.
 4. **Keep owner clicks for decisions.** A click that records a choice only the owner can make (accept a risk, approve a spend, merge a change) stays with the owner. When a click is unavoidable, batch it into one step: exact links to every target in one place (the **For you to do** section of the owner questions page), and a read-back the agent runs afterward to confirm it worked, such as a hosted query that counts the threads still open. The owner is then not asked twice, and the agent does not take "done" on faith.
+5. **Hand the owner one pull request to merge, not several** (owner rule, 2026-11-02). When more than one change in the same repository waits for the owner to merge it, combine them into one pull request before asking him: one branch from the current base, one review of its exact head, one run of the required checks, and one merge. Automated dependency updates count too. Separate pull requests hold each other up: every merge moves the base, so each remaining one must be brought up to date and checked again, and reviewed again when the update changes it, and two that touch the same file can conflict. To combine them:
+   - carry each change's commits and records onto the combined branch;
+   - settle every open review finding on the combined head;
+   - close each original with a link to the combined pull request, so nothing is merged twice.
+   Keep a change apart only when combining has a real cost, such as changes in different repositories, one that must merge or deploy at another time, or one whose review or rollback must stay independent. Then say why on the owner questions page and give the merge order. Bring each next one up to date and checked before asking for it, so the owner never merges a pull request that has fallen behind.
 
 ## Bounds
 
@@ -32,9 +37,10 @@ Failure condition, any one of:
 
 - the first sign that the agent cannot complete a hosted gate comes at the merge step;
 - the owner is asked for the same gate action on a second pull request with no decision on the page;
+- the owner is handed two or more pull requests to merge in one repository, with no stated reason they could not be one;
 - a thread is marked resolved with no fix and no written reason to point to.
 
-Repair: stop listing the click; put the decision on the owner questions page with a recommendation; batch the unavoidable clicks as in rule 4; and move the answer to **Decided** when the owner replies.
+Repair: stop listing the click; put the decision on the owner questions page with a recommendation; batch the unavoidable clicks as in rule 4; combine the pull requests waiting for the owner into one, as in rule 5; and move the answer to **Decided** when the owner replies.
 
 ## Relationship to other patterns
 
@@ -50,6 +56,7 @@ Repair: stop listing the click; put the decision on the owner questions page wit
 - Decision it changes: whether a hosted gate the agent cannot complete is discovered at the first merge and turned into recurring owner chores, or raised once at the start.
 - Why the simpler standard is insufficient: the click that satisfies the gate verifies nothing, and repeating it on every pull request costs the owner time for no assurance.
 - Why it is scoped: it adds one start-of-workstream check and at most one owner question per gate. It adds no blocking gate and changes no hosted setting.
+- Rule 5's origin: the owner's statement of 2026-11-02, quoted in its requirement record. It changes whether the owner is handed several pull requests to merge or one. Rule 4 alone batches the clicks into one step but leaves the pull requests separate, so each still waits for an update and new checks after the one before it merges. It is scoped to changes waiting for the owner's merge in one repository, and keeps a change apart for a stated cost.
 
 ## Transfer rationale and limits
 

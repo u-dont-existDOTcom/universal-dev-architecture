@@ -1,6 +1,6 @@
 {
   "catalog_schema_version": 1,
-  "content_sha256": "e67f1b2c95c139239dfabb1f42dc0e68ce230c964f92766c179927698d9dfd7a",
+  "content_sha256": "ec4c4887bef3f082dab845b375d80a4802c5ef45d957b12a7740b6cf5a387282",
   "direct_evaluations": {
     "uda.active-contract.boundary-binding": "FALSE",
     "uda.bootstrap.live-root": "TRUE",
@@ -42,6 +42,7 @@
     "uda.merge-gate.authority": "FALSE",
     "uda.merge-gate.capability": "FALSE",
     "uda.merge-gate.failure-repair": "FALSE",
+    "uda.merge-gate.one-pull-request": "FALSE",
     "uda.merge-gate.owner-clicks": "FALSE",
     "uda.merge-gate.owner-decision": "FALSE",
     "uda.merge-gate.substance-check": "FALSE",
@@ -2021,6 +2022,49 @@
         }
       },
       "phase": "handoff",
+      "rule_id": "uda.merge-gate.one-pull-request"
+    },
+    {
+      "destination": "owner-questions-page",
+      "facts": {
+        "action_classes": {
+          "state": "KNOWN",
+          "value": [
+            "work_handoff",
+            "artifact_delivery"
+          ]
+        },
+        "actor": {
+          "state": "KNOWN",
+          "value": "work"
+        },
+        "envelope.bootstrap": {
+          "state": "KNOWN",
+          "value": {
+            "source": "current root AGENTS.md; illustrative governed envelope",
+            "state": "LOADED"
+          }
+        },
+        "envelope.legacy_rule_ids": {
+          "state": "KNOWN",
+          "value": [
+            "uda.final.timestamp",
+            "uda.bootstrap.live-root",
+            "uda.chat-work.execution-separation",
+            "uda.continuation.open-outcome",
+            "uda.worker-directive.same-turn-delivery"
+          ]
+        },
+        "governance_required": {
+          "state": "KNOWN",
+          "value": true
+        },
+        "role": {
+          "state": "KNOWN",
+          "value": "mission_control_internal"
+        }
+      },
+      "phase": "handoff",
       "rule_id": "uda.merge-gate.owner-clicks"
     },
     {
@@ -3710,9 +3754,9 @@
       "source": {
         "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
         "extracted_utf8_bytes": 268,
-        "git_blob_sha1": "08331124ed06269162af72c04a73d12f3d4dfc59",
+        "git_blob_sha1": "cd4720a6037e35eb2b94de99519db1eed3a748d0",
         "path": "patterns/task-time-lesson-activation.md",
-        "repository_revision": "BLOB:08331124ed06269162af72c04a73d12f3d4dfc59"
+        "repository_revision": "BLOB:cd4720a6037e35eb2b94de99519db1eed3a748d0"
       },
       "source_text": "An instruction is satisfied only where its required effect must exist. Reading, understanding, planning, simulating, or mentioning it elsewhere does not discharge the obligation. This extends the existing Active Lesson Contract; do not create a second parallel ledger."
     },
