@@ -1,0 +1,31 @@
+{
+  "compliant.txt": {
+    "verdict": "PASS",
+    "evidence": "Three changes wait for the owner's merge in one repository, so they are combined into one pull request from the current base: one review of its exact head with no open finding, passing required checks, one merge. The three originals are closed, each with a link to the combined pull request. A change for a second repository stays apart; the owner questions page says why and gives the merge order.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "violating.txt": {
+    "verdict": "FAIL",
+    "evidence": "Five pull requests in one repository are handed to the owner to merge one by one, with no reason given; each waits for the one before it to merge and then for its own update and checks.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    }
+  },
+  "near-miss.txt": {
+    "verdict": "FAIL",
+    "evidence": "The changes are combined into one pull request with a clean review and passing checks, but the five originals are left open beside it. a combined pull request whose originals stay open.",
+    "actor": {
+      "id": "fixture-reviewer",
+      "kind": "chat",
+      "relation": "SAME_AGENT"
+    },
+    "obligation_id": "one-pull-request-at-handoff",
+    "non_substitute": "a combined pull request whose originals stay open"
+  }
+}

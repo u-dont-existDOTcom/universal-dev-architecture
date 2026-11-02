@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import unittest
 from pathlib import Path
@@ -10,6 +11,7 @@ from tests.root_migration_assertions import assert_routed_rule
 ROOT = Path(__file__).resolve().parents[1]
 RELATIVE = "patterns/agent-completable-merge-gates.md"
 PATTERN = ROOT / RELATIVE
+ONE_PR_REQUIREMENT = ROOT / "docs" / "requirements" / "2026-11-02-one-pull-request-to-merge.owner-requirement.json"
 
 
 def read(relative: str) -> str:
@@ -47,6 +49,7 @@ class AgentCompletableMergeGatesTests(unittest.TestCase):
             self.pattern.index("2. **If the agent cannot complete a gate, raise one owner decision early.**"),
             self.pattern.index("3. **Do not hand the owner a recurring chore list.**"),
             self.pattern.index("4. **Keep owner clicks for decisions.**"),
+            self.pattern.index("5. **Hand the owner one pull request to merge, not several**"),
         ]
         self.assertEqual(order, sorted(order))
 
@@ -120,6 +123,49 @@ class AgentCompletableMergeGatesTests(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, questions)
         self.assertIn(f"`{RELATIVE}`", read("patterns/worker-self-remediation-before-owner-interruption.md"))
+
+    def test_owner_gets_one_pull_request_to_merge(self) -> None:
+        for phrase in (
+            "5. **Hand the owner one pull request to merge, not several** (owner rule, 2026-11-02).",
+            "When more than one change in the same repository waits for the owner to merge it, combine them into one pull request before asking him",
+            "one branch from the current base, one review of its exact head, one run of the required checks, and one merge",
+            "Automated dependency updates count too.",
+            "every merge moves the base, so each remaining one must be brought up to date and checked again",
+            "settle every open review finding on the combined head",
+            "close each original with a link to the combined pull request, so nothing is merged twice",
+            "Keep a change apart only when combining has a real cost",
+            "Then say why on the owner questions page and give the merge order.",
+            "so the owner never merges a pull request that has fallen behind",
+            "the owner is handed two or more pull requests to merge in one repository, with no stated reason they could not be one",
+            "combine the pull requests waiting for the owner into one, as in rule 5",
+            "Rule 5's origin: the owner's statement of 2026-11-02",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, self.pattern)
+        # Rule 5 stays inside the pattern's bounds: no new authority.
+        self.assertIn("It adds no gate and grants no authority.", self.pattern)
+
+    def test_one_pull_request_requirement_quotes_the_owner(self) -> None:
+        data = json.loads(ONE_PR_REQUIREMENT.read_text(encoding="utf-8"))
+        self.assertEqual(data["requirement_id"], "2026-11-02-one-pull-request-to-merge")
+        self.assertEqual(
+            data["owner_statement"],
+            "add UDA rule that if possible i should be given all PRs in one single one to merge because when you give me a bunch it's really annoying as one changes the others so takes forever",
+        )
+        self.assertEqual(data["origin"]["classification"], "OWNER_REQUIRED")
+        for surface in data["execution_surfaces"]:
+            if surface["disposition"] == "QUEUED":
+                with self.subTest(surface=surface["surface"]):
+                    self.assertTrue(surface.get("reason"))
+        self.assertNotIn("LIVE_VERIFIED", data["learning_state_at_merge"])
+        self.assertTrue(data["nonclaims"])
+        self.assertIn("`docs/requirements/2026-11-02-one-pull-request-to-merge.owner-requirement.json`", self.pattern)
+        self.assertIn("`requirements/2026-11-02-one-pull-request-to-merge.owner-requirement.json`", read("docs/INDEX.md"))
+        entry = [line for line in read("LESSON-INDEX.md").splitlines() if f"`{RELATIVE}` —" in line][0]
+        self.assertIn("hand the owner one combined pull request to merge rather than several in one repository", entry)
+        for text in (json.dumps(data), self.pattern):
+            with self.subTest(text=text[:40]):
+                self.assertNotRegex(text, r"(?i)claude\.ai/(?:chat|code)|chatgpt\.com")
 
     def test_every_cited_pattern_exists(self) -> None:
         cited = set(re.findall(r"`(patterns/[A-Za-z0-9._-]+\.md)`", self.pattern))

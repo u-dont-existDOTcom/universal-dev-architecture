@@ -1008,6 +1008,7 @@
         "uda.merge-gate.owner-decision",
         "uda.merge-gate.substance-check",
         "uda.merge-gate.owner-clicks",
+        "uda.merge-gate.one-pull-request",
         "uda.merge-gate.authority",
         "uda.merge-gate.failure-repair"
       ],
@@ -1328,6 +1329,71 @@
           "sentence": "and move the answer to **Decided** when the owner replies.",
           "record": "uda.merge-gate.failure-repair",
           "obligation_id": "record-owner-reply"
+        },
+        {
+          "sentence": "Hand the owner one pull request to merge, not several",
+          "record": "uda.merge-gate.one-pull-request",
+          "obligation_id": "one-pull-request-at-handoff"
+        },
+        {
+          "sentence": "When more than one change in the same repository waits for the owner to merge it, combine them into one pull request before asking him: one branch from the current base, one review of its exact head, one run of the required checks, and one merge.",
+          "record": "uda.merge-gate.one-pull-request",
+          "obligation_id": "one-pull-request-at-handoff"
+        },
+        {
+          "sentence": "Automated dependency updates count too.",
+          "record": "uda.merge-gate.one-pull-request",
+          "obligation_id": "one-pull-request-at-handoff"
+        },
+        {
+          "sentence": "Separate pull requests hold each other up: every merge moves the base, so each remaining one must be brought up to date and checked again, and reviewed again when the update changes it, and two that touch the same file can conflict.",
+          "record": "uda.merge-gate.one-pull-request",
+          "obligation_id": "one-pull-request-at-handoff"
+        },
+        {
+          "sentence": "carry each change's commits and records onto the combined branch;",
+          "record": "uda.merge-gate.one-pull-request",
+          "obligation_id": "one-pull-request-at-handoff"
+        },
+        {
+          "sentence": "settle every open review finding on the combined head;",
+          "record": "uda.merge-gate.one-pull-request",
+          "obligation_id": "one-pull-request-at-handoff"
+        },
+        {
+          "sentence": "close each original with a link to the combined pull request, so nothing is merged twice.",
+          "record": "uda.merge-gate.one-pull-request",
+          "obligation_id": "one-pull-request-at-handoff"
+        },
+        {
+          "sentence": "Keep a change apart only when combining has a real cost, such as changes in different repositories, one that must merge or deploy at another time, or one whose review or rollback must stay independent.",
+          "record": "uda.merge-gate.one-pull-request",
+          "obligation_id": "one-pull-request-at-handoff"
+        },
+        {
+          "sentence": "Then say why on the owner questions page and give the merge order.",
+          "record": "uda.merge-gate.one-pull-request",
+          "obligation_id": "one-pull-request-at-handoff"
+        },
+        {
+          "sentence": "Bring each next one up to date and checked before asking for it, so the owner never merges a pull request that has fallen behind.",
+          "record": "uda.merge-gate.one-pull-request",
+          "obligation_id": "one-pull-request-at-handoff"
+        },
+        {
+          "sentence": "the owner is handed two or more pull requests to merge in one repository, with no stated reason they could not be one;",
+          "record": "uda.merge-gate.one-pull-request",
+          "obligation_id": "one-pull-request-at-handoff"
+        },
+        {
+          "sentence": "combine the pull requests waiting for the owner into one, as in rule 5;",
+          "record": "uda.merge-gate.one-pull-request",
+          "obligation_id": "one-pull-request-at-handoff"
+        },
+        {
+          "sentence": "It is scoped to changes waiting for the owner's merge in one repository, and keeps a change apart for a stated cost.",
+          "record": "uda.merge-gate.one-pull-request",
+          "obligation_id": "one-pull-request-at-handoff"
         }
       ]
     },

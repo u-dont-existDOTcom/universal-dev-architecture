@@ -4215,6 +4215,130 @@
       ]
     },
     {
+      "rule_id": "uda.merge-gate.one-pull-request",
+      "revision": 1,
+      "status": "CURRENT",
+      "source": {
+        "path": "patterns/agent-completable-merge-gates.md",
+        "selectors": [
+          {
+            "kind": "exact_text",
+            "text": "Hand the owner one pull request to merge, not several"
+          },
+          {
+            "kind": "exact_text",
+            "text": "When more than one change in the same repository waits for the owner to merge it, combine them into one pull request before asking him: one branch from the current base, one review of its exact head, one run of the required checks, and one merge."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Automated dependency updates count too."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Separate pull requests hold each other up: every merge moves the base, so each remaining one must be brought up to date and checked again, and reviewed again when the update changes it, and two that touch the same file can conflict."
+          },
+          {
+            "kind": "exact_text",
+            "text": "carry each change's commits and records onto the combined branch;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "settle every open review finding on the combined head;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "close each original with a link to the combined pull request, so nothing is merged twice."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Keep a change apart only when combining has a real cost, such as changes in different repositories, one that must merge or deploy at another time, or one whose review or rollback must stay independent."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Then say why on the owner questions page and give the merge order."
+          },
+          {
+            "kind": "exact_text",
+            "text": "Bring each next one up to date and checked before asking for it, so the owner never merges a pull request that has fallen behind."
+          },
+          {
+            "kind": "exact_text",
+            "text": "the owner is handed two or more pull requests to merge in one repository, with no stated reason they could not be one;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "combine the pull requests waiting for the owner into one, as in rule 5;"
+          },
+          {
+            "kind": "exact_text",
+            "text": "It is scoped to changes waiting for the owner's merge in one repository, and keeps a change apart for a stated cost."
+          }
+        ]
+      },
+      "authority_owner": "current UDA pattern; owner rule of 2026-11-02",
+      "authority_domain": "hosted merge gates",
+      "applies_to": {
+        "roles": [
+          "universal_internal"
+        ],
+        "actors": [
+          "chat",
+          "work",
+          "codex",
+          "claude"
+        ]
+      },
+      "trigger": {
+        "all": [
+          {
+            "fact": "governance_required",
+            "eq": true
+          },
+          {
+            "any": [
+              {
+                "fact": "action_classes",
+                "contains": "merge_gate"
+              }
+            ]
+          }
+        ]
+      },
+      "obligations": [
+        {
+          "obligation_id": "one-pull-request-at-handoff",
+          "required_behavior": "Hand the owner one combined pull request per repository to merge, or state why a change stays apart, give the merge order and keep the next one up to date.",
+          "due_phase": "handoff",
+          "destination": "owner-questions-page",
+          "acceptance_evidence": "Before the owner is asked to merge, every change waiting for his merge in the same repository, automated dependency updates included, is in one pull request from the current base with one review of its exact head, passing required checks and no open finding, and each original is closed with a link to it. A change kept apart has its real cost stated on the owner questions page with the merge order, and the next one is up to date with its base and checked before it is handed over. A reason-bound NOT_APPLICABLE receipt must establish that at most one pull request in the repository waits for the owner's merge.",
+          "non_substitutes": [
+            "several pull requests handed to the owner in one repository with no stated reason",
+            "a combined pull request whose originals stay open",
+            "a next pull request handed over while behind its base"
+          ],
+          "carry_through": "Retain this boundary, source binding and open evidence across handoffs, compaction and rewrites; recheck changed inputs.",
+          "repair": "Perform the required effect at its due boundary and bind fresh semantic evidence to the repaired candidate.",
+          "enforcement": "semantic",
+          "mechanical_check": null,
+          "not_applicable_allowed": true,
+          "independent_review_required": false
+        }
+      ],
+      "provenance": {
+        "origin": "owner rule of 2026-11-02 (docs/requirements/2026-11-02-one-pull-request-to-merge.owner-requirement.json)",
+        "review_state": "OWNER_DIRECT"
+      },
+      "relations": [],
+      "refresh_on_facts": [
+        "action_classes",
+        "actor",
+        "governance_required",
+        "envelope.bootstrap",
+        "envelope.legacy_rule_ids",
+        "role"
+      ]
+    },
+    {
       "rule_id": "uda.merge-gate.authority",
       "revision": 1,
       "status": "CURRENT",
