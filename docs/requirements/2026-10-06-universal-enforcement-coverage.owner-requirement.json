@@ -721,6 +721,23 @@
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
       "implemented": "Owner correction: final chat must end with a one-line verified GH checkpoint handoff, in addition to checkpoint-internal resume instruction. Conditional indexed pattern, non-runtime coverage and failure-map route added atop survey-draft-autosave main; no live ChatGPT terminal interceptor. Work 32706/37194 -> 32706/unmeasured bytes (rendered UTF-8 / last historical injected measure; task-time metadata and generated Work contract unchanged)."
+    },
+    {
+      "finding_id": "slice-async-queue-recovery-2026-11-03",
+      "date": "2026-11-03",
+      "identity_counts_by_disposition": {
+        "STRUCTURED_ENFORCED": 9,
+        "STRUCTURED_PARTIAL": 9,
+        "WORKFLOW_ONLY": 13,
+        "LEGACY_UNSTRUCTURED": 69,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 78,
+      "baseline_shrinkage": 7,
+      "root_owner_outcome": "OPEN: engineering workflow and bug-repair activation are proposed; universal live invocation is not proved",
+      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "Adds one specialist WORKFLOW_ONLY asynchronous queue-recovery workflow with a portable deadline primitive and failure-recovery regression. Existing durable-learning activation now includes debugging/bug repair. The immutable legacy baseline and semantic backlog are unchanged; private service deployment evidence is scoped separately. Work 32706/37194 -> 32706/unmeasured bytes (rendered UTF-8 / historical injected measurement; no task-time selectors or generated contract changed)."
     }
   ],
   "learning_state_at_merge": [

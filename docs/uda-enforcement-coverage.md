@@ -39,9 +39,9 @@ The systemic gap fits existing logic-map entries: LF-2.1 for unloaded/stale guid
 
 ## Current counts
 
-Inventory entries: 101
+Inventory entries: 102
 
-Indexed patterns: 87
+Indexed patterns: 88
 
 Migration backlog: 78
 
@@ -51,7 +51,7 @@ Task-time records: 78, sourced from 13 files, with 2 mechanical and 86 semantic 
 |---|---:|
 | STRUCTURED_ENFORCED | 9 |
 | STRUCTURED_PARTIAL | 9 |
-| WORKFLOW_ONLY | 12 |
+| WORKFLOW_ONLY | 13 |
 | LEGACY_UNSTRUCTURED | 69 |
 | NOT_ACTIVE | 2 |
 
@@ -1238,3 +1238,8 @@ The following table is the inventory's complete obligation_map, including litera
 ## Cross-account continuity integration
 
 `patterns/cross-account-continuity.md` is LEGACY_UNSTRUCTURED with an index trigger and P2 conditional migration priority. Its tests preserve the four rules, owner quotation, privacy exclusions and routes; they do not prove live Git persistence, handoff updates or account continuity. The exact addition is recorded separately from the unchanged baseline identities. No task-time records, source locks or generated contracts change.
+
+
+## 2026-11-03 asynchronous-work specialist addition
+
+The queue-recovery workflow adds one explicit WORKFLOW_ONLY specialist pattern, a portable deadline primitive and a fault-injection regression. The immutable legacy baseline and semantic-admission backlog are unchanged. The durable-learning index trigger now includes debugging and bug repair; its existing LEGACY_UNSTRUCTURED disposition remains honest. This records a stronger activation route, not proof that every future runtime or agent has adopted the lesson.
