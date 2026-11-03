@@ -49,6 +49,16 @@ assert.equal(committed, false);
 assert.equal(await runWithDeadline(async () => 7, { timeoutMs: 30 }), 7);
 await assert.rejects(runWithDeadline(() => { throw Error('sync failure'); }, { timeoutMs: 30 }), /sync failure/);
 await assert.rejects(runWithDeadline(async () => 1, { timeoutMs: 0 }), RangeError);
+
+// A timer that fires late (the event loop was blocked) must not skip cancellation: the late check aborts the resource.
+let lateAbort = false;
+await assert.rejects(runWithDeadline(signal => {
+  signal.addEventListener('abort', () => { lateAbort = true; }, { once: true });
+  const end = Date.now() + 40;
+  while (Date.now() < end) {} // synchronous work past the 5 ms deadline
+  return 'too late';
+}, { timeoutMs: 5 }), DeadlineExceeded);
+assert.equal(lateAbort, true, 'a deadline found after the operation returns must still abort its resource');
 console.log('deadline cancellation, late-result fencing and successor recovery PASS');
 """
 
@@ -64,6 +74,46 @@ class AsyncWorkDeadlineTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('successor recovery PASS', result.stdout)
+
+
+class BugRepairLearningActivationTests(unittest.TestCase):
+    """The routes that make a bug repair start the durable-learning closeout and reach this workflow."""
+
+    @staticmethod
+    def read(relative):
+        return (ROOT / relative).read_text(encoding='utf-8')
+
+    def test_bug_repair_activates_the_durable_learning_closeout(self):
+        entry = [line for line in self.read('LESSON-INDEX.md').splitlines()
+                 if '`patterns/durable-chat-learning.md` —' in line]
+        self.assertEqual(len(entry), 1)
+        trigger = entry[0].split(' — ', 1)[1]
+        self.assertTrue(trigger.startswith('When debugging or fixing a bug'), trigger)
+        self.assertIn('automatic causal-lesson review and warranted cross-project promotion', trigger)
+        learning = self.read('patterns/durable-chat-learning.md')
+        self.assertIn('Debugging and bug repair activate this same closeout', learning)
+        self.assertIn('`patterns/bounded-external-work-and-queue-recovery.md`', learning)
+        self.assertIn('a service restart is restoration evidence, not a completed prevention fix', learning)
+        docs = self.read('docs/INDEX.md')
+        self.assertIn('After any bug repair, activate `../patterns/durable-chat-learning.md`', docs)
+        self.assertIn('`../patterns/bounded-external-work-and-queue-recovery.md`', docs)
+        self.assertIn('`../templates/async-work-deadline.mjs`', docs)
+        workflow = self.read('patterns/bounded-external-work-and-queue-recovery.md')
+        self.assertIn('## Bug-repair closeout', workflow)
+        self.assertIn('apply the existing closeout in `patterns/durable-chat-learning.md` automatically', workflow)
+
+    def test_the_failure_map_row_sits_inside_its_table(self):
+        lines = self.read('patterns/logic-failure-map.md').splitlines()
+        row = next(i for i, line in enumerate(lines) if line.startswith('| LF-6.8 |'))
+        self.assertTrue(lines[row - 1].startswith('| LF-6.7 |'), 'a blank line before the row would end the table')
+        self.assertIn('`patterns/bounded-external-work-and-queue-recovery.md`', lines[row])
+
+    def test_owner_deployment_evidence_is_labeled(self):
+        audit = self.read('audits/2026-11-03-async-queue-recovery-promotion.md')
+        for heading in ('## Origin and observed failure', '## Repair evidence', '## Exact released source pins'):
+            with self.subTest(heading=heading):
+                self.assertIn(heading + ' (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT)', audit)
+        self.assertIn('## Transfer rationale and limits\n', audit)
 
 
 if __name__ == '__main__':

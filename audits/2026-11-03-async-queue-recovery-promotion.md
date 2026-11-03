@@ -1,14 +1,14 @@
 # Scheduler deadline and bug-repair learning promotion
 
-Date: 2026-11-03. Disposition: promoted, bounded to asynchronous external work and automatic bug-repair lesson review.
+Date: 2026-11-03. Disposition: promoted, bounded to asynchronous external work and automatic bug-repair lesson review. The sections marked NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT describe one owner's deployment; the reusable guidance does not depend on them.
 
-## Origin and observed failure
+## Origin and observed failure (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT)
 
 An owner-authorized repair of a privately deployed article-retrieval MCP found repeated busy replies while the process and authentication remained responsive. Restarting restored two verified PDF retrievals. The initiating upstream/runtime hang was not uniquely recoverable from the old process, so the incident does not prove which dependency event failed.
 
 The implementation had queue-wait expiry and HTTP timeouts, but the scheduler released its active slot only after its worker promise settled. A synthetic dependency that never settled reproduced the indefinite blockage at the actual MCP tool boundary. Three added queue-recovery tests failed against the old source. This established a concrete missing containment boundary rather than attributing the incident to load, credentials or a uniquely identified runtime defect.
 
-## Repair evidence
+## Repair evidence (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT)
 
 The released candidate added a scheduler-owned 120-second deadline, propagated cancellation through primary/fallback/range requests, independently settled hung HTTP/header/body waits, fenced late results, released pending state and partial buffers, and added queue state to health. The deployment preserved the earlier source and configuration for rollback, saved connections and unrelated containers.
 
@@ -25,7 +25,7 @@ The owner also required future bug fixes to trigger reusable development-lesson 
 This change supplies engineering guidance and a portable fault-injection example. Its WORKFLOW_ONLY disposition is explicit: tests establish the portable primitive's behavior, not that every agent or application invokes it. Public runtime changes in unrelated apps remain under their own authorities; this promotion does not authorize a fleet-wide code rewrite.
 
 
-## Exact released source pins
+## Exact released source pins (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT)
 
 Released runtime image: `sha256:e42875d334410846198c7b76159135e1c320ec019ff5411bfcb6d1e1eb49a013`. SHA-256 of the privately retained source bytes:
 

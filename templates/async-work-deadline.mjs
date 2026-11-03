@@ -9,18 +9,21 @@ export async function runWithDeadline(operation, { timeoutMs }) {
   }
   const controller = new AbortController();
   const deadline = Date.now() + timeoutMs;
-  let timer;
-  const expired = new Promise((_, reject) => {
-    timer = setTimeout(() => {
-      const error = new DeadlineExceeded();
-      // Settle independently of whether the resource emits a terminal event.
-      reject(error);
-      controller.abort(error);
-    }, timeoutMs);
-  });
+  let rejectExpired;
+  const expired = new Promise((_, reject) => { rejectExpired = reject; });
+  // One idempotent expiry, used by the timer and by the late check after the operation returns, so a timer that fires
+  // late (a blocked event loop) still aborts the resource. It settles the caller first, then aborts the resource.
+  const expire = () => {
+    if (controller.signal.aborted) return controller.signal.reason;
+    const error = new DeadlineExceeded();
+    rejectExpired(error);
+    controller.abort(error);
+    return error;
+  };
+  const timer = setTimeout(expire, timeoutMs);
   const work = async () => {
     const value = await operation(controller.signal, deadline);
-    if (controller.signal.aborted || Date.now() >= deadline) throw new DeadlineExceeded();
+    if (controller.signal.aborted || Date.now() >= deadline) throw expire();
     return value;
   };
   try { return await Promise.race([work(), expired]); }
