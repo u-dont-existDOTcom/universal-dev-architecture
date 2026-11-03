@@ -59,6 +59,23 @@ await assert.rejects(runWithDeadline(signal => {
   return 'too late';
 }, { timeoutMs: 5 }), DeadlineExceeded);
 assert.equal(lateAbort, true, 'a deadline found after the operation returns must still abort its resource');
+
+// The deadline uses the monotonic clock: moving the wall clock back must not admit an overdue result,
+// and moving it forward must not expire work that is on time.
+const realNow = Date.now;
+let backAbort = false;
+try {
+  await assert.rejects(runWithDeadline(signal => {
+    signal.addEventListener('abort', () => { backAbort = true; }, { once: true });
+    const end = performance.now() + 40;
+    Date.now = () => realNow() - 60_000;
+    while (performance.now() < end) {}
+    return 'overdue';
+  }, { timeoutMs: 5 }), DeadlineExceeded);
+  assert.equal(backAbort, true, 'a backward wall-clock step must not hide an overdue result');
+  assert.equal(await runWithDeadline(async () => { Date.now = () => realNow() + 60_000; return 'on time'; },
+    { timeoutMs: 1000 }), 'on time');
+} finally { Date.now = realNow; }
 console.log('deadline cancellation, late-result fencing and successor recovery PASS');
 """
 
