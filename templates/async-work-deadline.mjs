@@ -23,9 +23,18 @@ export async function runWithDeadline(operation, { timeoutMs }) {
     return error;
   };
   const timer = setTimeout(expire, timeoutMs);
+  const overdue = () => controller.signal.aborted || performance.now() >= deadline;
   const work = async () => {
-    const value = await operation(controller.signal, deadline);
-    if (controller.signal.aborted || performance.now() >= deadline) throw expire();
+    let value;
+    try {
+      value = await operation(controller.signal, deadline);
+    } catch (error) {
+      // An operation that fails after its deadline still gets its resource aborted; its own error stands only
+      // when it failed within budget.
+      if (overdue()) throw expire();
+      throw error;
+    }
+    if (overdue()) throw expire();
     return value;
   };
   try { return await Promise.race([work(), expired]); }

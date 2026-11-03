@@ -60,6 +60,19 @@ await assert.rejects(runWithDeadline(signal => {
 }, { timeoutMs: 5 }), DeadlineExceeded);
 assert.equal(lateAbort, true, 'a deadline found after the operation returns must still abort its resource');
 
+// An operation that fails after its deadline, by throwing or by rejecting, must still have its resource aborted.
+for (const failure of ['throw', 'reject']) {
+  let failedAbort = false;
+  await assert.rejects(runWithDeadline(signal => {
+    signal.addEventListener('abort', () => { failedAbort = true; }, { once: true });
+    const end = performance.now() + 40;
+    while (performance.now() < end) {}
+    if (failure === 'throw') throw new Error('dependency failed late');
+    return Promise.reject(new Error('dependency failed late'));
+  }, { timeoutMs: 5 }), DeadlineExceeded);
+  assert.equal(failedAbort, true, `an overdue ${failure} must still abort its resource`);
+}
+
 // The deadline uses the monotonic clock: moving the wall clock back must not admit an overdue result,
 // and moving it forward must not expire work that is on time.
 const realNow = Date.now;
