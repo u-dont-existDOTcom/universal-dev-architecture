@@ -34,6 +34,10 @@ class OwnerGitHubHandoffTests(unittest.TestCase):
         self.assertIn("and any local resume line the workstream also requires", self.pattern)
         self.assertIn("`GH handoff: [<plain-English checkpoint label>](<direct verified GitHub file URL>) — Next: <one specific safe action>`", self.pattern)
         self.assertIn("**still end with a one-line truthful handoff**", self.pattern)
+        # The required line covers every activated workstream, not only one that already has a GitHub checkpoint.
+        self.assertIn("in an activated workstream (for this owner, any work that spans more than one turn, whether or not it already has a GitHub checkpoint)", self.pattern)
+        self.assertNotIn("in an activated, ongoing GitHub-backed workstream", self.pattern)
+        self.assertIn("including in work that has no GitHub checkpoint yet and no authorized repository to save one in", self.pattern)
 
     def test_index_entry_is_a_standing_owner_trigger(self):
         entry = [line for line in read("LESSON-INDEX.md").splitlines() if f"`{RELATIVE}` —" in line]
