@@ -1,0 +1,60 @@
+{
+  "requirement_id": "2026-11-03-github-handoff-standing",
+  "date": "2026-11-03",
+  "source": "Owner message on 2026-11-03 to the Claude session doing the UDA and Mission Control work.",
+  "owner_statement": "and make sure any prompt which is part of multiple turns will give me a one line GH handoff at the end",
+  "earlier_statements": [
+    {
+      "date": "2026-10-26",
+      "text": "continue and give me at the end of every turn a one-line github handoff in case chat is overflowed. make that a rule in UDA also",
+      "where": "the requirement record of UDA pull request 440, which this change supersedes"
+    },
+    {
+      "date": "2026-11-01",
+      "text": "not quoted here; the coverage review note of patterns/owner-requested-terminal-github-handoff.md records it as the activation for that pattern's first version"
+    }
+  ],
+  "problem": "The pattern's first version activated only when the owner asked in that workstream, and its index trigger said so. Lanes that loaded UDA therefore waited for a new request, and replies in at least one lane kept ending without the line after the owner had asked twice.",
+  "required_behavior": [
+    "For this owner, every final answer in work that spans more than one turn ends with exactly one GH handoff line as its last nonblank line, without a new request.",
+    "The line links the exact checkpoint saved and read back in that turn, in the authorized public or private repository, and names the one next action; or it says truthfully that nothing could be saved and why.",
+    "A local resume line that a workstream also requires comes before it; the GH handoff line stays last.",
+    "A self-contained one-turn answer needs no line unless the owner asks."
+  ],
+  "basis": [
+    "The owner's statements above.",
+    "patterns/owner-requested-terminal-github-handoff.md before this change, whose activation was per request."
+  ],
+  "scope": "The activation and authority section, rule 2, the distinctness note and the limits of patterns/owner-requested-terminal-github-handoff.md; its LESSON-INDEX.md entry and coverage activation; this record; its tests.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "Every reply in his multi-turn work ends with one line that lets him resume the work from GitHub.",
+    "notes": "What counts as work that spans more than one turn, and the order after a local resume line, are the assistant's specification of the owner's words."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/owner-requested-terminal-github-handoff.md, reached through LESSON-INDEX.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "The UDA and Mission Control workstream",
+      "disposition": "PROJECTED",
+      "note": "Its turn-end step publishes the handoff note to the owner's private repository, reads it back, and prints the line for the final answer."
+    },
+    {
+      "surface": "Other workstreams' sessions",
+      "disposition": "QUEUED",
+      "reason": "Each session applies the rule at its next final answer after loading LESSON-INDEX.md, as root AGENTS.md requires before any task."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "No repository rule can force a session that never loaded UDA.",
+    "A static test proves the rule's text and routing, not that every final answer carries the line; that stays a per-turn check (WORKFLOW_ONLY)."
+  ]
+}
