@@ -74,7 +74,7 @@ Workers and subagents should not report substantive work complete until they hav
 5. run the repository's lesson-integrity check;
 6. verified the check passes.
 
-The owner should not have to remember to ask.
+The owner should not have to remember to ask. Debugging and bug repair activate this same closeout, including review of the causal development pattern for warranted reuse. For asynchronous stalls, use `patterns/bounded-external-work-and-queue-recovery.md`; a service restart is restoration evidence, not a completed prevention fix.
 
 ### 6A. Owner shorthand: `learn the lesson` means the full learning lifecycle
 

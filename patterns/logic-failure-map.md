@@ -93,6 +93,8 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-6.6 | Acting on the wrong surface or with stale tool state: the shell instead of the browser, a stale session. | Run the surface preflight; bind the action to exact artifacts. | Root `AGENTS.md` (Browser-control efficiency); `patterns/persistent-browser-automation-hygiene.md`; `patterns/chatgpt-client-surface-capability-and-thread-recovery.md`; `patterns/chatgpt-developer-mcp-chat-lifecycle.md`; `patterns/chatgpt-work-cloud-dispatch.md` | |
 | LF-6.7 | A self-updating launcher continues under its old controlling code after fetching a new version. | Compare the fetched controlling code; if it changed, re-execute once before downstream work. | `patterns/self-updating-launcher-reexec.md` | |
 
+| LF-6.8 | An external operation never settles while holding a queue slot, lock, pending entry or memory budget. | Enforce an independent operation deadline, cancel/contain the real resource, fence late work and prove successor recovery. | `patterns/bounded-external-work-and-queue-recovery.md` | |
+
 ### 7. Checking
 
 | ID | Failure | Quick check | Covered by | MAST |

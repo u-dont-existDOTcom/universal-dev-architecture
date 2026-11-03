@@ -3728,7 +3728,7 @@
       "behavioral": true,
       "activation_route": {
         "kind": "INDEX_TRIGGER",
-        "detail": "When saving or remembering an instruction or preference"
+        "detail": "When debugging or fixing a bug, or when saving or remembering an instruction or preference"
       },
       "actors": [
         "reasoning supervisor",
@@ -9955,6 +9955,57 @@
         }
       ],
       "exception_reason": "The YouTube transcript extraction workflow is governed by scripts/yt-transcript.sh and its caption-first, download and cloud-transcription fallback; provider setup and extraction-version checks remain specialist executable maintenance rather than a universal semantic admission rule."
+    },
+    {
+      "id": "patterns/bounded-external-work-and-queue-recovery.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When developing, repairing or reviewing queued jobs, external calls or workers that hold shared slots, locks, pending state or memory"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "application scheduler, external-resource adapter and health endpoint"
+      ],
+      "enforcement_types": [
+        "none"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/bounded-external-work-and-queue-recovery.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "templates/async-work-deadline.mjs",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_async_work_deadline.py",
+          "class": "BEHAVIORAL_REGRESSION"
+        },
+        {
+          "path": "audits/2026-11-03-async-queue-recovery-promotion.md",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "exception_reason": "This is a specialist engineering workflow for external-operation and queue liveness, with a runnable deadline primitive, fault-injection regression and required project-level cancellation/containment and consumer tests. Enforcement belongs in each scheduler/resource adapter; this is not a claim of universal reasoning-agent semantic admission."
     }
   ]
 }
