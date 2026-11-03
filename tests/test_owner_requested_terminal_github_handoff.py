@@ -52,6 +52,8 @@ class OwnerGitHubHandoffTests(unittest.TestCase):
         self.assertTrue(trigger.startswith(item["activation_route"]["detail"]))
         self.assertEqual("WORKFLOW_ONLY", item["disposition"])
         self.assertIn("`../patterns/owner-requested-terminal-github-handoff.md`", read("docs/INDEX.md"))
+        # The index summary keeps the pattern's fallbacks: a failed save or no write access never blocks the reply.
+        self.assertIn("or the latest verified checkpoint when this turn's save failed, or that states the save or access blocker when nothing can be saved", read("docs/INDEX.md"))
 
     def test_requirement_quotes_the_owner(self):
         data = json.loads(REQUIREMENT.read_text(encoding="utf-8"))
