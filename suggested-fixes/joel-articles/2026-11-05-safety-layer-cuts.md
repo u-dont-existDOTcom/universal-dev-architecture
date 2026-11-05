@@ -9,7 +9,7 @@
 
 ## What to do
 
-For the lane editing the neuro de-armoring article. Keep the first of your three fixes for the two cut turns: work by block references and diffs, copy the article's passages by script, and leave them out of your replies. Stop the other two parts: writing verbatim dose passages through the file tool instead of the reply, and splitting the same content into smaller outputs so that none is cut. If a passage the safety layer cuts needs rewording by you, leave it exactly as the owner wrote it, list it in your handoff note and next report, and tell him; he decides (step 6 of the pattern). Carry on with the rest of the article.
+For the lane editing the neuro de-armoring article. Keep the first of your three fixes for the two cut turns: work by block references and diffs, copy the article's passages by script, and leave them out of your replies. Use those scripts from the start of an output, not to rebuild one that was cut, such as the card-builder file: an output the safety layer cut goes to the owner, who decides. Stop the other two parts: writing verbatim dose passages through the file tool instead of the reply, and splitting the same content into smaller outputs so that none is cut. If a passage the safety layer cuts needs rewording by you, leave it exactly as the owner wrote it, list it in your handoff note and next report, and tell him; he decides (step 6 of the pattern). Carry on with the rest of the article.
 
 ## Why
 

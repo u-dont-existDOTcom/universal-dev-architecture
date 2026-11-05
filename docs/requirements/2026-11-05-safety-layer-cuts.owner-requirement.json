@@ -15,7 +15,7 @@
   },
   "disposition": {
     "adopted": [
-      "Fix 1, as steps 2 and 3 of patterns/safety-layer-cuts.md: unchanged text is named by block ID and copied by a deterministic script; only changed passages are written, as placed edits.",
+      "Fix 1, as steps 2 and 3 of patterns/safety-layer-cuts.md: unchanged text is named by block ID and copied by a deterministic script; only changed passages are written, as placed edits. They apply from the start of an output; they are not used to rebuild one that was cut.",
       "From fix 2, keeping the passages out of replies, as step 4: a reply names them by ID.",
       "From fix 3, the reference-based pieces, which are fix 1."
     ],
@@ -31,8 +31,8 @@
     "Before a long output that carries material a safety layer may treat as hazardous, and after any cut, the agent writes only what the task changes.",
     "Unchanged text is named by block ID, heading or exact anchor, and a build copies the owner's passages by script from the registered master.",
     "Replies and reports name sensitive passages by ID and do not quote them back.",
-    "A cut is a boundary: the output that was cut is not retried, and the same content is not produced through another tool, in smaller pieces, reworded, encoded or masked, or by another model.",
-    "When the task needs the agent itself to write passages the safety layer cuts, those passages stay as the owner wrote them, are listed in the work record and the next report, and the owner decides; the rest of the work goes on."
+    "A cut is a boundary: the output that was cut is not retried, and the same content is not produced through another tool, in smaller pieces, reworded, encoded or masked, by another model, or copied into that output by a script.",
+    "When the task needs the output that was cut, or needs the agent itself to write passages the safety layer cuts, those passages stay as the owner wrote them, are listed in the work record and the next report, and the owner decides; the rest of the work goes on."
   ],
   "basis": [
     "The owner's statement above and the lane's analysis it carried.",

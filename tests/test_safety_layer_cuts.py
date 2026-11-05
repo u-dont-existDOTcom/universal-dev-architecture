@@ -29,12 +29,15 @@ RULE_PHRASES = (
     "After an edit, a script check confirms that every protected value still matches the master",
     "4. **Keep sensitive passages out of replies.**",
     "5. **A cut is a boundary.**",
-    "Don't retry the output that was cut.",
+    "Don't retry the output that was cut, and don't recreate it another way, including with a script that copies the same passages into it",
+    "they are not a route for an output the safety layer has already cut.",
     "Record the cut in the work record: when, which output, and what was lost.",
     "Check what had already completed before the cut, such as files written and operations run, so nothing is done twice or left half-done.",
-    "6. **What only the agent could write goes to the owner.**",
-    "Leave those passages exactly as the owner wrote them",
-    "The rest of the work goes on.",
+    "6. **The owner decides about what was cut.**",
+    "Tell him plainly which output was cut and which passages it carried.",
+    "Leave the passages exactly as the owner wrote them",
+    "He can do that part himself, or change the task so that it no longer needs it.",
+    "The rest of the work goes on, with steps 1 to 4.",
 )
 
 
@@ -67,14 +70,32 @@ class SafetyLayerCutsTests(unittest.TestCase):
             "writing the same content with a file-writing or other tool instead of in the reply. A tool call's input is the agent's output too.",
             "it doesn't make a file a way past a safety layer",
             "splitting the same content into smaller outputs so that none is cut;",
+            "having a script copy the same passages into the output that was cut, or into a new one that does the same job;",
             "rewording, encoding or masking it so that it passes, including leaving its values as placeholders for a script to fill in;",
             "asking another model, agent or runtime to produce it.",
-            "These keep the total and change only its packaging.",
+            "The ways above keep the content and change only its packaging or its route.",
+            "After a cut, what can change is whether that output is made at all, and that is the owner's decision.",
         ):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, not_a_fix)
         # The lane's file-tool route appears only as the quoted origin, never as advice.
         self.assertNotIn("quietly", self.pattern.split("## Origin evidence", 1)[0])
+
+    def test_scripted_copy_never_rebuilds_a_cut_output(self):
+        # Codex's third review: step 3's scripted copy must not become a route for an output the layer cut.
+        rule = section(self.pattern, "Rule")
+        step3 = rule.split("3. **Copy the owner's text with a script.**", 1)[1].split("\n4. ", 1)[0]
+        step5 = rule.split("5. **A cut is a boundary.**", 1)[1].split("\n6. ", 1)[0]
+        self.assertIn("as they stand", step3)
+        self.assertIn("including with a script that copies the same passages into it", step5)
+        self.assertIn("steps 2 and 3 keep an output to what the task needs from the start", step5)
+        self.assertNotIn("Then apply steps 1 to 4", step5)
+        record = json.loads(read(REQUIREMENT))
+        self.assertIn("or copied into that output by a script", record["required_behavior"][3])
+        self.assertIn("they are not used to rebuild one that was cut", record["disposition"]["adopted"][0])
+        self.assertIn("Use those scripts from the start of an output, not to rebuild one that was cut", read(LANE_ITEM))
+        row = next(r for r in read("patterns/logic-failure-map.md").splitlines() if r.startswith("| LF-6.9 |"))
+        self.assertIn("after a cut, the cut output goes to the owner", row)
 
     def test_boundary_rules_it_relies_on_exist(self):
         for relative, phrase in (
@@ -94,8 +115,8 @@ class SafetyLayerCutsTests(unittest.TestCase):
         self.assertIsNotNone(line)
         for phrase in ("When a safety layer cuts or refuses the agent's own output",
                        "or before a long output that carries material such a layer may treat as hazardous (for example drug doses, routes and combinations)",
-                       "never retry or re-route cut content (another tool, smaller pieces, rewording or masking, another model)",
-                       "tell the owner what only the agent could have written"):
+                       "never retry or re-route cut content (another tool, smaller pieces, rewording or masking, a script copying the same passages, another model)",
+                       "leave what was cut to the owner"):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, line[1])
         docs = read("docs/INDEX.md")

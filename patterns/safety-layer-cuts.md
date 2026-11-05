@@ -21,8 +21,8 @@ Neither output was needed in that form:
 2. **Point to text that stays the same.** Name unchanged text by block ID, heading or exact anchor, and write only the changed passages, as placed edits (`patterns/editorial-authority-and-lossless-editing.md`, **Make every proposed edit operationally placeable**). A report says "B12 to B40 unchanged", not their text.
 3. **Copy the owner's text with a script.** When a build or export needs the owner's passages as they stand, a deterministic script copies them by block ID from the registered master. The agent writes the script and the list of IDs, not the passages. The copies are also exact, where a retyped dose or unit can drift. After an edit, a script check confirms that every protected value still matches the master (`patterns/transformation-preservation-proof.md`).
 4. **Keep sensitive passages out of replies.** A reply or report to the owner names the passages it touched by ID and says what changed. It doesn't quote them back: the owner has them.
-5. **A cut is a boundary.** Treat it like any other refusal by a permission or safety layer (`patterns/worker-self-remediation-before-owner-interruption.md`, **Fail closed on genuine boundaries**). Don't retry the output that was cut. Record the cut in the work record: when, which output, and what was lost. Check what had already completed before the cut, such as files written and operations run, so nothing is done twice or left half-done. Then apply steps 1 to 4 to the rest of the task and carry on.
-6. **What only the agent could write goes to the owner.** If the task needs the agent itself to write or rewrite passages the safety layer cuts, for example rewording a passage that gives doses, stop that part. Leave those passages exactly as the owner wrote them, list them in the work record and in the next report, and tell the owner plainly. He can edit them himself or change the task. The rest of the work goes on.
+5. **A cut is a boundary.** Treat it like any other refusal by a permission or safety layer (`patterns/worker-self-remediation-before-owner-interruption.md`, **Fail closed on genuine boundaries**). Don't retry the output that was cut, and don't recreate it another way, including with a script that copies the same passages into it: steps 2 and 3 keep an output to what the task needs from the start, and they are not a route for an output the safety layer has already cut. Record the cut in the work record: when, which output, and what was lost. Check what had already completed before the cut, such as files written and operations run, so nothing is done twice or left half-done.
+6. **The owner decides about what was cut.** Tell him plainly which output was cut and which passages it carried. If the task needs that output, or needs the agent itself to write or rewrite those passages (for example rewording a passage that gives doses), stop that part. Leave the passages exactly as the owner wrote them, list them in the work record and in the next report, and let him decide. He can do that part himself, or change the task so that it no longer needs it. The rest of the work goes on, with steps 1 to 4.
 
 ## Not a fix
 
@@ -30,10 +30,11 @@ Each of these keeps the content and changes only how it gets out, which routes a
 
 - writing the same content with a file-writing or other tool instead of in the reply. A tool call's input is the agent's output too. The rule that long output goes in a file (`patterns/worker-directive-delivery-and-chat-output-budget.md`) is about readability; it doesn't make a file a way past a safety layer;
 - splitting the same content into smaller outputs so that none is cut;
+- having a script copy the same passages into the output that was cut, or into a new one that does the same job;
 - rewording, encoding or masking it so that it passes, including leaving its values as placeholders for a script to fill in;
 - asking another model, agent or runtime to produce it.
 
-Steps 1 to 3 reduce what the agent writes in total, by leaving out copies the task didn't need. These keep the total and change only its packaging. After a cut, what can change is whether the agent writes that content at all.
+Steps 1 to 3 reduce what an output carries from the start, by leaving out copies the task didn't need. The ways above keep the content and change only its packaging or its route. After a cut, what can change is whether that output is made at all, and that is the owner's decision.
 
 ## Existing-work basis
 
@@ -49,7 +50,7 @@ On 2026-11-05 the owner passed on the analysis of a lane editing his long publis
 2. write verbatim dose passages to files with the file tool ("quietly, to disk"), never into its chat replies;
 3. avoid putting many substances, doses and routes into one output, and work in smaller, reference-based pieces.
 
-Fix 1 is steps 2 and 3 here, and fix 3's reference-based pieces are the same thing. Keeping the passages out of replies, from fix 2, is step 4. Writing them through the file tool instead, and splitting the same content into smaller pieces, are under **Not a fix**.
+Fix 1 is steps 2 and 3 here, applied from the start of an output, not to rebuild one that was cut; fix 3's reference-based pieces are the same thing. Keeping the passages out of replies, from fix 2, is step 4. Writing them through the file tool instead, and splitting the same content into smaller pieces, are under **Not a fix**.
 
 ## Limits
 
