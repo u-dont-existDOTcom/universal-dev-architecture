@@ -100,6 +100,8 @@ Use this file as the entry point for cross-project lesson retrieval. This is a r
 
 88. `patterns/bounded-external-work-and-queue-recovery.md` — When developing, repairing or reviewing queued jobs, external calls or workers that hold shared slots, locks, pending state or memory, require scheduler-owned execution deadlines, real cancellation/containment, complete cleanup, late-result fencing, functional health and fault-injection proof that subsequent work succeeds.
 
+89. `patterns/safety-layer-cuts.md` — When a safety layer cuts or refuses the agent's own output, or before a long output that carries material such a layer may treat as hazardous (for example drug doses, routes and combinations): write only what the task changes, point to unchanged text by block ID and copy the owner's text with a script, keep those passages out of replies, never retry or re-route cut content (another tool, smaller pieces, rewording or masking, another model), and tell the owner what only the agent could have written.
+
 ## Kernel cross-reference
 
 - `AGENTS.md` → **Workflow** — When closing a substantive pass or switching methods, verify that every explicit commitment was executed or explicitly superseded; adjacent analysis or planning does not close it.

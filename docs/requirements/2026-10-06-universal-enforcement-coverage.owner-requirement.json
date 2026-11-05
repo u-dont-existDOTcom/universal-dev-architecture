@@ -738,6 +738,23 @@
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
       "implemented": "Adds one specialist WORKFLOW_ONLY asynchronous queue-recovery workflow with a portable deadline primitive and failure-recovery regression. Existing durable-learning activation now includes debugging/bug repair. The immutable legacy baseline and semantic backlog are unchanged; private service deployment evidence is scoped separately. Work 32706/37194 -> 32706/unmeasured bytes (rendered UTF-8 / historical injected measurement; no task-time selectors or generated contract changed)."
+    },
+    {
+      "finding_id": "slice-safety-layer-cuts-2026-11-05",
+      "date": "2026-11-05",
+      "identity_counts_by_disposition": {
+        "STRUCTURED_ENFORCED": 9,
+        "STRUCTURED_PARTIAL": 9,
+        "WORKFLOW_ONLY": 14,
+        "LEGACY_UNSTRUCTURED": 69,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 78,
+      "baseline_shrinkage": 7,
+      "root_owner_outcome": "OPEN: the safety-layer cut rule is routed and tested as text; no runtime can show a repository check that a cut was respected",
+      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "Owner request 2026-11-05: adds one WORKFLOW_ONLY pattern, patterns/safety-layer-cuts.md, with an index trigger, a failure-map row, a requirement record and text tests. The immutable legacy baseline, task-time records and semantic backlog are unchanged. Work 32706/37194 -> 32706/unmeasured bytes (rendered UTF-8 / historical injected measurement; no task-time selectors or generated contract changed)."
     }
   ],
   "learning_state_at_merge": [
