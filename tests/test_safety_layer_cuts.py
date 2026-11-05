@@ -35,6 +35,7 @@ RULE_PHRASES = (
     "Check what had already completed before the cut, such as files written and operations run, so nothing is done twice or left half-done.",
     "6. **The owner decides about what was cut.**",
     "Tell him plainly which output was cut and which passages it carried.",
+    "If the task needs that output, or needs the agent itself to write or rewrite those passages (for example rewording a passage that gives doses), stop that part.",
     "Leave the passages exactly as the owner wrote them",
     "He can do that part himself, or change the task so that it no longer needs it.",
     "The rest of the work goes on, with steps 1 to 4.",
