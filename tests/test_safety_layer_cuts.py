@@ -19,27 +19,45 @@ def section(text, heading):
     return text.split(f"## {heading}\n", 1)[1].split("\n## ", 1)[0]
 
 
+RULE_PHRASES = (
+    "1. **Write only what the task changes.**",
+    "The measure is what the task needs, not what the safety layer lets through.",
+    "2. **Point to text that stays the same.**",
+    "3. **Copy the owner's text with a script.**",
+    "The agent writes the script and the list of IDs, not the passages.",
+    "After an edit, a script check confirms that every protected value still matches the master",
+    "4. **Keep sensitive passages out of replies.**",
+    "5. **A cut is a boundary.**",
+    "Don't retry the output that was cut.",
+    "Record the cut in the work record: when, which output, and what was lost.",
+    "Check what had already completed before the cut, such as files written and operations run, so nothing is done twice or left half-done.",
+    "6. **What only the agent could write goes to the owner.**",
+    "Leave those passages exactly as the owner wrote them",
+    "The rest of the work goes on.",
+)
+
+
+def missing_rule_phrases(rule):
+    return [phrase for phrase in RULE_PHRASES if phrase not in rule]
+
+
 class SafetyLayerCutsTests(unittest.TestCase):
     def setUp(self):
         self.pattern = read(RELATIVE)
 
     def test_the_six_steps(self):
+        self.assertEqual([], missing_rule_phrases(section(self.pattern, "Rule")))
+
+    def test_deleting_any_required_step_text_is_caught(self):
         rule = section(self.pattern, "Rule")
-        for phrase in (
-            "1. **Write only what the task changes.**",
-            "The measure is what the task needs, not what the safety layer lets through.",
-            "2. **Point to text that stays the same.**",
-            "3. **Copy the owner's text with a script.**",
-            "The agent writes the script and the list of IDs, not the passages.",
-            "4. **Keep sensitive passages out of replies.**",
-            "5. **A cut is a boundary.**",
-            "Don't retry the output that was cut.",
-            "6. **What only the agent could write goes to the owner.**",
-            "Leave those passages exactly as the owner wrote them",
-            "The rest of the work goes on.",
-        ):
+        for phrase in RULE_PHRASES:
             with self.subTest(phrase=phrase):
-                self.assertIn(phrase, rule)
+                self.assertEqual([phrase], missing_rule_phrases(rule.replace(phrase, "")))
+
+    def test_a_cut_loses_the_output_not_finished_work(self):
+        problem = section(self.pattern, "Problem")
+        self.assertIn("The output it was writing is lost, while tool calls that had already finished may have taken effect.", problem)
+        self.assertNotIn("the turn's work is lost", problem)
 
     def test_re_routing_is_not_a_fix(self):
         not_a_fix = section(self.pattern, "Not a fix")
@@ -109,6 +127,8 @@ class SafetyLayerCutsTests(unittest.TestCase):
 
     def test_originating_lane_is_told(self):
         item = read(LANE_ITEM)
+        # The item format requires this line (tests/test_suggested_fix_queue.py, patterns/suggested-fix-queue.md):
+        # it names the target repository by its public GitHub path, as every item in suggested-fixes/ does.
         for phrase in ("- For: `u-dont-existDOTcom/joel-articles`",
                        "- Owner request: yes, 2026-11-05",
                        "Keep the first of your three fixes",
