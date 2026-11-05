@@ -10010,6 +10010,52 @@
         }
       ],
       "exception_reason": "This is a specialist engineering workflow for external-operation and queue liveness, with a runnable deadline primitive, fault-injection regression and required project-level cancellation/containment and consumer tests. Enforcement belongs in each scheduler/resource adapter; this is not a claim of universal reasoning-agent semantic admission."
+    },
+    {
+      "id": "patterns/safety-layer-cuts.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When a safety layer cuts or refuses the agent's own output, or before a long output that carries material such a layer may treat as hazardous"
+      },
+      "actors": [
+        "reasoning agent",
+        "repository research or engineering worker",
+        "execution worker"
+      ],
+      "phases": [
+        "pre-action",
+        "reasoning",
+        "final-delivery"
+      ],
+      "destinations": [
+        "the agent's own replies, tool inputs and build outputs",
+        "the work record and the owner's next report"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/safety-layer-cuts.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_safety_layer_cuts.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "exception_reason": "A safety layer's cut happens inside the responding runtime, which no repository check can observe or intercept; whether an agent writes only what the task changes, stops after a cut and leaves cut passages to the owner shows only in its turns, so adoption needs per-turn review.",
+      "review_notes": "Owner request on 2026-11-05 (docs/requirements/2026-11-05-safety-layer-cuts.owner-requirement.json). The originating lane's reference-and-diff fix is adopted; its file-tool and smaller-pieces parts are recorded as not a fix because they re-route the same content around the safety layer. Classified WORKFLOW_ONLY: a static test proves the text and routing only."
     }
   ]
 }

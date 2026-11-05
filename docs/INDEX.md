@@ -10,6 +10,8 @@ Read in this order:
 
 For queue, external-call and worker liveness, load `../patterns/bounded-external-work-and-queue-recovery.md` and adapt `../templates/async-work-deadline.mjs` with real resource cancellation. After any bug repair, activate `../patterns/durable-chat-learning.md` for automatic finding disposition and warranted cross-project prevention guidance.
 
+When a safety layer cuts or refuses the agent's own output, or before a long output carrying material such a layer may treat as hazardous, load `../patterns/safety-layer-cuts.md`: write only what the task changes, copy the owner's unchanged text by script, never retry or re-route cut content, and leave what was cut to the owner. Requirement: `requirements/2026-11-05-safety-layer-cuts.owner-requirement.json`.
+
 For repeated local approval prompts or worker permission setup, use `../patterns/codex-worker-permissions.md` and its portable config/rules. The existing operating-system pattern owns the owner-interruption decision test.
 
 For any failure diagnosis, place the failure by stage in `../patterns/logic-failure-map.md` before repairing the diagnosed boundary. Change the map entry's check or rule only if it is itself defective. For a project whose runtime runs outside this architecture, use `../patterns/carrying-uda-into-standalone-projects.md` to select, adapt, record, synchronize, and test applicable imports.

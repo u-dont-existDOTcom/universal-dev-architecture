@@ -1,0 +1,75 @@
+{
+  "requirement_id": "2026-11-05-safety-layer-cuts",
+  "date": "2026-11-05",
+  "source": "Owner message on 2026-11-05 to the Claude session doing the UDA and Mission Control work.",
+  "owner_statement": "look at the neuro-dearmor article lane's fix for guardrail issues and put that in so we don't have this issue in other lanes",
+  "owner_statement_note": "The message went on with that lane's own analysis, summarized under lane_analysis. Its specifics (which substances, which amounts) stay out of this public record.",
+  "lane_analysis": {
+    "what_happened": "A safety layer's content classifier cut two of the lane's turns while it edited the owner's long published article.",
+    "lane_diagnosis": "The classifier judges what an output contains: many passages giving substances, doses, routes of administration and combinations at once. Two outputs set it off: a build file that reproduced many dose passages verbatim, and the retry, which generated more of them in the reply.",
+    "lane_fixes": [
+      "Work by block references and diffs, without re-emitting the dose passages.",
+      "Write verbatim dose passages to files with the file tool (\"quietly, to disk\"), never into chat replies.",
+      "Don't put many substances, doses and routes into one output; work in smaller, reference-based pieces."
+    ]
+  },
+  "disposition": {
+    "adopted": [
+      "Fix 1, as steps 2 and 3 of patterns/safety-layer-cuts.md: unchanged text is named by block ID and copied by a deterministic script; only changed passages are written, as placed edits. They apply from the start of an output; they are not used to rebuild one that was cut.",
+      "From fix 2, keeping the passages out of replies, as step 4: a reply names them by ID.",
+      "From fix 3, the reference-based pieces, which are fix 1."
+    ],
+    "not_adopted": [
+      "Writing the same passages through the file tool instead of the reply.",
+      "Splitting the same content into smaller outputs so that none is cut."
+    ],
+    "reason_not_adopted": "Both keep the content and change only how it gets out, which routes around the safety layer. UDA already treats a refusal by a permission or safety layer as a boundary that is not disguised behind another tool or route: patterns/worker-self-remediation-before-owner-interruption.md (Fail closed on genuine boundaries), patterns/agent-completable-merge-gates.md (No bypass) and patterns/suggested-fix-queue.md (step 3, ChatGPT note).",
+    "owner_told": "The owner was told in the same turn which parts were adopted, which were not, and why."
+  },
+  "problem": "A lane lost two turns to a safety layer's cuts. The first output carried far more of the owner's sensitive passages than the edit needed, since most of them were unchanged copies; the second repeated the output that had been cut. Nothing in UDA said how to keep such outputs to what a task needs, or what to do after a cut.",
+  "required_behavior": [
+    "Before a long output that carries material a safety layer may treat as hazardous, and after any cut, the agent writes only what the task changes.",
+    "Unchanged text is named by block ID, heading or exact anchor, and a build copies the owner's passages by script from the registered master.",
+    "Replies and reports name sensitive passages by ID and do not quote them back.",
+    "A cut is a boundary: the output that was cut is not retried, and the same content is not produced through another tool, in smaller pieces, reworded, encoded or masked, by another model, or copied into that output by a script.",
+    "When the task needs the output that was cut, or needs the agent itself to write passages the safety layer cuts, those passages stay as the owner wrote them, are listed in the work record and the next report, and the owner decides; the rest of the work goes on."
+  ],
+  "basis": [
+    "The owner's statement above and the lane's analysis it carried.",
+    "patterns/worker-self-remediation-before-owner-interruption.md, patterns/agent-completable-merge-gates.md and patterns/suggested-fix-queue.md, for the boundary.",
+    "patterns/editorial-authority-and-lossless-editing.md, patterns/targeted-artifact-edit-preservation.md and patterns/transformation-preservation-proof.md, for placed edits and exact copies."
+  ],
+  "scope": "patterns/safety-layer-cuts.md; its LESSON-INDEX.md entry, docs/INDEX.md route, coverage entry and coverage report counts; a row in patterns/logic-failure-map.md; a suggested fix for the originating lane in suggested-fixes/joel-articles/; this record; tests/test_safety_layer_cuts.py.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "Other lanes don't lose turns to safety-layer cuts the way this lane did.",
+    "notes": "Which parts of the lane's fix are not adopted, and why, is the assistant's decision under UDA's existing boundary rules; the rule's wording is the assistant's specification of the owner's request."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/safety-layer-cuts.md, reached through LESSON-INDEX.md and patterns/logic-failure-map.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "The originating lane in joel-articles",
+      "disposition": "QUEUED",
+      "reason": "suggested-fixes/joel-articles/2026-11-05-safety-layer-cuts.md asks it to keep its reference fix and drop the two parts that re-route content; its own agent records the outcome."
+    },
+    {
+      "surface": "Other workstreams' sessions",
+      "disposition": "QUEUED",
+      "reason": "Each session applies the rule when its trigger matches, after loading LESSON-INDEX.md as root AGENTS.md requires before any task."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "No repository rule can see or stop a safety layer's cut; the tests check the rule's text and routing, not any lane's turns (WORKFLOW_ONLY).",
+    "Nothing here predicts which outputs a safety layer will cut, or decides what content a task may contain.",
+    "Following the rule doesn't guarantee that a task which needs the agent to write such passages can be finished by the agent; that part goes to the owner."
+  ]
+}
