@@ -21,6 +21,7 @@ def section(text, heading):
 
 RULE_PHRASES = (
     "1. **Write only what the task changes.**",
+    "Before a long output that carries material a safety layer may treat as hazardous, such as drug doses, routes and combinations, and again after any cut, check how much of that material the task needs the agent to write.",
     "The measure is what the task needs, not what the safety layer lets through.",
     "2. **Point to text that stays the same.**",
     "3. **Copy the owner's text with a script.**",
@@ -92,12 +93,13 @@ class SafetyLayerCutsTests(unittest.TestCase):
         line = re.search(r"^89\. `patterns/safety-layer-cuts\.md` — (.*)$", index, re.M)
         self.assertIsNotNone(line)
         for phrase in ("When a safety layer cuts or refuses the agent's own output",
+                       "or before a long output that carries material such a layer may treat as hazardous (for example drug doses, routes and combinations)",
                        "never retry or re-route cut content (another tool, smaller pieces, rewording or masking, another model)",
                        "tell the owner what only the agent could have written"):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, line[1])
         docs = read("docs/INDEX.md")
-        self.assertIn("load `../patterns/safety-layer-cuts.md`", docs)
+        self.assertIn("When a safety layer cuts or refuses the agent's own output, or before a long output carrying material such a layer may treat as hazardous, load `../patterns/safety-layer-cuts.md`", docs)
         self.assertIn("`requirements/2026-11-05-safety-layer-cuts.owner-requirement.json`", docs)
         failure_map = read("patterns/logic-failure-map.md")
         row = next(r for r in failure_map.splitlines() if r.startswith("| LF-6.9 |"))
@@ -111,6 +113,8 @@ class SafetyLayerCutsTests(unittest.TestCase):
         self.assertEqual("INDEX_TRIGGER", entry["activation_route"]["kind"])
         line = re.search(r"^89\. `patterns/safety-layer-cuts\.md` — (.*)$", read("LESSON-INDEX.md"), re.M)[1]
         self.assertTrue(line.startswith(entry["activation_route"]["detail"]))
+        # Both activations: after a cut, and before a long output that may be cut.
+        self.assertTrue(entry["activation_route"]["detail"].endswith("or before a long output that carries material such a layer may treat as hazardous"))
         self.assertIn({"path": "tests/test_safety_layer_cuts.py", "class": "TEXT_PRESENCE"}, entry["evidence"])
         self.assertIn(REQUIREMENT, entry["review_notes"])
 
@@ -124,6 +128,7 @@ class SafetyLayerCutsTests(unittest.TestCase):
         self.assertIn("smaller outputs so that none is cut", not_adopted)
         self.assertIn("routes around the safety layer", record["disposition"]["reason_not_adopted"])
         self.assertIn("named by block ID", " ".join(record["disposition"]["adopted"]))
+        self.assertTrue(record["required_behavior"][0].startswith("Before a long output that carries material a safety layer may treat as hazardous, and after any cut"))
 
     def test_originating_lane_is_told(self):
         item = read(LANE_ITEM)
