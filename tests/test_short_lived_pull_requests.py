@@ -16,7 +16,8 @@ RULE_PHRASES = (
     "1. **Merge when the gates pass.**",
     "A lane merges its own pull request in the turn its gates pass, under the authority it has for that repository",
     "the lane turns on auto-merge (`gh pr merge <number> --auto`, with the repository's merge method, such as `--squash`)",
-    "That needs the repository to allow auto-merge, and its rules must enforce the gates",
+    "Where the repository also requires branches to be up to date, a merge that lands first stalls it until the branch is updated: the lane's next mailbox check does that (step 2), and until then its handoff lists the pull request as waiting for auto-merge.",
+    "Auto-merge needs the repository to allow it, and its rules must enforce the gates",
     "When the gate is the owner's yes, the pull request is made ready first, up to date and free of conflicts, and auto-merge goes on right after his yes.",
     "2. **Conflicts are the lane's job.**",
     "the lane updates the branch from the branch it targets and resolves the conflicts itself.",
@@ -84,6 +85,10 @@ class ShortLivedPullRequestTests(unittest.TestCase):
                        "Neither tool resolves a conflict."):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, github)
+
+    def test_owner_survey_stays_in_the_labeled_example(self):
+        self.assertNotIn("130 open pull requests", section(self.pattern, "Problem"))
+        self.assertIn("130 open pull requests", section(self.pattern, "Example (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT)"))
 
     def test_it_relies_on_existing_rules(self):
         for relative, phrase in (
