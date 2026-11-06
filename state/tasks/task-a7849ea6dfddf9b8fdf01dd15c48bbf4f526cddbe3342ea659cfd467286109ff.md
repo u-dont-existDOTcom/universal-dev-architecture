@@ -1,0 +1,39 @@
+# Current State — Claude UDA bootstrap latency: bug report and one-command fix
+
+## Goal
+
+- Task ID: `pr-389`.
+- Branch: `uda-lane/claude-bootstrap-latency`.
+- File the owner-requested bug report on slow UDA loading in Claude, and the fix: `audits/2026-10-16-claude-uda-bootstrap-latency.md`.
+
+## Authority / baseline
+
+- Owner request, 2026-10-16, in a Claude chat: send a bug report to the UDA lane; fix the UDA-loading part first.
+- Baseline: `main` at the time of branching.
+
+## Completed
+
+- Bug report with mechanism, measurements and nonclaims.
+- `scripts/uda_bootstrap.py` and `tests/test_uda_bootstrap.py`: one command prints the commit, `AGENTS.md` or an unchanged notice, a compact index with rule-graph coverage marks, and requested pattern ranges.
+- `patterns/github-first-agent-bootstrap.md` → **Fast per-turn bootstrap**.
+
+## Current checkpoint
+
+- Pull request opened with the `uda-lane` label for the maintainer lane.
+
+## Remaining
+
+- Maintainer lane: wire the script into the root per-turn invariant, decide the hash rule, consider short forms for long patterns, and give the owner replacement text for his claude.ai preferences.
+
+## Blockers / unresolved
+
+- Root `AGENTS.md` wording and its clause pins are left to the maintainer lane.
+
+## Evidence / artifacts
+
+- `python3 -m unittest discover -s tests -v`: **PASS**, 973 tests on this branch (2026-10-16): 971 passed in the full run; the other 2 checked this checkpoint's evidence format, failed, and passed when rerun after the fix
+- `python3 scripts/audit_codex_github.py --root . --fail-on error`: **PASS**, 0 errors, 0 warnings
+
+## Next safe action
+
+- Maintainer lane reviews the pull request at its next check-in.

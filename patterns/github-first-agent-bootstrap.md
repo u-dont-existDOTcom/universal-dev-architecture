@@ -31,6 +31,21 @@ A fresh worker should:
 
 This makes one Git commit immediately visible to future chats instead of requiring manual source replacement, and makes a fresh conversation safe even when earlier context was compacted or lost.
 
+### Fast per-turn bootstrap
+
+Loading the rules should cost about two tool calls, not one call per file (owner report, 2026-10-16: `audits/2026-10-16-claude-uda-bootstrap-latency.md`).
+
+1. **Fetch and print in one call.** Use a shell when one is available: pull an existing checkout, or shallow-clone (`git clone --depth 1`) when there is none. In the same command, run `python3 scripts/uda_bootstrap.py`. It prints the commit, root `AGENTS.md` and a compact index, one line per entry. Entries marked `[graph]` are covered by `scripts/uda_rule_graph.py`; resolve only those in the graph and route the rest through the index. Don't try an API route first when anonymous git reads work.
+2. **Read the chosen patterns in one call.** Pass every selected pattern, or the line range you need, to `--read` in one invocation.
+3. **Skip unchanged bytes.** On later turns, fetch again and pass the sha256 of the `AGENTS.md` already in context as `--known-sha`. When the script reports it unchanged, the copy in context is the current file, and it need not be printed again. Use `--known-index-sha` the same way for the index. The fetch itself still happens every turn.
+4. **No shell.** Fetch `AGENTS.md` and `LESSON-INDEX.md` in one parallel batch, then fetch the chosen patterns in a second batch.
+
+Selection stays with the agent. The script prints triggers; it does not decide which lessons apply.
+
+#### Example (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT)
+
+In the owner's Claude cloud sessions on 2026-10-16, an anonymous shallow clone of the public architecture repository worked through the session's git proxy, while `gh api` returned HTTP 403 until the repository was attached. The clone plus a hash took 1.9 seconds, and the script took 0.05 seconds.
+
 ### Treat conversation as disposable working memory
 
 Conversation/context is working RAM, not durable project memory. Automatic context compaction can extend a run, but it cannot be assumed to preserve every fine-grained decision.
