@@ -102,7 +102,7 @@ Use this file as the entry point for cross-project lesson retrieval. This is a r
 
 89. `patterns/safety-layer-cuts.md` — When a safety layer cuts or refuses the agent's own output, or before a long output that carries material such a layer may treat as hazardous (for example drug doses, routes and combinations): write only what the task changes, point to unchanged text by block ID and copy the owner's text with a script, keep those passages out of replies, never retry or re-route cut content (another tool, smaller pieces, rewording or masking, a script copying the same passages, another model), and leave what was cut to the owner.
 
-90. `patterns/short-lived-pull-requests.md` — When opening, finishing or handing off a pull request, at each turn's mailbox check of the lane's own open pull requests, or when a pull request has conflicts or is behind main: merge it in the turn its gates pass (auto-merge when a required check is still running), update the branch and resolve conflicts yourself, give every open pull request an outcome (merge, fix or close), keep off shared lines, and branch from current main.
+90. `patterns/short-lived-pull-requests.md` — When opening, finishing or handing off a pull request, at each turn's mailbox check of the lane's own open pull requests, or when a pull request has conflicts or is behind its base branch: merge it in the turn its gates pass (auto-merge when a required check is still running), update the branch and resolve conflicts yourself, give every open pull request an outcome (merge, fix or close), keep off shared lines, and branch from the current default branch.
 
 ## Kernel cross-reference
 

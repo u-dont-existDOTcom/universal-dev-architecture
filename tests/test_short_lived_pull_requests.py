@@ -15,11 +15,11 @@ OWNER_STATEMENT = ("the gut article humanization pr chat just told me that my pr
 RULE_PHRASES = (
     "1. **Merge when the gates pass.**",
     "A lane merges its own pull request in the turn its gates pass, under the authority it has for that repository",
-    "the lane turns on auto-merge (`gh pr merge <number> --auto --squash`)",
+    "the lane turns on auto-merge (`gh pr merge <number> --auto`, with the repository's merge method, such as `--squash`)",
     "That needs the repository to allow auto-merge, and its rules must enforce the gates",
     "When the gate is the owner's yes, the pull request is made ready first, up to date and free of conflicts, and auto-merge goes on right after his yes.",
     "2. **Conflicts are the lane's job.**",
-    "the lane updates the branch from main and resolves the conflicts itself, keeping both sides' changes.",
+    "the lane updates the branch from the branch it targets and resolves the conflicts itself, keeping both sides' changes.",
     "It never hands a conflict to the owner.",
     "3. **No pull request sits.**",
     "gives each one an outcome: merge it, fix it or close it.",
@@ -29,7 +29,9 @@ RULE_PHRASES = (
     "Prefer collision-free names, such as a date and a slug, to the next number in a sequence.",
     "Prefer counts computed by a script to counts kept by hand.",
     "When a repository's own rules make every change edit the same lines, the fix is to change the repository.",
-    "5. **Start from current main.**",
+    "5. **Start from the current default branch.**",
+    "A new pull request branches from the repository's default branch as it is now (main in most repositories), not from another open branch, unless it is deliberately stacked on that branch and says so.",
+    "A stacked pull request is updated from the branch it is stacked on.",
 )
 
 

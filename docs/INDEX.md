@@ -10,7 +10,7 @@ Read in this order:
 
 For queue, external-call and worker liveness, load `../patterns/bounded-external-work-and-queue-recovery.md` and adapt `../templates/async-work-deadline.mjs` with real resource cancellation. After any bug repair, activate `../patterns/durable-chat-learning.md` for automatic finding disposition and warranted cross-project prevention guidance.
 
-When opening, finishing or handing off a pull request, or when one has conflicts or is behind main, load `../patterns/short-lived-pull-requests.md`: merge when the gates pass, fix conflicts yourself, give every open pull request an outcome, and keep off shared lines. Requirement: `requirements/2026-11-06-short-lived-pull-requests.owner-requirement.json`.
+When opening, finishing or handing off a pull request, or when one has conflicts or is behind its base branch, load `../patterns/short-lived-pull-requests.md`: merge when the gates pass, fix conflicts yourself, give every open pull request an outcome, and keep off shared lines. Requirement: `requirements/2026-11-06-short-lived-pull-requests.owner-requirement.json`.
 
 When a safety layer cuts or refuses the agent's own output, or before a long output carrying material such a layer may treat as hazardous, load `../patterns/safety-layer-cuts.md`: write only what the task changes, copy the owner's unchanged text by script, never retry or re-route cut content, and leave what was cut to the owner. Requirement: `requirements/2026-11-05-safety-layer-cuts.owner-requirement.json`.
 

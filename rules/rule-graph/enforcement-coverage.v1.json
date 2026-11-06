@@ -10065,7 +10065,7 @@
       "behavioral": true,
       "activation_route": {
         "kind": "INDEX_TRIGGER",
-        "detail": "When opening, finishing or handing off a pull request, at each turn's mailbox check of the lane's own open pull requests, or when a pull request has conflicts or is behind main"
+        "detail": "When opening, finishing or handing off a pull request, at each turn's mailbox check of the lane's own open pull requests, or when a pull request has conflicts or is behind its base branch"
       },
       "actors": [
         "reasoning agent",

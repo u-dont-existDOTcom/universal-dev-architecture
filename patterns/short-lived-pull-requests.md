@@ -6,7 +6,7 @@ Current universal pattern. Origin: **OWNER** request, 2026-11-06, after another 
 
 ## Problem
 
-A pull request conflicts when main changes the same lines while it waits. The longer it stays open, the more other work merges around it. Without automation, a pull request merges only when someone is there to merge it: an agent whose turn has ended, or the owner, who is then told "pr has conflicts".
+A pull request conflicts when the branch it targets, usually main, changes the same lines while it waits. The longer it stays open, the more other work merges around it. Without automation, a pull request merges only when someone is there to merge it: an agent whose turn has ended, or the owner, who is then told "pr has conflicts".
 
 On 2026-11-06 the owner's seven repositories had 130 open pull requests: 41 with conflicts, 61 mergeable but behind main, 22 ready. Of the 41 with conflicts, 36 were more than a week old and 30 were drafts. Most of the conflicts sat in old or abandoned work, not in fresh pull requests.
 
@@ -18,11 +18,11 @@ There are three causes, and automation fixes one of them:
 
 ## Rule
 
-1. **Merge when the gates pass.** A lane merges its own pull request in the turn its gates pass, under the authority it has for that repository (`patterns/agent-completable-merge-gates.md`). If a required check is still running when the turn ends, the lane turns on auto-merge (`gh pr merge <number> --auto --squash`), so GitHub merges the pull request when the check passes. That needs the repository to allow auto-merge, and its rules must enforce the gates (`patterns/codex-github-operating-system.md`, **Merge discipline**). When the gate is the owner's yes, the pull request is made ready first, up to date and free of conflicts, and auto-merge goes on right after his yes.
-2. **Conflicts are the lane's job.** Before asking for a merge, before merging, and whenever its pull request shows conflicts, the lane updates the branch from main and resolves the conflicts itself, keeping both sides' changes. Then it runs its checks again. It never hands a conflict to the owner. A branch that is only behind is updated (`gh pr update-branch <number>`) and its checks run again.
+1. **Merge when the gates pass.** A lane merges its own pull request in the turn its gates pass, under the authority it has for that repository (`patterns/agent-completable-merge-gates.md`). If a required check is still running when the turn ends, the lane turns on auto-merge (`gh pr merge <number> --auto`, with the repository's merge method, such as `--squash`), so GitHub merges the pull request when the check passes. That needs the repository to allow auto-merge, and its rules must enforce the gates (`patterns/codex-github-operating-system.md`, **Merge discipline**). When the gate is the owner's yes, the pull request is made ready first, up to date and free of conflicts, and auto-merge goes on right after his yes.
+2. **Conflicts are the lane's job.** Before asking for a merge, before merging, and whenever its pull request shows conflicts, the lane updates the branch from the branch it targets and resolves the conflicts itself, keeping both sides' changes. Then it runs its checks again. It never hands a conflict to the owner. A branch that is only behind is updated (`gh pr update-branch <number>`) and its checks run again.
 3. **No pull request sits.** At each turn's mailbox check (`patterns/suggested-fix-queue.md`), the lane lists its own open pull requests with their state (ready, behind, conflicting or draft) and their age, and gives each one an outcome: merge it, fix it or close it. A draft it won't finish, or one that another change replaced, is closed with one line saying why and what replaced it. A pull request open for more than a week has its reason and next step in the lane's handoff.
 4. **Keep off shared lines.** Prefer one file per item to one long shared file. Prefer collision-free names, such as a date and a slug, to the next number in a sequence. Prefer counts computed by a script to counts kept by hand. When a change must touch a shared line, it touches only that line and merges fast. When a repository's own rules make every change edit the same lines, the fix is to change the repository.
-5. **Start from current main.** A new pull request branches from main as it is now, not from another open branch, unless it is deliberately stacked on that branch and says so.
+5. **Start from the current default branch.** A new pull request branches from the repository's default branch as it is now (main in most repositories), not from another open branch, unless it is deliberately stacked on that branch and says so. A stacked pull request is updated from the branch it is stacked on.
 
 ## What GitHub offers
 
