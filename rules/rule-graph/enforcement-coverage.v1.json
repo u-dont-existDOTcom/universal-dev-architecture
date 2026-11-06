@@ -10056,6 +10056,52 @@
       ],
       "exception_reason": "A safety layer's cut happens inside the responding runtime, which no repository check can observe or intercept; whether an agent writes only what the task changes, stops after a cut and leaves cut passages to the owner shows only in its turns, so adoption needs per-turn review.",
       "review_notes": "Owner request on 2026-11-05 (docs/requirements/2026-11-05-safety-layer-cuts.owner-requirement.json). The originating lane's reference-and-diff fix is adopted; its file-tool and smaller-pieces parts are recorded as not a fix because they re-route the same content around the safety layer. Classified WORKFLOW_ONLY: a static test proves the text and routing only."
+    },
+    {
+      "id": "patterns/short-lived-pull-requests.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When opening, finishing or handing off a pull request, at each turn's mailbox check of the lane's own open pull requests, or when a pull request has conflicts or is behind main"
+      },
+      "actors": [
+        "reasoning agent",
+        "repository research or engineering worker",
+        "execution worker"
+      ],
+      "phases": [
+        "pre-action",
+        "handoff",
+        "final-delivery"
+      ],
+      "destinations": [
+        "the lane's open pull requests and their branches",
+        "the lane's handoff"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/short-lived-pull-requests.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_short_lived_pull_requests.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "exception_reason": "Whether a lane merges its pull requests when their gates pass, resolves its own conflicts and closes what it won't finish happens across its turns and GitHub's live state, which a repository check cannot observe; adoption needs per-turn review.",
+      "review_notes": "Owner request on 2026-11-06 (docs/requirements/2026-11-06-short-lived-pull-requests.owner-requirement.json), after another lane named the missing merge automation as the cause of his conflicts. The survey that day found waiting, leftover drafts and shared lines as causes; auto-merge addresses only the first. Classified WORKFLOW_ONLY: a static test proves the text and routing only."
     }
   ]
 }

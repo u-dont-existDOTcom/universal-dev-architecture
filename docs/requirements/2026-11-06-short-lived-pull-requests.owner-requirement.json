@@ -1,0 +1,62 @@
+{
+  "requirement_id": "2026-11-06-short-lived-pull-requests",
+  "date": "2026-11-06",
+  "source": "Owner message on 2026-11-06 to the Claude session doing the UDA and Mission Control work.",
+  "owner_statement": "the gut article humanization pr chat just told me that my prs keep conflicting everywhere because i don't have a github robot to merge stuff automatically, i can't believe all this time i've never been able to get this answer from your or gpt, can we then add that UDA or what",
+  "claim_checked": {
+    "claim": "Another lane's statement, as the owner reports it: the pull requests conflict because nothing merges them automatically.",
+    "survey": "On 2026-11-06 at about 20:00 UTC the owner's seven repositories had 130 open pull requests: 41 with conflicts, 61 mergeable but behind main, 22 ready, 5 with failing or pending checks, 1 not yet computed. Of the 41 with conflicts, 36 were more than a week old and 30 were drafts. 71 of the 130 were drafts. None of the repositories allowed auto-merge.",
+    "verdict": "Partly right. Waiting for a merge is one cause, and auto-merge removes it for pull requests whose gates are checks. Two other causes remain: drafts and replaced pull requests left open, and lanes editing the same lines of shared files. Automation fixes neither, and neither auto-merge nor a merge queue resolves a conflict.",
+    "github_facts": [
+      "Auto-merge merges a pull request after all required reviews and status checks pass; it must be allowed in the repository; it is available in public repositories on GitHub Free and in private ones on paid plans (GitHub Docs, 'Automatically merging a pull request').",
+      "A merge queue is available only in repositories owned by an organization, public or private on GitHub Enterprise Cloud; it removes a pull request that has conflicts (GitHub Docs, 'Managing a merge queue')."
+    ]
+  },
+  "problem": "Lanes left pull requests open until main moved past them: some waited for a merge that came only when someone was present, some were drafts nobody finished or closed, and some edited the same lines as other lanes' work. The owner was then told that his pull requests had conflicts.",
+  "required_behavior": [
+    "A lane merges its own pull request in the turn its gates pass, under its authority for that repository; if a required check is still running as the turn ends, it turns on auto-merge where the repository allows it and its rules enforce the gates.",
+    "When the gate is the owner's yes, the pull request is made ready first (up to date, free of conflicts) and auto-merge goes on right after his yes.",
+    "The lane updates its branch and resolves conflicts itself, keeping both sides' changes, and runs its checks again; it never hands a conflict to the owner.",
+    "At each turn's mailbox check, the lane lists its own open pull requests with their state and age and gives each an outcome: merge, fix or close; a pull request open for more than a week has its reason and next step in the handoff.",
+    "Lanes keep off shared lines: one file per item, collision-free names, computed counts; a change to a shared line touches only that line and merges fast.",
+    "A new pull request branches from current main unless it is deliberately stacked and says so."
+  ],
+  "basis": [
+    "The owner's statement above and the survey of his open pull requests.",
+    "patterns/codex-github-operating-system.md, section 6 (baseline ruleset, merge discipline, auto-merge only after enforced checks and reviews).",
+    "patterns/agent-completable-merge-gates.md, patterns/parallel-chat-write-isolation.md and patterns/suggested-fix-queue.md."
+  ],
+  "scope": "patterns/short-lived-pull-requests.md; its LESSON-INDEX.md entry, docs/INDEX.md route, coverage entry and coverage report counts; a row in patterns/logic-failure-map.md; one item each in the AskRigor, innerSignalGraph, pangram-humanization-lab, joel-articles and humandesign lanes; this record; tests/test_short_lived_pull_requests.py.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "His pull requests stop piling up conflicts, without him merging or untangling them.",
+    "notes": "The rule's wording and the survey are the assistant's; turning on auto-merge in the repositories' settings is a change to persistent configuration and waits for the owner's own word, asked on his questions page."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/short-lived-pull-requests.md, reached through LESSON-INDEX.md and patterns/logic-failure-map.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "The lanes of AskRigor, innerSignalGraph, pangram-humanization-lab, joel-articles and humandesign",
+      "disposition": "QUEUED",
+      "reason": "Each lane gets an item asking it to give every open pull request in its repository an outcome; its own agent records the outcome."
+    },
+    {
+      "surface": "The repositories' auto-merge setting",
+      "disposition": "QUEUED",
+      "reason": "Off in every repository on 2026-11-06; turning it on waits for the owner's word."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "No repository rule can see whether a lane merges, fixes or closes its pull requests; the tests check text and routing (WORKFLOW_ONLY).",
+    "Auto-merge and merge queues do not resolve conflicts; this record does not claim that automation alone stops them.",
+    "This rule grants no merge authority; each repository's gates and the owner decide who may merge what."
+  ]
+}

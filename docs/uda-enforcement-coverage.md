@@ -39,9 +39,9 @@ The systemic gap fits existing logic-map entries: LF-2.1 for unloaded/stale guid
 
 ## Current counts
 
-Inventory entries: 103
+Inventory entries: 104
 
-Indexed patterns: 89
+Indexed patterns: 90
 
 Migration backlog: 78
 
@@ -51,7 +51,7 @@ Task-time records: 78, sourced from 13 files, with 2 mechanical and 86 semantic 
 |---|---:|
 | STRUCTURED_ENFORCED | 9 |
 | STRUCTURED_PARTIAL | 9 |
-| WORKFLOW_ONLY | 14 |
+| WORKFLOW_ONLY | 15 |
 | LEGACY_UNSTRUCTURED | 69 |
 | NOT_ACTIVE | 2 |
 
@@ -1247,3 +1247,7 @@ The queue-recovery workflow adds one explicit WORKFLOW_ONLY specialist pattern, 
 ## 2026-11-05 safety-layer cut addition
 
 `patterns/safety-layer-cuts.md` adds one WORKFLOW_ONLY pattern for agents whose own output a runtime's safety layer cuts or refuses. Its tests check the rule's text, its routes and the owner requirement record; they cannot observe a cut or prove that an agent stopped after one. The legacy baseline, task-time records and migration backlog are unchanged.
+
+## 2026-11-06 short-lived pull request addition
+
+`patterns/short-lived-pull-requests.md` adds one WORKFLOW_ONLY pattern for how long a lane's pull requests stay open and who resolves their conflicts. Its tests check the rule's text, its routes, the owner requirement record and the lane items; they cannot observe whether a lane merges or closes its pull requests. The legacy baseline, task-time records and migration backlog are unchanged.
