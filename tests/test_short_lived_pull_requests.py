@@ -31,8 +31,10 @@ RULE_PHRASES = (
     "Prefer collision-free names, such as a date and a slug, to the next number in a sequence.",
     "Prefer counts computed by a script to counts kept by hand.",
     "When a repository's own rules make every change edit the same lines, the fix is to change the repository.",
-    "5. **Start from the current default branch.**",
-    "A new pull request branches from the repository's default branch as it is now (main in most repositories), not from another open branch, unless it is deliberately stacked on that branch and says so.",
+    "5. **Start from the current target branch.**",
+    "A new pull request branches from the branch it will merge into, as that branch is now.",
+    "That is the repository's default branch (main in most repositories), unless the pull request targets another branch on purpose, such as a release branch.",
+    "It doesn't branch from another open pull request's branch unless it is deliberately stacked on it and says so.",
     "A stacked pull request is updated from the branch it is stacked on.",
 )
 

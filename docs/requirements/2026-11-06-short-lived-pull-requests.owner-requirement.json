@@ -19,7 +19,7 @@
     "The lane updates its branch from the branch it targets and resolves conflicts itself, keeping what each side meant (both changes where they fit together; where they contradict, the one current authority supports, with the other side's useful work kept and its source noted), and runs its checks again; only a real decision that current authority can't settle goes to the owner, as one question with a recommendation.",
     "At each turn's mailbox check, the lane lists its own open pull requests with their state and age and gives each an outcome: merge, fix or close; a pull request open for more than a week has its reason and next step in the handoff.",
     "Lanes keep off shared lines: one file per item, collision-free names, computed counts; a change to a shared line touches only that line and merges fast.",
-    "A new pull request branches from the repository's current default branch unless it is deliberately stacked and says so; a stacked one is updated from the branch it is stacked on."
+    "A new pull request branches from the current state of the branch it will merge into, normally the default branch (another branch, such as a release branch, only on purpose), not from another open pull request's branch unless it is deliberately stacked and says so; a stacked one is updated from the branch it is stacked on."
   ],
   "basis": [
     "The owner's statement above and the survey of his open pull requests.",
