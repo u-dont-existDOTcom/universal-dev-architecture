@@ -144,8 +144,12 @@ class ShortLivedPullRequestTests(unittest.TestCase):
                 self.assertIn("Closing is not deleting", item)
 
     def test_public_files_carry_no_private_locators(self):
-        private = re.compile(r"claude\.ai/|chatgpt\.com/|/home/|atlas-ledger", re.I)
-        for relative in (RELATIVE, REQUIREMENT) + tuple(f"suggested-fixes/{l}/2026-11-06-open-pull-request-outcomes.md" for l in LANES):
+        # Generic patterns only: naming a private repository here would publish it. This file holds the patterns, so it
+        # is not scanned itself; the task record is.
+        private = re.compile(r"claude\.ai/|chatgpt\.com/|/home/", re.I)
+        record = next(p.relative_to(ROOT).as_posix() for p in sorted((ROOT / "state" / "tasks").glob("task-*.md"))
+                      if "Branch: `claude/short-lived-pull-requests-20261106`" in p.read_text(encoding="utf-8"))
+        for relative in (RELATIVE, REQUIREMENT, record) + tuple(f"suggested-fixes/{l}/2026-11-06-open-pull-request-outcomes.md" for l in LANES):
             with self.subTest(relative=relative):
                 self.assertIsNone(private.search(read(relative)))
 
