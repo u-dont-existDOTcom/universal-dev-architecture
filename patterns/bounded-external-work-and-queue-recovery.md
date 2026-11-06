@@ -17,6 +17,28 @@ A process can answer its health endpoint while its useful work is permanently bl
 5. **Observe useful progress.** Report active age, queued count, expired/stalled state and recovery counters without private payloads or credentials. Base readiness/degraded state on the functional worker too. Where automatic recovery is promised, bind it to a tested restart/termination mechanism; a Docker unhealthy label alone is not proof of automatic restart. Never make readiness depend on an expensive external request on every probe.
 6. **Prove failure recovery at the consumer boundary.** Inject a request that never settles, a body that ignores destruction, a missing terminal event, queue expiry, shared duplicates and a late result. Assert a bounded timeout, real cancellation/containment, state/buffer cleanup, no paid fallback or duplicate write, and successful subsequent work, including retry of the original identity. Also test ordinary success, source/security limits and real consumer retrieval after deployment. A happy-path burst and a process-only health check do not establish this property.
 
+### Persistent services and short-lived checks
+
+Give a persistent worker its own supervised lifetime. A scheduled probe or
+short-lived client must not become the lifetime owner of a browser/daemon that
+other clients need. Creating a new process session does not by itself move a
+child out of a service manager's cgroup. Verify that the daemon remains alive
+after the actual probe/client exits, and that its crash is recovered with its
+intended private state retained. When older clients can still invoke a launcher,
+put the ownership guard in that launcher too; a client-only source change does
+not update an already-imported process. A declined launch must not replace the
+live controller's status record.
+
+Before automatic reset, classify the failure. Distinguish a confirmed local
+stall from legitimate busy work, an expired login/human challenge, unavailable
+configuration, or an upstream/route outage. Retry only within a bounded probe
+budget, target only the affected service, reserve a durable recovery attempt
+before executing it, and impose cooldown/attempt limits. Record unresolved
+attention states and the actual alert/delivery route; a local journal entry is
+not a push notification. Test reset success, reset failure, exhausted/corrupt
+budgets and a real post-recovery consumer operation. See the deidentified
+deployment evidence in `audits/2026-11-03-persistent-worker-probe-lifetimes.md`.
+
 ## Reusable starting point
 
 `templates/async-work-deadline.mjs` supplies a small scheduler-owned deadline primitive. It is not a network adapter or a complete queue. The operation must pass its signal to an abort-capable resource, explicitly close it on abort, or use a terminable isolated worker. `tests/test_async_work_deadline.py` exercises never-settling work, cooperative resource cancellation, late-result rejection and recovery of a serialized consumer.
