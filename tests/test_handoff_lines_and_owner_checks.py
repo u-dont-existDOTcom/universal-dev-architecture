@@ -129,7 +129,12 @@ class VisualJokeTests(unittest.TestCase):
         for phrase in (
             "**Do not overcomplete the joke.**",
             "If the gag still works when an explanatory caption is removed, remove it. Trust the picture.",
+            "1. **Cold-view test:**",
             "2. **Caption-necessity test:**",
+            "3. **Series distinctness test:**",
+            "4. **Owner-brief test:**",
+            "5. **Export test:**",
+            "If any test fails, revise the concept rather than adding explanation to compensate.",
             "This rule is **not a ban on captions**.",
         ):
             with self.subTest(phrase=phrase[:60]):
