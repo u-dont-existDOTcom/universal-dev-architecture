@@ -147,7 +147,9 @@ When a workstream needs anything from the owner, keep it on that workstream's on
 
 When work may continue from another of the owner's accounts, load `../patterns/cross-account-continuity.md`: Git holds the state a successor needs, and the local handoff note points to it. Owner requirement: `requirements/2026-10-10-cross-account-continuity.owner-requirement.json`.
 
-Every final answer in the owner's work that spans more than one turn ends with one GH handoff line that links the checkpoint saved this turn, or the latest verified checkpoint when this turn's save failed, or that states the save or access blocker when nothing can be saved: `../patterns/owner-requested-terminal-github-handoff.md`. Owner requirement: `requirements/2026-11-03-github-handoff-standing.owner-requirement.json`.
+Every final answer in the owner's work that spans more than one turn, a new chat's first turn included, ends with the account resume line and then one GH handoff line that links the checkpoint saved this turn, or the latest verified checkpoint when this turn's save failed, or that states the save or access blocker when nothing can be saved: `../patterns/owner-requested-terminal-github-handoff.md`. Owner requirements: `requirements/2026-11-03-github-handoff-standing.owner-requirement.json` and `requirements/2026-11-08-handoff-lines-in-new-chats.owner-requirement.json`.
+
+Don't check whether the owner has merged or answered something, on GitHub, his questions page or an artifact, until he says he has or asks you to check: `../patterns/owner-says-when-to-check.md`. Owner requirement: `requirements/2026-11-08-owner-says-when-to-check.owner-requirement.json`.
 
 At the start of every turn, check your mailbox, including your lane in `../suggested-fixes/`, and file suggestions for projects you aren't working on there: `../patterns/suggested-fix-queue.md`. Owner requirement for the every-turn check: `requirements/2026-10-31-lane-mailbox-every-turn.owner-requirement.json`.
 

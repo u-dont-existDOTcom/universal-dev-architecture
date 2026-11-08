@@ -21,6 +21,7 @@ Some surfaces keep state for one account only. A Claude artifact can be read and
 
    The note points to Git; it does not replace it. A session that starts a new line of work adds its note to the folder's index.
 4. **Before the turn ends,** the Git copy and the handoff note are both current. A session that cannot reach a view owned by another account says so, updates the Git copy, and gives the owner the Git link. The next session in the account that owns the view republishes it from the Git copy.
+5. **The resume line ends every reply (owner rule).** The owner's standing preference asks for the one-line handoff for his other account at the end of each turn, and on 2026-11-08 he reported that new chats still left it out ("new chats are still not giving me the account handoff line at the end for some reason"). So in his project work every final answer, a new chat's first turn included, ends with the resume line, followed only by the `GH handoff:` line (`patterns/owner-requested-terminal-github-handoff.md`). Where the session wrote the handoff note, the line names the note. Where it couldn't, for example in a chat that can't reach the computer that holds the folder, the line says so and names the Git checkpoint instead, so it still works from the other account. When nothing could be saved, the line says what wasn't saved and why. A self-contained answer, such as a translation or a quick fact, needs neither line.
 
 ## Bounds
 
@@ -30,4 +31,4 @@ Some surfaces keep state for one account only. A Claude artifact can be read and
 
 ## Reference implementation (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT)
 
-The owner's local handoff folder is `~/claude-acceptance-transfer/handoffs/` on his laptop. Its `README.md` holds the index table (work, note, writer) and the resume line: "Continue my <work name> work: on my laptop, read ~/claude-acceptance-transfer/handoffs/<file> and carry on from its next step." A Claude session in either of his accounts reaches the folder through Claude Code on the laptop or through Desktop Commander.
+The owner's local handoff folder is `~/claude-acceptance-transfer/handoffs/` on his laptop. Its `README.md` holds the index table (work, note, writer) and the resume line: "Continue my <work name> work: on my laptop, read ~/claude-acceptance-transfer/handoffs/<file> and carry on from its next step." A Claude session in either of his accounts reaches the folder through Claude Code on the laptop or through Desktop Commander. A chat that can't reach the laptop ends with "Continue my <work name> work: read <link to the Git checkpoint> and carry on from its next step (this chat couldn't update the laptop note)."

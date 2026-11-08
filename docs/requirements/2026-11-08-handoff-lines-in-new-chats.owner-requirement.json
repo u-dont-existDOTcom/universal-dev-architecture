@@ -1,0 +1,59 @@
+{
+  "requirement_id": "2026-11-08-handoff-lines-in-new-chats",
+  "date": "2026-11-08",
+  "source": "Owner message on 2026-11-08 to the Claude session doing the UDA and Mission Control work.",
+  "owner_statement": "new chats are still not giving me the account handoff line at the end for some reason",
+  "earlier_statements": [
+    {
+      "date": "standing",
+      "text": "at the end of each turn give me the 1-line handoff instruction for 2nd claude account",
+      "where": "the owner's standing preferences for his Claude chats, quoted in part"
+    },
+    {
+      "date": "2026-11-03",
+      "text": "and make sure any prompt which is part of multiple turns will give me a one line GH handoff at the end",
+      "where": "docs/requirements/2026-11-03-github-handoff-standing.owner-requirement.json"
+    }
+  ],
+  "problem": "Replies in new chats ended without the account resume line and the GH handoff line. In the rules, both were reachable only through LESSON-INDEX.md, while the timestamp rule that opens every reply sits in root AGENTS.md; no rule said the resume line ends the reply, only that the handoff note holds one; and a new chat's first reply could read itself as one-turn work, outside the GH handoff trigger.",
+  "required_behavior": [
+    "In the owner's project work, every final answer, a new chat's first turn included, ends with the one-line resume instruction for his other account, then one GH handoff line as the last line.",
+    "Where the session wrote the local handoff note, the resume line names it; where it couldn't, the line says so and names the Git checkpoint instead; where nothing could be saved, the line says what wasn't saved and why.",
+    "A self-contained answer, such as a translation or a quick fact, needs neither line."
+  ],
+  "basis": [
+    "The owner's statements above.",
+    "Root AGENTS.md, LESSON-INDEX.md entries 85 and 87, and the two patterns before this change."
+  ],
+  "scope": "One line in root AGENTS.md under Per-turn bootstrap invariants; rule 5 and the reference implementation of patterns/cross-account-continuity.md; the activation, rule 2 and distinctness note of patterns/owner-requested-terminal-github-handoff.md; their LESSON-INDEX.md entries and coverage notes; the docs/INDEX.md route; this record; tests.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "Every reply in his project work, in a new chat too, ends with the line to resume it from his other account and the GitHub handoff line.",
+    "notes": "The root line is a per-turn output rule like the timestamp, not a task rule, so the root's rule that task rules go in patterns does not apply. The causes are the assistant's reading of the rules; new-chat behaviour itself was not observed from this session."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "Root AGENTS.md, read first by every session that loads UDA",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "patterns/cross-account-continuity.md and patterns/owner-requested-terminal-github-handoff.md, reached through LESSON-INDEX.md",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "New chats and other workstreams' sessions",
+      "disposition": "QUEUED",
+      "reason": "Each session applies the rule at its next final answer after it re-fetches root AGENTS.md, which the owner's preferences ask for every reply."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "No repository rule can reach a chat that never loaded UDA; for such a chat only the owner's own preferences apply.",
+    "A static test proves the rule's text and routing, not that every final answer carries the lines; that stays a per-turn check (WORKFLOW_ONLY)."
+  ]
+}

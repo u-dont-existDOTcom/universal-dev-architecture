@@ -772,6 +772,23 @@
       "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
       "report_command": "python3 scripts/uda_enforcement_coverage.py report",
       "implemented": "Owner request 2026-11-06: adds one WORKFLOW_ONLY pattern, patterns/short-lived-pull-requests.md, with an index trigger, a failure-map row, a requirement record, lane items and text tests. The immutable legacy baseline, task-time records and semantic backlog are unchanged. Work 32706/37194 -> 32706/unmeasured bytes (rendered UTF-8 / historical injected measurement; no task-time selectors or generated contract changed)."
+    },
+    {
+      "finding_id": "slice-owner-checks-and-visual-jokes-2026-11-08",
+      "date": "2026-11-08",
+      "identity_counts_by_disposition": {
+        "STRUCTURED_ENFORCED": 9,
+        "STRUCTURED_PARTIAL": 9,
+        "WORKFLOW_ONLY": 17,
+        "LEGACY_UNSTRUCTURED": 69,
+        "NOT_ACTIVE": 2
+      },
+      "backlog_count": 78,
+      "baseline_shrinkage": 7,
+      "root_owner_outcome": "OPEN: the rules that the owner says when to check, and that both handoff lines end every reply, are routed and tested as text; whether sessions follow them shows only in their turns",
+      "exact_lists": "rules/rule-graph/enforcement-coverage.v1.json",
+      "report_command": "python3 scripts/uda_enforcement_coverage.py report",
+      "implemented": "Owner requests 2026-11-08 and owner feedback 2026-11-07 (UDA pull request 473): adds two WORKFLOW_ONLY patterns, patterns/owner-says-when-to-check.md and patterns/visual-joke-punchline-integrity.md, with index triggers, failure-map placements, requirement records and text tests; adds one last-lines line to root AGENTS.md and rule 5 to patterns/cross-account-continuity.md. The immutable legacy baseline, task-time records and semantic backlog are unchanged. Work 32706/37194 -> 32706/unmeasured bytes (rendered UTF-8 / historical injected measurement; only source hashes in the generated contract changed)."
     }
   ],
   "learning_state_at_merge": [

@@ -1,0 +1,48 @@
+{
+  "requirement_id": "2026-11-08-owner-says-when-to-check",
+  "date": "2026-11-08",
+  "source": "Owner message on 2026-11-08 to the Claude session doing the UDA and Mission Control work.",
+  "owner_statement": "also i don't understand why claude is always checking to see if i did a merge or if i answered something in an artifact, i can just tell it when to check",
+  "problem": "Sessions checked, turn after turn, whether the owner had merged a pull request or answered on his questions page or in an artifact, and reported that he hadn't. The mailbox check and the per-turn review of a lane's own open pull requests, read broadly, send agents to look; a Claude artifact sends a remote session no notice when it changes.",
+  "required_behavior": [
+    "Don't check whether the owner has merged, approved, answered or done what was asked of him, and don't report that he hasn't, unless he says he has or asks for a check.",
+    "When he says he has done it or asks for a check, check in that turn and act on what is found.",
+    "Record once what waits on him, on his questions page and in the handoff, and go on with work that doesn't depend on it.",
+    "The mailbox keeps other agents' and people's items; an agent still checks its own merges, auto-merges and jobs; reading what the work itself needs, such as the current main branch, is not a check on him."
+  ],
+  "basis": [
+    "The owner's statement above.",
+    "patterns/suggested-fix-queue.md step 4, patterns/short-lived-pull-requests.md rule 3 and patterns/owner-questions-page.md rule 6 before this change."
+  ],
+  "scope": "New patterns/owner-says-when-to-check.md; one sentence each in patterns/suggested-fix-queue.md step 4, patterns/short-lived-pull-requests.md rule 3 and patterns/owner-questions-page.md rule 6; its LESSON-INDEX.md entry; its coverage entry; the docs/INDEX.md route; this record; tests.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "Agents stop checking for his merges and answers and check when he tells them to.",
+    "notes": "Keeping other agents' items in the mailbox, the agent's own merges, and reading what the work needs are the assistant's bounds on the owner's words, so the rule doesn't stop work he didn't mean to stop."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/owner-says-when-to-check.md, reached through LESSON-INDEX.md and the three patterns that point to it",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "The UDA and Mission Control workstream",
+      "disposition": "PROJECTED",
+      "note": "Its turn reports no longer say whether the owner merged or answered unless he asked."
+    },
+    {
+      "surface": "Other workstreams' sessions",
+      "disposition": "QUEUED",
+      "reason": "Each session applies the rule at its next turn after loading LESSON-INDEX.md, as root AGENTS.md requires before any task."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "A static test proves the rule's text and routing, not that sessions stop checking; that stays a per-turn check (WORKFLOW_ONLY)."
+  ]
+}

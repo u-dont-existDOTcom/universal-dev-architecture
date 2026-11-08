@@ -144,6 +144,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-10.7 | Multiple relay hosts send the same item, or failover resumes without a fenced authority. | Verify one durable sender admission, global pacing, and a fenced failover epoch before each send. | `patterns/mission-control-multi-host-submission-scheduling.md`; `patterns/shared-provider-submission-queue.md` | |
 | LF-10.8 | A fix for another project delivered as a pull request the owner must answer first, or as a file he must relay. | File it in that project's lane; its own agent decides first. | `patterns/suggested-fix-queue.md` | |
 | LF-10.9 | Pull requests left open while their base branch moves on, so conflicts pile up and the owner is told "pr has conflicts". | Merge in the turn the gates pass, with auto-merge for a check still running; fix conflicts yourself; close what won't merge. | `patterns/short-lived-pull-requests.md` | |
+| LF-10.10 | An agent checks every turn whether the owner merged or answered on his page or in an artifact, and reports that he hasn't. | Record once what waits on him; check when he says he has done it or asks for a check. | `patterns/owner-says-when-to-check.md` | |
 
 ## Keeping the map complete
 
@@ -157,6 +158,7 @@ The following cross-project workflows do not prevent a general logic failure; th
 - `patterns/youtube-transcript-workflow.md` — specialist method for obtaining video transcripts.
 - `patterns/web-data-provider-escalation.md` — workflow for escalating public web retrieval to a metered provider within cost and access limits.
 - `patterns/survey-draft-persistence-and-reload-recovery.md` — specialist browser-survey workflow for preserving and restoring unfinished drafts and preventing retry duplicates.
+- `patterns/visual-joke-punchline-integrity.md` — specialist craft method for memes and humorous illustrations: let the picture carry the joke.
 
 ## Requirement-accretion declaration
 
