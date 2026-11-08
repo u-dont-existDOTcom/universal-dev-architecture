@@ -3532,7 +3532,7 @@
           "class": "TEXT_PRESENCE"
         }
       ],
-      "review_notes": "Static tests preserve wording, provenance, privacy exclusions and routes. They do not establish successor access, current Git state, handoff updates or live account continuity. No task-time record or runtime guard is claimed.",
+      "review_notes": "Static tests preserve wording, provenance, privacy exclusions and routes. They do not establish successor access, current Git state, handoff updates or live account continuity. No task-time record or runtime guard is claimed. 2026-11-08: rule 5, the resume line ends every final answer in the owner's project work, a new chat's first turn included (docs/requirements/2026-11-08-handoff-lines-in-new-chats.owner-requirement.json).",
       "migration": {
         "priority": "P2",
         "next_step": "Register cross-account successor-state persistence, private-store routing and per-turn handoff updates at their actual Git and local-note destinations.",
@@ -7836,7 +7836,7 @@
       "behavioral": true,
       "activation_route": {
         "kind": "INDEX_TRIGGER",
-        "detail": "owner rule: For every final answer in this owner's work that spans more than one turn (standing since 2026-10-26, confirmed 2026-11-03), and for another owner who explicitly asks"
+        "detail": "owner rule: For every final answer in this owner's work that spans more than one turn, a new chat's first turn included (standing since 2026-10-26, confirmed 2026-11-03 and 2026-11-08), and for another owner who explicitly asks"
       },
       "actors": [
         "reasoning agent",
@@ -7868,10 +7868,14 @@
         {
           "path": "tests/test_owner_requested_terminal_github_handoff.py",
           "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "tests/test_handoff_lines_and_owner_checks.py",
+          "class": "TEXT_PRESENCE"
         }
       ],
       "exception_reason": "The owner requested terminal GitHub handoff is a conversation presentation convention whose execution depends on the responding host; GitHub documents and routing alone cannot run a ChatGPT final-answer runtime interceptor, so adoption and exact last-line output require per-turn review.",
-      "review_notes": "Owner request on 2026-11-01 supplied direct activation. Distinct from checkpoint-internal resume line and from a compulsory formatting rule for other users. Classified WORKFLOW_ONLY because no honest runtime admission guard is installed: a static check proves only documentation and index routing; human-readable final response must still be checked on each turn. Owner request on 2026-11-03 made the activation standing for every final answer in this owner's work that spans more than one turn (docs/requirements/2026-11-03-github-handoff-standing.owner-requirement.json); still WORKFLOW_ONLY, for the same reason."
+      "review_notes": "Owner request on 2026-11-01 supplied direct activation. Distinct from checkpoint-internal resume line and from a compulsory formatting rule for other users. Classified WORKFLOW_ONLY because no honest runtime admission guard is installed: a static check proves only documentation and index routing; human-readable final response must still be checked on each turn. Owner request on 2026-11-03 made the activation standing for every final answer in this owner's work that spans more than one turn (docs/requirements/2026-11-03-github-handoff-standing.owner-requirement.json); still WORKFLOW_ONLY, for the same reason. 2026-11-08: the owner reported that new chats still ended without the lines; a new chat's first turn now counts, and root AGENTS.md carries both last lines next to its other every-turn output rules (docs/requirements/2026-11-08-handoff-lines-in-new-chats.owner-requirement.json)."
     },
     {
       "id": "patterns/paid-workflow-safety.md",
@@ -10102,6 +10106,95 @@
       ],
       "exception_reason": "Whether a lane merges its pull requests when their gates pass, resolves its own conflicts and closes what it won't finish happens across its turns and GitHub's live state, which a repository check cannot observe; adoption needs per-turn review.",
       "review_notes": "Owner request on 2026-11-06 (docs/requirements/2026-11-06-short-lived-pull-requests.owner-requirement.json), after another lane named the missing merge automation as the cause of his conflicts. The survey that day found waiting, leftover drafts and shared lines as causes; auto-merge addresses only the first. Classified WORKFLOW_ONLY: a static test proves the text and routing only."
+    },
+    {
+      "id": "patterns/visual-joke-punchline-integrity.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "When creating or revising memes and humorous editorial illustrations"
+      },
+      "actors": [
+        "reasoning agent",
+        "execution worker"
+      ],
+      "phases": [
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "memes, comic panels and humorous illustrations the agent makes or revises"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/visual-joke-punchline-integrity.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_handoff_lines_and_owner_checks.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "exception_reason": "Whether a visual joke lands without an explaining caption is a judgement on each image, which a repository check cannot observe; adoption needs review of the images themselves.",
+      "review_notes": "Owner feedback on 2026-11-07, filed by another lane as UDA pull request 473 and carried into the maintainer lane's combined pull request of 2026-11-08 unchanged, with this entry, a failure-map row and a text test. Classified WORKFLOW_ONLY: a static test proves the text and routing only."
+    },
+    {
+      "id": "patterns/owner-says-when-to-check.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "owner rule: When a turn starts, at a mailbox check, or while something waits for the owner (a merge, an approval, or an answer on his questions page, in an artifact or in its comments)"
+      },
+      "actors": [
+        "reasoning agent",
+        "repository research or engineering worker",
+        "execution worker"
+      ],
+      "phases": [
+        "pre-action",
+        "handoff",
+        "final-delivery"
+      ],
+      "destinations": [
+        "the lane's turn and its reply to the owner",
+        "the owner questions page and the lane's handoff"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/owner-says-when-to-check.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "tests/test_handoff_lines_and_owner_checks.py",
+          "class": "TEXT_PRESENCE"
+        }
+      ],
+      "exception_reason": "Whether an agent leaves the owner's merges and answers alone until he says when to check happens across its turns, which a repository check cannot observe; adoption needs per-turn review.",
+      "review_notes": "Owner request on 2026-11-08 (docs/requirements/2026-11-08-owner-says-when-to-check.owner-requirement.json): agents kept checking whether he had merged or answered in an artifact. Classified WORKFLOW_ONLY: a static test proves the text and routing only."
     }
   ]
 }

@@ -18,6 +18,8 @@ For **every assistant turn** governed by this architecture, the **first line of 
 
 **Say each thing once:** what an interim message already showed the owner as written in the same turn is not repeated in the final answer; the final answer adds only what is new or changed, still carries what a rule requires of the final answer itself, and stands on its own when it will be read alone: `patterns/worker-directive-delivery-and-chat-output-budget.md`.
 
+**Last lines, every turn (owner, 2026-11-08):** in this repository's owner's project work, every final answer ends with the one-line resume instruction for his other account, then one `GH handoff:` line as the last line, on a new chat's first turn too; a line that can't be saved says so instead of being left out; a self-contained answer, such as a translation, needs neither: `patterns/cross-account-continuity.md` (rule 5), `patterns/owner-requested-terminal-github-handoff.md`.
+
 ## Pre-final continuation invariant
 
 Before final delivery, apply `patterns/codex-github-operating-system.md` → **Continuation and stop admission**. An OPEN task with a safe authorized executable next action requires doing it now, not just diagnosing or planning it. A self-authored scope or completed lease cannot cancel parent implementation authority. Check the actual final output: stop only at an evidenced boundary, finish independent work, and preserve explicit owner restrictions and real access, spending, privacy, platform, and irreversible-action gates.
