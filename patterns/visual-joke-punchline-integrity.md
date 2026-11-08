@@ -28,7 +28,7 @@ Avoid extraneous computer-message overlays or software-error callouts used to de
 4. **Owner-brief test:** Do accepted dialogue, the joke's target, safety constraints, and the requested comic style still match the owner's choices?
 5. **Export test:** The selected concept and its exact placement anchor, including revisions, are saved together in the handoff.
 
-If any test fails, revise the concept rather than adding explanation to compensate.
+If any of tests 1 to 4 fails, revise the concept rather than adding explanation to compensate. If only test 5 fails, save the concept and its placement in the handoff; the concept stands.
 
 ## Transfer provenance and limits
 

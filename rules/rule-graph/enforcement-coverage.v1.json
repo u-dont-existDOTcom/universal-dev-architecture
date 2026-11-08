@@ -10148,7 +10148,7 @@
         }
       ],
       "exception_reason": "Whether a visual joke lands without an explaining caption is a judgement on each image, which a repository check cannot observe; adoption needs review of the images themselves.",
-      "review_notes": "Owner feedback on 2026-11-07, filed by another lane as UDA pull request 473 and carried into the maintainer lane's combined pull request of 2026-11-08 unchanged, with this entry, a failure-map row and a text test. Classified WORKFLOW_ONLY: a static test proves the text and routing only."
+      "review_notes": "Owner feedback on 2026-11-07, filed by another lane as UDA pull request 473 and carried into the maintainer lane's combined pull request of 2026-11-08 with one review fix (a failed export check means saving the handoff, not revising the concept), this entry, a not-failure-rule placement and a text test. Classified WORKFLOW_ONLY: a static test proves the text and routing only."
     },
     {
       "id": "patterns/owner-says-when-to-check.md",

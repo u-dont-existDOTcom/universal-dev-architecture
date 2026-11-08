@@ -134,7 +134,8 @@ class VisualJokeTests(unittest.TestCase):
             "3. **Series distinctness test:**",
             "4. **Owner-brief test:**",
             "5. **Export test:**",
-            "If any test fails, revise the concept rather than adding explanation to compensate.",
+            "If any of tests 1 to 4 fails, revise the concept rather than adding explanation to compensate.",
+            "If only test 5 fails, save the concept and its placement in the handoff; the concept stands.",
             "This rule is **not a ban on captions**.",
         ):
             with self.subTest(phrase=phrase[:60]):

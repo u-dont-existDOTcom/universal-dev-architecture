@@ -14,7 +14,7 @@
     "The owner's statement above.",
     "patterns/suggested-fix-queue.md step 4, patterns/short-lived-pull-requests.md rule 3 and patterns/owner-questions-page.md rule 6 before this change."
   ],
-  "scope": "New patterns/owner-says-when-to-check.md; one sentence each in patterns/suggested-fix-queue.md step 4, patterns/short-lived-pull-requests.md rule 3 and patterns/owner-questions-page.md rule 6; LESSON-INDEX.md entry 91; its coverage entry; the docs/INDEX.md route; this record; tests.",
+  "scope": "New patterns/owner-says-when-to-check.md; one sentence each in patterns/suggested-fix-queue.md step 4, patterns/short-lived-pull-requests.md rule 3 and patterns/owner-questions-page.md rule 6; its LESSON-INDEX.md entry; its coverage entry; the docs/INDEX.md route; this record; tests.",
   "origin": {
     "classification": "OWNER_REQUIRED",
     "admission": "OWNER_DIRECT",
