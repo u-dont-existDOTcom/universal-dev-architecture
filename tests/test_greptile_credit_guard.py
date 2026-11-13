@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class GreptileCreditGuardTests(unittest.TestCase):
     def test_no_automatic_greptile_reviews(self):
-        p = ROOT / "greptile.json"
+        p = ROOT / ".greptile" / "config.json"
         config = json.loads(p.read_text(encoding="utf-8"))
         self.assertEqual([], config["autoReview"])
         self.assertEqual("AUTOMATIC", config["skipReview"])
