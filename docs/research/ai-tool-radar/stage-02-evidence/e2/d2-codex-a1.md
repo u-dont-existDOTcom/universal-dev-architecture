@@ -1,0 +1,13 @@
+# Codex on defect D2: the reviewer's final message, as returned
+
+1. **P1 — A CAPTCHA wall can receive a full-thread read receipt.** [packages/sources/src/forum-page.ts:284](<tree>/packages/sources/src/forum-page.ts:284)  
+   An HTTP 200 response containing `<title>CAPTCHA</title><div class="h-captcha"></div>` and 1,500 characters of visible boilerplate matches none of these Cloudflare-specific checks. It becomes `access_state: "read"` and earns `e=1,pv=0`, although no thread was read. Removing the title check introduces this regression for previously rejected CAPTCHA pages. Classify actual access walls upstream; this input must produce no read receipt.
+
+2. **P1 — A last-page post permalink still certifies an incomplete thread as fully read.** [packages/sources/src/forum-page.ts:300](<tree>/packages/sources/src/forum-page.ts:300)  
+   Read `viewtopic.php?t=99&p=900` when it opens page two of a two-page thread. Let its pager contain only `<a href="viewtopic.php?t=99">1</a><strong>2</strong>`, without `rel` attributes. The scan discards the first-page link, and the post permalink supplies no recognized page offset. The resulting `e=1,pv=0` receipt satisfies `full_text_read` for the entire thread, including unread page one. Preserve unknown page position for post permalinks unless the parser establishes the boundaries; this regression case must remain partial.
+
+3. **P1 — Unrelated links can hide the real pager before completeness is signed.** [packages/sources/src/forum-page.ts:304](<tree>/packages/sources/src/forum-page.ts:304)  
+   On `showthread.php?t=99`, place 50 distinct links to other threads’ `page=2` URLs before its own `showthread.php?t=99&page=2` link. The scan stops before the real pager; the caller rejects all collected links as unrelated and signs `e=1,pv=0`. An unread second page therefore passes the read-depth check. Filter for the current thread before applying the cap, or preserve scan truncation as uncertainty. This input must never certify a whole-thread read.
+
+4. **P2 — Detected pagination is hidden while the visible result says retrieval is exhausted.** [apps/research-mcp/src/forum-tools.ts:168](<tree>/apps/research-mcp/src/forum-tools.ts:168)  
+   A first page containing only `<a href="?tid=77&page=2">2</a>` correctly sets `pagedHere`, but its links are removed before constructing the result. Without `next_page`, the envelope reports `access_status: "complete"` and `pagination.exhausted: true`; unfinished-thread guidance is also omitted. Callers can stop despite an executable next page. Return a validated continuation through the existing `next_page` field and report partial coverage. The regression case should expose page two and report pagination as unexhausted.

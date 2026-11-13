@@ -10,13 +10,14 @@ UDA issue 477: Greptile vs Claude/Codex code review. Stage 2 of the tool radar.
 
 ## Short answer
 
-**PILOT, on risky changes only.** A blind replay on 13 Nov supports the exception rule the owner already set, and no more than that.
+**WATCH. Two replays on 13 Nov take away most of the case for paying for Greptile, and leave the owner's rule as it is: no credits on routine changes.**
 
-- **Codex and Claude each found 1 of Greptile's 5 serious defects, and it was the same one.** Codex was also at the right lines for a second, with a different fault. By the rule set before the run, 0 or 1 found supports using Greptile on risky changes. The details are in Experiment 1, at the end of this page.
-- **It was not a like-for-like test.** Each Greptile review that found one of the five carried a written instruction saying what to look for. Codex and Claude got one neutral instruction. The one defect Greptile found without a pointer is the one they both found.
+- **With the hints Greptile had, Claude found 3 of Greptile's 5 serious defects and Codex found 2.** Together they found 3, and 4 when the first replay is counted. By the rule set before the runs, 3 or more means Greptile is not worth paying for on ordinary changes. The details are in Experiment 2, at the end of this page.
+- **Without hints they each found 1 of the 5,** the same one (Experiment 1). Greptile had found that one without a hint too. So most of what set Greptile apart in this history was the written instruction it was given, and a reviewer of ours given the same instruction does about as well.
+- **One defect neither of ours found in either replay:** a refused study audit that ChatGPT showed as "The tool failed internally". Claude found the same loss on another route. That is what a third reviewer can still add on a named high-risk question.
 - **Greptile found real defects that our own checks had passed.** Five serious ones (grade P1), fixed in pull request 441, were each reproduced by a failing test. They were already in released builds. All five came from reviews at the Base tier, the cheapest.
-- **The free reviewers found real defects too.** Seven of them are still in the code, and three of those were graded serious. Experiment 1 lists them.
-- **The evidence is narrow.** In the helper's words: "one repo, one author, one fortnight". The replay was one run per reviewer.
+- **The free reviewers found real defects too.** In Experiment 1 they reported seven that were still in the code, three of them graded serious. They are being fixed.
+- **The evidence is narrow.** In the helper's words: "one repo, one author, one fortnight". Each replay was one run per reviewer, scored by a session that knew the answers.
 - **Greptile missed what the owner saw in live use:** the wrong question answered, and the orange-peel and SMILES questions going straight to an answer. Only live runs caught those.
 
 ## What was measured, and by whom
@@ -73,10 +74,10 @@ Precision is the share of a tool's warnings that were real. Recall is the share 
 
 ```text
 ## Investigation result
-Outcome: PILOT
+Outcome: WATCH
 Evidence: https://github.com/u-dont-existDOTcom/universal-dev-architecture/blob/main/docs/research/ai-tool-radar/stage-02-greptile-code-review.md
-Comparison: Greptile found five serious defects in AskRigor that had passed the project's own tests, CI and reviews and shipped, each confirmed by a failing test. In a blind replay on 13 Nov 2026, Codex and Claude each reviewed, with one neutral instruction, the changes that introduced the five; each found one of them, the same one, and Codex was at the right lines for a second. By the rule set beforehand (0 or 1 found) this supports Greptile for risky changes only.
-Unresolved: Each Greptile review that found one of the five was given a written instruction saying what to look for, and the replay's reviewers were not, so whether Codex or Claude would find the other four with the same instructions is not known. A second replay would show it (model use only, no Greptile credits).
+Comparison: Greptile found five serious defects in AskRigor that had passed the project's own tests, CI and reviews and shipped, each confirmed by a failing test. In two replays on 13 Nov 2026, Codex and Claude reviewed the same changes: with one neutral instruction each found one of the five, the same one; with the written instructions and the stretches of code Greptile had been given, Claude found three and Codex two (three together, four over both replays). By the rule set beforehand (three or more found) Greptile is not worth credits on ordinary changes.
+Unresolved: One run per reviewer per defect, scored by a session that knew the answers. One of the five (a refused audit that ChatGPT showed as an internal failure) was found by neither reviewer in either replay, so a third reviewer may still add something on a named high-risk question. No test here measured Greptile on new code.
 ```
 
 ## Sources
@@ -284,3 +285,50 @@ Five of each reviewer's most serious-looking other findings were checked against
 ### Where the files are
 
 The instruction, the reference written before the first run and every reviewer's final output are published beside this page in [`stage-02-evidence/`](stage-02-evidence/). The five diffs can be rebuilt from the public AskRigor repository with the commands in the units table. The reviewers' traces and the copies of the Greptile records hold local paths and stay on the owner's machine. The exported code folders were deleted after the runs.
+
+## Experiment 2: the same instructions Greptile had (13 Nov 2026)
+
+**With the written instructions and the stretches of code Greptile was given, Claude found 3 of the 5 defects and Codex found 2. Together they found 3.** By the rule set before the runs, 3 or more means Greptile is not worth paying for on ordinary changes. No Greptile review was run and no credits were used.
+
+| # | Defect | Codex | Claude |
+|---|---|---|---|
+| D1 | `next_step` and the wrong research target | **Not found.** Six findings, none about it | **Found**, graded P2, at the lines Greptile named (`research-steering.ts:940-957`): "`planNextStep` leaves out `PEOPLE_TASK_MISSING`, the registered-target warning, `NEW_FORK` and the rule for the person's reply" |
+| D2 | Forum page 2 hidden by 50 other links | **Found**, graded P1, at `forum-page.ts:304`: "Unrelated links can hide the real pager before completeness is signed." | **Found**, graded P2, at `forum-page.ts:304`: "The 50-link cap fills up with other threads' links before the same-thread filter runs" |
+| D3 | YouTube handle stays claimed | **Not found**, in two runs | **Not found** |
+| D4 | Refused study audit has no structured content | **Not found** | **Not found.** It reported the same refusal lost on another route: "`AuditSourceMismatchError` is rethrown, and the router turns it into HTTP 500 `action_internal_error`" |
+| D5 | Full-text lead counted as an abstract read | **Found**, graded P2, at `reading-summary.ts:112`: "Lead availability is promoted to verified reading." | **Found**, graded P1, at `reading-summary.ts:112-115`: "A full-text lead is shown as if part of the text or the abstract was read" |
+
+| | Found | Not found |
+|---|---|---|
+| Codex | 2 | 3 |
+| Claude | 3 | 2 |
+| The two together | 3 | 2 |
+| The two together, over both experiments | 4 | 1 |
+
+### What it means
+
+- **The hints did most of the work.** Without them each reviewer found one defect. With them Claude found three and Codex two.
+- **D3 went the other way.** Both found it in Experiment 1, where they were handed the faulty file among ten. Neither found it here, with Greptile's own input: a commit of 45,094 added lines and an instruction about release integrity that does not mention the handle. Greptile did find it with that input.
+- **D4 was found by neither, in either experiment.** Claude came nearest: the same refusal, lost on the Custom GPT route.
+- **Grades differ again.** Greptile graded all five P1. Of the five finds here, two were graded P1 and three P2.
+- **What follows from it:** keep the owner's rule (no Greptile credits on routine changes), and before spending a credit on a risky change, give Codex and Claude the pointed question first. The label WATCH is the writing session's reading; the owner sets it.
+
+### How it was run
+
+- **The same two reviewers and settings as Experiment 1,** except Claude's turn cap: 120 instead of 60. No Claude run came near it (22 to 55 turns).
+- **Each reviewer got what Greptile got for that defect:** the same stretch of code as one diff with the code as it stood after it (D1 and D5: the twelve pull requests from 414 to 439; D2, D3 and D4: the one commit), and Greptile's own instruction, word for word.
+- **The instructions and the scoring rule were fixed before the first run** (16:25:20 UTC). The scoring rule is Experiment 1's.
+- **Ten runs from 16:25 to 16:54 UTC,** each 6 to 10.5 minutes. One more Codex run on D3 ended at 17:12 UTC.
+- **Why D3 has two Codex runs.** Greptile's instruction for D3 says to "compare current origin/main". Codex took that literally: it found the project's current repository on the laptop and read its later history, which holds the fix. It still did not report the defect. The rerun was barred from everything outside its folder, and did not report it either.
+- **Checked afterwards:** the main session read back every tool call of all eleven runs with the helper's scan scripts. Apart from that first D3 run, no run read anything outside its folder that could give an answer: three Codex runs read the laptop's installed AskRigor plugin instructions, and two Claude runs reread their own saved tool output. No run used the network.
+
+### Limits
+
+- **One run per reviewer per defect.** These reviewers do not give the same findings twice.
+- **The scoring was not blind.** The helper that ran the reviews was stopped by a usage limit after the last run and before scoring. The main session scored them, knowing the answers, by reading each review for the defect's file and words; what each said is quoted so the scores can be checked. It did not read every other finding in the eleven reviews.
+- **Their other findings are not checked.** The eleven reviews hold about 60 findings besides the five. Some will be real defects still in the code.
+- **Greptile was not rerun,** so this compares our reviewers today with Greptile's reviews of 12 Nov on the same input, not the three side by side on new code.
+
+### Where the files are
+
+Greptile's instruction for each defect, as each reviewer got it, and every reviewer's final message are published beside this page in [`stage-02-evidence/e2/`](stage-02-evidence/e2/). Paths on the owner's machine are shortened to `<tree>` in them.
