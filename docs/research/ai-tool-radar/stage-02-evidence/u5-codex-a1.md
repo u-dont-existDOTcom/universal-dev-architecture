@@ -1,0 +1,19 @@
+# Codex on unit 5: the reviewer's final message, as returned
+
+1. **P1 — Bound the complete Action response.** `apps/research-mcp/src/actions/research-routes.ts:332` reserves only 4,000 bytes for `coverage_receipt`, which duplicates the audit’s mismatch array. An audit with 100 reply mismatches and a sample near the 56,000-byte limit exceeds 60,000 bytes after projection. The router returns 502 after the previous continuation handle has already been consumed, losing the client’s continuation path.
+
+2. **P2 — Provider-count disagreements strand completed audits.** `apps/research-mcp/src/actions/treatment-landscape-coverage-route.ts:1610` requires the provider’s metadata count to equal the retrieved count. The audit explicitly permits a complete API-visible corpus with differing metadata counts. Such a receipt fails this check, then requires an access boundary matching `api_visible_complete`, which the boundary schema forbids. Neither complete nor bounded assessment can succeed.
+
+3. **P2 — Roll back handles on input-validation failure.** `apps/research-mcp/src/actions/research-routes.ts:250` returns immediately for `invalid_input` without rolling back a claimed handle. With the production permissive input schema, sending a valid handle alongside `analysis_limit: 501` reaches this branch. Correcting the input cannot recover the handle: subsequent requests report it unavailable for the remainder of its lifetime.
+
+4. **P2 — Preserve retryable sample-refetch failures.** `apps/research-mcp/src/youtube-video-community-audit.ts:436` treats every partial terminal refetch as a completed access boundary. If refetch returns one batch and then encounters HTTP 429 or its elapsed-time limit, the audit passes its lock and returns no continuation. Recoverable sample retrieval is therefore abandoned as terminal work.
+
+5. **P2 — Receipt projection rejects valid large mismatch lists.** `apps/research-mcp/src/actions/treatment-landscape-coverage-route.ts:222` caps reply mismatches at 500, while the audit output and continuation state allow more. Once an audit accumulates 501 mismatches, `projectDiscussionCoverageReceipt` throws instead of returning its valid audit result. Action clients cannot receive either the evidence or the next continuation handle.
+
+6. **P2 — Completed scouting cannot require a positive hit.** `apps/research-mcp/src/actions/treatment-landscape-coverage-route.ts:1360` blocks any substantial broad ledger with zero validated Gemini candidates. A completed frontier whose candidates were all terminally rejected remains blocked even when native discovery supplied usable candidates and all other work is complete. No unresolved scout item exists to execute, so repeating the assessment cannot clear this state.
+
+7. **P2 — Space boundaries reject Chinese and Japanese searches.** `apps/research-mcp/src/actions/treatment-landscape-coverage-route.ts:1792` recognizes terms only at space-delimited boundaries. For example, `太极拳` and `膝骨关节炎` are both present in `研究太极拳对膝骨关节炎的疗效`, but neither matches. A valid specific-program search becomes an invalid record and blocks completion.
+
+8. **P2 — Generic implementation detection works only in English.** `apps/research-mcp/src/actions/treatment-landscape-coverage-route.ts:1785` determines specificity using English word sets. A query and program description containing Spanish `ejercicio` passes where the equivalent English `exercise` is rejected. Generic treatment discovery can consequently be reported as completed specific-program discovery merely by changing language.
+
+9. **P2 — Budget-trimmed samples can be labeled “all.”** `apps/research-mcp/src/youtube-community-audit.ts:264` chooses the sample mode from the requested limit rather than the actual returned sample. If 100 long comments fit below the requested count but exceed the character budget, only a subset is returned with `mode: "all"`. MCP preserves that incorrect label when no further trimming is needed.

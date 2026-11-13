@@ -1,0 +1,7 @@
+# Codex on unit 1: the reviewer's final message, as returned
+
+1. **P2 — [research-contributor-access-tool.ts:391](apps/research-mcp/src/research-contributor-access-tool.ts#L391): Post-pass map filing produces an answer the strict runner rejects.** When finalization passes before the research map is filed, this instruction adds a closing line absent from that finalization’s result. `scripts/lib/askrigor-strict.mts` accepts only the checked draft and that result’s closing lines, so following this instruction triggers repair rounds and can leave the answer withheld.
+
+2. **P2 — [research-steering.ts:427](apps/research-mcp/src/research-steering.ts#L427): Completing an allocation reopens unselected work.** Suppose the person selects only task 1 from a two-task menu. Resuming with that allocation and `done: [1]` now returns `false`, causing recommendations to be rebuilt from task 2. With autonomous steering, the result is `go_on`, authorizing work the person excluded instead of recognizing that their allocation is exhausted.
+
+3. **P2 — [research-steering.ts:478](apps/research-mcp/src/research-steering.ts#L478): A new fork bypasses approval before any task finishes.** If a fork appears midway through the first task, the new guidance sends a re-plan without allocation and with `done: []`. This condition fails to recognize it as a re-plan. For balanced steering with `steering_could_help: false` and estimates below ten minutes, the result becomes `go_on`, allowing the new fork—and previously unselected tasks—to proceed without asking.
