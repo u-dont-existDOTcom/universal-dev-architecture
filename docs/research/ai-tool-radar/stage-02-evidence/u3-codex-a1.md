@@ -1,0 +1,11 @@
+# Codex on unit 3: the reviewer's final message, as returned
+
+1. **P2 — Legacy rows can truncate Atlas searches and maps.** [atlas-research.ts:109](apps/research-mcp/src/.././../../../../packages/evidence-repository/src/atlas-research.ts#L109). A stored v3 publication with `https://youtube.googleapis.com/t/123` passed the previous schema but now fails parsing. PostgreSQL filters it out after applying `LIMIT 500`; `allShown` receives 499 rows and treats that as exhaustion, silently omitting every older publication from searches, maps and counts.
+
+2. **P2 — Unrelated studies lose their reading disclosures.** `apps/research-mcp/src/research-finalization-gate.ts:3252`. If DOI A and DOI B have receipts signing the same landing page, the older `PaperLinks` joins them through that URL. When A is a key source, copying its `linkIds` into `keyPapers` also excludes B. An explicit DOI link to non-key study B consequently receives no `linked_reading`, despite `LinkedPapers` correctly keeping the papers separate.
+
+3. **P2 — Europe PMC records can be counted twice.** `apps/research-mcp/src/reading-summary.ts:205`. A valid record such as `{source: "MED", id: "40123456"}` lacks the optional redundant `pmid` field and becomes `europepmc:MED:40123456`. It never merges with PMID `40123456` from PubMed. Searching both databases therefore counts one record twice; fetching its PubMed abstract still leaves it counted as an additional unread record.
+
+4. **P2 — Challenge wording is missing from search.** `apps/research-mcp/src/atlas/page-data.ts:989`. `searchTextsOf` never includes `finding.challenge.usualView` or `sourceLabel`, although the new finding page displays both. Searching for a word appearing only in that explanation or guideline name returns no match, including through the research lookup that shares this index.
+
+5. **P2 — Clearing a mark falsely reports hidden findings as public.** `apps/research-mcp/src/atlas/challenge-review.ts:212`. `clear_challenge` permits held, rejected and withdrawn publications, but every result with `kept === false` says “on the pages.” Clearing a withdrawn publication therefore returns “withdrawn, on the pages” even though its page remains unavailable.
