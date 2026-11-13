@@ -13,6 +13,7 @@ concurrency:
 jobs:
   activate-next-stage:
     name: Activate next verified research stage
+    if: ${{ github.event.issue.number == 475 || contains(github.event.issue.body, '<!-- AI_TOOL_RADAR_STAGE:') }}
     runs-on: ubuntu-latest
     timeout-minutes: 4
     permissions:
