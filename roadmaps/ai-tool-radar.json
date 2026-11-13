@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "queue_title": "AI Tool Radar — evidence-first sequential investigation",
+  "parent_issue_number": 476,
+  "repository": "u-dont-existDOTcom/universal-dev-architecture",
+  "initial_active_issue_number": 475,
+  "completion_receipt": "In the completed issue body, add Outcome: REUSE|PILOT|WATCH|SKIP and Evidence: https://... linking an actual findings artifact; close as completed. The workflow is administrative, not a scientific validator.",
+  "stages": [
+    {
+      "order": 1,
+      "issue_number": 475,
+      "title": "OpenViking vs GitHub+UDA retrieval"
+    },
+    {
+      "order": 2,
+      "issue_number": 477,
+      "title": "Greptile vs Claude/Codex code review"
+    },
+    {
+      "order": 3,
+      "issue_number": 478,
+      "title": "Langfuse vs Arize Phoenix tracing"
+    },
+    {
+      "order": 4,
+      "issue_number": 479,
+      "title": "Inspect AI vs DeepEval vs Promptfoo evaluation"
+    },
+    {
+      "order": 5,
+      "issue_number": 480,
+      "title": "DSPy programmatic pipeline optimization"
+    },
+    {
+      "order": 6,
+      "issue_number": 481,
+      "title": "Elicit, SciSpace, OpenAlex scientific discovery"
+    },
+    {
+      "order": 7,
+      "issue_number": 482,
+      "title": "GraphRAG, LlamaIndex, Haystack, LightRAG retrieval"
+    },
+    {
+      "order": 8,
+      "issue_number": 483,
+      "title": "Mem0, Hindsight, Graphiti memory alternatives"
+    },
+    {
+      "order": 9,
+      "issue_number": 484,
+      "title": "Unsloth Studio, TRL/PEFT, Axolotl, LLaMA-Factory"
+    },
+    {
+      "order": 10,
+      "issue_number": 485,
+      "title": "Vast.ai vs RunPod vs Modal GPU rental"
+    },
+    {
+      "order": 11,
+      "issue_number": 486,
+      "title": "vLLM, SGLang, llama.cpp, Ollama inference"
+    },
+    {
+      "order": 12,
+      "issue_number": 487,
+      "title": "LangGraph, PydanticAI, Mastra orchestration"
+    },
+    {
+      "order": 13,
+      "issue_number": 488,
+      "title": "Firecrawl, Exa, Parallel, Bright Data acquisition"
+    },
+    {
+      "order": 14,
+      "issue_number": 489,
+      "title": "n8n, Temporal, Trigger.dev workflow scheduling"
+    },
+    {
+      "order": 15,
+      "issue_number": 490,
+      "title": "Argilla, Label Studio, MLflow data lifecycle"
+    },
+    {
+      "order": 16,
+      "issue_number": 491,
+      "title": "New high-impact candidates intake"
+    }
+  ]
+}
