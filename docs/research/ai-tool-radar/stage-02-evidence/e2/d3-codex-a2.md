@@ -1,0 +1,9 @@
+# Codex on defect D3 (rerun, barred from everything outside its folder): the reviewer's final message, as returned
+
+1. **P1 — Acceptance can pass using another release’s receipt.** [custom-gpt-acceptance-receipt.ts:123](./apps/research-mcp/src/custom-gpt-acceptance-receipt.ts#L123) compares only the signing key and Instructions/OpenAPI bundle. It never compares the signed HRP/Universal hashes with the release being accepted. After a backend or protocol update that preserves that bundle and key, an unexpired previous-release receipt still produces `pass: true` in [custom-gpt-product-acceptance.mts:40](./scripts/custom-gpt-product-acceptance.mts#L40), without fresh production acceptance.
+
+   **Adversarial test:** obtain a valid receipt, deploy different protocol bytes with unchanged bundle/key, then validate the old receipt within its one-hour lifetime. Require rejection; this implementation accepts it. This is a pre-existing snapshot finding; current `origin/main` fix status is unverified because Git metadata is absent.
+
+2. **P2 — Required inputs cannot evolve through `later_inputs` on schema-validating clients.** [later-inputs.ts:117](./apps/research-mcp/src/later-inputs.ts#L117) preserves the published top-level `required` list. Redeclaring `finalize_research.key_sources` with a new nested field therefore leaves no valid transport path on the frozen Claude schema: envelope-only input fails the required top-level field; supplying a placeholder there triggers duplicate rejection at [later-inputs.ts:88](./apps/research-mcp/src/later-inputs.ts#L88); supplying the new nested field directly violates the retained strict schema.
+
+   **Adversarial test:** add published-schema validation before the SDK call in [later-inputs.test.ts:219](./tests/later-inputs.test.ts#L219). Its envelope-only `key_sources` evolution payload fails before reaching the handler, despite the existing test accepting it. Current-main status remains unverified.

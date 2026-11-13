@@ -1,0 +1,5 @@
+# The instruction Greptile's review carried for defect D1, as each reviewer got it in Experiment 2
+
+```text
+CRITICAL PRIORITY 1: mandatory scientific-protocol execution. Review newest ask/plan/digest/next_step changes as deployed. Trace manage_research_access/register_plain_answer -> plan_research -> required-module routing/Atlas/forum/formal tool work -> finalize_research and actual delivery. Identify reachable paths where model/tool skips required step, loses continuation or receipts, upgrades REQUIRED to NOT REQUIRED, calls ready despite unverified work, or continues despite unanswered changed-plan decision. Compare project/PROJECT_INSTRUCTIONS.md + FORUM_SIGNAL_MODULE.md and canonical HRP/Universal; distinguish executable checks from model declarations. Respect owner's exactly six final-check blockers; upstream fixes only for additional obligations. Show file:line, severity, exact test with adversarial input (e.g. skip forums, stale/off-target receipt, 1st task unfinished, tool error). Prioritize concrete regression introduced by changed code, not speculative complaints. No code modification.
+```
