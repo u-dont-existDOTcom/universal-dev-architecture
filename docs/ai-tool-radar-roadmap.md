@@ -2,6 +2,16 @@
 
 **Objective:** find tools that measurably improve active projects over the actual current baseline; do not adopt merely because they are new.
 
+## Greptile credits: default to no review (owner, 13 Nov 2026)
+
+The owner's preferred default is **do not consume Greptile credits for routine pull requests**. Source reviews should normally use existing Claude/Codex cross-model checking plus deterministic tests. Greptile is an optional exception-only independent reviewer for a specific consequential unresolved risk: security/auth/privacy, billing/destructive data, production rollback, research-protocol step integrity, cross-module concurrency, or a similarly high-risk change where the ordinary review could miss a significant failure. Do not treat a reviewer merely being available as a reason to spend credits.
+
+Before any manual Greptile invocation, record which PR + exact head SHA, the named high-risk question, why existing review/tests cannot answer it, the tier and expected credit use, and what decision the result would change. Default to Base if a pass is justified. No review of unchanged commits; repeated credits require materially changed code or a distinct unresolved risk. Do not assume credits are free without checking the actual account balance. Greptile's confirmed AskRigor findings (merged PR #441) justify *targeted* use, not a blanket requirement.
+
+This repository's root `.greptile/config.json` declares `autoReview: []`, `skipReview: "AUTOMATIC"`, `triggerOnUpdates: false`, and Base effort for manual reviews. This is repo-side configuration only; nested `.greptile/` overrides, source-branch configuration and organization rules must be checked where relevant. AskRigor's initial PR for this policy received an unsolicited Base review despite legacy `greptile.json`, prompting migration to the currently recommended folder format. Do not issue a test review just to validate the guard. It does not establish provider-wide settings or disable any external automatic reviews in other repositories. For AskRigor's project-specific rule, consult its `docs/greptile-credit-policy.md`.
+
+**Stage 2 Greptile comparison:** investigate historical/zero-credit cases first, compare against Claude-self and Codex-on-Claude reviews, and use a live Greptile credit only when an exact remaining uncertainty cannot be decided by existing evidence and the current owner's usage/spend limits allow it.
+
 ## Queue (GitHub issues)
 
 | Stage | Investigation | Issue |
