@@ -1,0 +1,30 @@
+name: AI Tool Radar queue handoff
+
+on:
+  issues:
+    types: [closed, edited]
+
+permissions: {}
+
+concurrency:
+  group: ai-tool-radar-queue-handoff
+  cancel-in-progress: false
+
+jobs:
+  activate-next-stage:
+    name: Activate next verified research stage
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Check out queue contract
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Activate successor only after a completed stage and linked results
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AI_TOOL_CLOSED_ISSUE: ${{ github.event.issue.number }}
+        run: python3 scripts/ai_tool_radar_advance.py roadmaps/ai-tool-radar.json "$AI_TOOL_CLOSED_ISSUE"
