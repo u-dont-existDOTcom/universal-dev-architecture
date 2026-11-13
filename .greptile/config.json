@@ -1,0 +1,8 @@
+{
+  "autoReview": [],
+  "skipReview": "AUTOMATIC",
+  "triggerOnUpdates": false,
+  "triggerOnDrafts": false,
+  "effort": "base",
+  "shouldUpdateDescription": false
+}
