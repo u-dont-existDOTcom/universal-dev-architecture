@@ -128,3 +128,15 @@ test("checkpoint is based on distinct fingerprint, not provider output count", (
   assert.equal(r.checkpoint_100, false);
   assert.equal(r.distinct_comparable_states, 25);
 });
+
+
+test("adjudicated but unrun states count toward state frontier, never raw provider calls", () => {
+  const r = scoreJevIndependentValue([
+    observed({ provider_status: "NOT_RUN", jev_action: undefined,
+      response_id: undefined, cost_usd: undefined }),
+  ]);
+  assert.equal(r.raw_unique_observations, 0);
+  assert.equal(r.distinct_state_fingerprints, 1);
+  assert.equal(r.states_without_successful_jev, 1);
+  assert.equal(r.distinct_comparable_states, 0);
+});

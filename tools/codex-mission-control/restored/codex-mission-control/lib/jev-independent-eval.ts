@@ -155,7 +155,8 @@ export function scoreJevIndependentValue(rows: readonly JevJudgedObservation[]) 
     by_type[first.gold_action] = bucket;
   }
   return {
-    raw_unique_observations: deduplicated.length,
+    // NOT_RUN is a planning/adjudication placeholder, never a provider observation.
+    raw_unique_observations: deduplicated.filter((row) => row.provider_status !== "NOT_RUN").length,
     distinct_state_fingerprints: states.size,
     distinct_comparable_states: comparable,
     states_without_successful_jev: errorStates,
