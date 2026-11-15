@@ -36,6 +36,8 @@ export interface JevShadowObservation {
   response_id?: string;
   latency_ms?: number;
   error_code?: "STATE_BUILD_ERROR" | "TIMEOUT" | "HTTP_ERROR" | "INVALID_RESPONSE" | "TRANSPORT_ERROR" | "HOOK_ERROR" | "HOOK_TIMEOUT";
+  /** Numeric HTTP status only; never persist provider response bodies or auth headers. */
+  http_status?: number;
 }
 
 interface JevDecisionRequest {
@@ -190,6 +192,7 @@ export async function observeFleetSupervisorWithJev(
       status: "ERROR", authoritative: false, model, deterministic_trigger: deterministicTrigger,
       state, error_code: errorCode, latency_ms: Math.max(0, now() - started),
       ...(error instanceof JevResponseError ? error.metadata : {}),
+      ...(error instanceof JevHttpError ? { http_status: error.status } : {}),
     };
   } finally {
     clearTimeout(timer);
@@ -197,7 +200,9 @@ export async function observeFleetSupervisorWithJev(
   }
 }
 
-class JevHttpError extends Error {}
+class JevHttpError extends Error {
+  constructor(readonly status: number) { super("OpenRouter Decisions HTTP " + status); }
+}
 class JevResponseError extends Error {
   constructor(message: string, readonly metadata: Pick<JevShadowObservation, "usage" | "provider" | "response_id"> = {}) {
     super(message);
@@ -213,7 +218,7 @@ async function openRouterJevTransport(input: {
     body: JSON.stringify(input.body),
     signal: input.signal,
   });
-  if (!response.ok) throw new JevHttpError(`OpenRouter Decisions returned HTTP ${response.status}.`);
+  if (!response.ok) throw new JevHttpError(response.status);
   return response.json();
 }
 
