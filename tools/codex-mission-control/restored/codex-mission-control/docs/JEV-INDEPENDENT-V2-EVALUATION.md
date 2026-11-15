@@ -97,3 +97,62 @@ or sent to Jev. Remain shadow-only. A research-quality evaluator is a diagnostic
 not an owner, release, scientific or clinical authority. Do not run paid
 Jev/stronger-model inference under a zero-spend rule or restart a failing provider
 to circumvent the breaker. No duplicate shared-runtime writer or deployment.
+
+## 15 November 2026: Owner-authorized budget and automatic version discovery
+
+The owner expressly approved **USD 1.00 total additional Jev inference evaluation
+spend** across Mission Control and AskRigor, using existing prepaid OpenRouter
+credits. This is **not** $1 per run, per case, per model or per week. No credit
+purchase/top-up, non-Jev model API, or production deployment was authorized.
+The authorization is recorded in
+`docs/requirements/2026-11-15-jev-one-dollar-version-cap.owner-requirement.json`.
+
+`scripts/jev-budgeted-evaluator.py` automatically queries the *Decisions*
+model catalog (`/api/v1/models?endpoints=/api/alpha/decisions`) on each
+`discover` or `run` invocation. The generic OpenRouter models catalog **omits
+Jev decision models** and is not a valid release monitor. On 15 November 2026,
+public catalog metadata verified Jev **1.14 is newer than pinned 1.13**,
+both priced at USD 0.000000042 per input token (USD 0.042/M). Newest eligible
+pinned model is tried first when a real authorized evaluation can run; optional
+`--compare-legacy` includes 1.13 on the same case. The old production V1
+remains unchanged. The script refuses an unapproved price increase or malformed
+model listing rather than selecting an alias with unknown billing semantics.
+
+Example commands from this source directory; use an owner-private working
+location, never commit ledger or patient/operational data:
+
+```sh
+python3 scripts/jev-budgeted-evaluator.py discover
+python3 scripts/jev-budgeted-evaluator.py status
+python3 scripts/jev-budgeted-evaluator.py run \\
+  --packets /private/jev-askrigor-cases.jsonl --compare-legacy
+```
+
+The shared ledger at
+`~/.local/state/mission-control/jev-eval-20261115-budget.json` has mode 0600
+in a mode-0700 directory. A pre-request conservative liability is durably
+reserved under a file lock; provider-reported actual `usage.cost` settles
+only validated successes; failures and uncertain outcomes retain the reserve.
+Duplicate case/model/payload identities are not resent. A provider error stops
+the invocation immediately. At most two fresh attempts are admitted per run.
+The runner also checks OpenRouter's key metadata; it cannot override the
+provider/account's own limits. Provider keys, response bodies and private
+prompts are never printed or copied into Git.
+
+**Actual source execution:** Public catalog check passed and private ledger
+initialized; `status` reported USD 1.00 remaining, zero paid attempts.
+The test run selected 1.14 then 1.13 but returned
+`BLOCKED_CREDENTIAL_UNAVAILABLE` (no `OPENROUTER_API_KEY` in the authorized
+evaluation process). **Zero live inference calls** and **zero incremental cost**.
+The user's reported account credit balance does not establish that this separate
+evaluation runtime has permission to use its API key. Do not extract a key
+from a protected Docker/service environment or bypass a denied connector.
+
+A new standalone daily automation could not be created because the account's
+active automation quota is full. Instead, the existing weekly **AI Tool Radar**
+automation was updated to check the official Jev Decisions catalog on each run
+and route genuinely new releases through the same budgeted evaluation process.
+The separate **Jev Value Watch remains strictly read-only**, with no inference
+or synthetic comparisons. The version catalog is also checked at the start of
+every explicitly admitted evaluation run; any automatic production promotion
+requires the existing integrator's review and independently measured benefit.
