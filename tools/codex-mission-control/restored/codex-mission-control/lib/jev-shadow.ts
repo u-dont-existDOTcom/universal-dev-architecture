@@ -2,7 +2,8 @@ import { projectWorker } from "./projection";
 import type { StoredEvent } from "./schema";
 import { jevShadowAnswersSchema } from "./jev-shadow-telemetry";
 
-export const DEFAULT_JEV_SHADOW_MODEL = "typesafe/jev-1.13";
+/** Owner, 2026-11-15: "switch versions yeah". The daemon picks newer versions itself (lib/jev-model-selection.ts). */
+export const DEFAULT_JEV_SHADOW_MODEL = "typesafe/jev-1.14";
 export const OPENROUTER_JEV_DECISIONS_ENDPOINT = "https://openrouter.ai/api/alpha/decisions";
 
 export type JevShadowStatus = "DISABLED" | "MISSING_API_KEY" | "OK" | "ERROR";
@@ -58,6 +59,8 @@ export interface JevShadowOptions {
   transport?: JevShadowTransport;
   signal?: AbortSignal;
   now?: () => number;
+  /** The model chosen by the daemon's version selector; otherwise the env pin or the default. */
+  model?: string;
 }
 export const MISSION_CONTROL_JEV_QUESTIONS = {
   owner_decision_required: {
@@ -144,7 +147,7 @@ export async function observeFleetSupervisorWithJev(
   options: JevShadowOptions = {},
 ): Promise<JevShadowObservation> {
   const env = options.env ?? process.env;
-  const model = env.MISSION_CONTROL_JEV_SHADOW_MODEL?.trim() || DEFAULT_JEV_SHADOW_MODEL;
+  const model = options.model?.trim() || jevShadowConfiguredModel(env);
   if (env.MISSION_CONTROL_JEV_SHADOW_ENABLED !== "1") {
     return { status: "DISABLED", authoritative: false, model, deterministic_trigger: deterministicTrigger };
   }
@@ -218,7 +221,11 @@ async function openRouterJevTransport(input: {
     body: JSON.stringify(input.body),
     signal: input.signal,
   });
-  if (!response.ok) throw new JevHttpError(response.status);
+  if (!response.ok) {
+    // Release the connection without reading the provider's error body, which is never kept.
+    await response.body?.cancel().catch(() => undefined);
+    throw new JevHttpError(response.status);
+  }
   return response.json();
 }
 
@@ -256,6 +263,12 @@ function deliveryErrorFamily(code: string | null): string {
   if (/RATE_LIMIT|TOO_MANY/i.test(code)) return "RATE_LIMIT";
   if (/AUTH|TOKEN|CREDENTIAL/i.test(code)) return "AUTH";
   return "OTHER";
+}
+
+/** The operator's pin, or the default when the setting is empty or "auto" (automatic version selection). */
+export function jevShadowConfiguredModel(env: Readonly<Record<string, string | undefined>>): string {
+  const configured = env.MISSION_CONTROL_JEV_SHADOW_MODEL?.trim();
+  return configured && configured !== "auto" ? configured : DEFAULT_JEV_SHADOW_MODEL;
 }
 
 export function jevShadowTimeoutMs(raw: string | undefined): number {

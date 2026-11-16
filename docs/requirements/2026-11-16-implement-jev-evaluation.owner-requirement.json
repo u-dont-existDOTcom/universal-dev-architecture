@@ -1,0 +1,31 @@
+{
+  "requirement_id": "2026-11-16-implement-jev-evaluation",
+  "date": "2026-11-16",
+  "source": "Direct owner request to the UDA and Mission Control lane, 2026-11-16 01:34 UTC, naming the open pull request that carries the Jev evaluation work of 15 November.",
+  "owner_words": ["implement https://github.com/u-dont-existDOTcom/universal-dev-architecture/pull/498"],
+  "owner_outcome": "Carry the 15 November Jev work from a source-only draft to working form: the live shadow observer stops repeated failing calls, records the numeric HTTP status, uses the newer Jev version and checks for newer ones itself; and the owner-approved USD 1.00 evaluation can actually run end to end on Mission Control's real states and the AskRigor pilot cases, then be scored.",
+  "interpretation_by_lane": {
+    "classification": "ASSISTANT_INTERPRETATION_OF_OWNER_REQUEST",
+    "text": "'Implement' is read as: make the pull request mergeable and merge it under the standing approval (clean review, green CI), deploy it as the owner's deploy approval for this change, and run the capped evaluation. The version switch follows the owner's 15 November words 'switch versions yeah that should be automatically checked' (2026-11-15-jev-one-dollar-version-cap.owner-requirement.json)."
+  },
+  "required_behavior": [
+    "Count every failure of the provider call itself toward the shadow breaker, including unusable replies that may be billed and calls that did not settle, and log when it opens and recovers with codes and the numeric HTTP status only.",
+    "Default the shadow to typesafe/jev-1.14 and, unless an operator pins a model, select the newest pinned Jev version from the public Decisions catalog at most daily within the existing price guard; never an alias.",
+    "Make the capped runner accept the Decisions API's documented answer shape and a reply without usage.cost, allow a whole planned run in one invocation while still stopping at the first failure, and sign requests either with an owner-only key file or inside Mission Control's container, never exposing the key.",
+    "Export real distinct states read-only, blind, with no project identifiers, and score frozen gold labels against the deterministic table, each Jev version and a blinded stronger model.",
+    "Keep all paid calls under the single USD 1.00 ledger of 15 November."
+  ],
+  "non_satisfying_proxies": [
+    "Merging the pull request without a run of the capped evaluation.",
+    "Unit tests with faked providers presented as evidence of Jev's value.",
+    "Labels derived from the deterministic trigger or from Jev's own answers."
+  ],
+  "scope": "Mission Control app source under tools/codex-mission-control/restored/codex-mission-control, the repository test that runs its Python tools, this record and the pull request's task checkpoint. No new spending authority beyond the 15 November USD 1.00; no change to deterministic decisions.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT"
+  },
+  "learning_state": [
+    "IMPLEMENTED_NOT_LIVE_VERIFIED"
+  ]
+}

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -108,8 +109,9 @@ def export(database: Path, blind_path: Path, reconciliation_path: Path) -> dict:
         })
     # Restrict access to exported state even though sensitive strings are dropped.
     for path, rows in ((blind_path, blind_rows), (reconciliation_path, comparison_rows)):
-        with path.open("x", encoding="utf-8") as output:
-            path.chmod(0o600)
+        # Created owner-only from the first byte: no window in which another user can open it.
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as output:
             for item in rows:
                 output.write(json.dumps(item, ensure_ascii=False, separators=(",", ":")) + "\n")
     return {

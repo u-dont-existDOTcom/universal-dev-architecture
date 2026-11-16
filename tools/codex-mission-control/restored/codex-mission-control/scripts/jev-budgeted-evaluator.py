@@ -5,6 +5,12 @@ Owner authorization: total NEW Jev eval spend USD 1.00, 2026-11-15.
 Always discover available Decisions models first, pinned model IDs only; never
 replace authoritative Mission Control routing. Runs only when called explicitly
 or by an authorized configured schedule. No account recharge or key management.
+
+Two key routes, never printed or persisted here:
+  * this process's OPENROUTER_API_KEY, or --key-file (an owner-only file);
+  * --via-mission-control HOST:CONTAINER: each request is forwarded through Mission
+    Control's own container (scripts/jev-decisions-forward.mjs), which signs it with
+    the key already configured there; the key never leaves that process.
 """
 from __future__ import annotations
 import argparse
@@ -17,6 +23,7 @@ import os
 from pathlib import Path
 import re
 import stat
+import subprocess
 import sys
 import time
 from urllib.error import HTTPError, URLError
@@ -29,10 +36,13 @@ VERSION = re.compile(r"^typesafe/jev-(\d+)\.(\d+)$")
 MAX_ADDITIONAL_USD = Decimal("1.00")  # owner-approved total across both evaluations
 MAX_PRICE_PER_INPUT_TOKEN = Decimal("0.000000042")  # currently 1.13/1.14
 MAX_PACKET_BYTES = 24_000
-MAX_ATTEMPTS_PER_INVOCATION = 2  # keeps a provider failure from causing a retry storm
+MAX_ATTEMPTS_PER_INVOCATION = 2  # default per invocation; --max-calls raises it up to the ceiling
+MAX_CALLS_CEILING = 60  # with stop-on-first-failure, a full planned run fits in one invocation
 MAX_REQUEST_RESERVATION_USD = Decimal("0.015")  # conservative liability bound
 USER_AGENT = "MissionControl-Jev-evaluation/2.0"
 CANONICAL_LEDGER = Path.home()/".local/state/mission-control/jev-eval-20261115-budget.json"
+FORWARDER = "/app/scripts/jev-decisions-forward.mjs"  # inside Mission Control's image
+SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 
 class Refused(Exception):
@@ -81,8 +91,12 @@ def discover(*, opener=urlopen) -> list[dict]:
         if not match or "/api/alpha/decisions" not in row.get("endpoints", []):
             continue
         try:
-            price = Decimal(str(row["pricing"]["prompt"]))
-        except (KeyError, ValueError, TypeError, InvalidOperation):
+            pricing = row["pricing"]
+            price = Decimal(str(pricing["prompt"]))
+            # Only the input price may be non-zero: an output, per-request or other fee is refused.
+            if any(Decimal(str(value)) != 0 for key, value in pricing.items() if key != "prompt"):
+                continue
+        except (KeyError, ValueError, TypeError, InvalidOperation, AttributeError):
             continue
         models.append({
             "id": row["id"],
@@ -203,7 +217,15 @@ def reserve_cost(packet: bytes, token_price: Decimal) -> Decimal:
     return reserve
 
 
-def load_key() -> str | None:
+def load_key(key_file: Path | None = None) -> str | None:
+    """The key from this process's environment or from an owner-only key file; never printed or stored."""
+    if key_file is not None:
+        if key_file.is_symlink() or not key_file.is_file():
+            raise Refused("The key file must be an ordinary file.")
+        if stat.S_IMODE(key_file.stat().st_mode) & 0o077:
+            raise Refused("The key file may be readable only by its owner (mode 600).")
+        value = key_file.read_text(encoding="utf-8").strip()
+        return value or None
     env = os.getenv("OPENROUTER_API_KEY", "").strip()
     if env:
         return env
@@ -211,8 +233,63 @@ def load_key() -> str | None:
     return None
 
 
-def key_budget_check(key: str, reserve: Decimal, *, opener=urlopen) -> dict:
-    status, data, _ = json_request(KEY_STATUS, key=key, opener=opener)
+class DirectTransport:
+    """Calls OpenRouter from this process with a key it already holds."""
+
+    def __init__(self, key: str, opener=urlopen):
+        self.key = key
+        self.opener = opener
+
+    def key_status(self):
+        status, data, _ = json_request(KEY_STATUS, key=self.key, opener=self.opener)
+        return status, data
+
+    def decide(self, body: bytes):
+        return json_request(DECISIONS, payload=body, key=self.key, timeout=12, opener=self.opener)
+
+
+class MissionControlTransport:
+    """Forwards each request through Mission Control's container, which signs it with its own configured key.
+
+    Nothing secret crosses this boundary: the request body goes in, typed fields come back. A broken connection
+    after the request may have been sent is reported as status 0, which the ledger treats as billable.
+    """
+
+    def __init__(self, target: str, runner=subprocess.run):
+        host, sep, container = target.partition(":")
+        if not sep or not SAFE_NAME.fullmatch(host) or not SAFE_NAME.fullmatch(container):
+            raise Refused("--via-mission-control needs HOST:CONTAINER (letters, digits, dot, dash, underscore).")
+        self.command = ["ssh", "-o", "ClearAllForwardings=yes", "-o", "BatchMode=yes", "-o", "ConnectTimeout=30",
+                        host, f"sudo -n docker exec -i {container} node {FORWARDER}"]
+        self.runner = runner
+
+    def _call(self, payload: bytes, *extra: str):
+        command = self.command[:-1] + [self.command[-1] + "".join(" " + item for item in extra)]
+        try:
+            done = self.runner(command, input=payload, capture_output=True, timeout=60)
+        except (OSError, subprocess.SubprocessError):
+            return 0, None, None
+        lines = [line for line in done.stdout.decode("utf-8", "replace").splitlines() if line.startswith("{")]
+        try:
+            reply = json.loads(lines[-1]) if lines else {}
+            status = int(reply.get("http_status", 0))
+        except (ValueError, TypeError, AttributeError):
+            return 0, None, None
+        limit = reply.get("limit_source")
+        if limit not in ("openrouter_in_flight_budget", "openrouter_key_limit", "openrouter_credits"):
+            limit = None
+        return status, reply.get("body"), limit
+
+    def key_status(self):
+        status, body, _ = self._call(b"", "--key-status")
+        return status, body
+
+    def decide(self, body: bytes):
+        return self._call(body)
+
+
+def key_budget_check(transport, reserve: Decimal) -> dict:
+    status, data = transport.key_status()
     if status != 200 or not isinstance(data, dict) or not isinstance(data.get("data"),dict):
         raise Refused(f"OpenRouter key metadata returned HTTP {status}; no inference calls.")
     data = data["data"]
@@ -223,8 +300,17 @@ def key_budget_check(key: str, reserve: Decimal, *, opener=urlopen) -> dict:
     return {"key_limit_remaining": limit_remaining is not None, "key_validated": True}
 
 
+def _probability(value) -> bool:
+    return type(value) in (int, float) and 0 <= value <= 1
+
+
 def typed_decisions(answers: dict) -> dict:
-    """Persist only compact typed values, never a free-form provider body."""
+    """Persist only compact typed values, never a free-form provider body.
+
+    The Decisions API returns {"type": "noul", "noul": p}, {"type": "choice", "choice": option, "confidence": c,
+    "probabilities": {option: p}} and {"type": "score", "score": n, ...}; a choice given only as a probability map
+    is reduced to its most probable option.
+    """
     if len(answers) > 60:
         raise ValueError("Too many decision answers.")
     result: dict = {}
@@ -237,15 +323,30 @@ def typed_decisions(answers: dict) -> dict:
             number = value["noul"]
             if type(number) is bool:
                 result[key] = {"noul": number}
-            elif type(number) in (int, float) and 0 <= number <= 1:
+            elif _probability(number):
                 result[key] = {"noul": number}
             else:
                 raise ValueError("Invalid Noul probability.")
         elif "choice" in value:
             choice = value["choice"]
+            probabilities = value.get("probabilities")
+            if isinstance(choice, dict):
+                probabilities, choice = choice, None
+            typed: dict = {}
+            if probabilities is not None:
+                if (not isinstance(probabilities, dict) or len(probabilities) > 40
+                        or not all(isinstance(k, str) and re.fullmatch(r"[a-zA-Z0-9_.-]{1,80}", k)
+                                   and _probability(v) for k, v in probabilities.items())):
+                    raise ValueError("Invalid choice probabilities.")
+                typed["probabilities"] = dict(probabilities)
+                if choice is None and probabilities:
+                    choice = sorted(probabilities.items(), key=lambda item: (-item[1], item[0]))[0][0]
             if not isinstance(choice, str) or not re.fullmatch(r"[a-zA-Z0-9_.-]{1,80}", choice):
                 raise ValueError("Invalid typed choice.")
-            result[key] = {"choice": choice}
+            typed["choice"] = choice
+            if _probability(value.get("confidence")):
+                typed["confidence"] = value["confidence"]
+            result[key] = typed
         elif "score" in value:
             score = value["score"]
             if type(score) not in (int, float) or not -100 <= score <= 100:
@@ -257,24 +358,30 @@ def typed_decisions(answers: dict) -> dict:
 
 
 def run(packets: list[dict], ledger_path: Path, *,
-        models: list[dict], compare_legacy=False, opener=urlopen) -> dict:
-    key = load_key()
+        models: list[dict], compare_legacy=False, opener=urlopen,
+        transport=None, max_calls: int = MAX_ATTEMPTS_PER_INVOCATION,
+        key_file: Path | None = None) -> dict:
+    if not isinstance(max_calls, int) or not 1 <= max_calls <= MAX_CALLS_CEILING:
+        raise Refused(f"--max-calls must be between 1 and {MAX_CALLS_CEILING}.")
     latest = latest_eligible(models)
     legacy = next((m for m in models if m["id"] == "typesafe/jev-1.13"), None)
     selected = [latest]
     if compare_legacy and legacy and legacy["id"] != latest["id"]:
         selected.append(legacy)
-    if not key:
-        return {"status": "BLOCKED_CREDENTIAL_UNAVAILABLE",
-                "selected_models": [m["id"] for m in selected],
-                "new_provider_calls": 0, "cap_usd": str(MAX_ADDITIONAL_USD)}
+    if transport is None:
+        key = load_key(key_file)
+        if not key:
+            return {"status": "BLOCKED_CREDENTIAL_UNAVAILABLE",
+                    "selected_models": [m["id"] for m in selected],
+                    "new_provider_calls": 0, "cap_usd": str(MAX_ADDITIONAL_USD)}
+        transport = DirectTransport(key, opener=opener)
     # Fail closed if the account/key is not usable before making a paid call.
-    key_budget_check(key, Decimal("0.002"), opener=opener)
+    key_budget_check(transport, Decimal("0.002"))
     results = []
     attempts = 0
     for packet in packets:
         for model in selected:
-            if attempts >= MAX_ATTEMPTS_PER_INVOCATION:
+            if attempts >= max_calls:
                 break
             req = dict(packet["request"])
             req["model"] = model["id"]  # never trust packet's model choice
@@ -299,28 +406,36 @@ def run(packets: list[dict], ledger_path: Path, *,
                 attempts += 1
                 started = time.monotonic()
                 try:
-                    status, body_result, limit_source = json_request(
-                        DECISIONS, payload=body, key=key, timeout=12, opener=opener)
-                except (OSError, ValueError, URLError, TimeoutError) as error:
+                    status, body_result, limit_source = transport.decide(body)
+                except (OSError, ValueError, URLError, TimeoutError):
                     status, body_result, limit_source = 0, None, None
                 latency = round((time.monotonic()-started)*1000)
                 entry["http_status"] = status
                 entry["latency_ms"] = latency
                 entry["limit_source"] = limit_source
                 if (status == 200 and isinstance(body_result,dict)
-                    and isinstance(body_result.get("usage"),dict)
                     and isinstance(body_result.get("id"),str)
                     and isinstance(body_result.get("answers"),dict)):
                     try:
-                        actual = Decimal(str(body_result["usage"]["cost"]))
+                        usage = body_result.get("usage")
+                        cost = usage.get("cost") if isinstance(usage, dict) else None
+                        if cost is None:
+                            # The API marks usage.cost optional: keep the conservative reservation as the spend.
+                            actual = reserve
+                            entry["cost_source"] = "RESERVED_NO_PROVIDER_COST"
+                        else:
+                            actual = Decimal(str(cost))
+                            entry["cost_source"] = "PROVIDER_USAGE_COST"
                         if actual < 0 or actual > reserve:
                             raise ValueError("Provider cost outside conservative reserved amount.")
                         cleaned = typed_decisions(body_result["answers"])
                         entry["status"]="OK"
                         entry["response_id"] = body_result["id"][:200]
+                        if isinstance(body_result.get("model"), str):
+                            entry["response_model"] = body_result["model"][:120]
                         entry["typed_answers"] = cleaned
                         entry["final_usd"] = str(actual)
-                    except (ValueError,KeyError,InvalidOperation):
+                    except (ValueError,KeyError,InvalidOperation,TypeError):
                         entry["status"]="UNCONFIRMED_BILLABLE"
                 else:
                     entry["status"] = ("INVALID_RESPONSE_UNCONFIRMED" if status == 200
@@ -336,7 +451,7 @@ def run(packets: list[dict], ledger_path: Path, *,
                 if entry["status"] != "OK":
                     return {"status":"STOPPED_PROVIDER_FAILURE", "results":results,
                             "new_provider_calls":sum(x.get("attempted",0) for x in results)}
-        if attempts >= MAX_ATTEMPTS_PER_INVOCATION:
+        if attempts >= max_calls:
             break
     with locked_ledger(ledger_path) as (ledger, save):
         remaining = MAX_ADDITIONAL_USD-committed_plus_reserved(ledger)
@@ -390,6 +505,12 @@ def main():
     parser.add_argument("--packets",type=Path)
     parser.add_argument("--ledger",type=Path,default=CANONICAL_LEDGER)
     parser.add_argument("--compare-legacy",action="store_true")
+    parser.add_argument("--max-calls", type=int, default=MAX_ATTEMPTS_PER_INVOCATION,
+                        help=f"paid calls allowed in this run, 1-{MAX_CALLS_CEILING}; the run still stops at the first failure")
+    route = parser.add_mutually_exclusive_group()
+    route.add_argument("--key-file", type=Path, help="owner-only file holding an OpenRouter key (never printed)")
+    route.add_argument("--via-mission-control", metavar="HOST:CONTAINER",
+                       help="sign requests inside Mission Control's container with the key configured there")
     args = parser.parse_args()
     try:
         if args.action == "run" and args.ledger.resolve() != CANONICAL_LEDGER.resolve():
@@ -425,8 +546,12 @@ def main():
             else:
                 if args.packets is None:
                     raise Refused("Paid run requires --packets with deidentified, frozen cases.")
+                transport = (MissionControlTransport(args.via_mission_control)
+                             if args.via_mission_control else None)
                 result = run(load_packets(args.packets),args.ledger,
-                             models=models,compare_legacy=args.compare_legacy)
+                             models=models,compare_legacy=args.compare_legacy,
+                             transport=transport, max_calls=args.max_calls,
+                             key_file=args.key_file)
         print(json.dumps(result,sort_keys=True))
     except (Refused,FileNotFoundError,ValueError,HTTPError,URLError) as error:
         print(json.dumps({"status":"REFUSED","reason":str(error)[:200],

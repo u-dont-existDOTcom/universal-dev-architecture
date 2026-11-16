@@ -3,7 +3,7 @@
  * The V1 prompt includes an ordered answer key. This V2 prompt deliberately does not.
  * No provider request is made by this module.
  */
-import type { JevShadowState } from "./jev-shadow";
+import { DEFAULT_JEV_SHADOW_MODEL, type JevShadowState } from "./jev-shadow";
 
 export const JEV_INDEPENDENT_EVAL_VERSION = "jev-independent-v2-20261115";
 export const JEV_INDEPENDENT_ACTIONS = [
@@ -68,7 +68,7 @@ export function sanitizeIndependentJevState(s: JevShadowState): JevShadowState {
 
 export function buildIndependentJevRequest(
   state: JevShadowState,
-  model = "typesafe/jev-1.13",
+  model = DEFAULT_JEV_SHADOW_MODEL,
 ) {
   return {
     model,
@@ -127,6 +127,7 @@ export function scoreJevIndependentValue(rows: readonly JevJudgedObservation[]) 
   const by_type: Record<string, { n: number; jev_correct: number; baseline_correct: number }> = {};
   let comparable = 0, baselineCorrect = 0, jevCorrect = 0, incrementalCatches = 0;
   let introducedErrors = 0, falseOwnerInterruptions = 0, missedOwnerActions = 0;
+  let baselineFalseOwnerInterruptions = 0, baselineMissedOwnerActions = 0;
   let strongerComparable = 0, strongerCorrect = 0, unstableStates = 0;
   let errorStates = 0;
   for (const group of states.values()) {
@@ -144,6 +145,9 @@ export function scoreJevIndependentValue(rows: readonly JevJudgedObservation[]) 
     if (baselineOK && !jevOK) introducedErrors++;
     if (first.jev_action === "notify_owner" && first.gold_action !== "notify_owner") falseOwnerInterruptions++;
     if (first.jev_action !== "notify_owner" && first.gold_action === "notify_owner") missedOwnerActions++;
+    // The same two owner-facing errors for the deterministic table, so both sides are judged alike.
+    if (first.deterministic_action === "notify_owner" && first.gold_action !== "notify_owner") baselineFalseOwnerInterruptions++;
+    if (first.deterministic_action !== "notify_owner" && first.gold_action === "notify_owner") baselineMissedOwnerActions++;
     if (first.stronger_action !== undefined) {
       strongerComparable++;
       if (first.stronger_action === first.gold_action) strongerCorrect++;
@@ -166,6 +170,7 @@ export function scoreJevIndependentValue(rows: readonly JevJudgedObservation[]) 
     by_type, baseline_correct: baselineCorrect, jev_correct: jevCorrect,
     incremental_catches: incrementalCatches, introduced_errors: introducedErrors,
     false_owner_interruptions: falseOwnerInterruptions, missed_owner_actions: missedOwnerActions,
+    baseline_false_owner_interruptions: baselineFalseOwnerInterruptions, baseline_missed_owner_actions: baselineMissedOwnerActions,
     unstable_states: unstableStates,
     stronger_comparable: strongerComparable, stronger_correct: strongerCorrect,
     provider_failures: deduplicated.filter((r) => r.provider_status === "ERROR").length,

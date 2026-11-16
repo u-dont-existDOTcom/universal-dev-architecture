@@ -6,7 +6,8 @@ import type { JevShadowObservation } from "./jev-shadow";
 
 export const JEV_NEXT_ACTIONS = ["hold_integrity", "stop_terminal", "notify_owner", "wait_external",
   "continue_mechanical", "route_reasoning", "no_action_healthy"] as const;
-const expectations = {
+/** Mission Control's deterministic next action for each of its triggers (the V1 answer key). */
+export const JEV_DETERMINISTIC_ACTION_BY_TRIGGER = {
   PROJECT_INTEGRITY_FAILURE: "hold_integrity", TERMINAL: "stop_terminal", OWNER_ACTION_REQUIRED: "notify_owner",
   BLOCKED_EXTERNAL: "wait_external", MECHANICAL_RECOVERY_ELIGIBLE: "continue_mechanical",
   REASONING_REVIEW_OVERDUE: "route_reasoning", STALLED_OR_REGRESSING: "route_reasoning",
@@ -14,6 +15,7 @@ const expectations = {
   FIRST_SUPERVISION_REQUIRED: "route_reasoning", CHECKPOINT_REVIEW_REQUIRED: "route_reasoning", SUPERVISOR_HOLD: "notify_owner",
   WORK_DIRECTIVE_EXPIRED_UNRUN: "route_reasoning",
 } as const;
+const expectations = JEV_DETERMINISTIC_ACTION_BY_TRIGGER;
 
 const stateSchema = z.object({
   chain_valid: z.boolean(), queue_terminal: z.boolean(), owner_action_kind: ownerActionTypeSchema,
