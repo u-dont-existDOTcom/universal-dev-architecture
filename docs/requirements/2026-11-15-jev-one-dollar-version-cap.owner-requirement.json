@@ -1,0 +1,31 @@
+{
+  "requirement_id": "2026-11-15-jev-one-dollar-version-cap",
+  "date": "2026-11-15",
+  "source": "Direct owner response to Jev budget/provider diagnosis, following implementation of independent-value evaluations.",
+  "owner_words": [
+    "set the approrpiate spending caps $1 is fine. switch versions yeah that should be automatically checked. ... why wouldn't you have already done that? i have $3.80 on openrouter still"
+  ],
+  "owner_outcome": "Provide a reusable hard USD 1.00 total cap for new Jev independent-value testing on existing prepaid OpenRouter credit, automatically discover new Decisions API model versions, compare versioned models on the same safe test cases, and avoid repeating the earlier failure to check a newer version.",
+  "scope": "One aggregate USD 1.00 incremental Jev inference evaluation budget shared across AskRigor and Mission Control test cases. Does not authorize a new top-up, external publication, changes to owner authority, unlimited production shadow calls, or a separate budget per schedule/run/model.",
+  "implementation": {
+    "budget": "MAX_ADDITIONAL_USD=1.00 enforced by a private cumulative ledger with durable pre-request reservation, 0600 permissions and flock concurrency. Responses settle actual usage.cost where available; ambiguous or failed attempts retain reserved cost. No retries after provider failure.",
+    "provider": "OpenRouter Decisions API; models enumerated via GET /api/v1/models?endpoints=/api/alpha/decisions, not the generic catalog which omits Decisions-only Jev models.",
+    "model_selection": "Automatically discover latest pinned Jev 1.x from provider catalog; evaluate latest first. Compare against legacy pinned 1.13 only when specifically requested within the same cap. Do not silently promote to authoritative Mission Control or alter existing v1 evidence.",
+    "price_guard": "Refuse any version priced above current $0.042/million input tokens without a new explicit owner choice.",
+    "credential_boundary": "The testing process did not have an OPENROUTER_API_KEY, so live inference was blocked with zero new spending. Do not extract or print secrets from inaccessible Docker secrets or bypass connector restrictions.",
+    "continuation": "Run a bounded real Jev 1.14 test when an authorized credential route is established, validate error HTTP status and whether it is gateway/version-specific, then run V2 independent-value and AskRigor comparisons against existing baselines."
+  },
+  "required_behavior": [
+    "Automatically check filtered official Decisions catalog for updated pinned Jev models, not merely the chat model list.",
+    "Send no duplicated paid requests and never exceed aggregate incremental USD 1.00 cap.",
+    "Preserve independent-research ground truth and separate version identifiers.",
+    "Notify owner only for genuinely needed approval or material provider/version outcome."
+  ],
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT"
+  },
+  "learning_state": [
+    "SOURCE_IMPLEMENTED_NOT_LIVE_PROVIDER_VERIFIED"
+  ]
+}

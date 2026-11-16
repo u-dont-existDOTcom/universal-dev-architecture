@@ -45,6 +45,7 @@ import { parseOwnerTaskRegistration, registerOwnerTask, splitOwnerTaskSubmission
 import { OwnerTaskPassphraseGate } from "../lib/owner-task-passphrase";
 import { observeFleetSupervisorWithJev } from "../lib/jev-shadow";
 import { boundedJevShadowHook, sampleJevShadowOnStateChange } from "../lib/jev-shadow-hook";
+import { createJevShadowModelSelector } from "../lib/jev-model-selection";
 import { FleetSupervisorLoop, fleetSupervisorSlowTickMs, fleetSupervisorStallMs } from "../lib/fleet-supervisor-loop";
 import { jevShadowSummaryForProducer, jevShadowSummaryTool } from "../lib/jev-shadow-surface";
 import { githubDecisionCopyTokenProviderFromEnv, githubReconciliationTokenProviderFromEnv } from "../lib/github-app-auth";
@@ -974,6 +975,9 @@ function startFleetSupervisor() {
   }
   const stallMs = fleetSupervisorStallMs(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_STALL_MS, configured, process.env);
   const slowTickMs = fleetSupervisorSlowTickMs(process.env.MISSION_CONTROL_FLEET_SUPERVISOR_SLOW_TICK_MS);
+  // Jev shadow version: the operator's pin, or the newest eligible version from the public Decisions catalog,
+  // checked at most daily and only while the shadow is enabled. It never changes a deterministic decision.
+  const jevModel = createJevShadowModelSelector({ env: process.env });
   const runtime = new FleetSupervisorRuntime(store, {
     routeReasoning: async (watch, decision, events) => {
       const pending = pendingDecisionRequests(store.workerEvents(watch.worker)).at(-1);
@@ -982,7 +986,9 @@ function startFleetSupervisor() {
       return routeFleetSupervisorReasoning(store, watch, decision, events, proof);
     },
     observeJevShadow: sampleJevShadowOnStateChange(boundedJevShadowHook((_watch, decision, events, chain, signal) =>
-      observeFleetSupervisorWithJev(decision.trigger, events, chain, { signal }))),
+      observeFleetSupervisorWithJev(decision.trigger, events, chain, { signal, model: jevModel.current() ?? undefined }),
+    { model: () => jevModel.current() }),
+    { model: () => jevModel.current(), refreshModel: () => jevModel.refreshIfDue() }),
     notifyOwner: (watch, decision) => notifications.emit("event", {
       type: "fleet_supervisor_owner_notification", projectId: watch.projectId, taskId: watch.taskId,
       trigger: decision.trigger, reason: decision.notificationReason,

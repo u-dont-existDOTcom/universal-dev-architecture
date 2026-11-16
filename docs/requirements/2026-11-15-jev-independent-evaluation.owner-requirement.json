@@ -1,0 +1,30 @@
+{
+  "requirement_id": "2026-11-15-jev-independent-evaluation",
+  "date": "2026-11-15",
+  "source": "Direct owner continuation of the Jev evaluation discussion on 2026-11-15.",
+  "owner_correction": "then implement all your suggested tests",
+  "requested_outcome": "Determine whether Jev adds genuinely independent, decision-relevant judgment to Mission Control and AskRigor rather than merely reproducing deterministic rules. Implement the suggested test paths autonomously, preserving current authority and spending limits.",
+  "required_behavior": [
+    "Build a separate v2 independent Mission Control question without the deterministic answer key, keeping the existing v1 untouched.",
+    "Judge distinct real control states using independent source-bound case outcomes, not the deterministic trigger. Report first successful response per fingerprint and stability on repeats.",
+    "Measure extra correct catches, new mistakes, false owner-interruption signals and missed owner-required cases versus deterministic Mission Control and a separately blinded stronger-model comparison.",
+    "Stop repeated failing Jev provider calls while shadow-only and record bounded HTTP status evidence to diagnose provider errors without logging sensitive responses.",
+    "Construct an AskRigor research-quality pilot on deidentified documented omissions and negative controls, measure baseline, Jev and stronger reviewer outcomes, false positives, latency and cost.",
+    "Keep all model/paid provider calls disabled until actual project-specific spending and authorization conditions are satisfied; do not merge or deploy to shared live Mission Control automatically."
+  ],
+  "non_satisfying_proxies": [
+    "Claiming 12,000 repeated v1 exact-policy agreements prove independent value.",
+    "Counting responses rather than distinct real state fingerprints for evidence checkpoints.",
+    "Claiming regression unit tests or constructed fixtures demonstrate real Jev quality.",
+    "Claiming a source-only test harness has run the provider or has been deployed."
+  ],
+  "scope": "Isolated UDA source-only non-authoritative Jev evaluation/backoff and parallel AskRigor source-only pilot. No runtime inference, publication, provider bill, clinical output, or Atlas finding mutation.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT"
+  },
+  "learning_state": [
+    "IMPLEMENTED_NOT_LIVE_VERIFIED"
+  ],
+  "last_verified": "48 focused UDA tests, including 46 TypeScript and two Python exporter tests, and typecheck passed. Separate AskRigor 10-test offline suite passed. No real v2 model observations, confirmation cohort, or live deploy."
+}

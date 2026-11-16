@@ -8,6 +8,7 @@ import test from "node:test";
 import { canonicalJson, sha256 } from "../lib/canonical";
 import { observeFleetSupervisorWithJev, type JevShadowObservation, type JevShadowState } from "../lib/jev-shadow";
 import { importJevShadowLog, parseJevShadowLogLine } from "../lib/jev-shadow-log-import";
+import { initializeJevShadowTelemetry } from "../lib/jev-shadow-telemetry";
 import { seedIssue47Store } from "../lib/seed";
 import { EventStore } from "../lib/store";
 
@@ -585,4 +586,60 @@ test("import CLI reads file or stdin through the normal store and prints counts 
     assert.deepEqual(JSON.parse(second.stdout), { read: 1, imported: 0, skipped: 1, malformed: 0 });
     assert.doesNotMatch(first.stdout + second.stdout, /response:cli|next_action|typesafe/);
   } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+
+test("HTTP failure status persists as safe numeric diagnostic without response body", async () => {
+  const previous = globalThis.fetch;
+  globalThis.fetch = async () => new Response("PRIVATE_PROVIDER_BODY", { status: 429 });
+  const store = new EventStore(":memory:");
+  try {
+    seedIssue47Store(store);
+    const worker = store.fleetSupervisorWatch("project:human-design")!.worker;
+    const result = await observeFleetSupervisorWithJev("HEALTHY_ADVANCING",
+      store.workerEvents(worker), { valid: true }, {
+        env: { MISSION_CONTROL_JEV_SHADOW_ENABLED: "1", OPENROUTER_API_KEY: "TEST_ONLY_KEY" },
+      });
+    assert.equal(result.status, "ERROR");
+    assert.equal(result.error_code, "HTTP_ERROR");
+    assert.equal(result.http_status, 429);
+    assert.equal(store.recordJevShadowObservation({
+      source: "LIVE", observedAt: at(55), observation: result,
+    }), true);
+    const row = rows(store)[0];
+    assert.equal(row.http_status, 429);
+    assert.equal(store.jevShadowSummary().counts.byHttpStatus["429"], 1);
+    assert.doesNotMatch(JSON.stringify(row), /PRIVATE_PROVIDER_BODY|TEST_ONLY_KEY/);
+    assert.throws(() => store.recordJevShadowObservation({
+      source: "LIVE", observedAt: at(56), observation: { ...result, http_status: 900 },
+    }), /too_big|less than or equal|number/i);
+  } finally {
+    globalThis.fetch = previous;
+    store.close();
+  }
+});
+
+test("existing Jev SQLite table gains HTTP status column without losing historical observations", () => {
+  const db = new DatabaseSync(":memory:");
+  try {
+    db.exec(`CREATE TABLE jev_shadow_observations (
+      sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+      observed_at TEXT NOT NULL, source TEXT NOT NULL, project_id TEXT,
+      deterministic_trigger TEXT NOT NULL, status TEXT NOT NULL, error_code TEXT,
+      model TEXT NOT NULL, provider TEXT, response_id TEXT, latency_ms REAL,
+      input_tokens INTEGER, output_tokens INTEGER, cost_usd REAL,
+      jev_next_action TEXT, jev_owner_decision_required INTEGER,
+      expected_next_action TEXT NOT NULL, agrees INTEGER, expected_owner_decision_required INTEGER,
+      state_fingerprint TEXT, state_json TEXT, answers_json TEXT
+    );`);
+    db.prepare("INSERT INTO jev_shadow_observations (observed_at, source, deterministic_trigger, status, error_code, model, expected_next_action) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .run(at(7), "LIVE", "HEALTHY_ADVANCING", "ERROR", "HTTP_ERROR", "typesafe/jev-1.13", "no_action_healthy");
+    initializeJevShadowTelemetry(db);
+    initializeJevShadowTelemetry(db);
+    const columns = db.prepare("PRAGMA table_info(jev_shadow_observations)").all() as Array<{ name: string }>;
+    assert.equal(columns.filter((column) => column.name === "http_status").length, 1);
+    const historic = db.prepare("SELECT observed_at, http_status FROM jev_shadow_observations").get() as { observed_at: string; http_status: number | null };
+    assert.equal(historic.observed_at, at(7));
+    assert.equal(historic.http_status, null);
+  } finally { db.close(); }
 });

@@ -6,7 +6,8 @@ import type { JevShadowObservation } from "./jev-shadow";
 
 export const JEV_NEXT_ACTIONS = ["hold_integrity", "stop_terminal", "notify_owner", "wait_external",
   "continue_mechanical", "route_reasoning", "no_action_healthy"] as const;
-const expectations = {
+/** Mission Control's deterministic next action for each of its triggers (the V1 answer key). */
+export const JEV_DETERMINISTIC_ACTION_BY_TRIGGER = {
   PROJECT_INTEGRITY_FAILURE: "hold_integrity", TERMINAL: "stop_terminal", OWNER_ACTION_REQUIRED: "notify_owner",
   BLOCKED_EXTERNAL: "wait_external", MECHANICAL_RECOVERY_ELIGIBLE: "continue_mechanical",
   REASONING_REVIEW_OVERDUE: "route_reasoning", STALLED_OR_REGRESSING: "route_reasoning",
@@ -14,6 +15,7 @@ const expectations = {
   FIRST_SUPERVISION_REQUIRED: "route_reasoning", CHECKPOINT_REVIEW_REQUIRED: "route_reasoning", SUPERVISOR_HOLD: "notify_owner",
   WORK_DIRECTIVE_EXPIRED_UNRUN: "route_reasoning",
 } as const;
+const expectations = JEV_DETERMINISTIC_ACTION_BY_TRIGGER;
 
 const stateSchema = z.object({
   chain_valid: z.boolean(), queue_terminal: z.boolean(), owner_action_kind: ownerActionTypeSchema,
@@ -47,6 +49,7 @@ const observationSchema = z.object({
   model: z.string().min(1).max(200), provider: z.string().min(1).max(200).optional(),
   response_id: z.string().min(1).max(300).optional(),
   error_code: z.enum(["STATE_BUILD_ERROR", "TIMEOUT", "HTTP_ERROR", "INVALID_RESPONSE", "TRANSPORT_ERROR", "HOOK_ERROR", "HOOK_TIMEOUT"]).optional(),
+  http_status: z.number().int().min(100).max(599).optional(),
   state: stateSchema.optional(), answers: jevShadowAnswersSchema.optional(),
   latency_ms: z.number().finite().nonnegative().optional(),
   usage: z.object({ input_tokens: z.number().int().nonnegative().optional(),
@@ -68,7 +71,7 @@ export function initializeJevShadowTelemetry(db: DatabaseSync) {
   db.exec(`CREATE TABLE IF NOT EXISTS jev_shadow_observations (
     sequence INTEGER PRIMARY KEY AUTOINCREMENT,
     observed_at TEXT NOT NULL, source TEXT NOT NULL CHECK (source IN ('LIVE', 'LOG_IMPORT')),
-    project_id TEXT, deterministic_trigger TEXT NOT NULL, status TEXT NOT NULL, error_code TEXT,
+    project_id TEXT, deterministic_trigger TEXT NOT NULL, status TEXT NOT NULL, error_code TEXT, http_status INTEGER,
     model TEXT NOT NULL, provider TEXT, response_id TEXT, latency_ms REAL,
     input_tokens INTEGER, output_tokens INTEGER, cost_usd REAL,
     jev_next_action TEXT, jev_owner_decision_required INTEGER, expected_next_action TEXT NOT NULL,
@@ -83,6 +86,11 @@ export function initializeJevShadowTelemetry(db: DatabaseSync) {
     WHERE response_id IS NULL;
   DROP INDEX IF EXISTS jev_shadow_without_response_id;
   CREATE INDEX IF NOT EXISTS jev_shadow_observed_at ON jev_shadow_observations(observed_at);`);
+  // Preserve existing live telemetry; add one safe numeric diagnostic column without rebuilding the table.
+  const columns = db.prepare("PRAGMA table_info(jev_shadow_observations)").all() as Array<{ name: string }>;
+  if (!columns.some((column) => column.name === "http_status")) {
+    db.exec("ALTER TABLE jev_shadow_observations ADD COLUMN http_status INTEGER;");
+  }
 }
 
 export function recordJevShadowObservation(db: DatabaseSync, input: JevShadowRecordInput): boolean {
@@ -112,12 +120,12 @@ export function recordJevShadowObservation(db: DatabaseSync, input: JevShadowRec
   const stateJson = state ? canonicalJson(state) : null;
   const bit = (value: boolean | null) => value === null ? null : Number(value);
   const changed = db.prepare(`INSERT OR IGNORE INTO jev_shadow_observations (
-    observed_at, source, project_id, deterministic_trigger, status, error_code, model, provider, response_id,
+    observed_at, source, project_id, deterministic_trigger, status, error_code, http_status, model, provider, response_id,
     latency_ms, input_tokens, output_tokens, cost_usd, jev_next_action, jev_owner_decision_required,
     expected_next_action, agrees, expected_owner_decision_required, state_fingerprint, state_json, answers_json
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
     observedAt, input.source, input.source === "LIVE" ? input.projectId ?? null : null,
-    observation.deterministic_trigger, observation.status, observation.error_code ?? null, observation.model,
+    observation.deterministic_trigger, observation.status, observation.error_code ?? null, observation.http_status ?? null, observation.model,
     observation.provider ?? null, observation.response_id ?? null, input.source === "LIVE" ? observation.latency_ms ?? null : null,
     observation.usage?.input_tokens ?? null, observation.usage?.output_tokens ?? null, observation.usage?.cost ?? null,
     jevAction, bit(jevOwner), expectedAction, observation.status === "OK" && jevAction !== null ? Number(jevAction === expectedAction) : null,
@@ -127,7 +135,7 @@ export function recordJevShadowObservation(db: DatabaseSync, input: JevShadowRec
 }
 
 interface SummaryRow {
-  observed_at: string; source: string; deterministic_trigger: string; status: string; error_code: string | null;
+  observed_at: string; source: string; deterministic_trigger: string; status: string; error_code: string | null; http_status: number | null;
   latency_ms: number | null; input_tokens: number | null; output_tokens: number | null; cost_usd: number | null;
   jev_next_action: string | null; jev_owner_decision_required: number | null;
   agrees: number | null; expected_owner_decision_required: number | null; state_fingerprint: string | null;
@@ -135,13 +143,14 @@ interface SummaryRow {
 
 export function jevShadowSummary(db: DatabaseSync) {
   // Read only comparison metadata; never load state or answer bodies for summaries.
-  const rows = db.prepare(`SELECT observed_at, source, deterministic_trigger, status, error_code,
+  const rows = db.prepare(`SELECT observed_at, source, deterministic_trigger, status, error_code, http_status,
     latency_ms, input_tokens, output_tokens, cost_usd, jev_next_action, jev_owner_decision_required,
     agrees, expected_owner_decision_required, state_fingerprint
     FROM jev_shadow_observations ORDER BY julianday(observed_at), observed_at, sequence`).all() as unknown as SummaryRow[];
   const bySource: Record<string, number> = { LIVE: 0, LOG_IMPORT: 0 };
   const byStatus: Record<string, number> = { OK: 0, ERROR: 0, MISSING_API_KEY: 0 };
   const byErrorCode: Record<string, number> = {};
+  const byHttpStatus: Record<string, number> = {};
   const byTrigger: Record<string, { n: number; agreeing: number; rate: number }> = {};
   const pairs = new Map<string, { trigger: string; jevAction: string | null; count: number }>();
   const states = new Set<string>();
@@ -152,6 +161,7 @@ export function jevShadowSummary(db: DatabaseSync) {
   const increment = (counts: Record<string, number>, key: string) => { counts[key] = (counts[key] ?? 0) + 1; };
   for (const row of rows) {
     increment(bySource, row.source); increment(byStatus, row.status); increment(byErrorCode, row.error_code ?? "NONE");
+    if (row.http_status !== null) increment(byHttpStatus, String(row.http_status));
     totalUsd += row.cost_usd ?? 0; inputTokens += row.input_tokens ?? 0; outputTokens += row.output_tokens ?? 0;
     if (row.expected_owner_decision_required === 1) expectedTrue += 1;
     if (row.status === "OK" && row.expected_owner_decision_required !== null && row.jev_owner_decision_required !== null) {
@@ -179,7 +189,7 @@ export function jevShadowSummary(db: DatabaseSync) {
   const percentile = (p: number) => latencies.length ? latencies[Math.ceil(p * latencies.length) - 1] : null;
   return {
     firstObservedAt: rows[0]?.observed_at ?? null, lastObservedAt: rows.at(-1)?.observed_at ?? null,
-    counts: { total: rows.length, bySource, byStatus, byErrorCode },
+    counts: { total: rows.length, bySource, byStatus, byErrorCode, byHttpStatus },
     okComparisons: ok, distinctStateFingerprints: states.size,
     agreement: { n: ok, agreeing, rate: ok ? agreeing / ok : null, byTrigger,
       disagreeingPairs: [...pairs.values()].sort((a, b) => a.trigger.localeCompare(b.trigger) || (a.jevAction ?? "").localeCompare(b.jevAction ?? "")) },
