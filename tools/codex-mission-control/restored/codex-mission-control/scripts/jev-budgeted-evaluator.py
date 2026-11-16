@@ -110,10 +110,17 @@ def discover(*, opener=urlopen) -> list[dict]:
     return models
 
 
+def eligible_price(model: dict) -> bool:
+    try:
+        price = Decimal(str(model["price_usd_per_input_token"]))
+    except (KeyError, InvalidOperation, TypeError, ValueError):
+        return False
+    return price.is_finite() and Decimal(0) < price <= MAX_PRICE_PER_INPUT_TOKEN
+
+
 def latest_eligible(models: list[dict]) -> dict:
     for model in models:
-        price = Decimal(model["price_usd_per_input_token"])
-        if Decimal(0) < price <= MAX_PRICE_PER_INPUT_TOKEN:
+        if eligible_price(model):
             return model
     raise Refused("New Jev catalog has changed pricing; refusing unapproved paid version.")
 
@@ -357,6 +364,32 @@ def typed_decisions(answers: dict) -> dict:
     return result
 
 
+def reported_cost(body: dict) -> Decimal | None:
+    usage = body.get("usage")
+    if not isinstance(usage, dict) or usage.get("cost") is None or type(usage.get("cost")) is bool:
+        return None
+    try:
+        value = Decimal(str(usage["cost"]))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    return value if value.is_finite() and value >= 0 else None
+
+
+def answers_match_questions(typed: dict, questions) -> bool:
+    """Every question asked has an answer of its type; a choice is one of the question's own options."""
+    if not isinstance(questions, dict) or not questions:
+        return False
+    for key, question in questions.items():
+        kind = question.get("type") if isinstance(question, dict) else None
+        answer = typed.get(key)
+        if kind not in ("noul", "choice", "score") or not isinstance(answer, dict) or kind not in answer:
+            return False
+        criteria = question.get("criteria")
+        if kind == "choice" and isinstance(criteria, dict) and answer["choice"] not in criteria:
+            return False
+    return True
+
+
 def run(packets: list[dict], ledger_path: Path, *,
         models: list[dict], compare_legacy=False, opener=urlopen,
         transport=None, max_calls: int = MAX_ATTEMPTS_PER_INVOCATION,
@@ -368,6 +401,10 @@ def run(packets: list[dict], ledger_path: Path, *,
     selected = [latest]
     if compare_legacy and legacy and legacy["id"] != latest["id"]:
         selected.append(legacy)
+    # Every version called, the legacy comparison included, passes the same price guard.
+    for model in selected:
+        if not eligible_price(model):
+            raise Refused(f"{model['id']} is priced outside the owner-approved guard; no paid calls.")
     if transport is None:
         key = load_key(key_file)
         if not key:
@@ -391,6 +428,8 @@ def run(packets: list[dict], ledger_path: Path, *,
             fingerprint = hashlib.sha256(body).hexdigest()
             unique_key = hashlib.sha256((packet["case_id"]+"\0"+model["id"]+"\0"+fingerprint).encode()).hexdigest()
             with locked_ledger(ledger_path) as (ledger, save):
+                if ledger.get("halted"):
+                    raise Refused("A charge above its reservation is recorded; paid runs stay stopped until the owner reviews the ledger.")
                 if any(item.get("call_identity") == unique_key for item in ledger["entries"]):
                     results.append({"case_id":packet["case_id"],"model":model["id"],"status":"SKIPPED_DUPLICATE"})
                     continue
@@ -413,30 +452,33 @@ def run(packets: list[dict], ledger_path: Path, *,
                 entry["http_status"] = status
                 entry["latency_ms"] = latency
                 entry["limit_source"] = limit_source
-                if (status == 200 and isinstance(body_result,dict)
-                    and isinstance(body_result.get("id"),str)
-                    and isinstance(body_result.get("answers"),dict)):
-                    try:
-                        usage = body_result.get("usage")
-                        cost = usage.get("cost") if isinstance(usage, dict) else None
-                        if cost is None:
-                            # The API marks usage.cost optional: keep the conservative reservation as the spend.
-                            actual = reserve
-                            entry["cost_source"] = "RESERVED_NO_PROVIDER_COST"
-                        else:
-                            actual = Decimal(str(cost))
-                            entry["cost_source"] = "PROVIDER_USAGE_COST"
-                        if actual < 0 or actual > reserve:
-                            raise ValueError("Provider cost outside conservative reserved amount.")
-                        cleaned = typed_decisions(body_result["answers"])
-                        entry["status"]="OK"
-                        entry["response_id"] = body_result["id"][:200]
-                        if isinstance(body_result.get("model"), str):
-                            entry["response_model"] = body_result["model"][:120]
-                        entry["typed_answers"] = cleaned
-                        entry["final_usd"] = str(actual)
-                    except (ValueError,KeyError,InvalidOperation,TypeError):
-                        entry["status"]="UNCONFIRMED_BILLABLE"
+                if status == 200 and isinstance(body_result, dict):
+                    # Settle what the provider says it charged, whatever the answers look like; with no usable
+                    # figure (the API marks usage.cost optional) the conservative reservation stays the spend.
+                    reported = reported_cost(body_result)
+                    entry["final_usd"] = str(reserve if reported is None else reported)
+                    entry["cost_source"] = ("RESERVED_NO_PROVIDER_COST" if reported is None
+                                            else "PROVIDER_USAGE_COST")
+                    if isinstance(body_result.get("model"), str):
+                        entry["response_model"] = body_result["model"][:120]
+                    if reported is not None and reported > reserve:
+                        # A charge above its reservation means the bound was wrong: stop every later paid run too.
+                        entry["status"] = "COST_ABOVE_RESERVATION"
+                        ledger["halted"] = {"reason": "COST_ABOVE_RESERVATION", "case_id": packet["case_id"],
+                                            "model": model["id"], "reserved_usd": str(reserve),
+                                            "reported_usd": str(reported)}
+                    else:
+                        try:
+                            if not isinstance(body_result.get("id"), str) or not isinstance(body_result.get("answers"), dict):
+                                raise ValueError("Reply has no id or answers.")
+                            cleaned = typed_decisions(body_result["answers"])
+                            if not answers_match_questions(cleaned, req.get("questions")):
+                                raise ValueError("Reply does not answer every question asked, in its type.")
+                            entry["status"] = "OK"
+                            entry["response_id"] = body_result["id"][:200]
+                            entry["typed_answers"] = cleaned
+                        except (ValueError, KeyError, TypeError):
+                            entry["status"] = "INVALID_RESPONSE_BILLABLE"
                 else:
                     entry["status"] = ("INVALID_RESPONSE_UNCONFIRMED" if status == 200
                                        else "HTTP_ERROR" if status

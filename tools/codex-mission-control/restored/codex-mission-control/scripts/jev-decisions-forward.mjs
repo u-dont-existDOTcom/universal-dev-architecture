@@ -14,6 +14,41 @@ export const KEY_URL = "https://openrouter.ai/api/v1/key";
 const MAX_BODY_BYTES = 32_000;
 const PINNED_JEV = /^typesafe\/jev-\d{1,3}\.\d{1,3}$/;
 const LIMIT_SOURCES = new Set(["openrouter_in_flight_budget", "openrouter_key_limit", "openrouter_credits"]);
+const ANSWER_KEY = /^[A-Za-z0-9_.-]{1,80}$/;
+const isProbability = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+
+function probabilities(map) {
+  if (!map || typeof map !== "object" || Array.isArray(map)) return undefined;
+  const entries = Object.entries(map).filter(([key, value]) => ANSWER_KEY.test(key) && isProbability(value)).slice(0, 40);
+  return entries.length ? Object.fromEntries(entries) : undefined;
+}
+
+/** Rebuild each answer from its typed fields only; anything else in the provider's reply never leaves here. */
+export function typedAnswers(answers) {
+  if (!answers || typeof answers !== "object" || Array.isArray(answers)) return undefined;
+  const out = {};
+  for (const [key, value] of Object.entries(answers).slice(0, 60)) {
+    if (!ANSWER_KEY.test(key) || !value || typeof value !== "object" || Array.isArray(value)) continue;
+    if ("noul" in value) {
+      if (typeof value.noul === "boolean" || isProbability(value.noul)) out[key] = { type: "noul", noul: value.noul };
+    } else if ("choice" in value) {
+      const choice = typeof value.choice === "string" && ANSWER_KEY.test(value.choice) ? value.choice : probabilities(value.choice);
+      if (choice === undefined) continue;
+      const typed = { type: "choice", choice };
+      const spread = probabilities(value.probabilities);
+      if (spread) typed.probabilities = spread;
+      if (isProbability(value.confidence)) typed.confidence = value.confidence;
+      out[key] = typed;
+    } else if ("score" in value) {
+      if (typeof value.score !== "number" || !Number.isFinite(value.score) || Math.abs(value.score) > 100) continue;
+      const typed = { type: "score", score: value.score };
+      const spread = probabilities(value.probabilities);
+      if (spread) typed.probabilities = spread;
+      out[key] = typed;
+    }
+  }
+  return out;
+}
 
 export async function forward({ argv = [], input = "", env = process.env, fetchImpl = fetch, timeoutMs = 30_000 } = {}) {
   const key = env.OPENROUTER_API_KEY?.trim();
@@ -77,7 +112,7 @@ export async function forward({ argv = [], input = "", env = process.env, fetchI
         output_tokens: Number.isFinite(reply.usage.output_tokens) ? reply.usage.output_tokens : undefined,
         cost: Number.isFinite(reply.usage.cost) ? reply.usage.cost : undefined,
       } : undefined,
-      answers: reply?.answers && typeof reply.answers === "object" && !Array.isArray(reply.answers) ? reply.answers : undefined,
+      answers: typedAnswers(reply?.answers),
     } };
   } catch {
     // Answered but unreadable: billable, unusable. The runner records it as such.

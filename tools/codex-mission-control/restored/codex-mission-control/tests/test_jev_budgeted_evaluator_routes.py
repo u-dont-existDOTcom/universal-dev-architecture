@@ -192,5 +192,52 @@ class RunnerRouteTests(unittest.TestCase):
                 jev.MissionControlTransport(bad, runner=runner)
 
 
+class ReviewFindingTests(unittest.TestCase):
+    """Codex review of 16 Nov 2026: three must-fix findings and one minor, each pinned here."""
+
+    def test_a_charge_above_its_reservation_is_counted_in_full_and_stops_every_later_run(self):
+        transport = FakeTransport([dict(API_REPLY, usage={"cost": 0.10}), dict(API_REPLY, id="never")])
+        with tempfile.TemporaryDirectory() as d:
+            ledger = Path(d) / "ledger.json"
+            out = jev.run([packet("c1"), packet("c2")], ledger, models=MODELS, transport=transport, max_calls=5)
+            self.assertEqual(out["status"], "STOPPED_PROVIDER_FAILURE")
+            self.assertEqual(out["results"][0]["status"], "COST_ABOVE_RESERVATION")
+            with jev.locked_ledger(ledger) as (state, save):
+                self.assertEqual(state["entries"][0]["final_usd"], "0.1")
+                self.assertEqual(jev.committed_plus_reserved(state), jev.Decimal("0.1"))
+                self.assertEqual(state["halted"]["reason"], "COST_ABOVE_RESERVATION")
+            with self.assertRaises(jev.Refused):
+                jev.run([packet("c3")], ledger, models=MODELS, transport=FakeTransport([API_REPLY]), max_calls=5)
+            self.assertEqual(len(transport.bodies), 1)
+
+    def test_the_legacy_comparison_passes_the_same_price_guard(self):
+        dear_legacy = [MODELS[0], dict(MODELS[1], price_usd_per_input_token="0.0000005")]
+        transport = FakeTransport([API_REPLY, API_REPLY])
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(jev.Refused):
+                jev.run([packet("c1")], Path(d) / "ledger.json", models=dear_legacy, compare_legacy=True,
+                        transport=transport, max_calls=5)
+        self.assertEqual(transport.bodies, [])
+
+    def test_a_reply_that_does_not_answer_what_was_asked_is_billable_and_stops_the_run(self):
+        cases = {
+            "empty": dict(API_REPLY, answers={}),
+            "wrong type": dict(API_REPLY, answers={"next_action": {"type": "noul", "noul": 0.5}}),
+            "outside the options": dict(API_REPLY, answers={"next_action": {"type": "choice", "choice": "z"}}),
+            "no id": {k: v for k, v in API_REPLY.items() if k != "id"},
+        }
+        for name, reply in cases.items():
+            with self.subTest(name), tempfile.TemporaryDirectory() as d:
+                ledger = Path(d) / "ledger.json"
+                transport = FakeTransport([reply, API_REPLY])
+                out = jev.run([packet("c1"), packet("c2")], ledger, models=MODELS, transport=transport, max_calls=5)
+                self.assertEqual(out["status"], "STOPPED_PROVIDER_FAILURE")
+                self.assertEqual(out["results"][0]["status"], "INVALID_RESPONSE_BILLABLE")
+                self.assertEqual(len(transport.bodies), 1)
+                with jev.locked_ledger(ledger) as (state, save):
+                    self.assertEqual(state["entries"][0]["final_usd"], "0.000012054")
+                    self.assertNotIn("typed_answers", state["entries"][0])
+
+
 if __name__ == "__main__":
     unittest.main()

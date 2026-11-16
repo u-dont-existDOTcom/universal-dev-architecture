@@ -22,9 +22,11 @@ const isAction = (value: unknown): value is JevIndependentAction =>
 
 export function scoreJevV2(input: { gold: Json[]; reconciliation: Json[]; ledger: Json; stronger?: Json[] }) {
   const baseline = new Map<string, unknown[]>();
+  const fingerprints = new Map<string, unknown>();
   for (const row of input.reconciliation) {
     if (row.kind !== undefined && row.kind !== "reconciliation") continue;
     baseline.set(String(row.case_id), Array.isArray(row.deterministic_actions) ? row.deterministic_actions : []);
+    fingerprints.set(String(row.case_id), row.state_fingerprint);
   }
   const stronger = new Map((input.stronger ?? []).map((row) => [String(row.case_id), row.action]));
   const entries = (Array.isArray(input.ledger.entries) ? input.ledger.entries : []) as Json[];
@@ -42,6 +44,11 @@ export function scoreJevV2(input: { gold: Json[]; reconciliation: Json[]; ledger
     }
     const actions = baseline.get(caseId);
     if (!actions) throw new Error("A gold case is missing from the reconciliation file: " + caseId);
+    // The state is the unit of evidence: a missing or mismatched fingerprint would merge or split states.
+    if (typeof gold.state_fingerprint !== "string" || !/^[0-9a-f]{64}$/.test(gold.state_fingerprint)
+      || fingerprints.get(caseId) !== gold.state_fingerprint) {
+      throw new Error("A gold label's state fingerprint is missing or differs from the export: " + caseId);
+    }
     if (actions.length !== 1 || !isAction(actions[0])) { noSingleBaseline.push(caseId); continue; }
     usable.push({ gold, deterministic: actions[0] });
   }

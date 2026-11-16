@@ -47,6 +47,25 @@ test("the forwarder refuses anything but a pinned Jev request without fallbacks,
   assert.deepEqual(cut, { http_status: 0, error: "TRANSPORT" });
 });
 
+test("nested provider content is rebuilt from typed fields only before it leaves the container", async () => {
+  const out = await forward({ input: JSON.stringify(request), env, fetchImpl: async () => reply(200, { id: "gen-dec-2",
+    answers: {
+      q: { type: "noul", noul: 0.3, explanation: "the state says private-detail", authorization: "Bearer sk-or-v1-NESTED" },
+      pick: { type: "choice", choice: "route_reasoning", confidence: 0.8, rationale: "echo of the prompt",
+        probabilities: { route_reasoning: 0.8, notify_owner: 0.2, "bad key!": 0.5, other: 7 } },
+      level: { type: "score", score: 1.5, legend: { "0": "text" }, probabilities: { "1": 0.6, "2": 0.4 } },
+      spread: { type: "choice", choice: { a: 0.3, b: 0.7 } },
+      junk: { type: "noul", noul: 3 }, "bad key!": { type: "noul", noul: 0.1 }, text: "free text",
+    } }) });
+  assert.deepEqual(out.body.answers, {
+    q: { type: "noul", noul: 0.3 },
+    pick: { type: "choice", choice: "route_reasoning", confidence: 0.8, probabilities: { route_reasoning: 0.8, notify_owner: 0.2 } },
+    level: { type: "score", score: 1.5, probabilities: { "1": 0.6, "2": 0.4 } },
+    spread: { type: "choice", choice: { a: 0.3, b: 0.7 } },
+  });
+  assert.doesNotMatch(JSON.stringify(out), /private-detail|NESTED|echo of the prompt|legend|free text/);
+});
+
 test("key status reports only the key's own remaining limit", async () => {
   const out = await forward({ argv: ["--key-status"], env, fetchImpl: async (url: string) => {
     assert.equal(url, KEY_URL);

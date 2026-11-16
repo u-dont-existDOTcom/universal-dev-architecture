@@ -100,6 +100,10 @@ test("the V2 export is read-only, blind, private-field-free and frozen", () => {
     assert.equal(legacy.provider_failures, 1);
     assert.throws(() => scoreJevV2({ gold: [...gold, gold[0]], reconciliation: lines, ledger }), /two gold labels/);
     assert.throws(() => scoreJevV2({ gold: [{ ...gold[0], evidence_ref: "" }], reconciliation: lines, ledger }), /evidence/);
+    const { state_fingerprint: _dropped, ...unfingerprinted } = gold[0];
+    assert.throws(() => scoreJevV2({ gold: [unfingerprinted], reconciliation: lines, ledger }), /fingerprint/);
+    assert.throws(() => scoreJevV2({ gold: [{ ...gold[0], state_fingerprint: gold[1].state_fingerprint }], reconciliation: lines, ledger }),
+      /fingerprint/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
