@@ -10195,6 +10195,47 @@
       ],
       "exception_reason": "Whether an agent leaves the owner's merges and answers alone until he says when to check happens across its turns, which a repository check cannot observe; adoption needs per-turn review.",
       "review_notes": "Owner request on 2026-11-08 (docs/requirements/2026-11-08-owner-says-when-to-check.owner-requirement.json): agents kept checking whether he had merged or answered in an artifact. Classified WORKFLOW_ONLY: a static test proves the text and routing only."
+    },
+    {
+      "id": "patterns/write-for-a-reader-who-was-not-there.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "WORKFLOW_ONLY",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "owner rule: When writing anything a person will read (an answer that explains a method or a result, a page, a report, an email, or the text a product shows its users)"
+      },
+      "actors": [
+        "reasoning agent",
+        "repository research or engineering worker",
+        "execution worker"
+      ],
+      "phases": [
+        "pre-action",
+        "final-delivery"
+      ],
+      "destinations": [
+        "the agent's reply to the owner",
+        "pages, reports, emails and product text read by people"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/write-for-a-reader-who-was-not-there.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "exception_reason": "Whether a reader who was not part of the work can understand what an agent wrote is decided when the text is read, which a repository check cannot observe; adoption needs the cold-reader check run on real text.",
+      "review_notes": "Owner request on 2026-11-18 (docs/requirements/2026-11-18-write-for-a-reader-who-was-not-there.owner-requirement.json): he could not understand a page and several explanations an agent wrote for him. Classified WORKFLOW_ONLY: this change adds the text and routing only."
     }
   ]
 }

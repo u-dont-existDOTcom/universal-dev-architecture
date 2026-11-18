@@ -1,0 +1,54 @@
+{
+  "requirement_id": "2026-11-18-write-for-a-reader-who-was-not-there",
+  "date": "2026-11-18",
+  "source": "Owner message on 2026-11-18 to a Claude session working in one of his private projects.",
+  "owner_statement": "it's not just that you can't explain science, you can't write clearly at all. DEBUG THAT! we need to get to the root of this and fix it in UDA and askrigor and everywhere.",
+  "problem": "An agent wrote a long page and several explanations that the owner could not understand: private words used as if he had been there, sentences in which an idea behaves like a person, nothing said about whether a thing was good or bad news, and the useful sentence placed after the evidence. Root AGENTS.md already asked for plain words; no check had a reader without the context read the text before it went out.",
+  "required_behavior": [
+    "Everything a person will read says the claim first in everyday words, then what to do, then whether it is good or bad news, with evidence and method last.",
+    "No private or technical word reaches the reader without its meaning in the same sentence, and no sentence makes an idea behave like a person.",
+    "A method is explained with one worked example before the general statement, and numbered questions are answered in the owner's order.",
+    "Before such text goes out, a reader with no context says each paragraph back and lists what it could not explain and what it still wants to know; the writer fixes what a real reader would stumble on, at most twice, and tells the owner what is still open."
+  ],
+  "basis": [
+    "The owner's statement above and his other remarks of the same day quoted in the pattern.",
+    "Root AGENTS.md output rules and patterns/human-readable-operational-references.md before this change."
+  ],
+  "scope": "New patterns/write-for-a-reader-who-was-not-there.md; its LESSON-INDEX.md entry; its row in patterns/logic-failure-map.md; the docs/INDEX.md route; this record; an item in the AskRigor lane. Coverage registration and tests are left to the maintainer lane.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "What agents write for him and for his products' users can be understood on first reading by someone who was not part of the work.",
+    "notes": "The eleven rules and the cold-reader check are the assistant's reconstruction of the root cause; the owner asked for the root to be found and fixed, and named UDA, AskRigor and 'everywhere'."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "The private project where the failure happened",
+      "disposition": "PROJECTED",
+      "note": "A rule file, a cold-reader prompt and a banned-word test are in that repository; the page was rewritten and checked by a small model and by a model from another family."
+    },
+    {
+      "surface": "patterns/write-for-a-reader-who-was-not-there.md, reached through LESSON-INDEX.md",
+      "disposition": "QUEUED",
+      "reason": "Proposed in a pull request labelled uda-lane; it applies once the maintainer lane merges it."
+    },
+    {
+      "surface": "AskRigor's own instructions for the answers it gives users",
+      "disposition": "QUEUED",
+      "reason": "Filed in its lane, suggested-fixes/AskRigor/2026-11-18-cold-reader-check-for-answers.md; its own agent decides."
+    },
+    {
+      "surface": "Other products that write to people",
+      "disposition": "DEFERRED",
+      "reason": "The owner said 'everywhere'. Which other products get a product-level change was not named, so it is a question on the filing project's owner questions page."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED"
+  ],
+  "nonclaims": [
+    "The pattern's text and routing are in this change. Whether agents write so that readers understand is not proved by any repository check; in the originating project it was checked once, on one page, by two cold readers.",
+    "Coverage registration (rules/rule-graph/enforcement-coverage.v1.json and docs/uda-enforcement-coverage.md) and a text-and-routing test are not in this change."
+  ]
+}
