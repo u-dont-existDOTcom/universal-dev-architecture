@@ -130,6 +130,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-9.6 | Prose becomes hard to read aloud because connective relations are lost or repetition is mechanical. | Read the passage aloud; restore natural links and check local repetition in context. | `patterns/conversational-prose-speakability.md` | |
 | LF-9.7 | An owner-marked failure remains only in chat instead of becoming the requested durable Mission Control record. | Check for an explicit capture request, then verify the record at its destination before claiming it was saved. | `patterns/owner-marked-mission-control-failure-capture.md` | |
 | LF-9.8 | Questions for the owner scattered across chat messages and pull requests and named by number, so he can't tell what he has to decide or do. | Is every open question on the one owner questions page, with its options, tradeoffs and a recommendation? | `patterns/owner-questions-page.md` | |
+| LF-9.9 | Text the reader cannot understand: private words, ideas behaving like people, no statement of whether a thing is good or bad news, the useful sentence after the evidence. | Give the text alone to a reader with no context; can it say each paragraph back, and what could it not explain? | `patterns/write-for-a-reader-who-was-not-there.md` | |
 
 ### 10. Coordinating agents
 

@@ -151,6 +151,8 @@ Every final answer in the owner's work that spans more than one turn, a new chat
 
 Don't check whether the owner has merged or answered something, on GitHub, his questions page or an artifact, until he says he has or asks you to check: `../patterns/owner-says-when-to-check.md`. Owner requirement: `requirements/2026-11-08-owner-says-when-to-check.owner-requirement.json`.
 
+When you write anything a person will read, say the claim first in plain words, say whether it is good or bad news, keep private and technical words out unless explained, and have a reader with no context say it back before it goes out: `../patterns/write-for-a-reader-who-was-not-there.md`. Owner requirement: `requirements/2026-11-18-write-for-a-reader-who-was-not-there.owner-requirement.json`.
+
 At the start of every turn, check your mailbox, including your lane in `../suggested-fixes/`, and file suggestions for projects you aren't working on there: `../patterns/suggested-fix-queue.md`. Owner requirement for the every-turn check: `requirements/2026-10-31-lane-mailbox-every-turn.owner-requirement.json`.
 
 When a pipeline accepts work units on a language-model reviewer's findings, or a repair loop re-reviews after each fix, load `../patterns/convergent-review-acceptance-gates.md`: re-review only changed items, bound the repairs, gate on aggregates with hard floors, and estimate the gate's false-failure rate before running at scale.
