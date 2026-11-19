@@ -39,11 +39,11 @@ The systemic gap fits existing logic-map entries: LF-2.1 for unloaded/stale guid
 
 ## Current counts
 
-Inventory entries: 106
+Inventory entries: 107
 
-Indexed patterns: 92
+Indexed patterns: 93
 
-Migration backlog: 78
+Migration backlog: 79
 
 Task-time records: 78, sourced from 13 files, with 2 mechanical and 86 semantic obligations. Corrected slice 2a adds 28 records and extends three continuity records; its 31 records carry 32 semantic behaviors and 281 mapped clause rows.
 
@@ -52,7 +52,7 @@ Task-time records: 78, sourced from 13 files, with 2 mechanical and 86 semantic 
 | STRUCTURED_ENFORCED | 9 |
 | STRUCTURED_PARTIAL | 9 |
 | WORKFLOW_ONLY | 17 |
-| LEGACY_UNSTRUCTURED | 69 |
+| LEGACY_UNSTRUCTURED | 70 |
 | NOT_ACTIVE | 2 |
 
 The 2026-11-01 survey-draft resilience addition contributes one WORKFLOW_ONLY specialist pattern with a reusable browser autosave template and focused regression tests. It adds no task-time obligations or migration-backlog identities. Browser/runtime integration checks remain survey-specific and are not implied by static UDA coverage.
@@ -270,6 +270,7 @@ Order migration by P1, P2, P3 first, then by how often the trigger fires: EVERY_
 | `AGENTS.md#authority` | P2 | EVERY_TURN |
 | `AGENTS.md#code-review-rules` | P2 | EVERY_TURN |
 | `AGENTS.md#universal-and-owner-specific-infrastructure-boundary` | P2 | EVERY_TURN |
+| `patterns/fresh-session-advice.md` | P2 | EVERY_TURN |
 | `patterns/conversational-prose-speakability.md` | P2 | FREQUENT |
 | `patterns/development-assurance-lanes.md` | P2 | FREQUENT |
 | `patterns/human-readable-operational-references.md` | P2 | FREQUENT |

@@ -10195,6 +10195,60 @@
       ],
       "exception_reason": "Whether an agent leaves the owner's merges and answers alone until he says when to check happens across its turns, which a repository check cannot observe; adoption needs per-turn review.",
       "review_notes": "Owner request on 2026-11-08 (docs/requirements/2026-11-08-owner-says-when-to-check.owner-requirement.json): agents kept checking whether he had merged or answered in an artifact. Classified WORKFLOW_ONLY: a static test proves the text and routing only."
+    },
+    {
+      "id": "patterns/fresh-session-advice.md",
+      "kind": "pattern",
+      "indexed": true,
+      "disposition": "LEGACY_UNSTRUCTURED",
+      "behavioral": true,
+      "activation_route": {
+        "kind": "INDEX_TRIGGER",
+        "detail": "owner rule: when a session's context has grown well past what a fresh session would need"
+      },
+      "actors": [
+        "main session agent",
+        "helper agent",
+        "fresh successor session"
+      ],
+      "phases": [
+        "reasoning",
+        "pre-action",
+        "handoff",
+        "persistence",
+        "final-delivery"
+      ],
+      "destinations": [
+        "fresh-session advice line",
+        "handoff and resume line",
+        "checkpoint fresh-start measurement",
+        "handoff-ready helper brief and result file"
+      ],
+      "enforcement_types": [
+        "unobserved"
+      ],
+      "task_time_records": [],
+      "graph_node": null,
+      "evidence": [
+        {
+          "path": "patterns/fresh-session-advice.md",
+          "class": "TEXT_PRESENCE"
+        },
+        {
+          "path": "LESSON-INDEX.md",
+          "class": "ROUTING"
+        },
+        {
+          "path": "docs/INDEX.md",
+          "class": "ROUTING"
+        }
+      ],
+      "review_notes": "Index routes exist in LESSON-INDEX.md and docs/INDEX.md. No task-time record, test or repository hook checks the C, F and S readings, the level, the intelligence gate or the advice line; the pattern's hook guidance is advisory text, not coverage.",
+      "migration": {
+        "priority": "P2",
+        "next_step": "Register the turn-start, pre-long-run and pre-final triggers as task-time obligations; admit the advice line only with a recorded C, F and S reading, the computed level, the named gate result and the handoff path; keep the saving levels advisory with no cost-triggered stop.",
+        "trigger_frequency": "EVERY_TURN"
+      }
     }
   ]
 }
