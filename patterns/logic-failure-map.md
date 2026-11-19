@@ -80,6 +80,7 @@ The multi-agent rows use the Multi-Agent System Failure Taxonomy (MAST): 14 fail
 | LF-5.4 | Recommending before checking the facts that decide it: price, availability, fit. | Resolve the deciding facts before naming a candidate. | `patterns/recommendation-preflight-integrity.md`; `patterns/shopping-research.md` (shopping) | |
 | LF-5.5 | The wrong model tier: the top tier for easy work, or a low tier for hard work. | Split judgment from execution; use the lowest sufficient tier. | `patterns/delegate-easy-work-to-cheaper-models.md`; `patterns/work-model-and-effort-routing.md`; `patterns/chat-work-execution-routing-threshold.md`; `patterns/codex-supervision-resource-routing-account-failover-and-browser-hygiene.md` | |
 | LF-5.6 | Assurance that doesn't match the decision: release gates on an experiment, or none at a merge. | Name the lane for the decision being made now. | `patterns/development-assurance-lanes.md` | |
+| LF-5.7 | Staying in a session whose context has grown far past what a fresh session would need, with the advice deferred until helpers report, or given without numbers. | At each turn's start, before long runs and before the final answer, compute C, F and S; advise at S >= 2 and recommend at S >= 3 only when the intelligence gate passes; the saving never stops work. | `patterns/fresh-session-advice.md` | |
 
 ### 6. Acting
 

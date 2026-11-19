@@ -143,6 +143,8 @@ When a claim about another agent's capabilities, configuration or behavior feeds
 
 For substantial work on a high-tier model, load `../patterns/delegate-easy-work-to-cheaper-models.md`: delegate easy, well-specified pieces when the allowance saving pays for briefing and checking, and keep work when continuing is cheaper.
 
+When a session's context has grown well past what a fresh session would need, load `../patterns/fresh-session-advice.md`: tell the owner, with C, F and the saving S, when continuing in a fresh session would save tokens without losing intelligence; recommend it only when the intelligence gate passes, and never let the saving stop work.
+
 When a workstream needs anything from the owner, keep it on that workstream's one continuously updated owner questions page: `../patterns/owner-questions-page.md`. Owner requirements: `requirements/2026-10-10-owner-page-status-colours.owner-requirement.json` and `requirements/2026-10-29-owner-page-link-with-every-question.owner-requirement.json`.
 
 When work may continue from another of the owner's accounts, load `../patterns/cross-account-continuity.md`: Git holds the state a successor needs, and the local handoff note points to it. Owner requirement: `requirements/2026-10-10-cross-account-continuity.owner-requirement.json`.
