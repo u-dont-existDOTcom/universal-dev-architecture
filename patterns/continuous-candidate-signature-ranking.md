@@ -21,6 +21,21 @@ The semantic mapping from a behavioral description to exact astrological degrees
 
 Decision: **compose** established transformation tooling with a transparent fuzzy composite scorer; do not claim that the behavioral score validates the underlying interpretive theory.
 
+## Coverage preservation for interval and timestamp searches
+
+When searching a large time/location candidate universe for every candidate **better than a fixed reference**, separate:
+
+1. **Score validity:** the numerical score must cover all features whose contribution can change a candidate's final rank. A large score from a narrow or retrospective rulebook is not proof of stronger real-world match.
+2. **Grid completeness:** every timestamp on a declared finite grid is evaluated. A 15-minute index may be complete for those 15-minute samples while missing states between marks.
+3. **Continuous interval completeness:** either enumerate all exact feature-state boundaries with validated crossings, or attach a mathematically admissible upper bound `U(I)` for every skipped interval `I` and prove `U(I) <= reference_score` before exclusion (using `<` if ties also count). If no valid bound exists for any scored feature, its possible best contribution stays in the upper bound; a sampling point is not an upper bound.
+4. **Descriptive/empirical validity:** complete enumeration under a speculative rubric does not establish that the rubric predicts real-world outcomes.
+
+**Do not hard-reject years, dates, charts, or locations solely because a cheap proxy/one timestamp scores poorly** unless it is a proved necessary condition for the *complete frozen scoring function*. Sampling one time per day or hour can miss narrow peaks. Use a source-neutral sharded feature cache across the entire declared range so each new user profile is rescored without recomputing astronomy; store exact input/model/cache hashes, timezone conversion, time-grid or interval boundaries, and all unresolved regions.
+
+**Adversarial regression:** construct a within-hour peak and verify that a coarse hourly-only filter misses it, then require a bound-certified interval search or an explicitly complete finer grid. If claiming no false negatives, state precisely whether that applies to the finite grid, discrete feature intervals, or actual human behavior; do not let these claims collapse into each other.
+
+This refinement was prompted by a source-neutral astronomy indexing pilot where a 15-minute search over one calendar year found qualifying timestamps in thirteen dates; sampling only midnight on those dates missed eight, and noon-only missed six. The transfer is about **search coverage**, not whether astrology is true. Project evidence: `u-dont-existDOTcom/humandesign` source-neutral pilot, `reference/audits/fast_century_grid_and_false_negative_pilot_20261119.md`, research branch `research/astrohd-century-coverage-architecture-20261119`.
+
 ## Pipeline
 
 1. Preserve original dataset index.
