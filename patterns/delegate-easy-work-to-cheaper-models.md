@@ -53,6 +53,7 @@ The authorized reasoning supervisor makes delegation decisions. A Codex/Work wor
 - Delegation doesn't replace thinking. The reasoning supervisor owns the plan, acceptance criteria, delegation decision and final verification; a Codex/Work worker returns a candidate subtask for Chat-authored admission.
 - During a controlled matched Sol/Astra trial attempt (`patterns/work-model-and-effort-routing.md`), use the assigned model for the whole bounded task: no cross-model delegation, including mechanical portions. If another model contributes execution, record the run as mixed-model and exclude it from matched Sol-versus-Astra results.
 - After a delegate fails a check, diagnose the cause (transient tool error, correctable brief, or execution shortfall) and re-evaluate whether another bounded cheap attempt still saves allowance. Do not use a fixed failure count or cycle through models without evidence.
+- Judgment is never residue, however much of it there is. Reading whether a rewrite still says what its source said (a comparative or clarity read, the check of a fix, any read for lost, changed or garbled meaning) is judgment: the reasoning supervisor's own model does it, sentence by sentence. A cheaper model may only gather and lay out what is to be read. Volume makes such a read look like bulk reading; what it decides makes it judgment.
 
 ## Requirement-accretion declaration
 
@@ -60,7 +61,10 @@ The authorized reasoning supervisor makes delegation decisions. A Codex/Work wor
 - Decision it changes: which model does each piece of a task, and whether top-tier allowance is spent on execution residue.
 - Why the simpler standard is insufficient: the existing routing covers ChatGPT Chat and Work only. Claude reasoning supervisors lacked a cross-provider rule, and top-tier Codex workers lacked an explicit route for candidate subtasks, so the owner repeated the instruction to each worker.
 - Why it is scoped: it applies only when a piece is well-specified and the saving is large. It preserves the existing Chat/Work admission gate and controlled-trial comparison boundary.
+- The judgment bound: origin `OWNER` (2026-10-30), after meaning reads delegated under this pattern passed errors the supervisor's own read then found (the example below). It narrows what may be delegated; it adds no gate.
 
 ## Example (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT)
 
 On 2026-09-28 and 2026-09-29, Claude Opus at max effort designed fixes and judged review findings. The owner's laptop runner gave the implementation to Codex (GPT-6 Sol, extra high): the edits, the tests and the gate runs. Opus then checked the results against the gates and the diff. Small edits in files Opus already had open stayed with Opus, because briefing them would have cost more than making them.
+
+On 2026-10-29 a humanization lane in the owner's articles repository gave its comparative reads (does each rewritten paragraph still say what the published one says?) to Sonnet under this pattern. On 2026-10-30 the owner found an error those reads had passed and asked: "is it because you are using dumb readers? not reading it yourself?", then "looks like you need to read everything again yourself (not sonnet)". Opus's own read of the whole article found 122 places the Sonnet reads had passed: missing commas, wrong words, steps pointing the wrong way, lost points (that repository's gate E294).
