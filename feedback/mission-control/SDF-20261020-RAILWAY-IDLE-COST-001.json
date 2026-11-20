@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "feedbackId": "SDF-20261020-RAILWAY-IDLE-COST-001",
+  "packetType": "SUPERVISION_DESIGN_FEEDBACK",
+  "capturedDate": "2026-10-20",
+  "originIssue": "https://github.com/u-dont-existDOTcom/universal-dev-architecture/issues/405",
+  "ownerOutcome": {
+    "ownerOutcomeId": "OO-RAILWAY-COST-MINIMIZATION-20261020",
+    "epoch": 1,
+    "exactOwnerInstructionSha256": "d574ee010692b7eacf87c46fb5f48b0cf6681d47cab33f48c60bb8571fdc1924",
+    "exactOwnerInstructionUtf8Bytes": 87,
+    "publicOwnerRequestSummary": "File actionable cost-minimization bug reports for UDA and Mission Control",
+    "sourceQuality": "EXACT_SOURCE_DIGEST__PUBLIC_BOUNDED_SUMMARY",
+    "sha256": "d574ee010692b7eacf87c46fb5f48b0cf6681d47cab33f48c60bb8571fdc1924"
+  },
+  "type": "IMPROVEMENT",
+  "category": "RESOURCE_ACCOUNTING",
+  "severity": "MATERIAL",
+  "blocksCurrentBoundary": false,
+  "exactIssue": "Cloud-agent disconnect does not halt Railway VM metering. Existing VM/sandbox/task lifecycle and accounting do not yet demonstrate a reliable end-of-work sleep/cleanup policy, and idle app memory charges may be unnecessary for request-driven services.",
+  "evidence": {
+    "observed": [
+      "Invoice had separate VM and regular container memory/CPU billing categories; VM memory was dominant, followed by regular memory, while CPU/network were relatively minor.",
+      "Authenticated Railway CLI at audit time showed the only listed cloud agent sleeping; all listed sandboxes destroyed, so no proven ongoing VM leakage at the observed instant.",
+      "Some continuously deployed low-activity apps had no sleepApplication flag; exact financial benefit and operational fit of serverless are unverified.",
+      "Historical supervisory app/hotfix line-items were material despite those services being offline at audit; reconcile attribution to actual billed time/IDs before concluding incorrect charges."
+    ],
+    "notEstablished": [
+      "Which specific cloud agent or sandbox accrued the historical VM memory charges.",
+      "Whether the historical VM usage was avoidable idle time as opposed to useful running work.",
+      "Whether any service is currently incurring excess charges.",
+      "Whether serverless is operationally appropriate for each workload or its attached volumes."
+    ],
+    "providerDocs": [
+      "https://docs.railway.com/cloud-agents/manage",
+      "https://docs.railway.com/pricing/plans#vm-pricing",
+      "https://docs.railway.com/guides/scaling-your-application#vertical-scaling"
+    ],
+    "privateEvidencePolicy": "Keep exact invoice/account/project/resource IDs and owner content outside public repository; use authenticated provider access for verification."
+  },
+  "observedOrHypotheticalFailure": "Finishing/disconnecting a coding session can leave a VM accruing memory charges. A service with little traffic can also accrue container memory charges if left running. Existing supervision can report execution efficiency while overlooking provider compute billed after execution and can misattribute historical costs to the wrong lifecycle layer.",
+  "proposedChange": "Integrate bounded resource leases and task-completion cloud-agent sleep/disposable-sandbox cleanup with existing Mission Control control plane; add accurate provider-aware cost attribution and alerts; assess serverless mode only per compatible service, without harming active queues, data persistence, health or owner-required uptime.",
+  "workerRecommendation": [
+    "First reconcile previous-period invoice, account-level VM subtotals, per-project container usage and service/deployment history using read-only usage APIs.",
+    "Audit which worker/supervisor can and should own each VM/sandbox resource; default to sleep after verified work completion rather than reconnect-disconnect or naive fixed wall-time.",
+    "Expose idle/awake VM time, VM vs container vs model usage, historical/current spend, and forecast against a user-configurable budget.",
+    "Inspect inactive duplicate/hotfix services and low-traffic HTTP-only apps as candidates for careful serverless/retirement, preserving current essential Mission Control Atlas work."
+  ],
+  "risks": [
+    "Sleeping VM kills running processes; cannot sleep solely from absence of user interaction while a job is active.",
+    "Serverless cold starts, periodic traffic, and background workload behavior may make blanket enablement unsafe or ineffective.",
+    "Destroying non-disposable resources or modifying subscriptions without authority can lose data/cause outage.",
+    "Misinterpreting provider usage scope can falsely attribute past expense or promise unsupported savings."
+  ],
+  "acceptance": [
+    "A dry-run reconciles invoice/usage by billing type and period with an explicit UNATTRIBUTED VM state.",
+    "Completion and crash/retry tests show one-time lease release and no sleeping another task's live resource.",
+    "Any authorized metered validation shows sleep stops cloud-agent compute usage and wake retains files; only approved conditions may trigger actual shutdown.",
+    "A before/after provider meter comparison documents observed savings and actual runtime availability; no inferred perfect zero-cost claim.",
+    "Owner-facing budget warnings distinguish subscription fees/allowances from metered usage and clearly identify resource owners."
+  ],
+  "routing": {
+    "target": "MISSION_CONTROL_SUPERVISION_RESOURCE_COST_TRIAGE",
+    "relatedActivePriorityIssue": 385,
+    "ownerRequestedReport": true,
+    "requiresPaidSpend": false,
+    "proMetaReviewRequired": false,
+    "reviewPriority": "BATCH",
+    "ownerAuthorizationBoundary": "No new paid resources or live shutdowns; preserve current Atlas priority hold.",
+    "extraHighPacketPrepared": false,
+    "sharedProScopeKey": "supervision-architecture/2026-10-20",
+    "proReviewOnSubstantiveSafetyOrAuthorityChange": true
+  },
+  "status": "OPEN_INTAKE__NOT_IMPLEMENTED",
+  "sourceDisclosure": "Public deidentified extract, not conversation transcript",
+  "companionUdaFeedback": "feedback/2026-10-20-railway-idle-compute-cost-governance.md",
+  "repositoryChangeRefs": [],
+  "testRefs": [],
+  "taskId": "railway-cost-minimization-owner-report-20261020",
+  "workerUncertainty": "No time-aligned VM-level attribution to task or agent has yet been confirmed. Running status today cannot establish prior-period VM lifecycle or causality.",
+  "decisionThatCanChange": "Mission Control's existing resource lease/sleep reconciliation and per-resource cost visibility, without replacing the authorized Atlas work.",
+  "alternativesConsidered": [
+    {
+      "alternative": "Enable sleepApplication for all Railway services immediately",
+      "rejectedBecause": "May break background work, low-latency owner workflows, volume or health contracts; provider metering and service role must be inspected first."
+    },
+    {
+      "alternative": "Destroy or shut down all VM/server resources immediately",
+      "rejectedBecause": "Could destroy recoverable sessions or interrupt running tasks and violates authorization."
+    },
+    {
+      "alternative": "Only notify owner after invoice arrives",
+      "rejectedBecause": "Does not prevent unattended charges during the billing cycle."
+    }
+  ],
+  "proMetaReview": null
+}
