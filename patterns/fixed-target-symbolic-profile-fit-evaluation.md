@@ -6,6 +6,16 @@ Evaluate how well one or more symbolic personality systems (for example astrolog
 
 This is a descriptive-fit workflow, not evidence that the symbolic systems are scientifically predictive.
 
+## Task-order boundary: finish the requested chart reading first
+
+If the user asks **what their already-known chart says about them**, or why a model's top chart reads better than their own, the task is a **known-chart descriptive comparison**. Do not substitute a prospective participant-recruitment recommendation, broader predictive-validation research agenda, or further reverse-date scanning before calculating and genuinely interpreting the actual verified chart. A prospective test may be appropriate **after** this task, but cannot discharge the chart-reading obligation.
+
+At minimum: resolve the latest verified natal input and time-zone uncertainties; calculate the complete chart including relevant luminaries, ASC/MC, rulers, sect, dignities, houses and dominant close aspect networks; translate the resulting *whole chart* into qualified descriptive tendencies; compare the person's actual reported traits as hits, contrary indications, context-dependent fits and no-prediction gaps; explain exactly what an earlier scoring rubric omitted. Treat later interpretation as source-aware and NONBLIND, not validated by retrospective fit.
+
+If an ongoing reverse-matching experiment still has held-out results, keep its sealed prediction artefacts unchanged and move any actual birth-key comparison into an explicit post-freeze evaluator lane; don't contaminate untouched testers. This permits satisfying a concrete known-chart request without falsely labeling the result as independent prediction.
+
+**Failure condition:** Answering a chart-reading complaint with only 'the next consequential step is prospective validation' while the actual known chart has not been interpreted. Current user intent and the relevant descriptive-read phase have priority over a project-wide validation preference.
+
 ## Core anti-cherry-picking sequence
 
 1. **Freeze the target first.** Recover or write the behavioral profile before calculating or interpreting any candidate system. Preserve concrete traits, contradictions, context dependence, and known failure modes.
