@@ -311,7 +311,8 @@ class ContinuationClosureSliceTests(unittest.TestCase):
         self.assertEqual(79, report["backlog_count"])
         self.assertEqual(7, len(report["removed_since_baseline"]))
         self.assertIn(SOURCES[2], report["removed_since_baseline"])
-        for source, count, disposition in zip(SOURCES, (65, 73, 143), ("STRUCTURED_PARTIAL", "STRUCTURED_PARTIAL", "STRUCTURED_ENFORCED")):
+        # Compaction: 73 rows at slice 2a, plus the eight 99% pause clauses (owner rule, 2026-11-24).
+        for source, count, disposition in zip(SOURCES, (65, 81, 143), ("STRUCTURED_PARTIAL", "STRUCTURED_PARTIAL", "STRUCTURED_ENFORCED")):
             entry = next(e for e in self.inventory["entries"] if e["id"] == source)
             self.assertEqual(disposition, entry["disposition"])
             self.assertEqual(count, len(entry["obligation_map"]))
