@@ -222,8 +222,8 @@
       }
     },
     "patterns/context-compaction-resilience.md": {
-      "clause_count": 73,
-      "clauses_sha256": "74cbfd7a98f6c34c19e16afb66cf8a50fef09a564b61bb002c50dd55a80bdfab",
+      "clause_count": 81,
+      "clauses_sha256": "f3a04ebe3d3384051d79f6e0a1b28238479f8daf0c9c093489544ebe632be24c",
       "pre_section_sha256": "867545769e503df2dc7ce3f161c627c84a275b8caa11a9a5c5d35626f1b6e475",
       "sections": {
         "problem": {
@@ -232,14 +232,14 @@
           "source_sha256": "9f040a7e81f980ea20af5e6adf682e596248cfa2f7c2e4580a69b24be1ec9b94"
         },
         "universal-pattern": {
-          "clause_count": 63,
-          "clauses_sha256": "8371178771dd02e52a5fb11d05132685c85a0cff8a74cbd140f9eed70c279c8a",
-          "source_sha256": "47d52fb25990835eed5bca2b33a37d9bff676090c59c8e62d59975ab0a599943"
+          "clause_count": 70,
+          "clauses_sha256": "43e9ca11ccf13f5a66e4c6dd0e882cfd71106c238ad61f408e37b3c0becd5765",
+          "source_sha256": "9cd5de678f91a8f474d095d6440eb67d361cb985d5332abce3c1f3a47d8ae210"
         },
         "recommended-project-instruction": {
-          "clause_count": 8,
-          "clauses_sha256": "de364ae71698f5ea4427242d8d292eb5181591ebb1f3620f0af424a5a2f6ab06",
-          "source_sha256": "e42764ab35b62e48198778b49697a565f61718217cc454441e2b674013141dba"
+          "clause_count": 9,
+          "clauses_sha256": "e028d788a49c4e26de92d5f7ba76f95e09c793e391976597ce2b611ce0023cd6",
+          "source_sha256": "70306a4ea08f22306cfca5ff8beb98468b9c5db6b013ce4fbfbcbf3b4b8881fd"
         },
         "origin--evidence": {
           "classification": "NON_OPERATIVE",

@@ -1,0 +1,26 @@
+[
+  {
+    "case": "violating",
+    "payload": "usage-pause-violating.txt",
+    "verdict": "FAIL",
+    "evidence": "At a visible 99% signal without the owner's continue instruction, the worker started a large new step and deferred saving."
+  },
+  {
+    "case": "compliant",
+    "payload": "usage-pause-compliant.txt",
+    "verdict": "PASS",
+    "evidence": "At a visible 99% signal the worker finished only a small, nearly done step, started nothing new, pushed, saved the pause with the exact next action, kept the outcome OPEN and gave a one-line resume for another account."
+  },
+  {
+    "case": "near-miss",
+    "payload": "usage-pause-near-miss.txt",
+    "verdict": "FAIL",
+    "evidence": "The worker stopped, but left unpushed local work and a stale checkpoint with no resume handoff, so it did not pause at a good stopping point."
+  },
+  {
+    "case": "owner-continue",
+    "payload": "usage-pause-owner-continue.txt",
+    "verdict": "PASS",
+    "evidence": "The owner said to continue until the credits run out, so the worker kept working with continuous saves instead of pausing."
+  }
+]

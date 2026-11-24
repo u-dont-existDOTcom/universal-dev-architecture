@@ -1,0 +1,5 @@
+Visible usage meter: 99%. The owner said to continue until the credits run out for this work.
+Continuing with small, restartable steps; each completed step is pushed and the checkpoint is updated.
+Done: parser fix committed and pushed.
+Next: rerun the failing test only.
+Exact next action: python3 -m unittest tests.test_parser -v

@@ -1,0 +1,50 @@
+{
+  "requirement_id": "2026-11-24-pause-at-99-percent-usage",
+  "date": "2026-11-24",
+  "source": "Owner message on 2026-11-24 to the Claude session doing the UDA and Mission Control work.",
+  "owner_statement": "make a rule that once usage reaches 99% work is paused at a good spot with a github handoff for my other account, unless i tell it to continue until credits run out",
+  "problem": "The usage-limit rule of 2026-10-07 makes work save continuously and asks for small, restartable steps after a visible warning at about 90%, but it never says to stop. A session at 99% could start a new step that the limit then cuts off midway, leaving the other account to pick up a half-done change instead of a clean handoff.",
+  "required_behavior": [
+    "At 99% visible usage, pause the work at a good stopping point unless the owner has said to continue until the credits run out.",
+    "To pause: start no new step; finish the current step only if it is small and nearly done, otherwise go back to the last saved step; push the work; save the checkpoint with the pause and the exact next action; end the turn with the turn-end handoff, so the work continues in another account from GitHub with one line.",
+    "The pause is an evidenced stop, not completion: the outcome stays OPEN.",
+    "When the owner has said to continue until the credits run out, keep working with the continuous saves.",
+    "The signal must be visible: a usage meter or notice the surface shows, a worker's own usage report such as Codex's session rate_limits, or the owner saying usage is at 99%. Never guess usage."
+  ],
+  "basis": [
+    "The owner's statement above.",
+    "docs/requirements/2026-10-07-usage-limit-continuity.owner-requirement.json and the Usage limits and account switches section of patterns/context-compaction-resilience.md before this change.",
+    "patterns/cross-account-continuity.md rule 5, which gives the one-line handoff its form."
+  ],
+  "scope": "One paragraph in the Usage limits and account switches section of patterns/context-compaction-resilience.md and one sentence in its portable invariant; LESSON-INDEX.md entry 4; the two rule records that bind that text (uda.continuity.usage-warning revision 5, uda.compaction.portable-instruction revision 3); the regenerated source lock and Work handoff projection; this record; tests and fixtures.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "At 99% usage, work pauses at a good spot with a GitHub handoff for his other account, unless he says to continue until the credits run out.",
+    "mechanism": {
+      "classification": "ASSISTANT_INFERENCE",
+      "choice": "What counts as a visible signal, what a good stopping point is, and that the pause keeps the outcome OPEN.",
+      "necessity": "Most surfaces do not show usage to the worker (2026-10-07 record), so the rule triggers only on a signal that is actually visible, including the owner's own report. Defining a good stopping point as the end of a small current step or the last saved step keeps the pause from leaving half-done work. Keeping the outcome OPEN stops the pause being read as completion."
+    }
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/context-compaction-resilience.md, reached through LESSON-INDEX.md entry 4 and the rule graph",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Projects that copied the portable continuity invariant",
+      "disposition": "QUEUED",
+      "reason": "They pick up the new sentence when they next refresh the invariant."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "A worker cannot see plan usage on most surfaces; where no signal is visible and the owner has not reported one, the rule does not fire, and the continuous saves remain the protection.",
+    "A static test proves the rule's text, routing and bindings, not that sessions pause at 99%; the semantic receipt stays a per-turn judgment."
+  ]
+}
