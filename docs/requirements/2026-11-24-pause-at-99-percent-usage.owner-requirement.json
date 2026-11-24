@@ -6,7 +6,7 @@
   "problem": "The usage-limit rule of 2026-10-07 makes work save continuously and asks for small, restartable steps after a visible warning at about 90%, but it never says to stop. A session at 99% could start a new step that the limit then cuts off midway, leaving the other account to pick up a half-done change instead of a clean handoff.",
   "required_behavior": [
     "At 99% visible usage, pause the work at a good stopping point unless the owner has said to continue until the credits run out.",
-    "To pause: start no new step; finish the current step only if it is small and nearly done, otherwise go back to the last saved step; push the work; save the checkpoint with the pause and the exact next action; end the turn with the turn-end handoff, so the work continues in another account from GitHub with one line.",
+    "To pause: start no new step; finish the current step only if it is small and nearly done, otherwise commit the unfinished part as work in progress, marked unfinished, and never discard it; push the work; save the checkpoint with the pause and the exact next action; end the turn with the turn-end handoff, so the work continues in another account from GitHub with one line.",
     "The pause is an evidenced stop, not completion: the outcome stays OPEN.",
     "When the owner has said to continue until the credits run out, keep working with the continuous saves.",
     "The signal must be visible: a usage meter or notice the surface shows, a worker's own usage report such as Codex's session rate_limits, or the owner saying usage is at 99%. Never guess usage."
@@ -24,7 +24,7 @@
     "mechanism": {
       "classification": "ASSISTANT_INFERENCE",
       "choice": "What counts as a visible signal, what a good stopping point is, and that the pause keeps the outcome OPEN.",
-      "necessity": "Most surfaces do not show usage to the worker (2026-10-07 record), so the rule triggers only on a signal that is actually visible, including the owner's own report. Defining a good stopping point as the end of a small current step or the last saved step keeps the pause from leaving half-done work. Keeping the outcome OPEN stops the pause being read as completion."
+      "necessity": "Most surfaces do not show usage to the worker (2026-10-07 record), so the rule triggers only on a signal that is actually visible, including the owner's own report. Defining a good stopping point as the end of a small current step, or else a marked work-in-progress commit, keeps the pause from leaving half-done work unexplained or discarding it. Keeping the outcome OPEN stops the pause being read as completion."
     }
   },
   "execution_surfaces": [

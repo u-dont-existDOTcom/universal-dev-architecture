@@ -223,7 +223,7 @@
     },
     "patterns/context-compaction-resilience.md": {
       "clause_count": 81,
-      "clauses_sha256": "f3a04ebe3d3384051d79f6e0a1b28238479f8daf0c9c093489544ebe632be24c",
+      "clauses_sha256": "5c9b5aac2d316cbf57a5e655b648de34f6a59b0e10a12d5a1e809747d178fc1d",
       "pre_section_sha256": "867545769e503df2dc7ce3f161c627c84a275b8caa11a9a5c5d35626f1b6e475",
       "sections": {
         "problem": {
@@ -233,8 +233,8 @@
         },
         "universal-pattern": {
           "clause_count": 70,
-          "clauses_sha256": "43e9ca11ccf13f5a66e4c6dd0e882cfd71106c238ad61f408e37b3c0becd5765",
-          "source_sha256": "9cd5de678f91a8f474d095d6440eb67d361cb985d5332abce3c1f3a47d8ae210"
+          "clauses_sha256": "f489bd2131246ad7d552f284ccb6e4f5c7ff13caca94d894e9106a4c482e52b8",
+          "source_sha256": "7ec80d5663eb356015fd04eecef38a157d9a189c2b384089f6892ce169a162c7"
         },
         "recommended-project-instruction": {
           "clause_count": 9,

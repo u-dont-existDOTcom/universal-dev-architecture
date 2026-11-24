@@ -39,7 +39,7 @@ class UsagePauseAt99PercentTests(unittest.TestCase):
         for phrase in ('pause the work at a good stopping point',
                        'unless the owner has said to continue until the credits run out',
                        'The signal must be visible', 'never guess usage', 'start no new step',
-                       'go back to the last saved step', 'Push the work',
+                       'commit the unfinished part as work in progress', 'never discard it', 'Push the work',
                        'end the turn with the turn-end handoff above',
                        'continues in another account from GitHub with one line',
                        'patterns/cross-account-continuity.md',

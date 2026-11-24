@@ -2636,7 +2636,7 @@
           "obligation_id": "checkpoint-visible-usage-warning"
         },
         {
-          "sentence": "Finish the current step only if it is small and nearly done; otherwise go back to the last saved step.",
+          "sentence": "Finish the current step only if it is small and nearly done; otherwise commit the unfinished part as work in progress, marked unfinished, and never discard it.",
           "record": "uda.continuity.usage-warning",
           "obligation_id": "checkpoint-visible-usage-warning"
         },
