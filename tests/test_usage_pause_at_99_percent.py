@@ -117,6 +117,10 @@ class UsagePauseAt99PercentTests(unittest.TestCase):
         self.assertIn('Resume in another account', compliant)
         self.assertIn('continue until the credits run out',
                       (FIXTURE / 'usage-pause-owner-continue.txt').read_text())
+        portable = ROOT / 'tests/fixtures/continuation-closure-slice/uda.compaction.portable-instruction'
+        self.assertIn('the 99% pause at a good stopping point', (portable / 'compliant.txt').read_text())
+        self.assertIn('the 99% pause at a good stopping point',
+                      json.loads((portable / 'verdicts.json').read_text())['compliant.txt']['evidence'])
 
     def test_requirement_preserves_the_owner_statement(self):
         requirement = json.loads(REQUIREMENT.read_text())
