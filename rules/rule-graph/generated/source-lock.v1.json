@@ -1,7 +1,7 @@
 {
-  "catalog_sha256": "ffc790047defc24456cc600207fedb8f2afb45e8da1140d6dbdcf05586e2c295",
+  "catalog_sha256": "1b0ed61674b2a7eb44982be6f6292d2db2bd64c9226cca192b1b94bab2f7c85c",
   "compiler_sha256": "7ea7e14d49c8e2d10a5c015119a71b4457392fb6090a30f4cb38c9777be10509",
-  "content_sha256": "3e1cb56c5c51622d4eb0b3af082a35f50fe700488cbe50cce34a7c03cea45968",
+  "content_sha256": "61b694441ec0be346d9f381ecb38edf206512a9e77a4198c306c7e0501f8f59d",
   "entries": [
     {
       "extracted_sha256": "484176b3cf4d591458a300525ec7c0d34177dc35fa0e8b954b0be08f1347e49a",
@@ -56,9 +56,9 @@
     {
       "extracted_sha256": "eb8dac32517d9d14cc5ca23e4506d484069fd9164ca8ee1fd12ff735ba22fd04",
       "extracted_utf8_bytes": 454,
-      "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
+      "git_blob_sha1": "57c316e1b85ea4af66492e1ca99d43a66990677c",
       "path": "patterns/context-compaction-resilience.md",
-      "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
+      "repository_revision": "BLOB:57c316e1b85ea4af66492e1ca99d43a66990677c",
       "rule_id": "uda.compaction.completion-closeout",
       "selectors": [
         {
@@ -84,11 +84,11 @@
       ]
     },
     {
-      "extracted_sha256": "cd8eee7e4df509a2cf4a9805741dbe7e42db47c00df4a006d01905dddf5ce451",
-      "extracted_utf8_bytes": 940,
-      "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
+      "extracted_sha256": "2307073aac599d4236af0b9efa6873616056dc882d2d276d263730dd914fdc82",
+      "extracted_utf8_bytes": 1074,
+      "git_blob_sha1": "57c316e1b85ea4af66492e1ca99d43a66990677c",
       "path": "patterns/context-compaction-resilience.md",
-      "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
+      "repository_revision": "BLOB:57c316e1b85ea4af66492e1ca99d43a66990677c",
       "rule_id": "uda.compaction.portable-instruction",
       "selectors": [
         {
@@ -121,6 +121,10 @@
         },
         {
           "kind": "exact_text",
+          "text": "At 99% visible usage, pause at a good stopping point with that handoff, unless the owner said to continue until the credits run out."
+        },
+        {
+          "kind": "exact_text",
           "text": "On any new thread, interruption, context compaction, model switch, or account switch, reconcile the checkpoint against actual repository state and resume from the latest verified checkpoint without repeating completed work."
         }
       ]
@@ -128,9 +132,9 @@
     {
       "extracted_sha256": "280325e5c994bef8730db80c176431f1eb6703c7a7722097f55464b3f885e79e",
       "extracted_utf8_bytes": 965,
-      "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
+      "git_blob_sha1": "57c316e1b85ea4af66492e1ca99d43a66990677c",
       "path": "patterns/context-compaction-resilience.md",
-      "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
+      "repository_revision": "BLOB:57c316e1b85ea4af66492e1ca99d43a66990677c",
       "rule_id": "uda.compaction.resume-reconciliation",
       "selectors": [
         {
@@ -550,9 +554,9 @@
     {
       "extracted_sha256": "3144696b11757f034fbbee3357b3037d79a29d9f0458717ed8e60d6daa546a45",
       "extracted_utf8_bytes": 3178,
-      "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
+      "git_blob_sha1": "57c316e1b85ea4af66492e1ca99d43a66990677c",
       "path": "patterns/context-compaction-resilience.md",
-      "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
+      "repository_revision": "BLOB:57c316e1b85ea4af66492e1ca99d43a66990677c",
       "rule_id": "uda.continuity.step-checkpoint",
       "selectors": [
         {
@@ -716,9 +720,9 @@
     {
       "extracted_sha256": "9e116738ddbf7dfbf49e6081ee0c801f5ad235455079836cad8b39e2ec2953e2",
       "extracted_utf8_bytes": 366,
-      "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
+      "git_blob_sha1": "57c316e1b85ea4af66492e1ca99d43a66990677c",
       "path": "patterns/context-compaction-resilience.md",
-      "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
+      "repository_revision": "BLOB:57c316e1b85ea4af66492e1ca99d43a66990677c",
       "rule_id": "uda.continuity.turn-end-handoff",
       "selectors": [
         {
@@ -728,11 +732,11 @@
       ]
     },
     {
-      "extracted_sha256": "11fffde8e14ce032f957ca197e68bde647f87b3bba73cf7de355ac8fa439f270",
-      "extracted_utf8_bytes": 329,
-      "git_blob_sha1": "0064968594f95504900a34186b7fe8d3534c5858",
+      "extracted_sha256": "f1a70caa8e577f18a3b41366d13c61b3f0fc52b05f9040f61f7ba3ed304be8e6",
+      "extracted_utf8_bytes": 1281,
+      "git_blob_sha1": "57c316e1b85ea4af66492e1ca99d43a66990677c",
       "path": "patterns/context-compaction-resilience.md",
-      "repository_revision": "BLOB:0064968594f95504900a34186b7fe8d3534c5858",
+      "repository_revision": "BLOB:57c316e1b85ea4af66492e1ca99d43a66990677c",
       "rule_id": "uda.continuity.usage-warning",
       "selectors": [
         {
@@ -742,6 +746,10 @@
         {
           "kind": "exact_text",
           "text": "If only a model-specific weekly limit is reached, switching model family in the same account is a valid way to continue."
+        },
+        {
+          "kind": "exact_text",
+          "text": "At 99% usage, pause the work at a good stopping point unless the owner has said to continue until the credits run out (owner rule, 2026-11-24). The signal must be visible: a usage meter or notice the surface shows, a worker's own usage report such as Codex's session `rate_limits`, or the owner saying usage is at 99%; never guess usage. To pause, start no new step. Finish the current step only if it is small and nearly done; otherwise commit the unfinished part as work in progress, marked unfinished, and never discard it. Push the work, save the checkpoint with the pause and the exact next action, and end the turn with the turn-end handoff above, so the work continues in another account from GitHub with one line (`patterns/cross-account-continuity.md` rule 5). The pause is an evidenced stop, not completion: the outcome stays OPEN. When the owner has said to continue until the credits run out, keep working with the continuous saves above."
         }
       ]
     },

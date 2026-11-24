@@ -1,0 +1,8 @@
+Visible usage meter: 99%. No instruction to continue until the credits run out.
+Paused at a good stopping point: the current step (one test fix) was small and nearly done, so it was finished; no new step was started.
+Pushed to the task branch; the checkpoint records the pause.
+Done: inputs normalized; parser fix committed and pushed.
+Next: run the full test suite in another account.
+Exact next action: python3 -m unittest discover -s tests -v
+Outcome: OPEN.
+Resume in another account: read the task checkpoint on the task branch and carry on from its exact next action.

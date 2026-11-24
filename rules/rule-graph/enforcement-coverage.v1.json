@@ -2621,6 +2621,41 @@
           "obligation_id": "checkpoint-visible-usage-warning"
         },
         {
+          "sentence": "At 99% usage, pause the work at a good stopping point unless the owner has said to continue until the credits run out (owner rule, 2026-11-24).",
+          "record": "uda.continuity.usage-warning",
+          "obligation_id": "checkpoint-visible-usage-warning"
+        },
+        {
+          "sentence": "The signal must be visible: a usage meter or notice the surface shows, a worker's own usage report such as Codex's session `rate_limits`, or the owner saying usage is at 99%; never guess usage.",
+          "record": "uda.continuity.usage-warning",
+          "obligation_id": "checkpoint-visible-usage-warning"
+        },
+        {
+          "sentence": "To pause, start no new step.",
+          "record": "uda.continuity.usage-warning",
+          "obligation_id": "checkpoint-visible-usage-warning"
+        },
+        {
+          "sentence": "Finish the current step only if it is small and nearly done; otherwise commit the unfinished part as work in progress, marked unfinished, and never discard it.",
+          "record": "uda.continuity.usage-warning",
+          "obligation_id": "checkpoint-visible-usage-warning"
+        },
+        {
+          "sentence": "Push the work, save the checkpoint with the pause and the exact next action, and end the turn with the turn-end handoff above, so the work continues in another account from GitHub with one line (`patterns/cross-account-continuity.md` rule 5).",
+          "record": "uda.continuity.usage-warning",
+          "obligation_id": "checkpoint-visible-usage-warning"
+        },
+        {
+          "sentence": "The pause is an evidenced stop, not completion: the outcome stays OPEN.",
+          "record": "uda.continuity.usage-warning",
+          "obligation_id": "checkpoint-visible-usage-warning"
+        },
+        {
+          "sentence": "When the owner has said to continue until the credits run out, keep working with the continuous saves above.",
+          "record": "uda.continuity.usage-warning",
+          "obligation_id": "checkpoint-visible-usage-warning"
+        },
+        {
           "sentence": "Update the current-state file whenever losing the current chat would otherwise create ambiguity or rework, especially:",
           "record": "uda.continuity.step-checkpoint",
           "obligation_id": "save-completed-step"
@@ -2782,6 +2817,11 @@
         },
         {
           "sentence": "The worker holding the context saves it; a visible usage warning calls for an immediate checkpoint and small, restartable steps.",
+          "record": "uda.compaction.portable-instruction",
+          "obligation_id": "portable-instruction-at-boundary"
+        },
+        {
+          "sentence": "At 99% visible usage, pause at a good stopping point with that handoff, unless the owner said to continue until the credits run out.",
           "record": "uda.compaction.portable-instruction",
           "obligation_id": "portable-instruction-at-boundary"
         },

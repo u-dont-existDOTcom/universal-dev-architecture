@@ -1317,7 +1317,7 @@
     },
     {
       "rule_id": "uda.continuity.usage-warning",
-      "revision": 4,
+      "revision": 5,
       "status": "CURRENT",
       "source": {
         "path": "patterns/context-compaction-resilience.md",
@@ -1329,10 +1329,14 @@
           {
             "kind": "exact_text",
             "text": "If only a model-specific weekly limit is reached, switching model family in the same account is a valid way to continue."
+          },
+          {
+            "kind": "exact_text",
+            "text": "At 99% usage, pause the work at a good stopping point unless the owner has said to continue until the credits run out (owner rule, 2026-11-24). The signal must be visible: a usage meter or notice the surface shows, a worker's own usage report such as Codex's session `rate_limits`, or the owner saying usage is at 99%; never guess usage. To pause, start no new step. Finish the current step only if it is small and nearly done; otherwise commit the unfinished part as work in progress, marked unfinished, and never discard it. Push the work, save the checkpoint with the pause and the exact next action, and end the turn with the turn-end handoff above, so the work continues in another account from GitHub with one line (`patterns/cross-account-continuity.md` rule 5). The pause is an evidenced stop, not completion: the outcome stays OPEN. When the owner has said to continue until the credits run out, keep working with the continuous saves above."
           }
         ]
       },
-      "authority_owner": "Context-compaction resilience; owner usage-limit continuity request 2026-10-07",
+      "authority_owner": "Context-compaction resilience; owner usage-limit continuity request 2026-10-07; owner 99% pause rule 2026-11-24",
       "authority_domain": "durable-continuity",
       "applies_to": {
         "roles": [
@@ -1384,20 +1388,26 @@
       "obligations": [
         {
           "obligation_id": "checkpoint-visible-usage-warning",
-          "required_behavior": "When a visible usage signal reaches the warning level (about 90%), the worker holding the context checkpoints immediately and takes only small, restartable steps. The warning supplements continuous checkpoints; a model-family switch in the same account remains valid when only a model-specific weekly limit is reached.",
+          "required_behavior": "When a visible usage signal reaches the warning level (about 90%), the worker holding the context checkpoints immediately and takes only small, restartable steps. The warning supplements continuous checkpoints; a model-family switch in the same account remains valid when only a model-specific weekly limit is reached. At 99% visible usage, unless the owner has said to continue until the credits run out, the worker pauses at a good stopping point: it starts no new step, finishes the current step only if small and nearly done (else commits the unfinished part as work in progress, marked unfinished, never discarding it), pushes the work, saves the checkpoint with the pause and exact next action, and ends the turn through the turn-end handoff so another account can continue from GitHub with one line; the outcome stays OPEN.",
           "due_phase": "persistence",
           "destination": "durable-task-checkpoint",
-          "acceptance_evidence": "The durable checkpoint records an immediate save in response to the visible warning and a small, restartable next action; saving remains continuous rather than threshold-only, with no separate helper launched at the limit.",
+          "acceptance_evidence": "The durable checkpoint records an immediate save in response to the visible warning and a small, restartable next action; saving remains continuous rather than threshold-only, with no separate helper launched at the limit. At a visible 99% signal without the owner's continue-until-credits-run-out instruction, the checkpoint records the pause, pushed work and the exact next action, no new step is started, and the turn ends with the one-line resume handoff; with that instruction, work continues with continuous saves.",
           "non_substitutes": [
             "waiting until 98% to save",
             "a promise to save later",
             "a summary only in chat",
             "a helper launched at the limit",
             "one large non-restartable step after the warning",
-            "treating an unseen usage signal as observed"
+            "treating an unseen usage signal as observed",
+            "starting a new step after a visible 99% signal without the owner's continue instruction",
+            "stopping at 99% with unsaved or unpushed work",
+            "a 99% pause without the one-line resume handoff",
+            "pausing at 99% when the owner said to continue until the credits run out",
+            "a guessed 99% usage level",
+            "discarding unfinished work to reach a clean pause"
           ],
           "carry_through": "Carry the warning, latest durable state and small-step restriction across resumed sessions while the warning condition holds; an absent signal never cancels completed-step or turn-end checkpoints.",
-          "repair": "Checkpoint immediately with the worker that has the context, split the next work into small restartable steps, and retain continuous saving; do not invent a usage signal or block an allowed model-family switch.",
+          "repair": "Checkpoint immediately with the worker that has the context, split the next work into small restartable steps, and retain continuous saving; do not invent a usage signal or block an allowed model-family switch; at a visible 99% signal without the owner's continue instruction, stop starting steps, commit any unfinished part as marked work in progress without discarding it, push, save the pause and end the turn with the resume handoff.",
           "enforcement": "semantic",
           "mechanical_check": null,
           "not_applicable_allowed": false,
@@ -1405,7 +1415,7 @@
         }
       ],
       "provenance": {
-        "origin": "OWNER_REQUIRED continuity outcome; ASSISTANT_INFERENCE continuous-checkpoint and optional-warning mechanism, supplied supervisor design",
+        "origin": "OWNER_REQUIRED continuity outcome; ASSISTANT_INFERENCE continuous-checkpoint and optional-warning mechanism, supplied supervisor design; OWNER_REQUIRED 99% pause with owner continue exception (2026-11-24), ASSISTANT_INFERENCE visible-signal and good-stopping-point bounds",
         "review_state": "REVIEWED"
       },
       "relations": []
@@ -5634,7 +5644,7 @@
     },
     {
       "rule_id": "uda.compaction.portable-instruction",
-      "revision": 2,
+      "revision": 3,
       "status": "CURRENT",
       "source": {
         "path": "patterns/context-compaction-resilience.md",
@@ -5666,6 +5676,10 @@
           {
             "kind": "exact_text",
             "text": "The worker holding the context saves it; a visible usage warning calls for an immediate checkpoint and small, restartable steps."
+          },
+          {
+            "kind": "exact_text",
+            "text": "At 99% visible usage, pause at a good stopping point with that handoff, unless the owner said to continue until the credits run out."
           },
           {
             "kind": "exact_text",
@@ -5704,10 +5718,11 @@
           "required_behavior": "Carry the full portable continuity invariant to the actual project instruction consumer.",
           "due_phase": "handoff",
           "destination": "project-instruction",
-          "acceptance_evidence": "When adopting the recommended instruction, preserve disposable chat/durable Git, one concise state file with every listed field, completed-step pushes/checkpoints without threshold delays, current OPEN-turn save/private reachability/account recreation/one-line resume, contextual worker ownership, warning save/small steps and actual-state reconciliation across every named restart/switch. A reason-bound NOT_APPLICABLE must establish that this conditional event/action is absent.",
+          "acceptance_evidence": "When adopting the recommended instruction, preserve disposable chat/durable Git, one concise state file with every listed field, completed-step pushes/checkpoints without threshold delays, current OPEN-turn save/private reachability/account recreation/one-line resume, contextual worker ownership, warning save/small steps, the 99% pause with handoff unless the owner said to continue until the credits run out, and actual-state reconciliation across every named restart/switch. A reason-bound NOT_APPLICABLE must establish that this conditional event/action is absent.",
           "non_substitutes": [
             "a portable instruction omitting the turn-end resume line",
-            "a helper replacing the contextual worker at the limit"
+            "a helper replacing the contextual worker at the limit",
+            "a portable instruction omitting the 99% pause"
           ],
           "carry_through": "Carry the exact source, due boundary and unresolved evidence through handoffs, compaction and rewrites; refresh evidence after changed inputs.",
           "repair": "Repair the literal state or payload at this boundary and bind fresh semantic evidence before the affected action; preserve current owner restrictions and genuine gates.",
@@ -5718,7 +5733,7 @@
         }
       ],
       "provenance": {
-        "origin": "owner-authorized migration slice 2a; exact existing prose",
+        "origin": "owner-authorized migration slice 2a; exact existing prose; owner 99% pause rule 2026-11-24",
         "review_state": "REVIEWED"
       },
       "relations": [],

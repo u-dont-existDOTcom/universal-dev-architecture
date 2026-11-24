@@ -69,6 +69,8 @@ Before ending a turn on OPEN work, make the durable checkpoint reflect that turn
 
 When a usage signal is visible at or above a warning level (about 90%), checkpoint immediately and take only small, restartable steps. This warning supplements continuous checkpoints and never replaces them.
 
+At 99% usage, pause the work at a good stopping point unless the owner has said to continue until the credits run out (owner rule, 2026-11-24). The signal must be visible: a usage meter or notice the surface shows, a worker's own usage report such as Codex's session `rate_limits`, or the owner saying usage is at 99%; never guess usage. To pause, start no new step. Finish the current step only if it is small and nearly done; otherwise commit the unfinished part as work in progress, marked unfinished, and never discard it. Push the work, save the checkpoint with the pause and the exact next action, and end the turn with the turn-end handoff above, so the work continues in another account from GitHub with one line (`patterns/cross-account-continuity.md` rule 5). The pause is an evidenced stop, not completion: the outcome stays OPEN. When the owner has said to continue until the credits run out, keep working with the continuous saves above.
+
 If only a model-specific weekly limit is reached, switching model family in the same account is a valid way to continue.
 
 ### 4. Resume by reconciling state, not blindly trusting it
@@ -124,7 +126,7 @@ Transferable lessons discovered during the work must still pass the normal lesso
 
 Use or adapt this invariant:
 
-> Treat chat context as disposable working memory. Maintain project continuity in Git. For long-running or multi-session work, keep one canonical current-state checkpoint containing goal, decisions, completed work, current step, remaining work, blockers, evidence/commits, and next safe action. Push work and update the checkpoint at each completed step; never wait for a usage threshold. Before ending a turn on OPEN work, save that turn's state, reachable private supervisor state, account-bound items to recreate, and a one-line resume instruction. The worker holding the context saves it; a visible usage warning calls for an immediate checkpoint and small, restartable steps. On any new thread, interruption, context compaction, model switch, or account switch, reconcile the checkpoint against actual repository state and resume from the latest verified checkpoint without repeating completed work.
+> Treat chat context as disposable working memory. Maintain project continuity in Git. For long-running or multi-session work, keep one canonical current-state checkpoint containing goal, decisions, completed work, current step, remaining work, blockers, evidence/commits, and next safe action. Push work and update the checkpoint at each completed step; never wait for a usage threshold. Before ending a turn on OPEN work, save that turn's state, reachable private supervisor state, account-bound items to recreate, and a one-line resume instruction. The worker holding the context saves it; a visible usage warning calls for an immediate checkpoint and small, restartable steps. At 99% visible usage, pause at a good stopping point with that handoff, unless the owner said to continue until the credits run out. On any new thread, interruption, context compaction, model switch, or account switch, reconcile the checkpoint against actual repository state and resume from the latest verified checkpoint without repeating completed work.
 
 ## Origin / evidence
 

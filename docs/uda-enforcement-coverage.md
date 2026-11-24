@@ -642,11 +642,13 @@ All three records use exact-text selectors within that subsection and semantic r
 |---|---|---|---|
 | `uda.continuity.step-checkpoint` | OPEN outcome; task mode outside INSTRUCTION_ONLY, DIAGNOSTIC_ONLY, NO_CHANGE and STOP; `continuity_required = true` | persistence, each completed step | durable-task-checkpoint |
 | `uda.continuity.turn-end-handoff` | Same OPEN implementation and continuity-scope trigger | final-delivery, before ending the turn | durable-task-checkpoint |
-| `uda.continuity.usage-warning` | OPEN implementation AND `usage_warning_visible = true` | persistence, immediately at the warning | durable-task-checkpoint |
+| `uda.continuity.usage-warning` | OPEN implementation AND `usage_warning_visible = true` | persistence, immediately at the warning, and the pause at 99% | durable-task-checkpoint |
 
 Declare `continuity_required` from the actual task scope: true for multi-step, multi-session or long-running work needing durable recovery, false for a tiny one-shot task. False excludes both continuous-save records and their semantic receipts; missing or UNKNOWN scope remains unresolved on otherwise applicable work. A visible usage warning retains its immediate-save trigger independently of that scope fact.
 
 Every example envelope explicitly declares the warning false or ABSENT. Missing or UNKNOWN warning facts remain unresolved on otherwise applicable work and block admission; false/ABSENT warning facts never cancel the other two checkpoints. The fixtures distinguish this from instruction-only, diagnostic, no-change, stop and non-OPEN tasks, which do not select these records.
+
+The owner rule of 2026-11-24 (`docs/requirements/2026-11-24-pause-at-99-percent-usage.owner-requirement.json`) adds the 99% pause to the same subsection: at 99% visible usage, work pauses at a good stopping point and ends the turn with the one-line handoff for another account, unless the owner said to continue until the credits run out. Its seven clauses extend `uda.continuity.usage-warning` (revision 5), and one portable-invariant sentence extends `uda.compaction.portable-instruction` (revision 3). No record, trigger fact or obligation is added, so the record and obligation counts stay the same; the compaction map grows from 73 to 81 clause rows, with its independent section pins updated. The representative Work handoff declares the warning false, so its rendered contract stays at 32,706 bytes.
 
 Persistence checks require current task facts through `check --task task.json`, including when compilation omitted the warning rule. A changed `usage_warning_visible` state/value blocks the stale contract until recompilation; the refreshed warning contract then requires a receipt for the immediate save and small, restartable next action. Fresh explicit ABSENT observations remain valid. Fact provenance and semantic judgments remain assertions rather than independent observation of a provider usage indicator.
 
@@ -818,6 +820,13 @@ Operative remainder: Lifetime continuation after admission is not established by
 | When a usage signal is visible at or above a warning level (about 90%), checkpoint immediately and take only small, restartable steps. | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
 | This warning supplements continuous checkpoints and never replaces them. | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
 | If only a model-specific weekly limit is reached, switching model family in the same account is a valid way to continue. | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
+| At 99% usage, pause the work at a good stopping point unless the owner has said to continue until the credits run out (owner rule, 2026-11-24). | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
+| The signal must be visible: a usage meter or notice the surface shows, a worker's own usage report such as Codex's session `rate_limits`, or the owner saying usage is at 99%; never guess usage. | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
+| To pause, start no new step. | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
+| Finish the current step only if it is small and nearly done; otherwise commit the unfinished part as work in progress, marked unfinished, and never discard it. | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
+| Push the work, save the checkpoint with the pause and the exact next action, and end the turn with the turn-end handoff above, so the work continues in another account from GitHub with one line (`patterns/cross-account-continuity.md` rule 5). | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
+| The pause is an evidenced stop, not completion: the outcome stays OPEN. | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
+| When the owner has said to continue until the credits run out, keep working with the continuous saves above. | uda.continuity.usage-warning / checkpoint-visible-usage-warning |
 | Update the current-state file whenever losing the current chat would otherwise create ambiguity or rework, especially: | uda.continuity.step-checkpoint / save-completed-step |
 | - after a meaningful implementation/research/editorial milestone; | uda.continuity.step-checkpoint / save-completed-step |
 | - after a consequential owner decision or constraint change; | uda.continuity.step-checkpoint / save-completed-step |
@@ -851,6 +860,7 @@ Operative remainder: Lifetime continuation after admission is not established by
 | Push work and update the checkpoint at each completed step; never wait for a usage threshold. | uda.compaction.portable-instruction / portable-instruction-at-boundary |
 | Before ending a turn on OPEN work, save that turn's state, reachable private supervisor state, account-bound items to recreate, and a one-line resume instruction. | uda.compaction.portable-instruction / portable-instruction-at-boundary |
 | The worker holding the context saves it; a visible usage warning calls for an immediate checkpoint and small, restartable steps. | uda.compaction.portable-instruction / portable-instruction-at-boundary |
+| At 99% visible usage, pause at a good stopping point with that handoff, unless the owner said to continue until the credits run out. | uda.compaction.portable-instruction / portable-instruction-at-boundary |
 | On any new thread, interruption, context compaction, model switch, or account switch, reconcile the checkpoint against actual repository state and resume from the latest verified checkpoint without repeating completed work. | uda.compaction.portable-instruction / portable-instruction-at-boundary |
 | Automatic model-context compaction is an efficiency mechanism, not a persistence mechanism. | uda.continuity.step-checkpoint / save-completed-step |
 

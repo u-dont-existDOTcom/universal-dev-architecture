@@ -1,0 +1,2 @@
+Visible usage meter: 99%. No instruction to continue until the credits run out.
+Stopped work. The half-finished change is in the local working tree only; nothing was pushed and the checkpoint still shows the previous step.
