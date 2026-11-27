@@ -73,7 +73,10 @@ class HandoffLinesInNewChatsTests(unittest.TestCase):
             "every final answer, a new chat's first turn included, ends like this:",
             # A failed save with a checkpoint verified earlier keeps the link and names the failed update.
             "the one saved this turn, or, when that save failed, an earlier checkpoint verified this turn, with the failed update named in the same line.",
-            "Only when no checkpoint can be verified this turn is the line that pattern's link-free line (its rule 5), saying what wasn't saved and why.",
+            "For open work, the line links the latest checkpoint verified this turn",
+            "Only when no checkpoint can be verified this turn is it that pattern's link-free line (its rule 5), saying what wasn't saved and why.",
+            # Closed work: the final artifact, or the link-free Closed line; never a checkpoint fallback.
+            "For finished work, the `Closed:` line links the final artifact verified this turn, never a checkpoint in its place; when that artifact can't be verified this turn, it is the link-free `Closed:` line. Either way there is no resume line.",
             "A self-contained answer, such as a translation or a quick fact, needs no line.",
         ):
             with self.subTest(phrase=phrase[:60]):
@@ -82,6 +85,7 @@ class HandoffLinesInNewChatsTests(unittest.TestCase):
                       "`GH handoff:` line itself when it links the GitHub checkpoint, or just before that line when it names a "
                       "local note updated that turn, never two GitHub links.", index_entry(ACCOUNTS))
         self.assertIn("ends with one GH handoff line, which is also the account resume line", read("docs/INDEX.md"))
+        self.assertIn("(for finished work, it links the final verified artifact or says why it can't be verified)", read("docs/INDEX.md"))
 
 
 class OneHandoffLineTests(unittest.TestCase):
@@ -123,6 +127,9 @@ class OneHandoffLineTests(unittest.TestCase):
             "for finished work it reads `GH handoff: not verified (<exact blocker>) — Closed: <disposition>`.",
             # Two distinct GitHub destinations fail the check too, not only two links to one file.
             "any separate resume line before it names only a local note updated this turn, never a GitHub file;",
+            # Two different URLs on the one terminal line fail the final check too.
+            "the ending carries at most one GitHub link, so two different URLs on the one line fail too;",
+            "for closed work, the final verified artifact (rule 3).",
             "Never end with two lines that link the same file, or with two GitHub links at all: a separate resume line stays only when it names a local note updated this turn",
             "Since 2026-11-27 it carries one `GH handoff:` line, with a separate resume line only for a local note updated that turn (rule 2).",
         ):

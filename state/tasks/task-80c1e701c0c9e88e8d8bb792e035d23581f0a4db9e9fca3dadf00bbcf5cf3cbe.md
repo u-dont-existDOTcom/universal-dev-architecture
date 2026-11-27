@@ -30,6 +30,7 @@
 - After a second local review (one P1, two P2s): a separate resume line only for a local note updated that turn, never a second GitHub link; finished work ends with one `Closed:` line linking the final artifact; the linked forms need a link verified that turn, otherwise the link-free line; the distinctness note marks the two-line root rule as history; regressions for each.
 - After a third local review (one P1, two P2s): a failed save keeps a link to the latest checkpoint verified that turn and names the failure in the line, and the link-free form only when none can be verified; finished work has a link-free `Closed:` form; the final check refuses any separate resume line that names a GitHub file; regressions for each.
 - After a fourth local review (one P1, two P2s): the destination depends on the status (`Next:` the latest checkpoint verified that turn, `Closed:` the final artifact verified that turn) in the rule and the final check; both requirement records state exactly when two lines survive; the rollout note keeps current owner and project requirements first; regressions for each.
+- After a fifth local review (one P1, one P2): cross-account rule 5 and the docs route scope the checkpoint fallback to open work, with the final artifact or a link-free `Closed:` line for finished work; the final check allows at most one GitHub link in the ending; regressions for each.
 
 ## Current checkpoint
 
