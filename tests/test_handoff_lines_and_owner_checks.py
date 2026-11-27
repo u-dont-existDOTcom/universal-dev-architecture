@@ -41,11 +41,12 @@ class HandoffLinesInNewChatsTests(unittest.TestCase):
         agents = read("AGENTS.md")
         invariants = agents.split("## Per-turn bootstrap invariants\n", 1)[1].split("\n## ", 1)[0]
         line = ("**Last lines, every turn (owner, 2026-11-08 and 2026-11-27):** in this repository's owner's project work, every "
-                "final answer, on a new chat's first turn too, ends with one `GH handoff:` line as the last line, which is also the "
-                "resume instruction for his other account; a separate resume line comes just before it only when it names a "
-                "local note updated this turn, such as one on his laptop, never a second GitHub link; a line that can't be saved says so instead "
-                "of being left out; a self-contained answer, such as a translation, needs none: "
-                "`patterns/cross-account-continuity.md` (rule 5), `patterns/owner-requested-terminal-github-handoff.md`.")
+                "final answer, on a new chat's first turn too, ends with one `GH handoff:` line as the last line: for open work it is "
+                "also the resume instruction for his other account (`Next:`), and for finished work it closes the work (`Closed:`); "
+                "a separate resume line comes just before it only for open work whose local note, such as one on his laptop, was "
+                "updated this turn, never a second GitHub link; a line that can't be saved says so instead of being left out; a "
+                "self-contained answer, such as a translation, needs none: `patterns/cross-account-continuity.md` (rule 5), "
+                "`patterns/owner-requested-terminal-github-handoff.md`.")
         self.assertEqual(invariants.count(line), 1)
         # The root still sends task rules to patterns; this is a per-turn output rule, like the timestamp.
         self.assertIn("a new task rule adds a pattern and an index entry, never a root line.", agents)
@@ -72,7 +73,7 @@ class HandoffLinesInNewChatsTests(unittest.TestCase):
             f"(\"{LINES_STATEMENT}\")",
             "every final answer, a new chat's first turn included, ends like this:",
             # A failed save with a checkpoint verified earlier keeps the link and names the failed update.
-            "the one saved this turn, or, when that save failed, an earlier checkpoint verified this turn, with the failed update named in the same line.",
+            "the one saved this turn, or, when this turn's checkpoint couldn't be saved or read back, an earlier checkpoint verified this turn, with the failed step named in the same line.",
             "For open work, the line links the latest checkpoint verified this turn",
             "Only when no checkpoint can be verified this turn is it that pattern's link-free line (its rule 5), saying what wasn't saved and why.",
             # Closed work: the final artifact, or the link-free Closed line; never a checkpoint fallback.
@@ -81,10 +82,10 @@ class HandoffLinesInNewChatsTests(unittest.TestCase):
         ):
             with self.subTest(phrase=phrase[:60]):
                 self.assertIn(phrase, pattern)
-        self.assertIn("which also ends every final answer in his project work (a new chat's first turn included): as the "
-                      "`GH handoff:` line itself when it links the GitHub checkpoint, or just before that line when it names a "
-                      "local note updated that turn, never two GitHub links.", index_entry(ACCOUNTS))
-        self.assertIn("ends with one GH handoff line, which is also the account resume line", read("docs/INDEX.md"))
+        self.assertIn("which also ends every final answer in his project work (a new chat's first turn included): "
+                      "for open work, as the `GH handoff:` line itself when it links the GitHub checkpoint, or just before that line when it "
+                      "names a local note updated that turn, never two GitHub links; finished work ends with one `Closed:` line and no resume line.", index_entry(ACCOUNTS))
+        self.assertIn("ends with one GH handoff line, which for open work is also the account resume line", read("docs/INDEX.md"))
         self.assertIn("(for finished work, it links the final verified artifact or says why it can't be verified)", read("docs/INDEX.md"))
 
 
@@ -97,9 +98,9 @@ class OneHandoffLineTests(unittest.TestCase):
             f"On 2026-11-27 he reported the opposite problem (\"{ONE_LINE_STATEMENT}\")",
             "- **One line when the resume line links the GitHub checkpoint.** Then the resume line is the `GH handoff:` line",
             "`GH handoff: Continue my <work name> work: read <link to the checkpoint> — Next: <one specific safe action>`",
-            "Any step the next session takes first, such as applying an attached bundle, goes in its `Next`; finished work ends with `Closed:` instead",
+            "Any step the next session takes first goes in its `Next`, and anything it needs for that step is reachable from the checkpoint; finished work ends with `Closed:` instead",
+            "- **Two lines only for a local note, and only for open work.**",
             "whenever a session can't update the local note for any reason, such as a computer it can't reach or a folder it can't write; then the line also says the local note wasn't updated.",
-            "- **Two lines only for a local note.**",
             "A resume line never carries a second GitHub link.",
             "- **Finished work ends with one `Closed:` line** linking the final verified artifact, with no resume line.",
             "- **Never two lines that link the same file.**",
@@ -115,18 +116,18 @@ class OneHandoffLineTests(unittest.TestCase):
             f"**When the resume line itself links this checkpoint, it is this line (owner, 2026-11-27: \"{ONE_LINE_STATEMENT}\").**",
             "Never end with two lines that link the same file, or with two GitHub links at all",
             "`GH handoff: Continue my <work name> work: read <direct verified GitHub file URL> — Next: <one specific safe action>`",
-            "with any first step, such as applying an attached bundle, in its `Next`.",
+            "with any first step in its `Next`; anything that step needs is reachable from the checkpoint.",
             # Closed work: one line linking the final artifact, even where the checkpoint and the final artifact differ.
             "For a complete workstream, rule 3 applies as usual, in one line and with no resume line: "
             "`GH handoff: [<plain-English label>](<final verified artifact URL>) — Closed: <disposition>`, asking no one to continue.",
-            "The `Next:` form links the latest checkpoint verified this turn, as rule 4 says: the one saved this turn, or, when that save failed, an earlier checkpoint verified this turn, with the failed update named in the same line.",
+            "The `Next:` form links the latest checkpoint verified this turn, as rule 4 says: the one saved this turn, or, when this turn's checkpoint couldn't be saved or read back, an earlier checkpoint verified this turn, with the failed step named in the same line.",
             # Closed work links the final artifact, even where it differs from the checkpoint.
             "The `Closed:` form links the final artifact verified this turn, never a checkpoint in its place.",
             "its link, if any, resolves to the read-back checkpoint for open work or to the final verified artifact for closed work;",
             # Finished work whose final artifact can't be verified stays closed, without a link.
             "for finished work it reads `GH handoff: not verified (<exact blocker>) — Closed: <disposition>`.",
             # Two distinct GitHub destinations fail the check too, not only two links to one file.
-            "any separate resume line before it names only a local note updated this turn, never a GitHub file;",
+            "any separate resume line before it appears only for open work and names only a local note updated this turn, never a GitHub file;",
             # Two different URLs on the one terminal line fail the final check too.
             "the ending carries at most one GitHub link, so two different URLs on the one line fail too;",
             "for closed work, the final verified artifact (rule 3).",
