@@ -13,6 +13,7 @@ For each assistant final answer in an activated workstream (for this owner, any 
 1. Continue safe authorized work to an evidenced completion or genuine stopping boundary, and first write/read back the current durable checkpoint in the correct public or private repository. If work could not advance, read back the last legitimate checkpoint and make the barrier explicit.
 2. Put **exactly one compact GH handoff line as the last nonblank line**, after all explanations, citations, artifacts, status text and any local resume line the workstream also requires (for this owner, the account resume line of `patterns/cross-account-continuity.md`, rule 5), using this pattern:
    `GH handoff: [<plain-English checkpoint label>](<direct verified GitHub file URL>) — Next: <one specific safe action>`
+   **When the resume line itself links this checkpoint, it is this line (owner, 2026-11-27: "why am i getting two github handoff lines with every turn?").** Write one line, `GH handoff: Continue my <work name> work: read <direct verified GitHub file URL> and carry on from its next step.`, with any first step, such as applying an attached bundle, in the same line. Never end with two lines that link the same file. A separate resume line stays only when it points somewhere else, such as a note on the owner's computer.
 3. For a complete workstream, replace `Next` with a succinct `Closed:` disposition and point to the final verified artifact. Never imply an OPEN research goal is complete because an individual pass is archived.
 4. The URL must identify the exact latest successfully saved and read-back checkpoint or, if no update succeeded, an existing verified checkpoint. Do not substitute a repository root, an opaque commit ID alone, a branch-selection instruction, a fabricated filename, or an unverified outbound link. Resolve the destination within the authorized GitHub route before presenting it.
 5. If there is no validated remote URL, including in work that has no GitHub checkpoint yet and no authorized repository to save one in, **still end with a one-line truthful handoff**, such as `GH handoff: not saved (exact access/write blocker) — Next: <recoverable action>`. Never invent a successful save.
@@ -24,7 +25,7 @@ A prior instruction required the **checkpoint** to contain a one-line resume ins
 
 ## Lightweight verification
 
-Before final delivery, check the rendered text: the final nonblank line begins `GH handoff:`; it occurs exactly once as the terminal handoff; its link, if any, resolves to the read-back checkpoint; its next action is consistent with the current OPEN/CLOSED status; and it follows the timestamp-first rule from `AGENTS.md`.
+Before final delivery, check the rendered text: the final nonblank line begins `GH handoff:`; it occurs exactly once as the terminal handoff; no line just before it links the same file; its link, if any, resolves to the read-back checkpoint; its next action is consistent with the current OPEN/CLOSED status; and it follows the timestamp-first rule from `AGENTS.md`.
 
 ## Limits
 

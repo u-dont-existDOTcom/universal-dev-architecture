@@ -1,0 +1,43 @@
+{
+  "requirement_id": "2026-11-27-one-handoff-line",
+  "date": "2026-11-27",
+  "source": "Owner message on 2026-11-27 to the Claude session doing the UDA and Mission Control work, quoting the end of a reply from another lane.",
+  "owner_statement": "why am i getting two github handoff lines with every turn?",
+  "problem": "Since 2026-11-08 every reply in the owner's project work ended with a resume line and then a GH handoff line. Where the session couldn't write a local handoff note, the resume line was told to name the Git checkpoint instead; a lane whose handoff lives in GitHub therefore ended every reply with two lines linking the same file.",
+  "required_behavior": [
+    "When the resume line links the GitHub checkpoint, it is the GH handoff line: one line, starting 'GH handoff:', that reads as the resume instruction and carries any first step, such as applying an attached bundle.",
+    "A separate resume line comes just before the GH handoff line only when it points somewhere else, such as a local handoff note on the owner's computer.",
+    "A reply never ends with two lines that link the same file."
+  ],
+  "basis": [
+    "The owner's statement above.",
+    "docs/requirements/2026-11-08-handoff-lines-in-new-chats.owner-requirement.json, whose rule produced the duplicate."
+  ],
+  "scope": "The last-lines line in root AGENTS.md; rule 5 and the reference implementation of patterns/cross-account-continuity.md; rule 2 and the verification of patterns/owner-requested-terminal-github-handoff.md; their LESSON-INDEX.md entries; the docs/INDEX.md route; this record; tests.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "Each reply ends with one GitHub handoff line, not two that say the same thing.",
+    "notes": "Keeping two lines where they point to different places (a local note and a GitHub copy), and the combined line's wording, are the assistant's specification of the owner's words."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "Root AGENTS.md and the two patterns, read by every session that loads UDA",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Lanes whose handoff lives in GitHub",
+      "disposition": "QUEUED",
+      "reason": "Each lane applies the rule at its next final answer after it re-fetches root AGENTS.md; a lane whose own handoff file prescribes both lines follows the root rule over it."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "A static test proves the rule's text and routing, not what each reply ends with; that stays a per-turn check (WORKFLOW_ONLY).",
+    "This change does not edit any lane's own handoff file."
+  ]
+}

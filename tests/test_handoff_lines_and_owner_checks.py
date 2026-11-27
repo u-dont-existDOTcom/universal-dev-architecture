@@ -12,6 +12,8 @@ JOKES = "patterns/visual-joke-punchline-integrity.md"
 GH = "patterns/owner-requested-terminal-github-handoff.md"
 ACCOUNTS = "patterns/cross-account-continuity.md"
 LINES_RECORD = "docs/requirements/2026-11-08-handoff-lines-in-new-chats.owner-requirement.json"
+ONE_LINE_RECORD = "docs/requirements/2026-11-27-one-handoff-line.owner-requirement.json"
+ONE_LINE_STATEMENT = "why am i getting two github handoff lines with every turn?"
 CHECK_RECORD = "docs/requirements/2026-11-08-owner-says-when-to-check.owner-requirement.json"
 LINES_STATEMENT = "new chats are still not giving me the account handoff line at the end for some reason"
 CHECK_STATEMENT = ("also i don't understand why claude is always checking to see if i did a merge or if i answered "
@@ -37,11 +39,12 @@ class HandoffLinesInNewChatsTests(unittest.TestCase):
     def test_root_carries_both_last_lines_with_the_other_every_turn_rules(self):
         agents = read("AGENTS.md")
         invariants = agents.split("## Per-turn bootstrap invariants\n", 1)[1].split("\n## ", 1)[0]
-        line = ("**Last lines, every turn (owner, 2026-11-08):** in this repository's owner's project work, every final answer "
-                "ends with the one-line resume instruction for his other account, then one `GH handoff:` line as the last line, "
-                "on a new chat's first turn too; a line that can't be saved says so instead of being left out; a self-contained "
-                "answer, such as a translation, needs neither: `patterns/cross-account-continuity.md` (rule 5), "
-                "`patterns/owner-requested-terminal-github-handoff.md`.")
+        line = ("**Last lines, every turn (owner, 2026-11-08 and 2026-11-27):** in this repository's owner's project work, every "
+                "final answer, on a new chat's first turn too, ends with one `GH handoff:` line as the last line, which is also the "
+                "resume instruction for his other account; a separate resume line comes just before it only when it points "
+                "somewhere else, such as a note on his laptop, never to the same file; a line that can't be saved says so instead "
+                "of being left out; a self-contained answer, such as a translation, needs none: "
+                "`patterns/cross-account-continuity.md` (rule 5), `patterns/owner-requested-terminal-github-handoff.md`.")
         self.assertEqual(invariants.count(line), 1)
         # The root still sends task rules to patterns; this is a per-turn output rule, like the timestamp.
         self.assertIn("a new task rule adds a pattern and an index entry, never a root line.", agents)
@@ -64,19 +67,59 @@ class HandoffLinesInNewChatsTests(unittest.TestCase):
     def test_the_resume_line_ends_every_reply(self):
         pattern = read(ACCOUNTS)
         for phrase in (
-            "5. **The resume line ends every reply (owner rule).**",
+            "5. **The resume line ends every reply, as one line where one will do (owner rule).**",
             f"(\"{LINES_STATEMENT}\")",
-            "every final answer, a new chat's first turn included, ends with the resume line, followed only by the `GH handoff:` line",
-            "Where it couldn't, for example in a chat that can't reach the computer that holds the folder, the line says so and names "
-            "the Git checkpoint instead, so it still works from the other account.",
+            "every final answer, a new chat's first turn included, ends like this:",
             "When nothing could be saved, the line says what wasn't saved and why.",
-            "A self-contained answer, such as a translation or a quick fact, needs neither line.",
+            "A self-contained answer, such as a translation or a quick fact, needs no line.",
         ):
             with self.subTest(phrase=phrase[:60]):
                 self.assertIn(phrase, pattern)
-        self.assertIn("which also ends every final answer in his project work (a new chat's first turn included), "
-                      "just before the `GH handoff:` line.", index_entry(ACCOUNTS))
-        self.assertIn("ends with the account resume line and then one GH handoff line", read("docs/INDEX.md"))
+        self.assertIn("which also ends every final answer in his project work (a new chat's first turn included): as the "
+                      "`GH handoff:` line itself when it links the GitHub checkpoint, or just before that line when it points "
+                      "somewhere else, never two lines to the same file.", index_entry(ACCOUNTS))
+        self.assertIn("ends with one GH handoff line, which is also the account resume line", read("docs/INDEX.md"))
+
+
+class OneHandoffLineTests(unittest.TestCase):
+    """2026-11-27: a resume line and a GH handoff line that link the same file become one line."""
+
+    def test_cross_account_rule_merges_the_lines(self):
+        pattern = read(ACCOUNTS)
+        for phrase in (
+            f"On 2026-11-27 he reported the opposite problem (\"{ONE_LINE_STATEMENT}\")",
+            "- **One line when the resume line links the GitHub checkpoint.** Then the resume line is the `GH handoff:` line",
+            "`GH handoff: Continue my <work name> work: read <link to the checkpoint> and carry on from its next step.`",
+            "Any step the next session takes first, such as applying an attached bundle, goes in the same line.",
+            "- **Two lines only when they point to different places.**",
+            "- **Never two lines that link the same file.**",
+        ):
+            with self.subTest(phrase=phrase[:60]):
+                self.assertIn(phrase, pattern)
+        self.assertNotIn("the line says so and names the Git checkpoint instead", pattern)
+
+    def test_gh_pattern_and_index_merge_the_lines(self):
+        pattern = read(GH)
+        for phrase in (
+            f"**When the resume line itself links this checkpoint, it is this line (owner, 2026-11-27: \"{ONE_LINE_STATEMENT}\").**",
+            "Never end with two lines that link the same file.",
+            "no line just before it links the same file;",
+        ):
+            with self.subTest(phrase=phrase[:60]):
+                self.assertIn(phrase, pattern)
+        self.assertIn("merged into one line when that resume line links the same checkpoint", index_entry(GH))
+        self.assertTrue(index_entry(GH).split(" — ", 1)[1].startswith(coverage(GH)["activation_route"]["detail"]))
+
+    def test_record(self):
+        data = json.loads(read(ONE_LINE_RECORD))
+        self.assertEqual(data["requirement_id"], "2026-11-27-one-handoff-line")
+        self.assertEqual(data["owner_statement"], ONE_LINE_STATEMENT)
+        self.assertEqual(data["origin"]["classification"], "OWNER_REQUIRED")
+        self.assertNotIn("LIVE_VERIFIED", data["learning_state_at_merge"])
+        self.assertTrue(data["nonclaims"])
+        self.assertIn("`requirements/2026-11-27-one-handoff-line.owner-requirement.json`", read("docs/INDEX.md"))
+        text = read(ONE_LINE_RECORD)
+        self.assertNotRegex(text, r"(?i)claude\.ai/(?:chat|code)|chatgpt\.com|u-dont-exist|github\.com/|bad.trips")
 
 
 class OwnerSaysWhenToCheckTests(unittest.TestCase):

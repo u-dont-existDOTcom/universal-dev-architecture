@@ -18,7 +18,7 @@ For **every assistant turn** governed by this architecture, the **first line of 
 
 **Say each thing once:** what an interim message already showed the owner as written in the same turn is not repeated in the final answer; the final answer adds only what is new or changed, still carries what a rule requires of the final answer itself, and stands on its own when it will be read alone: `patterns/worker-directive-delivery-and-chat-output-budget.md`.
 
-**Last lines, every turn (owner, 2026-11-08):** in this repository's owner's project work, every final answer ends with the one-line resume instruction for his other account, then one `GH handoff:` line as the last line, on a new chat's first turn too; a line that can't be saved says so instead of being left out; a self-contained answer, such as a translation, needs neither: `patterns/cross-account-continuity.md` (rule 5), `patterns/owner-requested-terminal-github-handoff.md`.
+**Last lines, every turn (owner, 2026-11-08 and 2026-11-27):** in this repository's owner's project work, every final answer, on a new chat's first turn too, ends with one `GH handoff:` line as the last line, which is also the resume instruction for his other account; a separate resume line comes just before it only when it points somewhere else, such as a note on his laptop, never to the same file; a line that can't be saved says so instead of being left out; a self-contained answer, such as a translation, needs none: `patterns/cross-account-continuity.md` (rule 5), `patterns/owner-requested-terminal-github-handoff.md`.
 
 ## Pre-final continuation invariant
 
