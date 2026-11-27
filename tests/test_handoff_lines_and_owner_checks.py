@@ -42,8 +42,8 @@ class HandoffLinesInNewChatsTests(unittest.TestCase):
         invariants = agents.split("## Per-turn bootstrap invariants\n", 1)[1].split("\n## ", 1)[0]
         line = ("**Last lines, every turn (owner, 2026-11-08 and 2026-11-27):** in this repository's owner's project work, every "
                 "final answer, on a new chat's first turn too, ends with one `GH handoff:` line as the last line, which is also the "
-                "resume instruction for his other account; a separate resume line comes just before it only when it points "
-                "somewhere else, such as a note on his laptop, never to the same file; a line that can't be saved says so instead "
+                "resume instruction for his other account; a separate resume line comes just before it only when it names a "
+                "local note updated this turn, such as one on his laptop, never a second GitHub link; a line that can't be saved says so instead "
                 "of being left out; a self-contained answer, such as a translation, needs none: "
                 "`patterns/cross-account-continuity.md` (rule 5), `patterns/owner-requested-terminal-github-handoff.md`.")
         self.assertEqual(invariants.count(line), 1)
@@ -71,14 +71,14 @@ class HandoffLinesInNewChatsTests(unittest.TestCase):
             "5. **The resume line ends every reply, as one line where one will do (owner rule).**",
             f"(\"{LINES_STATEMENT}\")",
             "every final answer, a new chat's first turn included, ends like this:",
-            "When nothing could be saved, the line says what wasn't saved and why.",
+            "or nothing could be saved, the line is that pattern's link-free line (its rule 5), saying what wasn't saved and why.",
             "A self-contained answer, such as a translation or a quick fact, needs no line.",
         ):
             with self.subTest(phrase=phrase[:60]):
                 self.assertIn(phrase, pattern)
         self.assertIn("which also ends every final answer in his project work (a new chat's first turn included): as the "
-                      "`GH handoff:` line itself when it links the GitHub checkpoint, or just before that line when it points "
-                      "somewhere else, never two lines to the same file.", index_entry(ACCOUNTS))
+                      "`GH handoff:` line itself when it links the GitHub checkpoint, or just before that line when it names a "
+                      "local note updated that turn, never two GitHub links.", index_entry(ACCOUNTS))
         self.assertIn("ends with one GH handoff line, which is also the account resume line", read("docs/INDEX.md"))
 
 
@@ -93,7 +93,10 @@ class OneHandoffLineTests(unittest.TestCase):
             "`GH handoff: Continue my <work name> work: read <link to the checkpoint> — Next: <one specific safe action>`",
             "Any step the next session takes first, such as applying an attached bundle, goes in its `Next`; finished work ends with `Closed:` instead",
             "whenever a session can't update the local note for any reason, such as a computer it can't reach or a folder it can't write; then the line also says the local note wasn't updated.",
-            "- **Two lines only when they point to different places.**",
+            "- **Two lines only for a local note.**",
+            "A resume line never carries a second GitHub link.",
+            "- **Finished work ends with one `Closed:` line** linking the final verified artifact, with no resume line.",
+            "The linked forms need a link verified this turn. When the checkpoint's link can't be verified this turn, or nothing could be saved, the line is that pattern's link-free line (its rule 5)",
             "- **Never two lines that link the same file.**",
         ):
             with self.subTest(phrase=phrase[:60]):
@@ -105,10 +108,15 @@ class OneHandoffLineTests(unittest.TestCase):
         pattern = read(GH)
         for phrase in (
             f"**When the resume line itself links this checkpoint, it is this line (owner, 2026-11-27: \"{ONE_LINE_STATEMENT}\").**",
-            "Never end with two lines that link the same file.",
+            "Never end with two lines that link the same file, or with two GitHub links at all",
             "`GH handoff: Continue my <work name> work: read <direct verified GitHub file URL> — Next: <one specific safe action>`",
             "with any first step, such as applying an attached bundle, in its `Next`.",
-            "For a complete workstream, rule 3 applies as usual: `Closed:` replaces `Next`, the link points to the final verified artifact, and the line asks no one to continue.",
+            # Closed work: one line linking the final artifact, even where the checkpoint and the final artifact differ.
+            "For a complete workstream, rule 3 applies as usual, in one line and with no resume line: "
+            "`GH handoff: [<plain-English label>](<final verified artifact URL>) — Closed: <disposition>`, asking no one to continue.",
+            "Use either form only when its link was verified this turn; otherwise rule 5's link-free line applies.",
+            "Never end with two lines that link the same file, or with two GitHub links at all: a separate resume line stays only when it names a local note updated this turn",
+            "Since 2026-11-27 it carries one `GH handoff:` line, with a separate resume line only for a local note updated that turn (rule 2).",
             "no line just before it links the same file;",
         ):
             with self.subTest(phrase=phrase[:60]):
