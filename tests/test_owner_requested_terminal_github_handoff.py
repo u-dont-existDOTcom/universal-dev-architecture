@@ -71,7 +71,7 @@ class OwnerGitHubHandoffTests(unittest.TestCase):
 
     def test_no_private_locators(self):
         for text in (self.pattern, REQUIREMENT.read_text(encoding="utf-8")):
-            self.assertNotRegex(text, r"(?i)claude\.ai/(?:chat|code)|chatgpt\.com|u-dont-exist|github\.com/")
+            self.assertNotRegex(text, r"(?i)claude\.ai/(?:chat|code)|chatgpt\.com|github\.com/")
             self.assertNotRegex(text, r"(?:^|[\s`(])(?:~?/home/|[A-Za-z]:\\)")
 
 

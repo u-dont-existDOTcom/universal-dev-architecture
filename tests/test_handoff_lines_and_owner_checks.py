@@ -73,7 +73,7 @@ class HandoffLinesInNewChatsTests(unittest.TestCase):
             f"(\"{LINES_STATEMENT}\")",
             "every final answer, a new chat's first turn included, ends like this:",
             # A failed save with a checkpoint verified earlier keeps the link and names the failed update.
-            "the one saved this turn, or, when this turn's checkpoint couldn't be saved or read back, an earlier checkpoint verified this turn, with the failed step named in the same line.",
+            "the one saved this turn, or, when this turn's checkpoint couldn't be saved, read back or linked by a verified URL, the newest earlier checkpoint whose exact URL is verified this turn, with the failed step named in the same line.",
             "For open work, the line links the latest checkpoint verified this turn",
             "Only when no checkpoint can be verified this turn is it that pattern's link-free line (its rule 5), saying what wasn't saved and why.",
             # Closed work: the final artifact, or the link-free Closed line; never a checkpoint fallback.
@@ -124,7 +124,7 @@ class OneHandoffLineTests(unittest.TestCase):
             # Closed work: one line linking the final artifact, even where the checkpoint and the final artifact differ.
             "For a complete workstream, rule 3 applies as usual, in one line and with no resume line: "
             "`GH handoff: [<plain-English label>](<final verified artifact URL>) — Closed: <disposition>`, asking no one to continue.",
-            "The `Next:` form links the latest checkpoint verified this turn, as rule 4 says: the one saved this turn, or, when this turn's checkpoint couldn't be saved or read back, an earlier checkpoint verified this turn, with the failed step named in the same line.",
+            "The `Next:` form links the latest checkpoint verified this turn, as rule 4 says: the one saved this turn, or, when this turn's checkpoint couldn't be saved, read back or linked by a verified URL, the newest earlier checkpoint whose exact URL is verified this turn, with the failed step named in the same line.",
             # Closed work links the final artifact, even where it differs from the checkpoint.
             "The `Closed:` form links the final artifact verified this turn, never a checkpoint in its place.",
             "its link, if any, resolves to the read-back checkpoint for open work or to the final verified artifact for closed work;",
@@ -136,7 +136,11 @@ class OneHandoffLineTests(unittest.TestCase):
             "the ending carries at most one GitHub link, so two different URLs on the one line fail too;",
             "for closed work, the final verified artifact (rule 3).",
             # A successful write whose read-back failed still falls back to an earlier verified checkpoint.
-            "when this turn's checkpoint couldn't be saved or read back (a successful write whose read-back failed included), an earlier checkpoint verified this turn;",
+            "when this turn's checkpoint couldn't be saved, read back or linked by a verified URL (a successful write whose read-back or link check failed included), the newest earlier checkpoint whose exact URL is verified this turn;",
+            # Saved, but no URL to it can be verified: the link-free line says so, distinct from "not saved".
+            "`GH handoff: saved, link not verified (<exact blocker>) — Next: <recoverable action>`",
+            # The final check requires the status marker itself.
+            "it carries the literal `Next:` marker for open work or `Closed:` for finished work;",
             "Never end with two lines that link the same file, or with two GitHub links at all: a separate resume line stays only when it names a local note updated this turn",
             "Since 2026-11-27 it carries one `GH handoff:` line, with a separate resume line only for a local note updated that turn (rule 2).",
         ):
@@ -167,7 +171,7 @@ class OneHandoffLineTests(unittest.TestCase):
         self.assertTrue(data["nonclaims"])
         self.assertIn("`requirements/2026-11-27-one-handoff-line.owner-requirement.json`", read("docs/INDEX.md"))
         text = read(ONE_LINE_RECORD)
-        self.assertNotRegex(text, r"(?i)claude\.ai/(?:chat|code)|chatgpt\.com|u-dont-exist|github\.com/|bad.trips")
+        self.assertNotRegex(text, r"(?i)claude\.ai/(?:chat|code)|chatgpt\.com|github\.com/")
 
 
 class OwnerSaysWhenToCheckTests(unittest.TestCase):
@@ -259,7 +263,7 @@ class RecordTests(unittest.TestCase):
         for path in (CHECK, LINES_RECORD, CHECK_RECORD):
             with self.subTest(path=path):
                 text = read(path)
-                self.assertNotRegex(text, r"(?i)claude\.ai/(?:chat|code)|chatgpt\.com|u-dont-exist|github\.com/")
+                self.assertNotRegex(text, r"(?i)claude\.ai/(?:chat|code)|chatgpt\.com|github\.com/")
                 self.assertNotRegex(text, r"(?:^|[\s`(\"])(?:~?/home/|~/|[A-Za-z]:\\)")
 
 

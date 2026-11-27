@@ -27,7 +27,7 @@ Some surfaces keep state for one account only. A Claude artifact can be read and
    - **Never two lines that link the same file.**
    - **Finished work ends with one `Closed:` line** linking the final verified artifact, with no resume line.
 
-   For open work, the line links the latest checkpoint verified this turn: the one saved this turn, or, when this turn's checkpoint couldn't be saved or read back, an earlier checkpoint verified this turn, with the failed step named in the same line. Only when no checkpoint can be verified this turn is it that pattern's link-free line (its rule 5), saying what wasn't saved and why. For finished work, the `Closed:` line links the final artifact verified this turn, never a checkpoint in its place; when that artifact can't be verified this turn, it is the link-free `Closed:` line. Either way there is no resume line. A self-contained answer, such as a translation or a quick fact, needs no line.
+   For open work, the line links the latest checkpoint verified this turn: the one saved this turn, or, when this turn's checkpoint couldn't be saved, read back or linked by a verified URL, the newest earlier checkpoint whose exact URL is verified this turn, with the failed step named in the same line. Only when no checkpoint can be verified this turn is it that pattern's link-free line (its rule 5), saying what wasn't saved and why. For finished work, the `Closed:` line links the final artifact verified this turn, never a checkpoint in its place; when that artifact can't be verified this turn, it is the link-free `Closed:` line. Either way there is no resume line. A self-contained answer, such as a translation or a quick fact, needs no line.
 
 ## Bounds
 
