@@ -1,0 +1,45 @@
+{
+  "requirement_id": "2026-11-27-card-game-lessons",
+  "date": "2026-11-27",
+  "source": "Owner message on 2026-11-27 to the Claude session working on his romance article's card game, answering its note that a suggestion for these rules was still owed.",
+  "owner_statement": "yes add that uda rule and any other lessons for uda",
+  "problem": "Lessons drawn from the card game's rounds of 2026-11-25 to 2026-11-27 were recorded only in the article repository's lesson files and the game's own rules, so agents in other projects would make the same mistakes: an interactive file sent in chat tested only as a page of its own; a batch for the owner's approval sent to him whole; a reply that cut items he was asked to judge down to their names; a fix he asked for in one tool left out of its siblings; and four screen-design lessons that belong to the design repository.",
+  "required_behavior": [
+    "Test an interactive HTML file or page the owner will open from a chat inside the sandboxed frame he opens it in, through its first full step; start actions from click handlers, and make storage and dialogs optional.",
+    "Read a batch that waits for the owner's approval for him first, against what he has approved and against its source, and put to him only what is his to decide, unless he or the project says every item must cross his screen.",
+    "Show each short item the owner is asked to judge with what it means, in the reply as well as on the page.",
+    "Carry a correction the owner asks for in one tool, page or file to every copy of the same fault in the same turn.",
+    "File the screen-design lessons in the design repository's lane, for its own agent to decide."
+  ],
+  "basis": [
+    "The owner's statement above.",
+    "His reports and answers of 2026-11-25 to 2026-11-27 recorded in u-dont-existDOTcom/joel-articles docs/lessons/2026-11-25-0123-romance.md (romance-2026-11-25a), 2026-11-25-1720-romance.md (25c, 25d), 2026-11-26-2243-romance.md (26a, 26b, 26c), 2026-11-26-2326-romance.md (26d) and 2026-11-27-1617-romance.md (27a)."
+  ],
+  "scope": "New subsection in patterns/human-readable-operational-references.md (interactive files opened from a chat); two bullets under rule 5 of patterns/owner-questions-page.md; new section 6B in patterns/durable-chat-learning.md; clauses in their three LESSON-INDEX.md entries; four items in suggested-fixes/design/; this record. Lesson 25b (a rewording brief says that everything else stays, removals included, and every rewording is compared with its original) is already covered by patterns/transformation-preservation-proof.md and is not repeated.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "The lessons learned on his card game reach every project that loads these rules, and the design lessons reach the design repository.",
+    "notes": "Which lessons transfer, where each one lives, and the wording are the filing agent's; the design items are advice that the design repository's own agent decides on."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "patterns/human-readable-operational-references.md, patterns/owner-questions-page.md and patterns/durable-chat-learning.md, reached through LESSON-INDEX.md",
+      "disposition": "PROPOSED",
+      "note": "In this pull request, for the maintainer lane to review and merge."
+    },
+    {
+      "surface": "u-dont-existDOTcom/design",
+      "disposition": "QUEUED",
+      "reason": "Four items in suggested-fixes/design/; its agent decides each at its next mailbox check."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED"
+  ],
+  "nonclaims": [
+    "No test enforces these rules yet; they are prose rules reached through the index.",
+    "The design items change nothing in the design repository until its agent adopts them."
+  ]
+}

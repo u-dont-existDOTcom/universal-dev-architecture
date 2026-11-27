@@ -43,6 +43,16 @@ A repository branch name, commit SHA, directory path, or instruction such as `go
 
 For repository-hosted artifacts, attempt retrieval/link generation before giving navigation instructions. A response may include the repository path or branch after the direct file/link for provenance, but the owner should not need that metadata to obtain the artifact.
 
+### Interactive files and pages the owner opens from a chat
+
+An interactive HTML file or page that the owner will open from a chat is tested the way he will open it. A chat app shows such a file inside a sandboxed frame that allows scripts and little else: a form there sends no `submit` event, so a submit button does nothing and says nothing; `alert`, `confirm` and `prompt` are refused; browser storage may be missing or throw. A page that passed every check as a page of its own is untested on that route. Before such a file goes to the owner:
+
+1. every button that starts or completes something does it from its own click handler, never only from a form's `submit`;
+2. storage reads and writes are wrapped so the page still works without them, and nothing depends on a browser dialog;
+3. a browser opens the file inside a frame sandboxed with `allow-scripts` and nothing else, and plays it through the first full step of what it is for: a game's first card, a form's submission, a tool's first result.
+
+Origin: **OWNER** report, 2026-11-25, and his request of 2026-11-27 to add this rule here (`docs/requirements/2026-11-27-card-game-lessons.owner-requirement.json`). Example (NON_UNIVERSAL / EXAMPLE_OWNER_DEPLOYMENT): a card game's start button did nothing on the owner's phone when he opened the HTML file from a chat, after every one of its checks had opened it as a page of its own; the game's next version started the game from the tap, and its browser check now plays the game inside such a frame.
+
 ### Handoff completeness
 
 When one artifact is not usable without companion material—such as a reader protocol plus source windows, an installation script plus configuration, a generated packet plus controller instructions, or a report plus its data file—deliver the required companions together in the same owner-facing handoff.
