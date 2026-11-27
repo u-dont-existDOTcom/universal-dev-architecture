@@ -1,4 +1,5 @@
-"""The owner's 2026-11-08 rules: both handoff lines end every reply, a new chat's first turn too; and agents
+"""The owner's handoff-line rules: a handoff line ends every reply, a new chat's first turn too (2026-11-08),
+as one line where the resume line and the GH handoff line would link the same file (2026-11-27); and agents
 don't check for his merges and answers until he says when. Also the visual-joke rule carried from UDA pull
 request 473. Text and routing only (WORKFLOW_ONLY)."""
 import json
@@ -89,20 +90,25 @@ class OneHandoffLineTests(unittest.TestCase):
         for phrase in (
             f"On 2026-11-27 he reported the opposite problem (\"{ONE_LINE_STATEMENT}\")",
             "- **One line when the resume line links the GitHub checkpoint.** Then the resume line is the `GH handoff:` line",
-            "`GH handoff: Continue my <work name> work: read <link to the checkpoint> and carry on from its next step.`",
-            "Any step the next session takes first, such as applying an attached bundle, goes in the same line.",
+            "`GH handoff: Continue my <work name> work: read <link to the checkpoint> — Next: <one specific safe action>`",
+            "Any step the next session takes first, such as applying an attached bundle, goes in its `Next`; finished work ends with `Closed:` instead",
+            "whenever a session can't update the local note for any reason, such as a computer it can't reach or a folder it can't write; then the line also says the local note wasn't updated.",
             "- **Two lines only when they point to different places.**",
             "- **Never two lines that link the same file.**",
         ):
             with self.subTest(phrase=phrase[:60]):
                 self.assertIn(phrase, pattern)
         self.assertNotIn("the line says so and names the Git checkpoint instead", pattern)
+        self.assertNotIn("and carry on from its next step.`", pattern)
 
     def test_gh_pattern_and_index_merge_the_lines(self):
         pattern = read(GH)
         for phrase in (
             f"**When the resume line itself links this checkpoint, it is this line (owner, 2026-11-27: \"{ONE_LINE_STATEMENT}\").**",
             "Never end with two lines that link the same file.",
+            "`GH handoff: Continue my <work name> work: read <direct verified GitHub file URL> — Next: <one specific safe action>`",
+            "with any first step, such as applying an attached bundle, in its `Next`.",
+            "For a complete workstream, rule 3 applies as usual: `Closed:` replaces `Next`, the link points to the final verified artifact, and the line asks no one to continue.",
             "no line just before it links the same file;",
         ):
             with self.subTest(phrase=phrase[:60]):
@@ -114,6 +120,9 @@ class OneHandoffLineTests(unittest.TestCase):
         data = json.loads(read(ONE_LINE_RECORD))
         self.assertEqual(data["requirement_id"], "2026-11-27-one-handoff-line")
         self.assertEqual(data["owner_statement"], ONE_LINE_STATEMENT)
+        self.assertEqual(data["supersedes_in_part"]["requirement_id"], "2026-11-08-handoff-lines-in-new-chats")
+        earlier = json.loads(read(LINES_RECORD))
+        self.assertEqual(earlier["superseded_in_part_by"]["requirement_id"], "2026-11-27-one-handoff-line")
         self.assertEqual(data["origin"]["classification"], "OWNER_REQUIRED")
         self.assertNotIn("LIVE_VERIFIED", data["learning_state_at_merge"])
         self.assertTrue(data["nonclaims"])

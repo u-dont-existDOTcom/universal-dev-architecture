@@ -55,5 +55,9 @@
   "nonclaims": [
     "No repository rule can reach a chat that never loaded UDA; for such a chat only the owner's own preferences apply.",
     "A static test proves the rule's text and routing, not that every final answer carries the lines; that stays a per-turn check (WORKFLOW_ONLY)."
-  ]
+  ],
+  "superseded_in_part_by": {
+    "requirement_id": "2026-11-27-one-handoff-line",
+    "part": "the two-line ending, where the resume line and the GH handoff line would link the same file: they are one line"
+  }
 }

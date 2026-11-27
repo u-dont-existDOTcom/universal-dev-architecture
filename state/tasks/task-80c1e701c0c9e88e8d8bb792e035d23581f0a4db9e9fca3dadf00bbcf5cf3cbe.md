@@ -26,6 +26,8 @@
 - `patterns/owner-requested-terminal-github-handoff.md` rule 2 (the combined form) and its verification (no line just before it links the same file).
 - `LESSON-INDEX.md` entries 85 and 87, two coverage review notes, the `docs/INDEX.md` route, the requirement record, the regenerated source lock and Work projection (rendered contract unchanged at 32706 bytes), tests.
 
+- After a local Codex review (one P1, three P2s): the combined line keeps an explicit `Next:` (and `Closed:` for finished work); the local-note disclosure covers any failure to update it; tests check the open and closed forms and the fallback; the requirement record describes what the earlier rule prescribed and marks its two-line ending superseded in part, both ways.
+
 ## Current checkpoint
 
 - Ready for review. Not merged.

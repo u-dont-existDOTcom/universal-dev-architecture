@@ -3,9 +3,9 @@
   "date": "2026-11-27",
   "source": "Owner message on 2026-11-27 to the Claude session doing the UDA and Mission Control work, quoting the end of a reply from another lane.",
   "owner_statement": "why am i getting two github handoff lines with every turn?",
-  "problem": "Since 2026-11-08 every reply in the owner's project work ended with a resume line and then a GH handoff line. Where the session couldn't write a local handoff note, the resume line was told to name the Git checkpoint instead; a lane whose handoff lives in GitHub therefore ended every reply with two lines linking the same file.",
+  "problem": "The rule of 2026-11-08 prescribed a resume line and then a GH handoff line at the end of every final answer, and told a session that couldn't write a local handoff note to name the Git checkpoint in the resume line instead. The GH handoff line names that checkpoint too. The owner reported replies that ended with two lines linking the same file, and quoted one from a lane whose handoff lives in GitHub.",
   "required_behavior": [
-    "When the resume line links the GitHub checkpoint, it is the GH handoff line: one line, starting 'GH handoff:', that reads as the resume instruction and carries any first step, such as applying an attached bundle.",
+    "When the resume line links the GitHub checkpoint, it is the GH handoff line: one line, starting 'GH handoff:', that reads as the resume instruction and keeps the explicit 'Next: <one specific safe action>' (any first step, such as applying an attached bundle, goes there), or 'Closed:' for finished work.",
     "A separate resume line comes just before the GH handoff line only when it points somewhere else, such as a local handoff note on the owner's computer.",
     "A reply never ends with two lines that link the same file."
   ],
@@ -39,5 +39,9 @@
   "nonclaims": [
     "A static test proves the rule's text and routing, not what each reply ends with; that stays a per-turn check (WORKFLOW_ONLY).",
     "This change does not edit any lane's own handoff file."
-  ]
+  ],
+  "supersedes_in_part": {
+    "requirement_id": "2026-11-08-handoff-lines-in-new-chats",
+    "part": "its two-line ending and its instruction to name the Git checkpoint in the resume line, where both lines would link the same file"
+  }
 }
