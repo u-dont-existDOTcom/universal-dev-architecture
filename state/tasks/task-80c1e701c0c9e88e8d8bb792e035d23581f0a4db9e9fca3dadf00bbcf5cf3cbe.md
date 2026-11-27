@@ -29,6 +29,7 @@
 - After a local Codex review (one P1, three P2s): the combined line keeps an explicit `Next:` (and `Closed:` for finished work); the local-note disclosure covers any failure to update it; tests check the open and closed forms and the fallback; the requirement record describes what the earlier rule prescribed and marks its two-line ending superseded in part, both ways.
 - After a second local review (one P1, two P2s): a separate resume line only for a local note updated that turn, never a second GitHub link; finished work ends with one `Closed:` line linking the final artifact; the linked forms need a link verified that turn, otherwise the link-free line; the distinctness note marks the two-line root rule as history; regressions for each.
 - After a third local review (one P1, two P2s): a failed save keeps a link to the latest checkpoint verified that turn and names the failure in the line, and the link-free form only when none can be verified; finished work has a link-free `Closed:` form; the final check refuses any separate resume line that names a GitHub file; regressions for each.
+- After a fourth local review (one P1, two P2s): the destination depends on the status (`Next:` the latest checkpoint verified that turn, `Closed:` the final artifact verified that turn) in the rule and the final check; both requirement records state exactly when two lines survive; the rollout note keeps current owner and project requirements first; regressions for each.
 
 ## Current checkpoint
 

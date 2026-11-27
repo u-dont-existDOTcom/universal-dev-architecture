@@ -29,7 +29,7 @@
     {
       "surface": "Lanes whose handoff lives in GitHub",
       "disposition": "QUEUED",
-      "reason": "Each lane applies the rule at its next final answer after it re-fetches root AGENTS.md; a lane whose own handoff file prescribes both lines follows the root rule over it."
+      "reason": "Each lane applies the rule at its next final answer after it re-fetches root AGENTS.md. A lane handoff that only repeats the superseded two-line default follows the current rule; a current owner or project requirement still wins on genuine conflict."
     }
   ],
   "learning_state_at_merge": [
@@ -43,6 +43,6 @@
   ],
   "supersedes_in_part": {
     "requirement_id": "2026-11-08-handoff-lines-in-new-chats",
-    "part": "its two-line ending and its instruction to name the Git checkpoint in the resume line, where both lines would link the same file"
+    "part": "its two-line ending and its instruction to name the Git checkpoint in the resume line: the two-line ending survives only for open work whose resume line names a local note updated that turn; everywhere else one line ends the reply: no two links to the same file, no two distinct GitHub links, and no resume line on finished work"
   }
 }

@@ -115,7 +115,10 @@ class OneHandoffLineTests(unittest.TestCase):
             # Closed work: one line linking the final artifact, even where the checkpoint and the final artifact differ.
             "For a complete workstream, rule 3 applies as usual, in one line and with no resume line: "
             "`GH handoff: [<plain-English label>](<final verified artifact URL>) — Closed: <disposition>`, asking no one to continue.",
-            "Each form links a destination verified this turn, as rule 4 says: the checkpoint saved this turn, or, when that save failed, an earlier checkpoint verified this turn, with the failed update named in the same line.",
+            "The `Next:` form links the latest checkpoint verified this turn, as rule 4 says: the one saved this turn, or, when that save failed, an earlier checkpoint verified this turn, with the failed update named in the same line.",
+            # Closed work links the final artifact, even where it differs from the checkpoint.
+            "The `Closed:` form links the final artifact verified this turn, never a checkpoint in its place.",
+            "its link, if any, resolves to the read-back checkpoint for open work or to the final verified artifact for closed work;",
             # Finished work whose final artifact can't be verified stays closed, without a link.
             "for finished work it reads `GH handoff: not verified (<exact blocker>) — Closed: <disposition>`.",
             # Two distinct GitHub destinations fail the check too, not only two links to one file.
@@ -135,6 +138,13 @@ class OneHandoffLineTests(unittest.TestCase):
         self.assertEqual(data["supersedes_in_part"]["requirement_id"], "2026-11-08-handoff-lines-in-new-chats")
         earlier = json.loads(read(LINES_RECORD))
         self.assertEqual(earlier["superseded_in_part_by"]["requirement_id"], "2026-11-27-one-handoff-line")
+        scope = ("the two-line ending survives only for open work whose resume line names a local note updated that turn; "
+                 "everywhere else one line ends the reply: no two links to the same file, no two distinct GitHub links, and no "
+                 "resume line on finished work")
+        self.assertIn(scope, data["supersedes_in_part"]["part"])
+        self.assertEqual(scope, earlier["superseded_in_part_by"]["part"])
+        queued = [s["reason"] for s in data["execution_surfaces"] if s["disposition"] == "QUEUED"]
+        self.assertTrue(queued and "a current owner or project requirement still wins on genuine conflict" in queued[0])
         self.assertEqual(data["origin"]["classification"], "OWNER_REQUIRED")
         self.assertNotIn("LIVE_VERIFIED", data["learning_state_at_merge"])
         self.assertTrue(data["nonclaims"])

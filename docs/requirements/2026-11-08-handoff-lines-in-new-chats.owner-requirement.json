@@ -58,6 +58,6 @@
   ],
   "superseded_in_part_by": {
     "requirement_id": "2026-11-27-one-handoff-line",
-    "part": "the two-line ending, where the resume line and the GH handoff line would link the same file: they are one line"
+    "part": "the two-line ending survives only for open work whose resume line names a local note updated that turn; everywhere else one line ends the reply: no two links to the same file, no two distinct GitHub links, and no resume line on finished work"
   }
 }
