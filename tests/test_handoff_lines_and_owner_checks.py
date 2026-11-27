@@ -100,6 +100,8 @@ class OneHandoffLineTests(unittest.TestCase):
             "`GH handoff: Continue my <work name> work: read <link to the checkpoint> — Next: <one specific safe action>`",
             "Any step the next session takes first goes in its `Next`, and anything it needs for that step is reachable from the checkpoint; finished work ends with `Closed:` instead",
             "- **Two lines only for a local note, and only for open work.**",
+            # The one GitHub link is the verified checkpoint, even when the note's GitHub copy is a different file.
+            "which links the checkpoint verified this turn: the note's GitHub copy only when that copy is the checkpoint, never a copy that lacks the current state and next action.",
             "whenever a session can't update the local note for any reason, such as a computer it can't reach or a folder it can't write; then the line also says the local note wasn't updated.",
             "A resume line never carries a second GitHub link.",
             "- **Finished work ends with one `Closed:` line** linking the final verified artifact, with no resume line.",

@@ -32,6 +32,7 @@
 - After a fourth local review (one P1, two P2s): the destination depends on the status (`Next:` the latest checkpoint verified that turn, `Closed:` the final artifact verified that turn) in the rule and the final check; both requirement records state exactly when two lines survive; the rollout note keeps current owner and project requirements first; regressions for each.
 - After a fifth local review (one P1, one P2): cross-account rule 5 and the docs route scope the checkpoint fallback to open work, with the final artifact or a link-free `Closed:` line for finished work; the final check allows at most one GitHub link in the ending; regressions for each.
 - After a sixth local review (one P1, two P2s): the root line, index entries 85 and 87 and the docs route state the `Next:` and `Closed:` branches alike, and a separate resume line is for open work only (the final check too); the fallback to an earlier checkpoint covers a failed save or read-back; the first step's needs are reachable from the checkpoint (no attached-bundle example); regressions for each.
+- After a seventh local review (one P1, one P2): in the two-line form the GitHub line links the checkpoint verified that turn, the note's GitHub copy only when that copy is the checkpoint; the docs route's link-free case covers any turn where no checkpoint can be verified; regressions.
 
 ## Current checkpoint
 
