@@ -71,7 +71,9 @@ class HandoffLinesInNewChatsTests(unittest.TestCase):
             "5. **The resume line ends every reply, as one line where one will do (owner rule).**",
             f"(\"{LINES_STATEMENT}\")",
             "every final answer, a new chat's first turn included, ends like this:",
-            "or nothing could be saved, the line is that pattern's link-free line (its rule 5), saying what wasn't saved and why.",
+            # A failed save with a checkpoint verified earlier keeps the link and names the failed update.
+            "the one saved this turn, or, when that save failed, an earlier checkpoint verified this turn, with the failed update named in the same line.",
+            "Only when no checkpoint can be verified this turn is the line that pattern's link-free line (its rule 5), saying what wasn't saved and why.",
             "A self-contained answer, such as a translation or a quick fact, needs no line.",
         ):
             with self.subTest(phrase=phrase[:60]):
@@ -96,7 +98,6 @@ class OneHandoffLineTests(unittest.TestCase):
             "- **Two lines only for a local note.**",
             "A resume line never carries a second GitHub link.",
             "- **Finished work ends with one `Closed:` line** linking the final verified artifact, with no resume line.",
-            "The linked forms need a link verified this turn. When the checkpoint's link can't be verified this turn, or nothing could be saved, the line is that pattern's link-free line (its rule 5)",
             "- **Never two lines that link the same file.**",
         ):
             with self.subTest(phrase=phrase[:60]):
@@ -114,10 +115,13 @@ class OneHandoffLineTests(unittest.TestCase):
             # Closed work: one line linking the final artifact, even where the checkpoint and the final artifact differ.
             "For a complete workstream, rule 3 applies as usual, in one line and with no resume line: "
             "`GH handoff: [<plain-English label>](<final verified artifact URL>) — Closed: <disposition>`, asking no one to continue.",
-            "Use either form only when its link was verified this turn; otherwise rule 5's link-free line applies.",
+            "Each form links a destination verified this turn, as rule 4 says: the checkpoint saved this turn, or, when that save failed, an earlier checkpoint verified this turn, with the failed update named in the same line.",
+            # Finished work whose final artifact can't be verified stays closed, without a link.
+            "for finished work it reads `GH handoff: not verified (<exact blocker>) — Closed: <disposition>`.",
+            # Two distinct GitHub destinations fail the check too, not only two links to one file.
+            "any separate resume line before it names only a local note updated this turn, never a GitHub file;",
             "Never end with two lines that link the same file, or with two GitHub links at all: a separate resume line stays only when it names a local note updated this turn",
             "Since 2026-11-27 it carries one `GH handoff:` line, with a separate resume line only for a local note updated that turn (rule 2).",
-            "no line just before it links the same file;",
         ):
             with self.subTest(phrase=phrase[:60]):
                 self.assertIn(phrase, pattern)
