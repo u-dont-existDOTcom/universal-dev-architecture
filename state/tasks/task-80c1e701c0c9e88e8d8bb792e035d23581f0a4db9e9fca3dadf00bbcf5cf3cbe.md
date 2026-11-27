@@ -3,7 +3,7 @@
 ## Goal
 
 - Main objective: the owner's message of 27 November 2026, "why am i getting two github handoff lines with every turn?", quoting a reply from a lane whose handoff lives in GitHub that ended with a resume line and a GH handoff line linking the same file.
-- Current contribution: when the resume line links the GitHub checkpoint, it is the GH handoff line (one line); a separate resume line stays only when it points somewhere else, such as a local note; never two lines to the same file.
+- Current contribution: when the resume line links the GitHub checkpoint, it is the GH handoff line (one line); a separate resume line stays only when it names a local note updated that turn; never two GitHub links.
 - Scope boundaries: the last-lines line in root `AGENTS.md`; rule 5 and the reference implementation of `patterns/cross-account-continuity.md`; rule 2 and the verification of `patterns/owner-requested-terminal-github-handoff.md`; their `LESSON-INDEX.md` entries and coverage notes; the `docs/INDEX.md` route; the regenerated rule-graph files; a requirement record; `tests/test_handoff_lines_and_owner_checks.py`; this record.
 - Branch: `claude/one-handoff-line-20261127`.
 - Task ID: `pr-507`.
@@ -26,6 +26,7 @@
 - `patterns/owner-requested-terminal-github-handoff.md` rule 2 (the combined form; never two GitHub links) and its final check (a separate resume line names only a local note; at most one GitHub link); rules 3 to 5 unchanged from main.
 - `LESSON-INDEX.md` entries 85 and 87, coverage review notes, the `docs/INDEX.md` route, the requirement record (with supersession markers on the 3 and 8 November records), regenerated rule-graph files, tests.
 - Review history: ten local Codex rounds. Rounds 1 to 10 widened the wording (failed saves, read-backs, unverifiable links, finished work) and each round found new edge cases in what had been added. Following the root rule on compensating-fix chains, the change was cut back to the owner's ask: only the two-line ending changes; closing, which checkpoint, and the link-free line stay as on main.
+- Round 12 (NO_MAJOR_ISSUES, three P2s): the task summary uses the exact local-note condition; the combined example and the record keep rule 3's `Closed:` form for completed work; a test covers the updated-note fallback.
 
 ## Current checkpoint
 

@@ -5,7 +5,7 @@
   "owner_statement": "why am i getting two github handoff lines with every turn?",
   "problem": "The rule of 2026-11-08 prescribed a resume line and then a GH handoff line at the end of every final answer, and told a session that couldn't write a local handoff note to name the Git checkpoint in the resume line instead. The GH handoff line names that checkpoint too. The owner reported replies that ended with two lines linking the same file, and quoted one from a lane whose handoff lives in GitHub.",
   "required_behavior": [
-    "When the resume line links the GitHub checkpoint, it is the GH handoff line: one line, starting 'GH handoff:', that reads as the resume instruction and keeps the explicit 'Next: <one specific safe action>', with any first step there.",
+    "For open work, when the resume line links the GitHub checkpoint, it is the GH handoff line: one line, starting 'GH handoff:', that reads as the resume instruction and keeps the explicit 'Next: <one specific safe action>', with any first step there. Completed work keeps rule 3's 'Closed:' form, unchanged.",
     "A separate resume line comes just before the GH handoff line only when it names a local handoff note updated that turn, such as one on the owner's computer.",
     "A reply never ends with two GitHub links, whether to the same file or to different files."
   ],

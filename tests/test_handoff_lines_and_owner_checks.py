@@ -94,6 +94,8 @@ class OneHandoffLineTests(unittest.TestCase):
             "- **One line when the resume line links the GitHub checkpoint.** Then the resume line is the `GH handoff:` line",
             "`GH handoff: Continue my <work name> work: read <link to the checkpoint> — Next: <one specific safe action>`",
             "- **Two lines only for a local note.**",
+            # An updated local note with no verifiable GitHub checkpoint keeps its line above the link-free GH handoff line.
+            "When the note was updated but no GitHub checkpoint can be verified this turn, the resume line still comes first, and the `GH handoff:` line is that pattern's link-free line.",
             "A resume line never carries a second GitHub link.",
             "- **Never two lines that link the same file.**",
         ):
@@ -106,8 +108,9 @@ class OneHandoffLineTests(unittest.TestCase):
         pattern = read(GH)
         for phrase in (
             f"**When the resume line itself links this checkpoint, it is this line (owner, 2026-11-27: \"{ONE_LINE_STATEMENT}\").**",
-            "Write one line, `GH handoff: Continue my <work name> work: read <direct verified GitHub file URL> — Next: <one specific safe action>`.",
+            "Write one line, `GH handoff: Continue my <work name> work: read <direct verified GitHub file URL> — Next: <one specific safe action>` ",
             "Never end with two GitHub links: a separate resume line stays only when it names a local note updated this turn, such as one on the owner's computer.",
+            "(for a complete workstream, rule 3's `Closed:` form instead)",
             # The final check: a separate resume line only for a local note, and one GitHub link at most, on one line or two.
             "any separate resume line before it names only a local note updated this turn, never a GitHub file; the ending carries at most one GitHub link;",
             "Since 2026-11-27 it carries one `GH handoff:` line, with a separate resume line only for a local note updated that turn (rule 2).",
@@ -130,6 +133,7 @@ class OneHandoffLineTests(unittest.TestCase):
         data = json.loads(read(ONE_LINE_RECORD))
         self.assertEqual(data["requirement_id"], "2026-11-27-one-handoff-line")
         self.assertEqual(data["owner_statement"], ONE_LINE_STATEMENT)
+        self.assertIn("Completed work keeps rule 3's 'Closed:' form, unchanged.", data["required_behavior"][0])
         self.assertEqual(data["supersedes_in_part"]["requirement_id"], "2026-11-08-handoff-lines-in-new-chats")
         earlier = json.loads(read(LINES_RECORD))
         self.assertEqual(earlier["superseded_in_part_by"]["requirement_id"], "2026-11-27-one-handoff-line")
