@@ -72,12 +72,7 @@ class HandoffLinesInNewChatsTests(unittest.TestCase):
             "5. **The resume line ends every reply, as one line where one will do (owner rule).**",
             f"(\"{LINES_STATEMENT}\")",
             "every final answer, a new chat's first turn included, ends like this:",
-            # A failed save with a checkpoint verified earlier keeps the link and names the failed update.
-            "the one saved this turn, or, when this turn's checkpoint couldn't be saved, read back or linked by a verified URL, the newest earlier checkpoint whose exact URL is verified this turn, with the failed step named in the same line.",
-            "For open work, the line links the latest checkpoint verified this turn",
-            "Only when no checkpoint can be verified this turn is it that pattern's link-free line (its rule 5), saying what wasn't saved and why.",
-            # Closed work: the final artifact, or the link-free Closed line; never a checkpoint fallback.
-            "For finished work, the `Closed:` line links the final artifact verified this turn, never a checkpoint in its place; when that artifact can't be verified this turn, it is the link-free `Closed:` line. Either way there is no resume line.",
+            "Which checkpoint or artifact the line links, and the link-free line when none can be verified, follow that pattern's rules 3 to 5.",
             "A self-contained answer, such as a translation or a quick fact, needs no line.",
         ):
             with self.subTest(phrase=phrase[:60]):
@@ -85,8 +80,9 @@ class HandoffLinesInNewChatsTests(unittest.TestCase):
         self.assertIn("which also ends every final answer in his project work (a new chat's first turn included): "
                       "for open work, as the `GH handoff:` line itself when it links the GitHub checkpoint, or just before that line when it "
                       "names a local note updated that turn, never two GitHub links; finished work ends with one `Closed:` line and no resume line.", index_entry(ACCOUNTS))
-        self.assertIn("ends with one GH handoff line, which for open work is also the account resume line", read("docs/INDEX.md"))
-        self.assertIn("(for finished work, it links the final verified artifact or says why it can't be verified)", read("docs/INDEX.md"))
+        docs = read("docs/INDEX.md")
+        self.assertIn("ends with one GH handoff line, which for open work is also the account resume line", docs)
+        self.assertIn("(for finished work, the final verified artifact)", docs)
 
 
 class OneHandoffLineTests(unittest.TestCase):
@@ -98,16 +94,10 @@ class OneHandoffLineTests(unittest.TestCase):
             f"On 2026-11-27 he reported the opposite problem (\"{ONE_LINE_STATEMENT}\")",
             "- **One line when the resume line links the GitHub checkpoint.** Then the resume line is the `GH handoff:` line",
             "`GH handoff: Continue my <work name> work: read <link to the checkpoint> — Next: <one specific safe action>`",
-            "Any step the next session takes first goes in its `Next`, and anything it needs for that step is reachable from the checkpoint; finished work ends with `Closed:` instead",
             "- **Two lines only for a local note, and only for open work.**",
-            # The one GitHub link is the verified checkpoint, even when the note's GitHub copy is a different file.
-            "which links the checkpoint verified this turn: the note's GitHub copy only when that copy is the checkpoint, never a copy that lacks the current state and next action.",
-            # An updated local note with no verifiable GitHub checkpoint: the resume line, then the link-free line.
-            "When the note was updated but no GitHub checkpoint can be verified this turn, the resume line still comes first, and the `GH handoff:` line is that pattern's link-free line.",
-            "whenever a session can't update the local note for any reason, such as a computer it can't reach or a folder it can't write; then the line also says the local note wasn't updated.",
             "A resume line never carries a second GitHub link.",
-            "- **Finished work ends with one `Closed:` line** linking the final verified artifact, with no resume line.",
             "- **Never two lines that link the same file.**",
+            "- **Finished work ends with one `Closed:` line** linking the final verified artifact, with no resume line.",
         ):
             with self.subTest(phrase=phrase[:60]):
                 self.assertIn(phrase, pattern)
@@ -118,34 +108,25 @@ class OneHandoffLineTests(unittest.TestCase):
         pattern = read(GH)
         for phrase in (
             f"**When the resume line itself links this checkpoint, it is this line (owner, 2026-11-27: \"{ONE_LINE_STATEMENT}\").**",
-            "Never end with two lines that link the same file, or with two GitHub links at all",
-            "`GH handoff: Continue my <work name> work: read <direct verified GitHub file URL> — Next: <one specific safe action>`",
-            "with any first step in its `Next`; anything that step needs is reachable from the checkpoint.",
-            # Closed work: one line linking the final artifact, even where the checkpoint and the final artifact differ.
-            "For a complete workstream, rule 3 applies as usual, in one line and with no resume line: "
-            "`GH handoff: [<plain-English label>](<final verified artifact URL>) — Closed: <disposition>`, asking no one to continue.",
-            "The `Next:` form links the latest checkpoint verified this turn, as rule 4 says: the one saved this turn, or, when this turn's checkpoint couldn't be saved, read back or linked by a verified URL, the newest earlier checkpoint whose exact URL is verified this turn, with the failed step named in the same line.",
-            # Closed work links the final artifact, even where it differs from the checkpoint.
-            "The `Closed:` form links the final artifact verified this turn, never a checkpoint in its place.",
-            "its link, if any, resolves to the read-back checkpoint for open work or to the final verified artifact for closed work;",
-            # Finished work whose final artifact can't be verified stays closed, without a link.
-            "for finished work it reads `GH handoff: not verified (<exact blocker>) — Closed: <disposition>`.",
-            # Two distinct GitHub destinations fail the check too, not only two links to one file.
+            "Write one line, `GH handoff: Continue my <work name> work: read <direct verified GitHub file URL> — Next: <one specific safe action>`.",
+            "For a complete workstream, rule 3's single `Closed:` line ends the reply, with no resume line.",
+            "Never end with two GitHub links: a separate resume line stays only for open work whose local note, such as one on the owner's computer, was updated this turn.",
+            # The final check: a separate resume line only for a local note, one GitHub link at most, the status marker.
             "any separate resume line before it appears only for open work and names only a local note updated this turn, never a GitHub file;",
-            # Two different URLs on the one terminal line fail the final check too.
-            "the ending carries at most one GitHub link, so two different URLs on the one line fail too;",
-            "for closed work, the final verified artifact (rule 3).",
-            # A successful write whose read-back failed still falls back to an earlier verified checkpoint.
-            "when this turn's checkpoint couldn't be saved, read back or linked by a verified URL (a successful write whose read-back or link check failed included), the newest earlier checkpoint whose exact URL is verified this turn;",
-            # Saved, but no URL to it can be verified: the link-free line says so, distinct from "not saved".
-            "`GH handoff: saved, link not verified (<exact blocker>) — Next: <recoverable action>`",
-            # The final check requires the status marker itself.
-            "it carries the literal `Next:` marker for open work or `Closed:` for finished work;",
-            "Never end with two lines that link the same file, or with two GitHub links at all: a separate resume line stays only when it names a local note updated this turn",
+            "the ending carries at most one GitHub link;",
+            "it carries `Next:` for open work or `Closed:` for finished work;",
+            "its link, if any, resolves to the read-back checkpoint, or for closed work to the final verified artifact (rule 3);",
             "Since 2026-11-27 it carries one `GH handoff:` line, with a separate resume line only for a local note updated that turn (rule 2).",
         ):
             with self.subTest(phrase=phrase[:60]):
                 self.assertIn(phrase, pattern)
+        # Rules 4 and 5 (which checkpoint, and the link-free line) are unchanged by the 2026-11-27 change.
+        main_rules = (
+            "4. The URL must identify the exact latest successfully saved and read-back checkpoint or, if no update succeeded, an existing verified checkpoint.",
+            "**still end with a one-line truthful handoff**",
+        )
+        for phrase in main_rules:
+            self.assertIn(phrase, pattern)
         self.assertIn("merged into one line when that resume line links the same checkpoint", index_entry(GH))
         self.assertTrue(index_entry(GH).split(" — ", 1)[1].startswith(coverage(GH)["activation_route"]["detail"]))
 
@@ -172,6 +153,7 @@ class OneHandoffLineTests(unittest.TestCase):
         self.assertIn("`requirements/2026-11-27-one-handoff-line.owner-requirement.json`", read("docs/INDEX.md"))
         text = read(ONE_LINE_RECORD)
         self.assertNotRegex(text, r"(?i)claude\.ai/(?:chat|code)|chatgpt\.com|github\.com/")
+        self.assertNotRegex(text, r"(?:^|[\s`(\"])(?:~?/home/|~/|[A-Za-z]:\\)")
 
 
 class OwnerSaysWhenToCheckTests(unittest.TestCase):
@@ -263,7 +245,7 @@ class RecordTests(unittest.TestCase):
         for path in (CHECK, LINES_RECORD, CHECK_RECORD):
             with self.subTest(path=path):
                 text = read(path)
-                self.assertNotRegex(text, r"(?i)claude\.ai/(?:chat|code)|chatgpt\.com|github\.com/")
+                self.assertNotRegex(text, r"(?i)claude\.ai/(?:chat|code)|chatgpt\.com|u-dont-exist|github\.com/")
                 self.assertNotRegex(text, r"(?:^|[\s`(\"])(?:~?/home/|~/|[A-Za-z]:\\)")
 
 
