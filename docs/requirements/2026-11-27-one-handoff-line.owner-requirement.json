@@ -44,5 +44,9 @@
   "supersedes_in_part": {
     "requirement_id": "2026-11-08-handoff-lines-in-new-chats",
     "part": "its two-line ending and its instruction to name the Git checkpoint in the resume line: the two-line ending survives only for open work whose resume line names a local note updated that turn; everywhere else one line ends the reply: no two links to the same file, no two distinct GitHub links, and no resume line on finished work"
+  },
+  "supersedes_in_part_also": {
+    "requirement_id": "2026-11-03-github-handoff-standing",
+    "part": "the form of the line, not its standing activation"
   }
 }

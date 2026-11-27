@@ -33,6 +33,7 @@
 - After a fifth local review (one P1, one P2): cross-account rule 5 and the docs route scope the checkpoint fallback to open work, with the final artifact or a link-free `Closed:` line for finished work; the final check allows at most one GitHub link in the ending; regressions for each.
 - After a sixth local review (one P1, two P2s): the root line, index entries 85 and 87 and the docs route state the `Next:` and `Closed:` branches alike, and a separate resume line is for open work only (the final check too); the fallback to an earlier checkpoint covers a failed save or read-back; the first step's needs are reachable from the checkpoint (no attached-bundle example); regressions for each.
 - After a seventh local review (one P1, one P2): in the two-line form the GitHub line links the checkpoint verified that turn, the note's GitHub copy only when that copy is the checkpoint; the docs route's link-free case covers any turn where no checkpoint can be verified; regressions.
+- After an eighth local review (NO_MAJOR_ISSUES, three P2s): rule 4 falls back to an earlier verified checkpoint on a failed save or read-back; an updated local note with no verifiable GitHub checkpoint keeps its resume line above the link-free line; the 3 Nov record is marked superseded in part (the form, not the standing activation), both ways; regressions.
 
 ## Current checkpoint
 

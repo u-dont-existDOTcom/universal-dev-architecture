@@ -102,6 +102,8 @@ class OneHandoffLineTests(unittest.TestCase):
             "- **Two lines only for a local note, and only for open work.**",
             # The one GitHub link is the verified checkpoint, even when the note's GitHub copy is a different file.
             "which links the checkpoint verified this turn: the note's GitHub copy only when that copy is the checkpoint, never a copy that lacks the current state and next action.",
+            # An updated local note with no verifiable GitHub checkpoint: the resume line, then the link-free line.
+            "When the note was updated but no GitHub checkpoint can be verified this turn, the resume line still comes first, and the `GH handoff:` line is that pattern's link-free line.",
             "whenever a session can't update the local note for any reason, such as a computer it can't reach or a folder it can't write; then the line also says the local note wasn't updated.",
             "A resume line never carries a second GitHub link.",
             "- **Finished work ends with one `Closed:` line** linking the final verified artifact, with no resume line.",
@@ -133,6 +135,8 @@ class OneHandoffLineTests(unittest.TestCase):
             # Two different URLs on the one terminal line fail the final check too.
             "the ending carries at most one GitHub link, so two different URLs on the one line fail too;",
             "for closed work, the final verified artifact (rule 3).",
+            # A successful write whose read-back failed still falls back to an earlier verified checkpoint.
+            "when this turn's checkpoint couldn't be saved or read back (a successful write whose read-back failed included), an earlier checkpoint verified this turn;",
             "Never end with two lines that link the same file, or with two GitHub links at all: a separate resume line stays only when it names a local note updated this turn",
             "Since 2026-11-27 it carries one `GH handoff:` line, with a separate resume line only for a local note updated that turn (rule 2).",
         ):
@@ -153,6 +157,9 @@ class OneHandoffLineTests(unittest.TestCase):
                  "resume line on finished work")
         self.assertIn(scope, data["supersedes_in_part"]["part"])
         self.assertEqual(scope, earlier["superseded_in_part_by"]["part"])
+        standing = json.loads(read("docs/requirements/2026-11-03-github-handoff-standing.owner-requirement.json"))
+        self.assertEqual(standing["superseded_in_part_by"]["requirement_id"], "2026-11-27-one-handoff-line")
+        self.assertIn("not its standing activation", standing["superseded_in_part_by"]["part"])
         queued = [s["reason"] for s in data["execution_surfaces"] if s["disposition"] == "QUEUED"]
         self.assertTrue(queued and "a current owner or project requirement still wins on genuine conflict" in queued[0])
         self.assertEqual(data["origin"]["classification"], "OWNER_REQUIRED")
