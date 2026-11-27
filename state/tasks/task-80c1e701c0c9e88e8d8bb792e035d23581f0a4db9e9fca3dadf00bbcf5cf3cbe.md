@@ -21,11 +21,11 @@
 
 ## Completed
 
-- Root `AGENTS.md`: the last-lines line says one `GH handoff:` line; for open work it is also the resume instruction (`Next:`), for finished work it closes the work (`Closed:`); a separate resume line only for open work whose local note was updated that turn, never a second GitHub link.
-- `patterns/cross-account-continuity.md` rule 5: one line when the resume line links the GitHub checkpoint; two only for a local note and open work; never two lines to the same file; finished work one `Closed:` line; which checkpoint or artifact the line links follows the GH handoff pattern's rules 3 to 5. Its reference implementation gives the combined line.
-- `patterns/owner-requested-terminal-github-handoff.md` rule 2 (the combined form; `Closed:` in one line; never two GitHub links) and its final check; rules 4 and 5 unchanged from main.
+- Root `AGENTS.md`: the last-lines line says one `GH handoff:` line, which is also the handoff for the other account; a separate resume line only when it names a local note updated that turn, never a second GitHub link.
+- `patterns/cross-account-continuity.md` rule 5: one line when the resume line links the GitHub checkpoint; two only for a local note; never two GitHub links; what the line links follows the GH handoff pattern's rules 2 to 5. Its reference implementation gives the combined line.
+- `patterns/owner-requested-terminal-github-handoff.md` rule 2 (the combined form; never two GitHub links) and its final check (a separate resume line names only a local note; at most one GitHub link); rules 3 to 5 unchanged from main.
 - `LESSON-INDEX.md` entries 85 and 87, coverage review notes, the `docs/INDEX.md` route, the requirement record (with supersession markers on the 3 and 8 November records), regenerated rule-graph files, tests.
-- Review history: nine local Codex rounds. Rounds 1 to 9 widened the fallback wording (failed saves, read-backs, unverifiable links) and each round found new edge cases in it. Following the root rule on compensating-fix chains, round 10's state was cut back to the owner's ask: the fallback rules (rules 4 and 5) stay as they are on main, and only the one-line ending changes.
+- Review history: ten local Codex rounds. Rounds 1 to 10 widened the wording (failed saves, read-backs, unverifiable links, finished work) and each round found new edge cases in what had been added. Following the root rule on compensating-fix chains, the change was cut back to the owner's ask: only the two-line ending changes; closing, which checkpoint, and the link-free line stay as on main.
 
 ## Current checkpoint
 

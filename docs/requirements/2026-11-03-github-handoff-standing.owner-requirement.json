@@ -59,6 +59,6 @@
   ],
   "superseded_in_part_by": {
     "requirement_id": "2026-11-27-one-handoff-line",
-    "part": "the form of the line, not its standing activation: finished work ends with one Closed line linking the final verified artifact; when the resume line links the checkpoint, the two are one line; the current rules are patterns/owner-requested-terminal-github-handoff.md rules 2 to 5 and patterns/cross-account-continuity.md rule 5"
+    "part": "the form of the line, not its standing activation: when the resume line links the checkpoint, the two are one line; the current rules are patterns/owner-requested-terminal-github-handoff.md rule 2 and patterns/cross-account-continuity.md rule 5"
   }
 }
