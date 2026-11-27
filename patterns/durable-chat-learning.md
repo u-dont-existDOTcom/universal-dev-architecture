@@ -111,6 +111,10 @@ A lower state must never be described as a higher one. If access, deployment aut
 
 This shorthand is owner-directed task continuation. Once the owner says `learn the lesson`, routine repository/runtime target discovery and propagation are part of the same task until complete or blocked by a genuine authority boundary.
 
+### 6B. A correction reaches every copy of the fault, the same turn
+
+When the owner corrects one tool, page, template or file, the same fault often sits in its siblings: a second page generator with the same control, a second screen built from the same layout, a second script with the same wording. Before the turn ends, search for it (grep the control, the wording or the code he named, and look at the tools and screens built the same way), fix each copy in the same turn, and record any copy left as it is with the reason. Origin: **OWNER**, 2026-11-25 (request to promote, 2026-11-27): a fix he had asked for on one review page's button reached that page's generator but not a second generator with the same button, which was about to show him 204 items.
+
 ### 7. Enforce the invariant in CI
 
 Use a repository-side check on pushes and pull requests. The check should be semantic rather than merely verifying that a lesson file changed.
