@@ -27,6 +27,7 @@
 - `LESSON-INDEX.md` entries 85 and 87, coverage review notes, the `docs/INDEX.md` route, the requirement record (with supersession markers on the 3 and 8 November records), regenerated rule-graph files, tests.
 - Review history: ten local Codex rounds. Rounds 1 to 10 widened the wording (failed saves, read-backs, unverifiable links, finished work) and each round found new edge cases in what had been added. Following the root rule on compensating-fix chains, the change was cut back to the owner's ask: only the two-line ending changes; closing, which checkpoint, and the link-free line stay as on main.
 - Round 12 (NO_MAJOR_ISSUES, three P2s): the task summary uses the exact local-note condition; the combined example and the record keep rule 3's `Closed:` form for completed work; a test covers the updated-note fallback.
+- Round 13 (NO_MAJOR_ISSUES, three P2s): rule 5's combined form and example are for open work, with completed work routed to rule 3's `Closed:` form; the example names the checkpoint's next action, not a section heading; the test checks the example itself.
 
 ## Current checkpoint
 

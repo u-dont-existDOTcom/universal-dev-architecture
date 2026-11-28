@@ -92,7 +92,7 @@ class OneHandoffLineTests(unittest.TestCase):
         for phrase in (
             f"On 2026-11-27 he reported the opposite problem (\"{ONE_LINE_STATEMENT}\")",
             "- **One line when the resume line links the GitHub checkpoint.** Then the resume line is the `GH handoff:` line",
-            "`GH handoff: Continue my <work name> work: read <link to the checkpoint> — Next: <one specific safe action>`",
+            "`GH handoff: Continue my <work name> work: read <link to the checkpoint> — Next: <one specific safe action>` for open work; completed work uses that pattern's `Closed:` form (its rule 3).",
             "- **Two lines only for a local note.**",
             # An updated local note with no verifiable GitHub checkpoint keeps its line above the link-free GH handoff line.
             "When the note was updated but no GitHub checkpoint can be verified this turn, the resume line still comes first, and the `GH handoff:` line is that pattern's link-free line.",
@@ -102,7 +102,13 @@ class OneHandoffLineTests(unittest.TestCase):
             with self.subTest(phrase=phrase[:60]):
                 self.assertIn(phrase, pattern)
         self.assertNotIn("the line says so and names the Git checkpoint instead", pattern)
-        self.assertNotIn("and carry on from its next step.`", pattern)
+        # The GitHub-only example is itself the GH handoff line; the old example was a resume line linking the checkpoint.
+        self.assertIn('ends with the one combined line: "GH handoff: Continue my <work name> work: read <link to the Git checkpoint> '
+                      '— Next: <the checkpoint\'s next action>" while the work is open.', pattern)
+        self.assertNotIn('"Continue my <work name> work: read <link to the Git checkpoint> and carry on from its next step', pattern)
+        self.assertNotIn("START HERE", pattern)
+        # The local resume example stays.
+        self.assertIn('"Continue my <work name> work: on my laptop, read ~/claude-acceptance-transfer/handoffs/<file> and carry on from its next step."', pattern)
 
     def test_gh_pattern_and_index_merge_the_lines(self):
         pattern = read(GH)
