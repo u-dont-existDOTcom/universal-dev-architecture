@@ -7,7 +7,7 @@
   "required_behavior": [
     "For open work, when the resume line links the GitHub checkpoint, it is the GH handoff line: one line, starting 'GH handoff:', that reads as the resume instruction and keeps the explicit 'Next: <one specific safe action>', with any first step there. Completed work keeps rule 3's 'Closed:' form, unchanged.",
     "A separate resume line comes just before the GH handoff line only when it names a local handoff note updated that turn, such as one on the owner's computer.",
-    "A reply never ends with two GitHub links, whether to the same file or to different files."
+    "The handoff ending (any resume line and the GH handoff line) never carries two GitHub links, whether to the same file or to different files; citations and other links earlier in the reply are unaffected."
   ],
   "basis": [
     "The owner's statement above.",

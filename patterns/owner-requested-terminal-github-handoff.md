@@ -25,7 +25,7 @@ A prior instruction required the **checkpoint** to contain a one-line resume ins
 
 ## Lightweight verification
 
-Before final delivery, check the rendered text: the final nonblank line begins `GH handoff:`; it occurs exactly once as the terminal handoff; any separate resume line before it names only a local note updated this turn, never a GitHub file; the ending carries at most one GitHub link; its link, if any, resolves to the read-back checkpoint; its next action is consistent with the current OPEN/CLOSED status; and it follows the timestamp-first rule from `AGENTS.md`.
+Before final delivery, check the rendered text: the final nonblank line begins `GH handoff:`; it occurs exactly once as the terminal handoff; any separate resume line before it names only a local note updated this turn, never a GitHub file; the handoff ending (any resume line and the GH handoff line) carries at most one GitHub link, while citations and links earlier in the reply are unaffected; its link, if any, resolves to the read-back checkpoint; its next action is consistent with the current OPEN/CLOSED status; and it follows the timestamp-first rule from `AGENTS.md`.
 
 ## Limits
 
