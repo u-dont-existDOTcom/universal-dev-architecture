@@ -1,0 +1,51 @@
+{
+  "requirement_id": "2026-11-27-one-handoff-line",
+  "date": "2026-11-27",
+  "source": "Owner message on 2026-11-27 to the Claude session doing the UDA and Mission Control work, quoting the end of a reply from another lane.",
+  "owner_statement": "why am i getting two github handoff lines with every turn?",
+  "problem": "The rule of 2026-11-08 prescribed a resume line and then a GH handoff line at the end of every final answer, and told a session that couldn't write a local handoff note to name the Git checkpoint in the resume line instead. The GH handoff line names that checkpoint too. The owner reported replies that ended with two lines linking the same file, and quoted one from a lane whose handoff lives in GitHub.",
+  "required_behavior": [
+    "For open work, when the resume line links the GitHub checkpoint, it is the GH handoff line: one line, starting 'GH handoff:', that reads as the resume instruction and keeps the explicit 'Next: <one specific safe action>', with any first step there. Completed work keeps rule 3's 'Closed:' form, unchanged.",
+    "A separate resume line comes just before the GH handoff line only when it names a local handoff note updated that turn, such as one on the owner's computer.",
+    "The handoff ending (any resume line and the GH handoff line) never carries two GitHub links, whether to the same file or to different files; citations and other links earlier in the reply are unaffected."
+  ],
+  "basis": [
+    "The owner's statement above.",
+    "docs/requirements/2026-11-08-handoff-lines-in-new-chats.owner-requirement.json, whose rule produced the duplicate."
+  ],
+  "scope": "The last-lines line in root AGENTS.md; rule 5 and the reference implementation of patterns/cross-account-continuity.md; rule 2 and the final check of patterns/owner-requested-terminal-github-handoff.md; their LESSON-INDEX.md entries and coverage notes; the docs/INDEX.md route; this record and the supersession markers on the 2026-11-03 and 2026-11-08 records; tests.",
+  "origin": {
+    "classification": "OWNER_REQUIRED",
+    "admission": "OWNER_DIRECT",
+    "owner_outcome": "Each reply ends with one GitHub handoff line, not two that say the same thing.",
+    "notes": "Keeping a separate resume line only for a local note updated that turn, extending 'two lines to the same file' to any two GitHub links, and the combined line's wording are the assistant's specification of the owner's words. Which checkpoint the line links, and the link-free line when none can be verified, are unchanged."
+  },
+  "execution_surfaces": [
+    {
+      "surface": "Root AGENTS.md and the two patterns, read by every session that loads UDA",
+      "disposition": "PROJECTED"
+    },
+    {
+      "surface": "Lanes whose handoff lives in GitHub",
+      "disposition": "QUEUED",
+      "reason": "Each lane applies the rule at its next final answer after it re-fetches root AGENTS.md. A lane handoff that only repeats the superseded two-line default follows the current rule; a current owner or project requirement still wins on genuine conflict."
+    }
+  ],
+  "learning_state_at_merge": [
+    "CAPTURED",
+    "PROMOTED",
+    "PROJECTED"
+  ],
+  "nonclaims": [
+    "A static test proves the rule's text and routing, not what each reply ends with; that stays a per-turn check (WORKFLOW_ONLY).",
+    "This change does not edit any lane's own handoff file."
+  ],
+  "supersedes_in_part": {
+    "requirement_id": "2026-11-08-handoff-lines-in-new-chats",
+    "part": "its two-line ending and its instruction to name the Git checkpoint in the resume line: the two-line ending survives only when the resume line names a local note updated that turn; everywhere else one line ends the reply: no two links to the same file and no two distinct GitHub links"
+  },
+  "supersedes_in_part_also": {
+    "requirement_id": "2026-11-03-github-handoff-standing",
+    "part": "the form of the line, not its standing activation: when the resume line links the checkpoint, the two are one line"
+  }
+}
