@@ -97,7 +97,10 @@ class OneHandoffLineTests(unittest.TestCase):
             "which links the checkpoint as that pattern's rules 2 and 4 say (the note's GitHub copy when that copy is the checkpoint), naming a failed save in the same line.",
             # The first step goes in Next, and a failed local-note update is disclosed on the line.
             "Any step the next session takes first goes in its `Next`",
-            "then the line also says the local note wasn't updated.",
+            # A failed local-note update is disclosed in every form, the link-free one included.
+            "Whenever a required local note couldn't be updated, the ending says so, whatever form the `GH handoff:` line takes, the link-free one included.",
+            # Next reflects the current state even when an older checkpoint is linked after a failed save.
+            "Its `Next` reflects the current verified state, not only the linked checkpoint's, and a failed save is named in the same line.",
             # An updated local note with no verifiable GitHub checkpoint keeps its line above the link-free GH handoff line.
             "When the note was updated but no GitHub checkpoint can be verified this turn, the resume line still comes first, and the `GH handoff:` line is that pattern's link-free line.",
             "A resume line never carries a second GitHub link.",
@@ -108,19 +111,21 @@ class OneHandoffLineTests(unittest.TestCase):
         self.assertNotIn("the line says so and names the Git checkpoint instead", pattern)
         # The GitHub-only example is itself the GH handoff line; the old example was a resume line linking the checkpoint.
         self.assertIn('ends with the one combined line: "GH handoff: Continue my <work name> work: read <link to the Git checkpoint> '
-                      '— Next: <the checkpoint\'s next action>" while the work is open.', pattern)
+                      '— Next: <the next action as of now>" while the work is open.', pattern)
         self.assertNotIn('"Continue my <work name> work: read <link to the Git checkpoint> and carry on from its next step', pattern)
         self.assertNotIn("START HERE", pattern)
 
     def test_gh_pattern_and_index_merge_the_lines(self):
         pattern = read(GH)
         for phrase in (
-            f"**When the resume line itself links this checkpoint, it is this line (owner, 2026-11-27: \"{ONE_LINE_STATEMENT}\").**",
+            # Scoped to this owner; another owner's explicit resume-line format stands.
+            f"**For this owner, when the resume line itself links this checkpoint, it is this line (owner, 2026-11-27: \"{ONE_LINE_STATEMENT}\").**",
+            "Another owner's explicit format for a resume line stands.",
             "Write one line, `GH handoff: Continue my <work name> work: read <direct verified GitHub file URL> — Next: <one specific safe action>` ",
             "Never end with two GitHub links: a separate resume line stays only when it names a local note updated this turn, such as one on the owner's computer.",
             "(for a complete workstream, rule 3's `Closed:` form instead)",
             # The final check: a separate resume line only for a local note, and one GitHub link at most, on one line or two.
-            "any separate resume line before it names only a local note updated this turn, never a GitHub file; the handoff ending (any resume line and the GH handoff line) carries at most one GitHub link, while citations and links earlier in the reply are unaffected;",
+            "for this owner, any separate resume line before it names only a local note updated this turn, never a GitHub file; the handoff ending (any resume line and the GH handoff line) carries at most one GitHub link, while citations and links earlier in the reply are unaffected;",
             "Since 2026-11-27 it carries one `GH handoff:` line, with a separate resume line only for a local note updated that turn (rule 2).",
         ):
             with self.subTest(phrase=phrase[:60]):

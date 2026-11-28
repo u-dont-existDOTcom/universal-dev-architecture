@@ -29,6 +29,7 @@
 - Round 12 (NO_MAJOR_ISSUES, three P2s): the task summary uses the exact local-note condition; the combined example and the record keep rule 3's `Closed:` form for completed work; a test covers the updated-note fallback.
 - Round 13 (NO_MAJOR_ISSUES, three P2s): rule 5's combined form and example are for open work, with completed work routed to rule 3's `Closed:` form; the example names the checkpoint's next action, not a section heading; the test checks the example itself.
 - Round 14 (NO_MAJOR_ISSUES, four P2s): the two-line form links the checkpoint as rules 2 and 4 say, naming a failed save; the one-link limit covers only the handoff ending, not earlier citations; tests check the Next and disclosure clauses and no longer pin the local path.
+- Round 15 (NO_MAJOR_ISSUES, three P2s): the one-line rule and its final check are scoped to this owner, with another owner's explicit format kept; the combined line's Next reflects the current state and names a failed save; a failed local-note update is disclosed in every form.
 
 ## Current checkpoint
 
